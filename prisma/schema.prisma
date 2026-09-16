@@ -7,40 +7,161 @@ datasource db {
   provider = "postgresql"
 }
 
+// ==================== TENANT / BUSINESS (PLAN.md §7) ====================
+// New in Phase 1 (§46.1). Not yet read/written by any application route —
+// that cutover is Phase 2+. Populated by scripts/phase1-tenant-migration.ts.
+
+model Business {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  status    String   @default("active") // active, suspended, deleted
+  planId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships        Membership[]
+  config             BusinessConfig?
+  channelConnections ChannelConnection[]
+  apiKeys            ApiKey[]
+  placement          TenantPlacement?
+}
+
+model Membership {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String // owner | admin | supervisor | agent | viewer (§9)
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, userId])
+  @@index([userId])
+}
+
+model User {
+  id              String   @id @default(uuid())
+  username        String   @unique
+  password        String
+  name            String   @default("")
+  isPlatformAdmin Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+// ==================== CONTROL PLANE (PLAN.md §7.4-7.6) ====================
+// Read by platform infrastructure to route a request/job to the right tenant
+// data connection. Not tenant-owned data; a tenant admin never edits these
+// directly. Until Phase 9 every business resolves to "shared-default", which
+// points at the same connection the app already uses.
+
+model TenantPlacement {
+  businessId        String   @id
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  databaseProfileId String   @default("shared-default")
+  storageProfileId  String   @default("shared-default")
+  updatedAt         DateTime @updatedAt
+}
+
+model DatabaseProfile {
+  id                  String   @id // e.g. "shared-default", "dedicated-eu-42"
+  connectionSecretRef String // opaque reference into the SecretResolver boundary (§10.3) — never the DSN itself
+  region              String   @default("us")
+  createdAt           DateTime @default(now())
+}
+
+model StorageProfile {
+  id                  String   @id
+  credentialSecretRef String
+  bucket              String
+  region              String   @default("us")
+  createdAt           DateTime @default(now())
+}
+
+// ==================== BUSINESS CONFIG (PLAN.md §10.2) ====================
+// Successor to Settings' non-secret fields. One row per Business. AI
+// provider/model/embedding/token/temperature fields are nullable = "inherit
+// platform default" (§10.2); everything else mirrors Settings' own defaults.
+
+model BusinessConfig {
+  businessId        String   @id
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessName      String   @default("My Business")
+  businessDesc      String   @default("")
+  welcomeMessage    String   @default("Hello! How can I help you today?")
+  tone              String   @default("friendly")
+  language          String   @default("auto")
+  aiProvider        String?
+  aiModel           String?
+  embeddingProvider String?
+  maxTokens         Int?
+  temperature       Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ==================== CHANNEL CONNECTION (PLAN.md §7.7) ====================
+// Replaces the one-row-per-type Channel model: a business has zero-to-many
+// connections per channel type. Secrets are never stored here directly —
+// `credentialRef` is an opaque SecretResolver reference (§10.3).
+
+model ChannelConnection {
+  id            String   @id @default(uuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type          String // "whatsapp", "email", "sms", "telegram", "phone", "webchat"
+  name          String
+  isActive      Boolean  @default(false)
+  isDefault     Boolean  @default(false)
+  status        String   @default("disconnected")
+  config        Json     @default("{}")
+  credentialRef String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([businessId, id])
+  @@index([businessId, type])
+}
+
 // ==================== SETTINGS ====================
+// Retained, unused by new code, for one release per PLAN.md §13.2 step 7 —
+// superseded by BusinessConfig + ChannelConnection above.
 
 model Settings {
-  id              String   @id @default("default")
-  businessName    String   @default("My Business")
-  businessDesc    String   @default("")
-  welcomeMessage  String   @default("Hello! How can I help you today?")
-  tone            String   @default("friendly")
-  language        String   @default("auto")
-  aiProvider      String   @default("openai")
-  aiModel         String   @default("gpt-4o-mini")
-  aiApiKey        String   @default("")
-  maxTokens       Int      @default(2048)
-  temperature     Float    @default(0.7)
-  elevenLabsKey   String   @default("")
-  elevenLabsVoice String   @default("")
-  twilioSid       String   @default("")
-  twilioToken     String   @default("")
-  twilioPhone     String   @default("")
-  smtpHost        String   @default("")
-  smtpPort        Int      @default(587)
-  smtpUser        String   @default("")
-  smtpPass        String   @default("")
-  smtpFrom        String   @default("")
-  imapHost        String   @default("")
-  imapPort        Int      @default(993)
-  imapUser        String   @default("")
-  imapPass        String   @default("")
-  whatsappMode    String   @default("web")
-  whatsappApiKey      String   @default("")
-  whatsappPhone       String   @default("")
-  telegramBotToken    String   @default("")
-  createdAt           DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default("default")
+  businessName     String   @default("My Business")
+  businessDesc     String   @default("")
+  welcomeMessage   String   @default("Hello! How can I help you today?")
+  tone             String   @default("friendly")
+  language         String   @default("auto")
+  aiProvider       String   @default("openai")
+  aiModel          String   @default("gpt-4o-mini")
+  aiApiKey         String   @default("")
+  maxTokens        Int      @default(2048)
+  temperature      Float    @default(0.7)
+  elevenLabsKey    String   @default("")
+  elevenLabsVoice  String   @default("")
+  twilioSid        String   @default("")
+  twilioToken      String   @default("")
+  twilioPhone      String   @default("")
+  smtpHost         String   @default("")
+  smtpPort         Int      @default(587)
+  smtpUser         String   @default("")
+  smtpPass         String   @default("")
+  smtpFrom         String   @default("")
+  imapHost         String   @default("")
+  imapPort         Int      @default(993)
+  imapUser         String   @default("")
+  imapPass         String   @default("")
+  whatsappMode     String   @default("web")
+  whatsappApiKey   String   @default("")
+  whatsappPhone    String   @default("")
+  telegramBotToken String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 // ==================== AUTH ====================
@@ -59,6 +180,7 @@ model Admin {
 
 model Category {
   id          String           @id @default(uuid())
+  businessId  String?
   name        String
   description String           @default("")
   icon        String           @default("folder")
@@ -71,6 +193,7 @@ model Category {
 
 model KnowledgeEntry {
   id         String   @id @default(uuid())
+  businessId String?
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   title      String
@@ -89,6 +212,7 @@ model KnowledgeEntry {
 
 model Department {
   id          String       @id @default(uuid())
+  businessId  String?
   name        String
   description String       @default("")
   email       String       @default("")
@@ -100,6 +224,7 @@ model Department {
 
 model TeamMember {
   id           String     @id @default(uuid())
+  businessId   String?
   name         String
   email        String
   phone        String     @default("")
@@ -119,6 +244,7 @@ model TeamMember {
 
 model Conversation {
   id              String            @id @default(uuid())
+  businessId      String?
   channel         String
   customerName    String            @default("Unknown")
   customerContact String            @default("")
@@ -145,6 +271,7 @@ model Conversation {
 
 model Message {
   id             String       @id @default(uuid())
+  businessId     String?
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String
@@ -162,6 +289,7 @@ model Message {
 
 model Ticket {
   id             String        @id @default(uuid())
+  businessId     String?
   conversationId String?
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   departmentId   String?
@@ -185,6 +313,7 @@ model Ticket {
 
 model Tag {
   id            String            @id @default(uuid())
+  businessId    String?
   name          String            @unique
   color         String            @default("#4A7C9B")
   conversations ConversationTag[]
@@ -193,6 +322,7 @@ model Tag {
 
 model ConversationTag {
   id             String       @id @default(uuid())
+  businessId     String?
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   tagId          String
@@ -204,16 +334,20 @@ model ConversationTag {
 // ==================== CALL LOGS ====================
 
 model CallLog {
-  id        String   @id @default(uuid())
-  callSid   String   @unique
-  from      String
-  to        String
-  duration  Int      @default(0)
-  status    String   @default("initiated")
-  recording String?
-  summary   String   @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid())
+  businessId     String?
+  // §2.8 schema-quality fix, bundled with the Phase 1 composite-FK work
+  // (§8.4 table, task 12): correlation was previously by phone/time only.
+  conversationId String?
+  callSid        String   @unique
+  from           String
+  to             String
+  duration       Int      @default(0)
+  status         String   @default("initiated")
+  recording      String?
+  summary        String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // ==================== CHANNELS ====================
@@ -231,7 +365,8 @@ model Channel {
 // ==================== SCHEDULES ====================
 
 model Schedule {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
+  businessId   String?
   teamMemberId String
   dayOfWeek    Int
   startTime    String
@@ -245,6 +380,7 @@ model Schedule {
 
 model Webhook {
   id          String            @id @default(uuid())
+  businessId  String?
   name        String
   description String            @default("")
   url         String
@@ -259,6 +395,7 @@ model Webhook {
 
 model WebhookDelivery {
   id          String    @id @default(uuid())
+  businessId  String?
   webhookId   String
   webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   event       String
@@ -279,8 +416,9 @@ model WebhookDelivery {
 
 model ActivityLog {
   id          String   @id @default(uuid())
-  action      String   // conversation.created, ticket.assigned, settings.updated, etc.
-  entity      String   // conversation, ticket, settings, knowledge, team
+  businessId  String?
+  action      String // conversation.created, ticket.assigned, settings.updated, etc.
+  entity      String // conversation, ticket, settings, knowledge, team
   entityId    String?
   description String
   userId      String?
@@ -299,6 +437,7 @@ model ActivityLog {
 
 model SLARule {
   id                String   @id @default(uuid())
+  businessId        String?
   name              String
   description       String   @default("")
   channel           String   @default("all") // all, whatsapp, email, phone
@@ -313,21 +452,23 @@ model SLARule {
 // ==================== CANNED RESPONSES ====================
 
 model CannedResponse {
-  id        String   @id @default(uuid())
-  title     String
-  content   String
-  category  String   @default("General")
-  shortcut  String   @default("") // e.g., /greeting, /refund
-  isActive  Boolean  @default(true)
-  usageCount Int     @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  businessId String?
+  title      String
+  content    String
+  category   String   @default("General")
+  shortcut   String   @default("") // e.g., /greeting, /refund
+  isActive   Boolean  @default(true)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ==================== CUSTOMERS ====================
 
 model Customer {
   id            String         @id @default(uuid())
+  businessId    String?
   name          String
   email         String         @default("")
   phone         String         @default("")
@@ -350,6 +491,7 @@ model Customer {
 
 model CustomerNote {
   id         String   @id @default(uuid())
+  businessId String?
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   content    String
@@ -362,45 +504,49 @@ model CustomerNote {
 // ==================== AUTOMATION RULES ====================
 
 model AutomationRule {
-  id          String   @id @default(uuid())
-  name        String
-  description String   @default("")
-  type        String   // auto_route, auto_tag, auto_reply, keyword_alert
-  isActive    Boolean  @default(true)
-  conditions  Json     @default("[]") // [{field, operator, value}]
-  actions     Json     @default("[]") // [{type, target, value}]
-  priority    Int      @default(0)
-  triggerCount Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  businessId   String?
+  name         String
+  description  String   @default("")
+  type         String // auto_route, auto_tag, auto_reply, keyword_alert
+  isActive     Boolean  @default(true)
+  conditions   Json     @default("[]") // [{field, operator, value}]
+  actions      Json     @default("[]") // [{type, target, value}]
+  priority     Int      @default(0)
+  triggerCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // ==================== BUSINESS HOURS ====================
 
 model BusinessHours {
-  id        String  @id @default("default")
-  enabled   Boolean @default(false)
-  timezone  String  @default("UTC")
-  monday    String  @default("09:00-18:00") // empty = closed
-  tuesday   String  @default("09:00-18:00")
-  wednesday String  @default("09:00-18:00")
-  thursday  String  @default("09:00-18:00")
-  friday    String  @default("09:00-18:00")
-  saturday  String  @default("")
-  sunday    String  @default("")
-  offlineMessage String @default("We are currently offline. We will get back to you during business hours.")
+  id             String  @id @default("default")
+  businessId     String?
+  enabled        Boolean @default(false)
+  timezone       String  @default("UTC")
+  monday         String  @default("09:00-18:00") // empty = closed
+  tuesday        String  @default("09:00-18:00")
+  wednesday      String  @default("09:00-18:00")
+  thursday       String  @default("09:00-18:00")
+  friday         String  @default("09:00-18:00")
+  saturday       String  @default("")
+  sunday         String  @default("")
+  offlineMessage String  @default("We are currently offline. We will get back to you during business hours.")
 }
 
 // ==================== API KEYS ====================
 
 model ApiKey {
-  id        String   @id @default(uuid())
-  name      String
-  key       String   @unique
-  isActive  Boolean  @default(true)
-  lastUsed  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(uuid())
+  name       String
+  key        String    @unique
+  isActive   Boolean   @default(true)
+  lastUsed   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  business   Business? @relation(fields: [businessId], references: [id])
+  businessId String?
 
   @@index([key])
 }
@@ -409,6 +555,7 @@ model ApiKey {
 
 model InternalNote {
   id             String       @id @default(uuid())
+  businessId     String?
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   content        String
@@ -421,30 +568,32 @@ model InternalNote {
 // ==================== CAMPAIGNS ====================
 
 model Campaign {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
+  businessId  String?
   name        String
-  description String   @default("")
-  channel     String   @default("email")
+  description String    @default("")
+  channel     String    @default("email")
   message     String
-  subject     String   @default("")
-  segments    Json     @default("[]")
-  status      String   @default("draft") // draft, scheduled, running, completed, paused
+  subject     String    @default("")
+  segments    Json      @default("[]")
+  status      String    @default("draft") // draft, scheduled, running, completed, paused
   scheduledAt DateTime?
-  sentCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sentCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // ==================== FLOWS ====================
 
 model Flow {
-  id          String   @id @default(uuid())
-  name        String
-  description String   @default("")
-  startNodeId String   @default("")
-  nodes       Json     @default("[]")
-  isActive    Boolean  @default(false)
-  triggerCount Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  businessId   String?
+  name         String
+  description  String   @default("")
+  startNodeId  String   @default("")
+  nodes        Json     @default("[]")
+  isActive     Boolean  @default(false)
+  triggerCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

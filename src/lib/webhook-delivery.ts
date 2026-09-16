@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS = [5000, 30000, 300000]; // 5s, 30s, 5min
@@ -38,6 +39,7 @@ export async function deliverWebhook(
 
   const delivery = await prisma.webhookDelivery.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       webhookId: webhook.id,
       event,
       payload: JSON.parse(payload),

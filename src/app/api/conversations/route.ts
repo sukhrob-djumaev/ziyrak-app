@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "conversations:read");
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
 
     const conversation = await prisma.conversation.create({
       data: {
+        businessId: await getDefaultBusinessId(),
         channel: channel.trim(),
         customerName: customerName?.trim() || "Unknown",
         customerContact: customerContact?.trim() || "",

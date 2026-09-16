@@ -13,28 +13,17 @@ interface AuthContext {
 
 /**
  * Authenticate via API key (X-API-Key header).
+ *
+ * PLAN.md §46.1 rewrote ApiKey to keyPrefix+keyHash storage and removed the
+ * plaintext `key` column this function used to query (§9.4) — there is no
+ * longer a column to look a presented key up against. Wiring the real
+ * keyPrefix-lookup + keyHash-comparison authentication (and resolving the
+ * key's own businessId/role instead of a hardcoded "admin") is explicitly
+ * Phase 2 task 9, not this phase. Until then this fails closed rather than
+ * querying a dropped column or silently granting access.
  */
-async function authenticateApiKey(apiKey: string): Promise<AuthContext | null> {
-  const key = await prisma.apiKey.findUnique({
-    where: { key: apiKey },
-  });
-
-  if (!key || !key.isActive) return null;
-
-  // Update lastUsed timestamp
-  prisma.apiKey.update({
-    where: { id: key.id },
-    data: { lastUsed: new Date() },
-  }).catch(() => { /* fire and forget */ });
-
-  // API keys get admin-level access
-  return {
-    userId: "api-key:" + key.id,
-    role: "admin",
-    username: key.name,
-    name: key.name,
-    authMethod: "api_key",
-  };
+async function authenticateApiKey(): Promise<AuthContext | null> {
+  return null;
 }
 
 /**
@@ -49,7 +38,7 @@ export async function requireAuth(
   // Try API key auth first
   const apiKey = request.headers.get("x-api-key");
   if (apiKey) {
-    const context = await authenticateApiKey(apiKey);
+    const context = await authenticateApiKey();
     if (!context) {
       return NextResponse.json(
         { error: { code: "INVALID_API_KEY", message: "Invalid or inactive API key" } },

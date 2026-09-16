@@ -290,13 +290,24 @@ export async function splitSettingsIntoBusinessConfigAndChannelConnections(
  * rather than silently rehashing the plaintext this migration still has
  * access to. Every invalidated key is logged by name/id, never silently
  * dropped, so an operator can issue replacements.
+ *
+ * Uses raw SQL rather than a typed Prisma filter because this is only ever
+ * meaningful during the brief window between the ApiKey expand-step
+ * migration (keyHash added, nullable) and the contract-step migration
+ * (keyHash made NOT NULL); once contracted, keyHash can never be NULL at
+ * the database level, so this always finds zero rows post-contract — a raw
+ * query expresses that "permanently zero after this point" query shape
+ * without fighting Prisma's generated types for a column that is validly
+ * NOT NULL as of this schema version.
  */
 export async function invalidateExistingApiKeys(
   prisma: PrismaClient,
   businessId: string,
   log: (message: string) => void = console.log
 ) {
-  const keys = await prisma.apiKey.findMany({ where: { keyHash: null } });
+  const keys = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+    SELECT id, name FROM "ApiKey" WHERE "keyHash" IS NULL
+  `;
   if (keys.length === 0) {
     log("No pre-existing ApiKey rows to invalidate.\n");
     return;

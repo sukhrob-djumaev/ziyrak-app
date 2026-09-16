@@ -252,10 +252,8 @@ describe("splitSettingsIntoBusinessConfigAndChannelConnections", () => {
 describe("invalidateExistingApiKeys", () => {
   it("marks every pre-existing key revoked, inactive, and unmatchable, never dropping the row", async () => {
     const prisma = fakePrisma({
-      apiKey: {
-        findMany: vi.fn().mockResolvedValue([{ id: "key1", name: "Old Integration" }]),
-        update: vi.fn(),
-      },
+      apiKey: { update: vi.fn() },
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "key1", name: "Old Integration" }]),
     });
 
     await invalidateExistingApiKeys(prisma, "biz1", () => {});
@@ -273,7 +271,7 @@ describe("invalidateExistingApiKeys", () => {
   });
 
   it("does nothing when there are no pre-existing keys", async () => {
-    const prisma = fakePrisma();
+    const prisma = fakePrisma({ $queryRaw: vi.fn().mockResolvedValue([]) });
     await invalidateExistingApiKeys(prisma, "biz1", () => {});
     expect(prisma.apiKey.update).not.toHaveBeenCalled();
   });

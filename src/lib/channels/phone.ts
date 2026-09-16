@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { resolveCustomer } from "@/lib/customer-resolver";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 interface PhoneConfig {
   twilioSid: string;
@@ -137,6 +138,7 @@ export async function handleIncomingCall(
   // Create call log
   await prisma.callLog.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       callSid,
       from,
       to: config.twilioPhone,

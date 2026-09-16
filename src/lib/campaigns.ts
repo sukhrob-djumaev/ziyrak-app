@@ -101,6 +101,7 @@ export async function sendProactiveMessage(
 
   const conversation = await prisma.conversation.create({
     data: {
+      businessId: customer.businessId,
       channel,
       customerName: customer.name,
       customerContact:
@@ -114,6 +115,7 @@ export async function sendProactiveMessage(
 
   await prisma.message.create({
     data: {
+      businessId: customer.businessId,
       conversationId: conversation.id,
       role: "assistant",
       content: message,

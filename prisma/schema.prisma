@@ -25,6 +25,33 @@ model Business {
   channelConnections ChannelConnection[]
   apiKeys            ApiKey[]
   placement          TenantPlacement?
+
+  // Every tenant-owned model gains a businessId relation back to Business
+  // (§7.1, §12), contracted in the same migration that makes each model's
+  // businessId required.
+  categories        Category[]
+  knowledgeEntries  KnowledgeEntry[]
+  departments       Department[]
+  teamMembers       TeamMember[]
+  customers         Customer[]
+  customerNotes     CustomerNote[]
+  conversations     Conversation[]
+  messages          Message[]
+  tickets           Ticket[]
+  tags              Tag[]
+  conversationTags  ConversationTag[]
+  internalNotes     InternalNote[]
+  callLogs          CallLog[]
+  schedules         Schedule[]
+  webhooks          Webhook[]
+  webhookDeliveries WebhookDelivery[]
+  activityLogs      ActivityLog[]
+  slaRules          SLARule[]
+  cannedResponses   CannedResponse[]
+  automationRules   AutomationRule[]
+  campaigns         Campaign[]
+  flows             Flow[]
+  businessHours     BusinessHours[]
 }
 
 model Membership {
@@ -180,7 +207,8 @@ model Admin {
 
 model Category {
   id          String           @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name        String
   description String           @default("")
   icon        String           @default("folder")
@@ -189,13 +217,18 @@ model Category {
   entries     KnowledgeEntry[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  @@unique([businessId, id]) // §8.4 composite FK target — KnowledgeEntry.categoryId
+  @@index([businessId])
 }
 
 model KnowledgeEntry {
   id         String   @id @default(uuid())
-  businessId String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — a KnowledgeEntry can never reference another business's Category.
+  category   Category @relation(fields: [businessId, categoryId], references: [businessId, id], onDelete: Cascade)
   title      String
   content    String
   priority   Int      @default(0)
@@ -206,13 +239,15 @@ model KnowledgeEntry {
   updatedAt  DateTime @updatedAt
 
   @@index([categoryId])
+  @@index([businessId])
 }
 
 // ==================== TEAM ====================
 
 model Department {
   id          String       @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name        String
   description String       @default("")
   email       String       @default("")
@@ -220,36 +255,46 @@ model Department {
   tickets     Ticket[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@unique([businessId, id]) // §8.4 composite FK target — TeamMember.departmentId, Ticket.departmentId
+  @@index([businessId])
 }
 
 model TeamMember {
   id           String     @id @default(uuid())
-  businessId   String?
+  businessId   String
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String
   email        String
   phone        String     @default("")
   role         String     @default("member")
   expertise    String     @default("")
   departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — a TeamMember can never reference another business's Department.
+  department   Department @relation(fields: [businessId, departmentId], references: [businessId, id], onDelete: Cascade)
   isAvailable  Boolean    @default(true)
   tickets      Ticket[]
+  schedules    Schedule[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
+  @@unique([businessId, id]) // §8.4 composite FK target — Ticket.assignedToId, Schedule.teamMemberId
   @@index([departmentId])
+  @@index([businessId])
 }
 
 // ==================== CONVERSATIONS ====================
 
 model Conversation {
   id              String            @id @default(uuid())
-  businessId      String?
+  businessId      String
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   channel         String
   customerName    String            @default("Unknown")
   customerContact String            @default("")
   customerId      String?
-  customer        Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  // §8.4 composite FK — a Conversation can never reference another business's Customer.
+  customer        Customer?         @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: SetNull)
   status          String            @default("active")
   satisfaction    Int?
   summary         String            @default("")
@@ -258,22 +303,27 @@ model Conversation {
   tickets         Ticket[]
   tags            ConversationTag[]
   notes           InternalNote[]
+  callLogs        CallLog[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog.conversationId
   @@index([channel])
   @@index([status])
   @@index([customerContact])
   @@index([channel, status])
   @@index([createdAt])
   @@index([customerId])
+  @@index([businessId])
 }
 
 model Message {
   id             String       @id @default(uuid())
-  businessId     String?
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — a Message can never reference another business's Conversation.
+  conversation   Conversation @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: Cascade)
   role           String
   content        String
   mediaType      String?
@@ -283,19 +333,23 @@ model Message {
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
+  @@index([businessId])
 }
 
 // ==================== TICKETS ====================
 
 model Ticket {
   id             String        @id @default(uuid())
-  businessId     String?
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // §8.4 composite FKs — a Ticket can never reference another business's
+  // Conversation/Department/TeamMember (§8.4's own worked example).
   conversationId String?
-  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  conversation   Conversation? @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: SetNull)
   departmentId   String?
-  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department     Department?   @relation(fields: [businessId, departmentId], references: [businessId, id], onDelete: SetNull)
   assignedToId   String?
-  assignedTo     TeamMember?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo     TeamMember?   @relation(fields: [businessId, assignedToId], references: [businessId, id], onDelete: SetNull)
   title          String
   description    String
   status         String        @default("open")
@@ -307,47 +361,62 @@ model Ticket {
   @@index([status])
   @@index([departmentId])
   @@index([assignedToId])
+  @@index([businessId])
 }
 
 // ==================== TAGS ====================
 
 model Tag {
   id            String            @id @default(uuid())
-  businessId    String?
-  name          String            @unique
+  businessId    String
+  business      Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String
   color         String            @default("#4A7C9B")
   conversations ConversationTag[]
   createdAt     DateTime          @default(now())
+
+  // Global uniqueness -> tenant-scoped uniqueness (§12): two businesses may
+  // each have their own "Urgent" tag.
+  @@unique([businessId, name])
+  @@unique([businessId, id]) // §8.4 composite FK target — ConversationTag.tagId
 }
 
 model ConversationTag {
   id             String       @id @default(uuid())
-  businessId     String?
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // §8.4 composite FKs — a ConversationTag can never reference another business's Conversation/Tag.
+  conversation   Conversation @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: Cascade)
   tagId          String
-  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tag            Tag          @relation(fields: [businessId, tagId], references: [businessId, id], onDelete: Cascade)
 
   @@unique([conversationId, tagId])
+  @@index([businessId])
 }
 
 // ==================== CALL LOGS ====================
 
 model CallLog {
-  id             String   @id @default(uuid())
-  businessId     String?
+  id             String        @id @default(uuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   // §2.8 schema-quality fix, bundled with the Phase 1 composite-FK work
   // (§8.4 table, task 12): correlation was previously by phone/time only.
   conversationId String?
-  callSid        String   @unique
+  conversation   Conversation? @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: SetNull)
+  callSid        String        @unique
   from           String
   to             String
-  duration       Int      @default(0)
-  status         String   @default("initiated")
+  duration       Int           @default(0)
+  status         String        @default("initiated")
   recording      String?
-  summary        String   @default("")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  summary        String        @default("")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([businessId])
+  @@index([conversationId])
 }
 
 // ==================== CHANNELS ====================
@@ -365,22 +434,27 @@ model Channel {
 // ==================== SCHEDULES ====================
 
 model Schedule {
-  id           String  @id @default(uuid())
-  businessId   String?
+  id           String     @id @default(uuid())
+  businessId   String
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // §2.8 schema-quality fix, bundled with CallLog's above (task 12).
   teamMemberId String
+  teamMember   TeamMember @relation(fields: [businessId, teamMemberId], references: [businessId, id], onDelete: Cascade)
   dayOfWeek    Int
   startTime    String
   endTime      String
 
   @@index([teamMemberId])
   @@index([dayOfWeek])
+  @@index([businessId])
 }
 
 // ==================== WEBHOOKS ====================
 
 model Webhook {
   id          String            @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name        String
   description String            @default("")
   url         String
@@ -391,13 +465,18 @@ model Webhook {
   deliveries  WebhookDelivery[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  @@unique([businessId, id]) // §8.4 composite FK target — WebhookDelivery.webhookId
+  @@index([businessId])
 }
 
 model WebhookDelivery {
   id          String    @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   webhookId   String
-  webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — a WebhookDelivery can never reference another business's Webhook.
+  webhook     Webhook   @relation(fields: [businessId, webhookId], references: [businessId, id], onDelete: Cascade)
   event       String
   payload     Json
   status      String    @default("pending") // pending, delivered, failed
@@ -410,14 +489,20 @@ model WebhookDelivery {
 
   @@index([webhookId])
   @@index([status, nextRetryAt])
+  @@index([businessId])
 }
 
 // ==================== ACTIVITY LOG ====================
 
 model ActivityLog {
   id          String   @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   action      String // conversation.created, ticket.assigned, settings.updated, etc.
+  // Intentionally polymorphic (§2.8, §8.4) — must reference many different
+  // model types by design, so it is explicitly excluded from the
+  // composite-FK treatment applied elsewhere; protected by layers 1-2-4-5
+  // only.
   entity      String // conversation, ticket, settings, knowledge, team
   entityId    String?
   description String
@@ -431,13 +516,15 @@ model ActivityLog {
 
   @@index([entity])
   @@index([createdAt])
+  @@index([businessId])
 }
 
 // ==================== SLA RULES ====================
 
 model SLARule {
   id                String   @id @default(uuid())
-  businessId        String?
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name              String
   description       String   @default("")
   channel           String   @default("all") // all, whatsapp, email, phone
@@ -447,13 +534,16 @@ model SLARule {
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 // ==================== CANNED RESPONSES ====================
 
 model CannedResponse {
   id         String   @id @default(uuid())
-  businessId String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   title      String
   content    String
   category   String   @default("General")
@@ -462,13 +552,16 @@ model CannedResponse {
   usageCount Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 // ==================== CUSTOMERS ====================
 
 model Customer {
   id            String         @id @default(uuid())
-  businessId    String?
+  businessId    String
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name          String
   email         String         @default("")
   phone         String         @default("")
@@ -483,29 +576,36 @@ model Customer {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  @@index([email])
-  @@index([phone])
-  @@index([whatsapp])
+  @@unique([businessId, id]) // §8.4 composite FK target — Conversation.customerId, CustomerNote.customerId
+  // Tenant-scoped lookup indexes (§12) — replace the old global-scoped ones,
+  // since customer lookups always happen within one business.
+  @@index([businessId, email])
+  @@index([businessId, phone])
+  @@index([businessId, whatsapp])
   @@index([lastContact])
 }
 
 model CustomerNote {
   id         String   @id @default(uuid())
-  businessId String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — a CustomerNote can never reference another business's Customer.
+  customer   Customer @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: Cascade)
   content    String
   authorName String   @default("Admin")
   createdAt  DateTime @default(now())
 
   @@index([customerId])
+  @@index([businessId])
 }
 
 // ==================== AUTOMATION RULES ====================
 
 model AutomationRule {
   id           String   @id @default(uuid())
-  businessId   String?
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String
   description  String   @default("")
   type         String // auto_route, auto_tag, auto_reply, keyword_alert
@@ -516,69 +616,83 @@ model AutomationRule {
   triggerCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 // ==================== BUSINESS HOURS ====================
 
 model BusinessHours {
-  id             String  @id @default("default")
-  businessId     String?
-  enabled        Boolean @default(false)
-  timezone       String  @default("UTC")
-  monday         String  @default("09:00-18:00") // empty = closed
-  tuesday        String  @default("09:00-18:00")
-  wednesday      String  @default("09:00-18:00")
-  thursday       String  @default("09:00-18:00")
-  friday         String  @default("09:00-18:00")
-  saturday       String  @default("")
-  sunday         String  @default("")
-  offlineMessage String  @default("We are currently offline. We will get back to you during business hours.")
+  id             String   @id @default("default")
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  enabled        Boolean  @default(false)
+  timezone       String   @default("UTC")
+  monday         String   @default("09:00-18:00") // empty = closed
+  tuesday        String   @default("09:00-18:00")
+  wednesday      String   @default("09:00-18:00")
+  thursday       String   @default("09:00-18:00")
+  friday         String   @default("09:00-18:00")
+  saturday       String   @default("")
+  sunday         String   @default("")
+  offlineMessage String   @default("We are currently offline. We will get back to you during business hours.")
+
+  // Singleton -> one row per business (§12): the pre-migration row keeps its
+  // literal "default" id (backfilled in place, not duplicated — see
+  // scripts/phase1-migration-steps.ts), so uniqueness is enforced on
+  // businessId rather than by changing the id generation strategy.
+  @@unique([businessId])
 }
 
 // ==================== API KEYS ====================
 
+// §9.4 rewrite (task 11): keyPrefix+keyHash replace the plaintext `key` —
+// a database compromise now discloses only hashes, never a reusable secret.
+// Pre-existing keys (none in this installation) are invalidated rather than
+// rehashed — see scripts/phase1-migration-steps.ts's invalidateExistingApiKeys
+// and the Phase 1 kickoff report for why.
 model ApiKey {
   id         String    @id @default(uuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name       String
-  key        String    @unique
+  keyPrefix  String // e.g. "zy_live_a1b2c3d4" — safe to display/search by, not secret
+  keyHash    String // SHA-256 (or stronger) hash of the full secret — never the secret itself
+  role       String    @default("agent") // capped below "owner" (§9.1) — enforced at creation time, not by the schema
   isActive   Boolean   @default(true)
-  lastUsed   DateTime?
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-  business   Business? @relation(fields: [businessId], references: [id])
-  businessId String?
 
-  // §9.4 rewrite (task 11) — added nullable now so the migration script can
-  // populate them (or, for pre-existing keys, mark them invalidated) before
-  // the contract step makes them required and drops the plaintext `key`.
-  keyPrefix String?
-  keyHash   String?
-  role      String?
-  revokedAt DateTime?
-  expiresAt DateTime?
-
-  @@index([key])
+  @@unique([businessId, id])
+  @@index([keyPrefix])
 }
 
 // ==================== INTERNAL NOTES ====================
 
 model InternalNote {
   id             String       @id @default(uuid())
-  businessId     String?
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // §8.4 composite FK — an InternalNote can never reference another business's Conversation.
+  conversation   Conversation @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: Cascade)
   content        String
   authorName     String       @default("Admin")
   createdAt      DateTime     @default(now())
 
   @@index([conversationId])
+  @@index([businessId])
 }
 
 // ==================== CAMPAIGNS ====================
 
 model Campaign {
   id          String    @id @default(uuid())
-  businessId  String?
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name        String
   description String    @default("")
   channel     String    @default("email")
@@ -590,13 +704,16 @@ model Campaign {
   sentCount   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([businessId])
 }
 
 // ==================== FLOWS ====================
 
 model Flow {
   id           String   @id @default(uuid())
-  businessId   String?
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String
   description  String   @default("")
   startNodeId  String   @default("")
@@ -605,4 +722,6 @@ model Flow {
   triggerCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([businessId])
 }

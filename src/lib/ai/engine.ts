@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { owlyTools, executeToolCall } from "./tools";
 import { emitNewMessage } from "@/lib/realtime";
+import { getDefaultBusinessId } from "@/lib/default-business";
 import { analyzeSentiment, detectIntent, estimateConfidence, requiresHumanApproval } from "./guardrails";
 import type {
   AIMessage,
@@ -167,8 +168,10 @@ export async function chat(
   }
 
   // Save user message
+  const businessId = await getDefaultBusinessId();
   await prisma.message.create({
     data: {
+      businessId,
       conversationId,
       role: "customer",
       content: userMessage,
@@ -181,6 +184,7 @@ export async function chat(
   // Save assistant message
   const savedMessage = await prisma.message.create({
     data: {
+      businessId,
       conversationId,
       role: "assistant",
       content: response,
@@ -288,6 +292,7 @@ export async function createNewConversation(
 ) {
   return prisma.conversation.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       channel,
       customerName,
       customerContact,

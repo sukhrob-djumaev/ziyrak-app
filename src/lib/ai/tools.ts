@@ -1,5 +1,6 @@
 import { ToolDefinition } from "./types";
 import { prisma } from "@/lib/prisma";
+import { getDefaultBusinessId } from "@/lib/default-business";
 import nodemailer from "nodemailer";
 
 export const owlyTools: ToolDefinition[] = [
@@ -194,6 +195,7 @@ async function createTicket(
 
   const ticket = await prisma.ticket.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       title: args.title as string,
       description: args.description as string,
       priority: (args.priority as string) || "medium",

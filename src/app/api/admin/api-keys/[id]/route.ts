@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { redactApiKeyHash } from "@/lib/security";
 
 export async function PUT(
   request: NextRequest,
@@ -38,13 +39,9 @@ export async function PUT(
       data: updateData,
     });
 
-    // Mask key in response
-    const maskedKey =
-      apiKey.key.length > 8
-        ? "*".repeat(apiKey.key.length - 8) + apiKey.key.slice(-8)
-        : apiKey.key;
-
-    return NextResponse.json({ ...apiKey, key: maskedKey });
+    // §9.4: keyHash is never returned — only keyPrefix, which is safe to
+    // display since it isn't the secret itself.
+    return NextResponse.json(redactApiKeyHash(apiKey));
   } catch (error) {
     logger.error("Failed to update API key:", error);
     return NextResponse.json(

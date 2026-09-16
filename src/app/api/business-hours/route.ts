@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "business-hours:read");
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     if (!config) {
       config = await prisma.businessHours.create({
-        data: { id: "default" },
+        data: { id: "default", businessId: await getDefaultBusinessId() },
       });
     }
 
@@ -75,6 +76,7 @@ export async function PUT(request: NextRequest) {
       },
       create: {
         id: "default",
+        businessId: await getDefaultBusinessId(),
         enabled: enabled ?? false,
         timezone: timezone ?? "UTC",
         monday: monday ?? "09:00-18:00",

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "customers:read");
@@ -70,8 +71,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const businessId = await getDefaultBusinessId();
     const customer = await prisma.customer.create({
       data: {
+        businessId,
         name: name.trim(),
         email: email?.trim() || "",
         phone: phone?.trim() || "",
@@ -80,6 +83,8 @@ export async function POST(request: NextRequest) {
         metadata: metadata || {},
         ...(notes
           ? {
+              // businessId is derived automatically from the parent Customer
+              // via the composite FK (§8.4) — Prisma doesn't accept it here.
               notes: {
                 create: { content: notes.trim(), authorName: "Admin" },
               },

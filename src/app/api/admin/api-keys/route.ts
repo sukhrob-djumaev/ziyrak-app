@@ -4,14 +4,18 @@ import crypto from "crypto";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
+import { redactApiKeyHash } from "@/lib/security";
 
-function maskKey(key: string): string {
-  if (key.length <= 8) return key;
-  return "*".repeat(key.length - 8) + key.slice(-8);
-}
-
-function generateApiKey(): string {
-  return "owly_" + crypto.randomBytes(32).toString("hex");
+// §9.4: keyPrefix is safe to display/search by, never the secret itself.
+// The full secret is generated here and returned exactly once, at creation
+// time — after this response, only its hash is ever stored.
+function generateApiKey(): { fullKey: string; keyPrefix: string; keyHash: string } {
+  const secret = crypto.randomBytes(24).toString("base64url");
+  const fullKey = `zy_live_${secret}`;
+  const keyPrefix = fullKey.slice(0, 16);
+  const keyHash = crypto.createHash("sha256").update(fullKey).digest("hex");
+  return { fullKey, keyPrefix, keyHash };
 }
 
 export async function GET(request: NextRequest) {
@@ -31,12 +35,9 @@ export async function GET(request: NextRequest) {
       prisma.apiKey.count(),
     ]);
 
-    const masked = keys.map((k) => ({
-      ...k,
-      key: maskKey(k.key),
-    }));
+    const sanitized = keys.map(redactApiKeyHash);
 
-    return NextResponse.json(paginatedResponse(masked, total, page, limit));
+    return NextResponse.json(paginatedResponse(sanitized, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch API keys:", error);
     return NextResponse.json(
@@ -61,19 +62,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fullKey = generateApiKey();
+    const { fullKey, keyPrefix, keyHash } = generateApiKey();
 
     const apiKey = await prisma.apiKey.create({
       data: {
+        businessId: await getDefaultBusinessId(),
         name: name.trim(),
-        key: fullKey,
+        keyPrefix,
+        keyHash,
+        // Capped below "owner" per §9.1/§9.4 — a leaked long-lived key must
+        // never be able to reach owner-only actions (deleting the business).
+        role: "agent",
       },
     });
 
-    // Return full key only on creation
+    // Return the full secret only this once — after this response, only its
+    // hash is ever stored or displayed again.
     return NextResponse.json(
       {
-        ...apiKey,
+        ...redactApiKeyHash(apiKey),
         key: fullKey,
       },
       { status: 201 }

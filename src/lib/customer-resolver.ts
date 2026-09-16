@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 /**
  * Normalize a phone number for consistent matching.
@@ -95,6 +96,7 @@ async function createCustomer(
 ): Promise<string> {
   const customer = await prisma.customer.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       name: name || "Unknown",
       firstContact: new Date(),
       lastContact: new Date(),

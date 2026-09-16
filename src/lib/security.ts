@@ -55,3 +55,14 @@ export function escapeHtml(text: string): string {
 export function sanitizeEmailSubject(subject: string): string {
   return subject.replace(/[\r\n]/g, " ").trim();
 }
+
+/**
+ * Strip keyHash from an ApiKey row before it reaches an API response (§9.4).
+ * keyHash isn't a reusable secret, but there's no reason to expose internal
+ * hash material to a client either.
+ */
+export function redactApiKeyHash<T extends { keyHash: string }>(key: T): Omit<T, "keyHash"> {
+  const redacted: Partial<T> = { ...key };
+  Reflect.deleteProperty(redacted, "keyHash");
+  return redacted as Omit<T, "keyHash">;
+}

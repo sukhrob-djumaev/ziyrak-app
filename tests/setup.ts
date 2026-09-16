@@ -22,6 +22,14 @@ vi.mock("@/lib/route-auth", () => ({
   isAuthenticated: vi.fn().mockReturnValue(true),
 }));
 
+// Mock the Phase 1 default-business stopgap (§46.1) so every test gets a
+// working tenant id without needing to mock prisma.business itself —
+// callers only care that *some* businessId is threaded through.
+export const TEST_DEFAULT_BUSINESS_ID = "test-default-business-id";
+vi.mock("@/lib/default-business", () => ({
+  getDefaultBusinessId: vi.fn().mockResolvedValue(TEST_DEFAULT_BUSINESS_ID),
+}));
+
 // Mock realtime to prevent side effects in tests
 vi.mock("@/lib/realtime", () => ({
   emitNewMessage: vi.fn(),
@@ -58,6 +66,14 @@ function createMockPrismaClient() {
   };
 
   const models = [
+    "business",
+    "membership",
+    "user",
+    "tenantPlacement",
+    "databaseProfile",
+    "storageProfile",
+    "businessConfig",
+    "channelConnection",
     "settings",
     "admin",
     "conversation",

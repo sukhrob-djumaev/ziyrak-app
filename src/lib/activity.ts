@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function logActivity(
   action: string,
@@ -11,6 +12,7 @@ export async function logActivity(
   try {
     await prisma.activityLog.create({
       data: {
+        businessId: await getDefaultBusinessId(),
         action,
         entity,
         entityId,

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "team:read");
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     const department = await prisma.department.create({
       data: {
+        businessId: await getDefaultBusinessId(),
         name: name.trim(),
         description: description?.trim() || "",
         email: email?.trim() || "",

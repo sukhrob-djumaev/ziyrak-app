@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getDefaultBusinessId } from "@/lib/default-business";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "webhooks:read");
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
 
   const webhook = await prisma.webhook.create({
     data: {
+      businessId: await getDefaultBusinessId(),
       name,
       description: description || "",
       url,

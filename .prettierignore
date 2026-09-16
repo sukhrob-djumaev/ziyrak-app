@@ -1,0 +1,8 @@
+node_modules
+.next
+src/generated
+coverage
+prisma/migrations
+helm
+public/widget
+package-lock.json

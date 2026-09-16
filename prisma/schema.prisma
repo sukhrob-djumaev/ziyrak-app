@@ -1,0 +1,450 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== SETTINGS ====================
+
+model Settings {
+  id              String   @id @default("default")
+  businessName    String   @default("My Business")
+  businessDesc    String   @default("")
+  welcomeMessage  String   @default("Hello! How can I help you today?")
+  tone            String   @default("friendly")
+  language        String   @default("auto")
+  aiProvider      String   @default("openai")
+  aiModel         String   @default("gpt-4o-mini")
+  aiApiKey        String   @default("")
+  maxTokens       Int      @default(2048)
+  temperature     Float    @default(0.7)
+  elevenLabsKey   String   @default("")
+  elevenLabsVoice String   @default("")
+  twilioSid       String   @default("")
+  twilioToken     String   @default("")
+  twilioPhone     String   @default("")
+  smtpHost        String   @default("")
+  smtpPort        Int      @default(587)
+  smtpUser        String   @default("")
+  smtpPass        String   @default("")
+  smtpFrom        String   @default("")
+  imapHost        String   @default("")
+  imapPort        Int      @default(993)
+  imapUser        String   @default("")
+  imapPass        String   @default("")
+  whatsappMode    String   @default("web")
+  whatsappApiKey      String   @default("")
+  whatsappPhone       String   @default("")
+  telegramBotToken    String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== AUTH ====================
+
+model Admin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String   @default("Admin")
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== KNOWLEDGE BASE ====================
+
+model Category {
+  id          String           @id @default(uuid())
+  name        String
+  description String           @default("")
+  icon        String           @default("folder")
+  color       String           @default("#4A7C9B")
+  sortOrder   Int              @default(0)
+  entries     KnowledgeEntry[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model KnowledgeEntry {
+  id         String   @id @default(uuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title      String
+  content    String
+  priority   Int      @default(0)
+  isActive   Boolean  @default(true)
+  version    Int      @default(1)
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+// ==================== TEAM ====================
+
+model Department {
+  id          String       @id @default(uuid())
+  name        String
+  description String       @default("")
+  email       String       @default("")
+  members     TeamMember[]
+  tickets     Ticket[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TeamMember {
+  id           String     @id @default(uuid())
+  name         String
+  email        String
+  phone        String     @default("")
+  role         String     @default("member")
+  expertise    String     @default("")
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  isAvailable  Boolean    @default(true)
+  tickets      Ticket[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([departmentId])
+}
+
+// ==================== CONVERSATIONS ====================
+
+model Conversation {
+  id              String            @id @default(uuid())
+  channel         String
+  customerName    String            @default("Unknown")
+  customerContact String            @default("")
+  customerId      String?
+  customer        Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  status          String            @default("active")
+  satisfaction    Int?
+  summary         String            @default("")
+  metadata        Json              @default("{}")
+  messages        Message[]
+  tickets         Ticket[]
+  tags            ConversationTag[]
+  notes           InternalNote[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([channel])
+  @@index([status])
+  @@index([customerContact])
+  @@index([channel, status])
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  mediaType      String?
+  mediaUrl       String?
+  toolCalls      Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+}
+
+// ==================== TICKETS ====================
+
+model Ticket {
+  id             String        @id @default(uuid())
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  departmentId   String?
+  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedToId   String?
+  assignedTo     TeamMember?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  title          String
+  description    String
+  status         String        @default("open")
+  priority       String        @default("medium")
+  resolution     String        @default("")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([assignedToId])
+}
+
+// ==================== TAGS ====================
+
+model Tag {
+  id            String            @id @default(uuid())
+  name          String            @unique
+  color         String            @default("#4A7C9B")
+  conversations ConversationTag[]
+  createdAt     DateTime          @default(now())
+}
+
+model ConversationTag {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tagId          String
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, tagId])
+}
+
+// ==================== CALL LOGS ====================
+
+model CallLog {
+  id        String   @id @default(uuid())
+  callSid   String   @unique
+  from      String
+  to        String
+  duration  Int      @default(0)
+  status    String   @default("initiated")
+  recording String?
+  summary   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== CHANNELS ====================
+
+model Channel {
+  id        String   @id @default(uuid())
+  type      String   @unique
+  isActive  Boolean  @default(false)
+  config    Json     @default("{}")
+  status    String   @default("disconnected")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== SCHEDULES ====================
+
+model Schedule {
+  id           String @id @default(uuid())
+  teamMemberId String
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+
+  @@index([teamMemberId])
+  @@index([dayOfWeek])
+}
+
+// ==================== WEBHOOKS ====================
+
+model Webhook {
+  id          String            @id @default(uuid())
+  name        String
+  description String            @default("")
+  url         String
+  method      String            @default("POST")
+  headers     Json              @default("{}")
+  isActive    Boolean           @default(true)
+  triggerOn   String
+  deliveries  WebhookDelivery[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model WebhookDelivery {
+  id          String    @id @default(uuid())
+  webhookId   String
+  webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event       String
+  payload     Json
+  status      String    @default("pending") // pending, delivered, failed
+  statusCode  Int?
+  attempts    Int       @default(0)
+  lastError   String?
+  nextRetryAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([webhookId])
+  @@index([status, nextRetryAt])
+}
+
+// ==================== ACTIVITY LOG ====================
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String   // conversation.created, ticket.assigned, settings.updated, etc.
+  entity      String   // conversation, ticket, settings, knowledge, team
+  entityId    String?
+  description String
+  userId      String?
+  userName    String   @default("System")
+  metadata    Json     @default("{}")
+  requestId   String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ==================== SLA RULES ====================
+
+model SLARule {
+  id                String   @id @default(uuid())
+  name              String
+  description       String   @default("")
+  channel           String   @default("all") // all, whatsapp, email, phone
+  priority          String   @default("all") // all, low, medium, high, urgent
+  firstResponseMins Int      @default(30)
+  resolutionMins    Int      @default(480)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ==================== CANNED RESPONSES ====================
+
+model CannedResponse {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  category  String   @default("General")
+  shortcut  String   @default("") // e.g., /greeting, /refund
+  isActive  Boolean  @default(true)
+  usageCount Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== CUSTOMERS ====================
+
+model Customer {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @default("")
+  phone         String         @default("")
+  whatsapp      String         @default("")
+  tags          String         @default("") // comma-separated
+  isBlocked     Boolean        @default(false)
+  notes         CustomerNote[]
+  conversations Conversation[]
+  metadata      Json           @default("{}")
+  firstContact  DateTime       @default(now())
+  lastContact   DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([whatsapp])
+  @@index([lastContact])
+}
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  content    String
+  authorName String   @default("Admin")
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+// ==================== AUTOMATION RULES ====================
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  type        String   // auto_route, auto_tag, auto_reply, keyword_alert
+  isActive    Boolean  @default(true)
+  conditions  Json     @default("[]") // [{field, operator, value}]
+  actions     Json     @default("[]") // [{type, target, value}]
+  priority    Int      @default(0)
+  triggerCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== BUSINESS HOURS ====================
+
+model BusinessHours {
+  id        String  @id @default("default")
+  enabled   Boolean @default(false)
+  timezone  String  @default("UTC")
+  monday    String  @default("09:00-18:00") // empty = closed
+  tuesday   String  @default("09:00-18:00")
+  wednesday String  @default("09:00-18:00")
+  thursday  String  @default("09:00-18:00")
+  friday    String  @default("09:00-18:00")
+  saturday  String  @default("")
+  sunday    String  @default("")
+  offlineMessage String @default("We are currently offline. We will get back to you during business hours.")
+}
+
+// ==================== API KEYS ====================
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  name      String
+  key       String   @unique
+  isActive  Boolean  @default(true)
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+// ==================== INTERNAL NOTES ====================
+
+model InternalNote {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  content        String
+  authorName     String       @default("Admin")
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+// ==================== CAMPAIGNS ====================
+
+model Campaign {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  channel     String   @default("email")
+  message     String
+  subject     String   @default("")
+  segments    Json     @default("[]")
+  status      String   @default("draft") // draft, scheduled, running, completed, paused
+  scheduledAt DateTime?
+  sentCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== FLOWS ====================
+
+model Flow {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  startNodeId String   @default("")
+  nodes       Json     @default("[]")
+  isActive    Boolean  @default(false)
+  triggerCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

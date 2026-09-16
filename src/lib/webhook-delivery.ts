@@ -1,0 +1,189 @@
+import crypto from "crypto";
+import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAYS = [5000, 30000, 300000]; // 5s, 30s, 5min
+const DELIVERY_TIMEOUT = 10000;
+
+interface WebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Generate HMAC-SHA256 signature for webhook payload verification.
+ */
+export function generateSignature(payload: string, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+/**
+ * Deliver a webhook with retry logic and delivery tracking.
+ */
+export async function deliverWebhook(
+  webhook: WebhookConfig,
+  event: string,
+  data: Record<string, unknown>
+): Promise<{ deliveryId: string; success: boolean }> {
+  const payload = JSON.stringify({
+    event,
+    timestamp: new Date().toISOString(),
+    webhookId: webhook.id,
+    data,
+  });
+
+  const delivery = await prisma.webhookDelivery.create({
+    data: {
+      webhookId: webhook.id,
+      event,
+      payload: JSON.parse(payload),
+      status: "pending",
+      attempts: 0,
+    },
+  });
+
+  const result = await attemptDelivery(webhook, payload, delivery.id);
+
+  return { deliveryId: delivery.id, success: result };
+}
+
+async function attemptDelivery(
+  webhook: WebhookConfig,
+  payload: string,
+  deliveryId: string,
+  attempt = 1
+): Promise<boolean> {
+  const webhookSecret = process.env.WEBHOOK_SECRET || "";
+  const signature = webhookSecret ? generateSignature(payload, webhookSecret) : "";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT);
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent": "Owly-Webhook/1.0",
+      ...webhook.headers,
+    };
+
+    if (signature) {
+      headers["X-Owly-Signature"] = signature;
+    }
+
+    const response = await fetch(webhook.url, {
+      method: webhook.method,
+      headers,
+      body: webhook.method !== "GET" ? payload : undefined,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      await prisma.webhookDelivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: "delivered",
+          statusCode: response.status,
+          attempts: attempt,
+        },
+      });
+      return true;
+    }
+
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    const errorMessage = error instanceof Error
+      ? (error.name === "AbortError" ? "Request timed out" : error.message)
+      : String(error);
+
+    if (attempt < MAX_ATTEMPTS) {
+      const retryDelay = RETRY_DELAYS[attempt - 1] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
+      const nextRetryAt = new Date(Date.now() + retryDelay);
+
+      await prisma.webhookDelivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: "pending",
+          attempts: attempt,
+          lastError: errorMessage,
+          nextRetryAt,
+        },
+      });
+
+      logger.warn(`Webhook delivery failed, retrying in ${retryDelay / 1000}s`, {
+        deliveryId,
+        webhookId: webhook.id,
+        attempt,
+        error: errorMessage,
+      });
+
+      // Schedule retry
+      setTimeout(() => {
+        attemptDelivery(webhook, payload, deliveryId, attempt + 1).catch((err) =>
+          logger.error("Webhook retry failed", err)
+        );
+      }, retryDelay);
+
+      return false;
+    }
+
+    // All retries exhausted
+    await prisma.webhookDelivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: "failed",
+        attempts: attempt,
+        lastError: errorMessage,
+        statusCode: null,
+      },
+    });
+
+    logger.error("Webhook delivery permanently failed", null, {
+      deliveryId,
+      webhookId: webhook.id,
+      event: "delivery_failed",
+    });
+
+    return false;
+  }
+}
+
+/**
+ * Retry a specific failed delivery.
+ */
+export async function retryDelivery(deliveryId: string): Promise<boolean> {
+  const delivery = await prisma.webhookDelivery.findUnique({
+    where: { id: deliveryId },
+    include: { webhook: true },
+  });
+
+  if (!delivery || !delivery.webhook) {
+    return false;
+  }
+
+  const payload = JSON.stringify(delivery.payload);
+
+  await prisma.webhookDelivery.update({
+    where: { id: deliveryId },
+    data: { status: "pending", attempts: 0, lastError: null },
+  });
+
+  return attemptDelivery(
+    {
+      id: delivery.webhook.id,
+      name: delivery.webhook.name,
+      url: delivery.webhook.url,
+      method: delivery.webhook.method,
+      headers: (delivery.webhook.headers || {}) as Record<string, string>,
+    },
+    payload,
+    deliveryId
+  );
+}

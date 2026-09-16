@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
+import { prisma } from "@/lib/prisma";
 
 const TEST_SECRET = "test-secret-key-for-testing-only";
 
@@ -123,6 +124,23 @@ describe("Auth Module", () => {
       expect(cookie.name).toBe("owly-token");
       expect(cookie.value).toBe("");
       expect(cookie.maxAge).toBe(0);
+    });
+  });
+
+  describe("isSetupComplete", () => {
+    it("is false when no Membership has role 'owner' (PLAN.md §46.1 task 13)", async () => {
+      (prisma.membership.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
+      const { isSetupComplete } = await import("@/lib/auth");
+
+      expect(await isSetupComplete()).toBe(false);
+      expect(prisma.membership.count).toHaveBeenCalledWith({ where: { role: "owner" } });
+    });
+
+    it("is true once a Business has an owner", async () => {
+      (prisma.membership.count as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+      const { isSetupComplete } = await import("@/lib/auth");
+
+      expect(await isSetupComplete()).toBe(true);
     });
   });
 });

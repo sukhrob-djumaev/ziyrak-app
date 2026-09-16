@@ -58,9 +58,17 @@ export async function getCurrentUser() {
   return admin;
 }
 
+/**
+ * PLAN.md §46.1 task 13: "setup complete" now means "does a Business have an
+ * owner" rather than "does any Admin row exist" — a Membership(role: "owner")
+ * is what the Phase 1 migration creates for the earliest pre-existing Admin
+ * (and what a fresh install's first bootstrap would create too), so this
+ * stays accurate for both a migrated install and a brand-new one without
+ * needing a real multi-business signup flow, which is Phase 2/7 scope.
+ */
 export async function isSetupComplete(): Promise<boolean> {
-  const adminCount = await prisma.admin.count();
-  return adminCount > 0;
+  const ownerCount = await prisma.membership.count({ where: { role: "owner" } });
+  return ownerCount > 0;
 }
 
 export function setAuthCookie(token: string) {

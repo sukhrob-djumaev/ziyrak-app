@@ -548,6 +548,15 @@ model ApiKey {
   business   Business? @relation(fields: [businessId], references: [id])
   businessId String?
 
+  // §9.4 rewrite (task 11) — added nullable now so the migration script can
+  // populate them (or, for pre-existing keys, mark them invalidated) before
+  // the contract step makes them required and drops the plaintext `key`.
+  keyPrefix String?
+  keyHash   String?
+  role      String?
+  revokedAt DateTime?
+  expiresAt DateTime?
+
   @@index([key])
 }
 

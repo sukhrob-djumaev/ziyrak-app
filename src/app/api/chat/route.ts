@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { logger } from "@/lib/logger";
+import { requireAuth, isAuthenticated } from "@/lib/route-auth";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, "conversations:create");
+  if (!isAuthenticated(auth)) return auth;
+
   try {
     const body = await request.json();
     const { message, conversationId, channel, customerName, customerContact } = body;

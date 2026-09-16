@@ -14,7 +14,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/lib/**", "src/app/api/**", "src/middleware.ts"],
+      include: ["src/lib/**", "src/app/api/**", "src/proxy.ts"],
       exclude: [
         "src/generated/**",
         "src/components/**",

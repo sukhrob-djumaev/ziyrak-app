@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { verifyToken } from "@/lib/auth";
 
 const API_VERSION = "2026-04-07";
 
@@ -58,7 +59,7 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = request.headers.get("x-request-id") || generateRequestId();
 
@@ -161,9 +162,12 @@ export function middleware(request: NextRequest) {
     return addHeaders(NextResponse.next(), requestId, apiRateInfo);
   }
 
-  // Verify JWT structure
-  const parts = (token || "").split(".");
-  if (parts.length !== 3) {
+  // Verify the JWT is well-formed AND validly signed (not just structurally
+  // shaped). Real, database-backed authorization still happens in
+  // requireAuth() for every route — this is a fast, cookie-only "optimistic"
+  // check, per Next.js's own guidance for Proxy auth.
+  const payload = token ? verifyToken(token) : null;
+  if (!payload) {
     if (pathname.startsWith("/api/")) {
       return addHeaders(
         NextResponse.json(
@@ -184,4 +188,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image).*)"],
+  // No explicit `runtime` here: Proxy always runs on Node.js and Next.js
+  // throws a build error if `runtime` is set in a Proxy file's config
+  // (verified against node_modules/next/dist/docs/.../file-conventions/proxy.md
+  // and confirmed empirically against this Next.js 16.2.2 install).
 };

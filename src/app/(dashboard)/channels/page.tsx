@@ -293,6 +293,7 @@ function WhatsAppCard({
               <div className="rounded-lg border border-owly-border bg-owly-bg p-6 flex flex-col items-center">
                 <div className="w-48 h-48 bg-white border-2 border-dashed border-owly-border rounded-lg flex items-center justify-center mb-3 overflow-hidden">
                   {qrCode ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- ephemeral base64 QR data URI, not an optimizable remote/static image
                     <img
                       src={qrCode}
                       alt="WhatsApp QR Code"

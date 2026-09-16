@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { ROLES } from "@/lib/rbac";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "admin:read");
@@ -72,8 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validRoles = ["admin", "editor", "viewer"];
-    const userRole = validRoles.includes(role) ? role : "viewer";
+    const userRole = ROLES.includes(role) ? role : "viewer";
 
     const hashed = await hashPassword(password);
     const user = await prisma.admin.create({

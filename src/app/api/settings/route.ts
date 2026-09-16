@@ -10,15 +10,11 @@ export async function GET(request: NextRequest) {
   if (!isAuthenticated(auth)) return auth;
 
   try {
-    let settings = await prisma.settings.findUnique({
+    const settings = await prisma.settings.upsert({
       where: { id: "default" },
+      update: {},
+      create: { id: "default" },
     });
-
-    if (!settings) {
-      settings = await prisma.settings.create({
-        data: { id: "default" },
-      });
-    }
 
     return NextResponse.json(maskSettingsSecrets(settings));
   } catch (error) {

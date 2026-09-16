@@ -12,7 +12,7 @@ describe("GET /api/settings", () => {
   });
 
   it("should return settings with secrets masked", async () => {
-    mockPrisma.settings.findUnique.mockResolvedValue({ ...fixtures.settings });
+    mockPrisma.settings.upsert.mockResolvedValue({ ...fixtures.settings });
 
     const { GET } = await import("@/app/api/settings/route");
     const response = await GET();
@@ -28,7 +28,7 @@ describe("GET /api/settings", () => {
   });
 
   it("should not leak raw API keys", async () => {
-    mockPrisma.settings.findUnique.mockResolvedValue({ ...fixtures.settings });
+    mockPrisma.settings.upsert.mockResolvedValue({ ...fixtures.settings });
 
     const { GET } = await import("@/app/api/settings/route");
     const response = await GET();
@@ -44,9 +44,8 @@ describe("GET /api/settings", () => {
     expect(jsonString).not.toContain("wa-key-12345");
   });
 
-  it("should create default settings if none exist", async () => {
-    mockPrisma.settings.findUnique.mockResolvedValue(null);
-    mockPrisma.settings.create.mockResolvedValue({
+  it("should create default settings atomically if none exist (no findUnique+create race)", async () => {
+    mockPrisma.settings.upsert.mockResolvedValue({
       id: "default",
       businessName: "",
       aiApiKey: "",
@@ -56,11 +55,17 @@ describe("GET /api/settings", () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(mockPrisma.settings.create).toHaveBeenCalled();
+    expect(mockPrisma.settings.upsert).toHaveBeenCalledWith({
+      where: { id: "default" },
+      update: {},
+      create: { id: "default" },
+    });
+    expect(mockPrisma.settings.findUnique).not.toHaveBeenCalled();
+    expect(mockPrisma.settings.create).not.toHaveBeenCalled();
   });
 
   it("should handle database errors", async () => {
-    mockPrisma.settings.findUnique.mockRejectedValue(new Error("DB error"));
+    mockPrisma.settings.upsert.mockRejectedValue(new Error("DB error"));
 
     const { GET } = await import("@/app/api/settings/route");
     const response = await GET();

@@ -77,10 +77,11 @@ async function getKnowledgeBase(): Promise<KnowledgeItem[]> {
 }
 
 async function getAIConfig(): Promise<AIConfig & ConversationContext> {
-  let settings = await prisma.settings.findFirst();
-  if (!settings) {
-    settings = await prisma.settings.create({ data: { id: "default" } });
-  }
+  const settings = await prisma.settings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default" },
+  });
 
   return {
     provider: settings.aiProvider,

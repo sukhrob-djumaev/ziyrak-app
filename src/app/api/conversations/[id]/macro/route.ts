@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/route-auth";
 import { executeMacro } from "@/lib/conversation-engine";
 import { logger } from "@/lib/logger";
 
@@ -22,7 +22,8 @@ export async function POST(
       );
     }
 
-    const result = await executeMacro(id, actions, auth.name);
+    const actorName = await resolveActorDisplayName(auth);
+    const result = await executeMacro(auth, id, actions, actorName);
 
     return NextResponse.json(result);
   } catch (error) {

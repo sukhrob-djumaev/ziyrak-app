@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as conversationsService from "@/lib/conversations/service";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "conversations:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -22,18 +23,7 @@ export async function POST(
       );
     }
 
-    const existing = await prisma.conversation.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404 }
-      );
-    }
-
-    const conversation = await prisma.conversation.update({
-      where: { id },
-      data: { satisfaction: rating },
-    });
+    const conversation = await conversationsService.setSatisfaction(ctx, id, rating);
 
     return NextResponse.json({
       success: true,
@@ -41,9 +31,6 @@ export async function POST(
     });
   } catch (error) {
     logger.error("Failed to update satisfaction:", error);
-    return NextResponse.json(
-      { error: "Failed to update satisfaction" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

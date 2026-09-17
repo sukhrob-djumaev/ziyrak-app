@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/route-auth";
 import { snoozeConversation } from "@/lib/conversation-engine";
 import { logger } from "@/lib/logger";
 
@@ -23,10 +23,11 @@ export async function POST(
     }
 
     const success = await snoozeConversation(
+      auth,
       id,
       new Date(snoozeUntil),
       reason || "",
-      auth.name
+      await resolveActorDisplayName(auth)
     );
 
     return NextResponse.json({ success });

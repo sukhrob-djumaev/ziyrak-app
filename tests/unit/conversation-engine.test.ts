@@ -1,7 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
+import type { TenantContext } from "@/lib/tenancy/context";
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+
+// getScopedPrisma(ctx) resolves to this same mocked client under the global
+// tests/setup.ts mock (its `$extends` is a passthrough) — this fixture just
+// needs to be a structurally valid TenantContext with dataConnection
+// "shared-default", per src/lib/tenancy/placement.ts's mock-friendly path.
+const ctx: TenantContext = {
+  businessId: "test-biz",
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 describe("Conversation Engine", () => {
   beforeEach(() => {
@@ -16,7 +28,7 @@ describe("Conversation Engine", () => {
       ]);
 
       const { routeConversation } = await import("@/lib/conversation-engine");
-      const result = await routeConversation("conv-1", "skill_based", "billing");
+      const result = await routeConversation(ctx, "skill_based", "billing");
 
       expect(result).not.toBeNull();
       expect(result!.assignedToName).toBe("Alice");
@@ -29,7 +41,7 @@ describe("Conversation Engine", () => {
       ]);
 
       const { routeConversation } = await import("@/lib/conversation-engine");
-      const result = await routeConversation("conv-1", "least_busy");
+      const result = await routeConversation(ctx, "least_busy");
 
       expect(result).not.toBeNull();
       expect(result!.assignedToName).toBe("Bob");
@@ -39,7 +51,7 @@ describe("Conversation Engine", () => {
       mockPrisma.teamMember.findMany.mockResolvedValue([]);
 
       const { routeConversation } = await import("@/lib/conversation-engine");
-      const result = await routeConversation("conv-1");
+      const result = await routeConversation(ctx);
 
       expect(result).toBeNull();
     });
@@ -57,7 +69,7 @@ describe("Conversation Engine", () => {
       mockPrisma.conversation.update.mockResolvedValue({});
 
       const { mergeConversations } = await import("@/lib/conversation-engine");
-      const result = await mergeConversations("primary", "secondary");
+      const result = await mergeConversations(ctx, "primary", "secondary");
 
       expect(result).toBe(true);
       expect(mockPrisma.message.updateMany).toHaveBeenCalledWith({
@@ -70,7 +82,7 @@ describe("Conversation Engine", () => {
       mockPrisma.conversation.findUnique.mockResolvedValue(null);
 
       const { mergeConversations } = await import("@/lib/conversation-engine");
-      const result = await mergeConversations("nonexistent", "other");
+      const result = await mergeConversations(ctx, "nonexistent", "other");
 
       expect(result).toBe(false);
     });
@@ -82,7 +94,7 @@ describe("Conversation Engine", () => {
       mockPrisma.internalNote.create.mockResolvedValue({});
 
       const { executeMacro } = await import("@/lib/conversation-engine");
-      const result = await executeMacro("conv-1", [
+      const result = await executeMacro(ctx, "conv-1", [
         { type: "set_status", value: "resolved" },
         { type: "add_note", value: "Issue resolved" },
       ], "Admin");
@@ -93,7 +105,7 @@ describe("Conversation Engine", () => {
 
     it("should handle unknown action types", async () => {
       const { executeMacro } = await import("@/lib/conversation-engine");
-      const result = await executeMacro("conv-1", [
+      const result = await executeMacro(ctx, "conv-1", [
         { type: "unknown_action", value: "test" },
       ], "Admin");
 

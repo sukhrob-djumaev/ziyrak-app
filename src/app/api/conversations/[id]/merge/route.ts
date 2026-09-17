@@ -7,8 +7,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "conversations:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -22,7 +22,7 @@ export async function POST(
       );
     }
 
-    const success = await mergeConversations(id, secondaryId);
+    const success = await mergeConversations(ctx, id, secondaryId);
 
     if (!success) {
       return NextResponse.json(

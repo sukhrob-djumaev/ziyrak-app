@@ -1,9 +1,12 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 /**
  * Conversation Routing & Management Engine
+ *
+ * PLAN.md §16.2 — every function takes `ctx: TenantContext` explicit and
+ * resolves its own `getScopedPrisma(ctx)`.
  */
 
 // Routing strategies
@@ -21,15 +24,16 @@ interface RoutingResult {
  * Route a conversation to the best available agent.
  */
 export async function routeConversation(
-  conversationId: string,
+  ctx: TenantContext,
   strategy: RoutingStrategy = "skill_based",
   requiredExpertise?: string,
   departmentId?: string
 ): Promise<RoutingResult | null> {
+  const db = getScopedPrisma(ctx);
   const where: Record<string, unknown> = { isAvailable: true };
   if (departmentId) where.departmentId = departmentId;
 
-  const members = await prisma.teamMember.findMany({
+  const members = await db.teamMember.findMany({
     where,
     include: {
       department: true,
@@ -59,9 +63,9 @@ export async function routeConversation(
       );
       break;
 
-    case "round_robin":
+    case "round_robin": {
       // Get the last assigned member and pick the next one
-      const lastTicket = await prisma.ticket.findFirst({
+      const lastTicket = await db.ticket.findFirst({
         where: { assignedToId: { not: null } },
         orderBy: { createdAt: "desc" },
         select: { assignedToId: true },
@@ -73,6 +77,7 @@ export async function routeConversation(
         selected = members[0];
       }
       break;
+    }
 
     case "priority":
     default:
@@ -95,12 +100,14 @@ export async function routeConversation(
  * Transfer a conversation to another agent.
  */
 export async function transferConversation(
+  ctx: TenantContext,
   conversationId: string,
   toMemberId: string,
   fromMemberName: string,
   note?: string
 ): Promise<boolean> {
-  const member = await prisma.teamMember.findUnique({
+  const db = getScopedPrisma(ctx);
+  const member = await db.teamMember.findUnique({
     where: { id: toMemberId },
     select: { id: true, name: true },
   });
@@ -108,15 +115,15 @@ export async function transferConversation(
   if (!member) return false;
 
   // Update all open tickets for this conversation
-  await prisma.ticket.updateMany({
+  await db.ticket.updateMany({
     where: { conversationId, status: { in: ["open", "in_progress"] } },
     data: { assignedToId: toMemberId },
   });
 
   // Add internal note about transfer
-  await prisma.internalNote.create({
+  await db.internalNote.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       conversationId,
       content: `Conversation transferred from ${fromMemberName} to ${member.name}${note ? `: ${note}` : ""}`,
       authorName: "System",
@@ -124,6 +131,7 @@ export async function transferConversation(
   });
 
   logger.info("Conversation transferred", {
+    businessId: ctx.businessId,
     conversationId,
     from: fromMemberName,
     to: member.name,
@@ -136,38 +144,40 @@ export async function transferConversation(
  * Merge two conversations into one.
  */
 export async function mergeConversations(
+  ctx: TenantContext,
   primaryId: string,
   secondaryId: string
 ): Promise<boolean> {
+  const db = getScopedPrisma(ctx);
   const [primary, secondary] = await Promise.all([
-    prisma.conversation.findUnique({ where: { id: primaryId } }),
-    prisma.conversation.findUnique({ where: { id: secondaryId } }),
+    db.conversation.findUnique({ where: { id: primaryId } }),
+    db.conversation.findUnique({ where: { id: secondaryId } }),
   ]);
 
   if (!primary || !secondary) return false;
 
   // Move all messages from secondary to primary
-  await prisma.message.updateMany({
+  await db.message.updateMany({
     where: { conversationId: secondaryId },
     data: { conversationId: primaryId },
   });
 
   // Move tickets
-  await prisma.ticket.updateMany({
+  await db.ticket.updateMany({
     where: { conversationId: secondaryId },
     data: { conversationId: primaryId },
   });
 
   // Move internal notes
-  await prisma.internalNote.updateMany({
+  await db.internalNote.updateMany({
     where: { conversationId: secondaryId },
     data: { conversationId: primaryId },
   });
 
   // Add merge note
-  await prisma.internalNote.create({
+  await db.internalNote.create({
     data: {
-      businessId: primary.businessId,
+      businessId: ctx.businessId,
       conversationId: primaryId,
       content: `Merged with conversation ${secondaryId} (${secondary.customerName} via ${secondary.channel})`,
       authorName: "System",
@@ -175,7 +185,7 @@ export async function mergeConversations(
   });
 
   // Close secondary
-  await prisma.conversation.update({
+  await db.conversation.update({
     where: { id: secondaryId },
     data: { status: "closed", summary: `Merged into ${primaryId}` },
   });
@@ -187,12 +197,14 @@ export async function mergeConversations(
  * Snooze a conversation - mark it for follow-up at a later time.
  */
 export async function snoozeConversation(
+  ctx: TenantContext,
   conversationId: string,
   snoozeUntil: Date,
   reason: string,
   authorName: string
 ): Promise<boolean> {
-  await prisma.conversation.update({
+  const db = getScopedPrisma(ctx);
+  await db.conversation.update({
     where: { id: conversationId },
     data: {
       status: "snoozed",
@@ -203,9 +215,9 @@ export async function snoozeConversation(
     },
   });
 
-  await prisma.internalNote.create({
+  await db.internalNote.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       conversationId,
       content: `Snoozed until ${snoozeUntil.toLocaleDateString()}: ${reason}`,
       authorName,
@@ -218,8 +230,9 @@ export async function snoozeConversation(
 /**
  * Auto-escalate conversations that breach SLA.
  */
-export async function checkSLABreaches(): Promise<number> {
-  const slaRules = await prisma.sLARule.findMany({
+export async function checkSLABreaches(ctx: TenantContext): Promise<number> {
+  const db = getScopedPrisma(ctx);
+  const slaRules = await db.sLARule.findMany({
     where: { isActive: true },
   });
 
@@ -230,7 +243,7 @@ export async function checkSLABreaches(): Promise<number> {
   for (const rule of slaRules) {
     const cutoff = new Date(Date.now() - rule.firstResponseMins * 60 * 1000);
 
-    const breached = await prisma.conversation.findMany({
+    const breached = await db.conversation.findMany({
       where: {
         status: "active",
         createdAt: { lte: cutoff },
@@ -241,7 +254,7 @@ export async function checkSLABreaches(): Promise<number> {
     });
 
     for (const conv of breached) {
-      await prisma.conversation.update({
+      await db.conversation.update({
         where: { id: conv.id },
         data: { status: "escalated" },
       });
@@ -250,7 +263,7 @@ export async function checkSLABreaches(): Promise<number> {
   }
 
   if (escalated > 0) {
-    logger.warn(`SLA breach: ${escalated} conversations auto-escalated`);
+    logger.warn(`SLA breach: ${escalated} conversations auto-escalated`, { businessId: ctx.businessId });
   }
 
   return escalated;
@@ -260,19 +273,21 @@ export async function checkSLABreaches(): Promise<number> {
  * Execute a macro (multiple actions at once).
  */
 export async function executeMacro(
+  ctx: TenantContext,
   conversationId: string,
   actions: { type: string; value: string }[],
   authorName: string
 ): Promise<{ executed: number; errors: string[] }> {
+  const db = getScopedPrisma(ctx);
   let executed = 0;
   const errors: string[] = [];
-  const businessId = await getDefaultBusinessId();
+  const businessId = ctx.businessId;
 
   for (const action of actions) {
     try {
       switch (action.type) {
         case "set_status":
-          await prisma.conversation.update({
+          await db.conversation.update({
             where: { id: conversationId },
             data: { status: action.value },
           });
@@ -280,11 +295,11 @@ export async function executeMacro(
           break;
 
         case "assign_department": {
-          const dept = await prisma.department.findFirst({
+          const dept = await db.department.findFirst({
             where: { name: { contains: action.value, mode: "insensitive" } },
           });
           if (dept) {
-            await prisma.ticket.updateMany({
+            await db.ticket.updateMany({
               where: { conversationId },
               data: { departmentId: dept.id },
             });
@@ -294,13 +309,13 @@ export async function executeMacro(
         }
 
         case "add_tag": {
-          let tag = await prisma.tag.findUnique({
+          let tag = await db.tag.findUnique({
             where: { businessId_name: { businessId, name: action.value } },
           });
           if (!tag) {
-            tag = await prisma.tag.create({ data: { businessId, name: action.value } });
+            tag = await db.tag.create({ data: { businessId, name: action.value } });
           }
-          await prisma.conversationTag.create({
+          await db.conversationTag.create({
             data: { businessId, conversationId, tagId: tag.id },
           }).catch(() => { /* already tagged */ });
           executed++;
@@ -308,14 +323,14 @@ export async function executeMacro(
         }
 
         case "add_note":
-          await prisma.internalNote.create({
+          await db.internalNote.create({
             data: { businessId, conversationId, content: action.value, authorName },
           });
           executed++;
           break;
 
         case "send_message":
-          await prisma.message.create({
+          await db.message.create({
             data: { businessId, conversationId, role: "assistant", content: action.value },
           });
           executed++;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/route-auth";
 import { transferConversation } from "@/lib/conversation-engine";
 import { logger } from "@/lib/logger";
 
@@ -23,9 +23,10 @@ export async function POST(
     }
 
     const success = await transferConversation(
+      auth,
       id,
       toMemberId,
-      auth.name,
+      await resolveActorDisplayName(auth),
       note
     );
 

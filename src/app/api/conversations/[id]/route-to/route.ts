@@ -7,16 +7,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "conversations:assign");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:assign");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
-    const { id } = await params;
+    // Not read below: routeConversation() only suggests an agent/department
+    // (the client separately calls transfer/assign to act on it) — the
+    // conversation id itself was already unused by this handler pre-Phase 2.
+    await params;
     const body = await request.json();
     const { strategy, expertise, departmentId } = body;
 
     const result = await routeConversation(
-      id,
+      ctx,
       strategy || "skill_based",
       expertise,
       departmentId

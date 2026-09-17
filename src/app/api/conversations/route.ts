@@ -1,73 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as conversationsService from "@/lib/conversations/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "conversations:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip, take } = parsePagination(searchParams);
-    const channel = searchParams.get("channel");
-    const status = searchParams.get("status");
-    const search = searchParams.get("search");
 
-    const where: Record<string, unknown> = {};
-
-    if (channel && channel !== "all") {
-      where.channel = channel;
-    }
-
-    if (status && status !== "all") {
-      where.status = status;
-    }
-
-    if (search && search.trim()) {
-      where.OR = [
-        { customerName: { contains: search.trim(), mode: "insensitive" } },
-        { customerContact: { contains: search.trim(), mode: "insensitive" } },
-      ];
-    }
-
-    const [conversations, total] = await Promise.all([
-      prisma.conversation.findMany({
-        where,
-        orderBy: { updatedAt: "desc" },
-        skip,
-        take,
-        include: {
-          messages: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-          },
-          _count: {
-            select: { messages: true },
-          },
-          tags: {
-            include: { tag: true },
-          },
-        },
-      }),
-      prisma.conversation.count({ where }),
-    ]);
+    const { conversations, total } = await conversationsService.list(ctx, {
+      channel: searchParams.get("channel"),
+      status: searchParams.get("status"),
+      search: searchParams.get("search"),
+      skip,
+      take,
+    });
 
     return NextResponse.json(paginatedResponse(conversations, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch conversations:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch conversations" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "conversations:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -80,34 +43,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const conversation = await prisma.conversation.create({
-      data: {
-        businessId: await getDefaultBusinessId(),
-        channel: channel.trim(),
-        customerName: customerName?.trim() || "Unknown",
-        customerContact: customerContact?.trim() || "",
-        status: status || "active",
-      },
-      include: {
-        messages: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
-        },
-        _count: {
-          select: { messages: true },
-        },
-        tags: {
-          include: { tag: true },
-        },
-      },
-    });
+    const conversation = await conversationsService.create(ctx, { channel, customerName, customerContact, status });
 
     return NextResponse.json(conversation, { status: 201 });
   } catch (error) {
     logger.error("Failed to create conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to create conversation" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

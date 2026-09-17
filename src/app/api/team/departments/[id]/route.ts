@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as teamService from "@/lib/team/service";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "team:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "team:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -22,27 +23,12 @@ export async function PUT(
       );
     }
 
-    const department = await prisma.department.update({
-      where: { id },
-      data: {
-        name: name.trim(),
-        description: description?.trim() || "",
-        email: email?.trim() || "",
-      },
-      include: {
-        _count: {
-          select: { members: true },
-        },
-      },
-    });
+    const department = await teamService.updateDepartment(ctx, id, { name, description, email });
 
     return NextResponse.json(department);
   } catch (error) {
     logger.error("Failed to update department:", error);
-    return NextResponse.json(
-      { error: "Failed to update department" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -50,22 +36,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "team:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "team:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-
-    await prisma.department.delete({
-      where: { id },
-    });
-
+    await teamService.removeDepartment(ctx, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Failed to delete department:", error);
-    return NextResponse.json(
-      { error: "Failed to delete department" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,102 +1,129 @@
 /**
  * Role-Based Access Control (RBAC) System
  *
- * Roles: admin > supervisor > agent > viewer
+ * Roles: owner > admin > supervisor > agent > viewer
  * Each role inherits all permissions of the roles below it.
+ *
+ * PLAN.md §9.1 — `owner` is a fifth, business-scoped-only role added above
+ * `admin` for the handful of operations that must have exactly one
+ * accountable party per business (deleting the business, transferring
+ * ownership, billing). It inherits every `admin` permission and adds a
+ * small set of owner-only ones.
+ *
+ * `platform_admin` (§9.1/§15.2) is deliberately NOT part of this role
+ * hierarchy: a platform administrator gets no tenant-resource permission
+ * implicitly. It is authorized through a structurally separate check in
+ * `route-auth.ts`, never through `hasPermission()`/`PERMISSIONS` below —
+ * that is the concrete mechanism that keeps "platform admin" from becoming
+ * "admin for every tenant" (§15.2).
  */
 
-export const ROLES = ["viewer", "agent", "supervisor", "admin"] as const;
+export const ROLES = ["viewer", "agent", "supervisor", "admin", "owner"] as const;
 export type Role = (typeof ROLES)[number];
+
+// Named role-set shorthands so "owner inherits every admin permission" is
+// structural (adding a permission to STAFF_ROLES/ADMIN_ROLES automatically
+// covers owner too) rather than something every entry below has to remember.
+const ALL_ROLES = ["viewer", "agent", "supervisor", "admin", "owner"] as const;
+const STAFF_ROLES = ["agent", "supervisor", "admin", "owner"] as const;
+const SUPERVISOR_ROLES = ["supervisor", "admin", "owner"] as const;
+const ADMIN_ROLES = ["admin", "owner"] as const;
+const OWNER_ONLY = ["owner"] as const;
 
 export const PERMISSIONS = {
   // Conversations
-  "conversations:read": ["viewer", "agent", "supervisor", "admin"],
-  "conversations:create": ["agent", "supervisor", "admin"],
-  "conversations:update": ["agent", "supervisor", "admin"],
-  "conversations:delete": ["supervisor", "admin"],
-  "conversations:assign": ["supervisor", "admin"],
-  "conversations:transfer": ["agent", "supervisor", "admin"],
+  "conversations:read": ALL_ROLES,
+  "conversations:create": STAFF_ROLES,
+  "conversations:update": STAFF_ROLES,
+  "conversations:delete": SUPERVISOR_ROLES,
+  "conversations:assign": SUPERVISOR_ROLES,
+  "conversations:transfer": STAFF_ROLES,
 
   // Messages
-  "messages:read": ["viewer", "agent", "supervisor", "admin"],
-  "messages:create": ["agent", "supervisor", "admin"],
+  "messages:read": ALL_ROLES,
+  "messages:create": STAFF_ROLES,
 
   // Tickets
-  "tickets:read": ["viewer", "agent", "supervisor", "admin"],
-  "tickets:create": ["agent", "supervisor", "admin"],
-  "tickets:update": ["agent", "supervisor", "admin"],
-  "tickets:delete": ["supervisor", "admin"],
+  "tickets:read": ALL_ROLES,
+  "tickets:create": STAFF_ROLES,
+  "tickets:update": STAFF_ROLES,
+  "tickets:delete": SUPERVISOR_ROLES,
 
   // Customers
-  "customers:read": ["viewer", "agent", "supervisor", "admin"],
-  "customers:create": ["agent", "supervisor", "admin"],
-  "customers:update": ["agent", "supervisor", "admin"],
-  "customers:delete": ["admin"],
-  "customers:export": ["supervisor", "admin"],
+  "customers:read": ALL_ROLES,
+  "customers:create": STAFF_ROLES,
+  "customers:update": STAFF_ROLES,
+  "customers:delete": ADMIN_ROLES,
+  "customers:export": SUPERVISOR_ROLES,
 
   // Knowledge Base
-  "knowledge:read": ["viewer", "agent", "supervisor", "admin"],
-  "knowledge:create": ["supervisor", "admin"],
-  "knowledge:update": ["supervisor", "admin"],
-  "knowledge:delete": ["admin"],
+  "knowledge:read": ALL_ROLES,
+  "knowledge:create": SUPERVISOR_ROLES,
+  "knowledge:update": SUPERVISOR_ROLES,
+  "knowledge:delete": ADMIN_ROLES,
 
   // Team Management
-  "team:read": ["viewer", "agent", "supervisor", "admin"],
-  "team:create": ["admin"],
-  "team:update": ["admin"],
-  "team:delete": ["admin"],
+  "team:read": ALL_ROLES,
+  "team:create": ADMIN_ROLES,
+  "team:update": ADMIN_ROLES,
+  "team:delete": ADMIN_ROLES,
 
   // Automation
-  "automation:read": ["viewer", "agent", "supervisor", "admin"],
-  "automation:create": ["supervisor", "admin"],
-  "automation:update": ["supervisor", "admin"],
-  "automation:delete": ["admin"],
+  "automation:read": ALL_ROLES,
+  "automation:create": SUPERVISOR_ROLES,
+  "automation:update": SUPERVISOR_ROLES,
+  "automation:delete": ADMIN_ROLES,
 
   // Webhooks
-  "webhooks:read": ["supervisor", "admin"],
-  "webhooks:create": ["admin"],
-  "webhooks:update": ["admin"],
-  "webhooks:delete": ["admin"],
+  "webhooks:read": SUPERVISOR_ROLES,
+  "webhooks:create": ADMIN_ROLES,
+  "webhooks:update": ADMIN_ROLES,
+  "webhooks:delete": ADMIN_ROLES,
 
   // Settings
-  "settings:read": ["admin"],
-  "settings:update": ["admin"],
+  "settings:read": ADMIN_ROLES,
+  "settings:update": ADMIN_ROLES,
 
   // Admin (users, API keys)
-  "admin:read": ["admin"],
-  "admin:create": ["admin"],
-  "admin:update": ["admin"],
-  "admin:delete": ["admin"],
+  "admin:read": ADMIN_ROLES,
+  "admin:create": ADMIN_ROLES,
+  "admin:update": ADMIN_ROLES,
+  "admin:delete": ADMIN_ROLES,
 
   // Analytics
-  "analytics:read": ["viewer", "agent", "supervisor", "admin"],
-  "analytics:export": ["supervisor", "admin"],
+  "analytics:read": ALL_ROLES,
+  "analytics:export": SUPERVISOR_ROLES,
 
   // Activity Log
-  "activity:read": ["supervisor", "admin"],
+  "activity:read": SUPERVISOR_ROLES,
 
   // Channels
-  "channels:read": ["supervisor", "admin"],
-  "channels:update": ["admin"],
+  "channels:read": SUPERVISOR_ROLES,
+  "channels:update": ADMIN_ROLES,
 
   // SLA
-  "sla:read": ["viewer", "agent", "supervisor", "admin"],
-  "sla:create": ["admin"],
-  "sla:update": ["admin"],
-  "sla:delete": ["admin"],
+  "sla:read": ALL_ROLES,
+  "sla:create": ADMIN_ROLES,
+  "sla:update": ADMIN_ROLES,
+  "sla:delete": ADMIN_ROLES,
 
   // Business Hours
-  "business-hours:read": ["viewer", "agent", "supervisor", "admin"],
-  "business-hours:update": ["admin"],
+  "business-hours:read": ALL_ROLES,
+  "business-hours:update": ADMIN_ROLES,
 
   // Canned Responses
-  "canned:read": ["agent", "supervisor", "admin"],
-  "canned:create": ["supervisor", "admin"],
-  "canned:update": ["supervisor", "admin"],
-  "canned:delete": ["admin"],
+  "canned:read": STAFF_ROLES,
+  "canned:create": SUPERVISOR_ROLES,
+  "canned:update": SUPERVISOR_ROLES,
+  "canned:delete": ADMIN_ROLES,
 
   // Export
-  "export:read": ["supervisor", "admin"],
+  "export:read": SUPERVISOR_ROLES,
+
+  // Business (owner-only, §9.1)
+  "business:delete": OWNER_ONLY,
+  "business:transfer-ownership": OWNER_ONLY,
+  "business:billing": OWNER_ONLY,
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

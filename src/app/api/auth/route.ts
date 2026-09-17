@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import {
   hashPassword,
   verifyPassword,
@@ -32,37 +32,55 @@ export async function POST(request: NextRequest) {
     }
 
     const hashed = await hashPassword(password);
-    const admin = await prisma.admin.create({
-      data: {
-        username,
-        password: hashed,
-        name: name || "Admin",
-        role: "admin",
-      },
-    });
 
-    // Ensure default settings exist
-    await prisma.settings.upsert({
-      where: { id: "default" },
+    // PLAN.md §46.1/§46.2 — first-run bootstrap now creates the real
+    // tenant shape directly (Business + TenantPlacement + User +
+    // Membership("owner")) rather than a bare Admin row, so a brand-new
+    // install ends up structurally identical to a migrated one (§46.1
+    // task 14's seed.ts convention, applied here too).
+    const business = await prisma.business.upsert({
+      where: { slug: "default" },
       update: {},
-      create: { id: "default" },
+      create: { slug: "default", name: "My Business", status: "active" },
     });
 
-    // Ensure channels exist
+    await prisma.tenantPlacement.upsert({
+      where: { businessId: business.id },
+      update: {},
+      create: { businessId: business.id },
+    });
+
+    const user = await prisma.user.create({
+      data: { username, password: hashed, name: name || "Admin" },
+    });
+
+    await prisma.membership.create({
+      data: { businessId: business.id, userId: user.id, role: "owner" },
+    });
+
+    await prisma.businessConfig.upsert({
+      where: { businessId: business.id },
+      update: {},
+      create: { businessId: business.id },
+    });
+
     for (const type of ["whatsapp", "email", "phone"]) {
-      await prisma.channel.upsert({
-        where: { type },
-        update: {},
-        create: { type, isActive: false, status: "disconnected" },
+      const existingConnection = await prisma.channelConnection.findFirst({
+        where: { businessId: business.id, type },
       });
+      if (!existingConnection) {
+        await prisma.channelConnection.create({
+          data: { businessId: business.id, type, name: type, isActive: false, status: "disconnected" },
+        });
+      }
     }
 
-    const token = generateToken(admin.id, admin.role);
+    const token = generateToken(user.id);
     const cookie = setAuthCookie(token);
 
     const response = NextResponse.json({
       success: true,
-      user: { id: admin.id, username: admin.username, name: admin.name },
+      user: { id: user.id, username: user.username, name: user.name },
     });
     response.cookies.set(cookie);
     return response;
@@ -76,15 +94,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = await prisma.admin.findUnique({ where: { username } });
-    if (!admin) {
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    const valid = await verifyPassword(password, admin.password);
+    const valid = await verifyPassword(password, user.password);
     if (!valid) {
       return NextResponse.json(
         { error: "Invalid credentials" },
@@ -92,12 +110,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = generateToken(admin.id, admin.role);
+    const token = generateToken(user.id);
     const cookie = setAuthCookie(token);
 
     const response = NextResponse.json({
       success: true,
-      user: { id: admin.id, username: admin.username, name: admin.name },
+      user: { id: user.id, username: user.username, name: user.name },
     });
     response.cookies.set(cookie);
     return response;

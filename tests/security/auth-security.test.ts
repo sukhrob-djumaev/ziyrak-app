@@ -34,11 +34,11 @@ describe("Auth Security", () => {
     it("should reject token with tampered payload", async () => {
       const { generateToken, verifyToken } = await import("@/lib/auth");
 
-      const token = generateToken("user-1", "viewer");
+      const token = generateToken("user-1");
       // Tamper with the payload by modifying the middle part
       const parts = token.split(".");
       const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      payload.role = "admin"; // escalation attempt
+      payload.userId = "user-2"; // identity-swap attempt
       parts[1] = Buffer.from(JSON.stringify(payload)).toString("base64url");
       const tamperedToken = parts.join(".");
 
@@ -55,15 +55,15 @@ describe("Auth Security", () => {
       expect(verifyToken("dGVzdA==.dGVzdA==.dGVzdA==")).toBeNull();
     });
 
-    it("should include userId and role in token payload", async () => {
+    it("should include only userId in the token payload — no role claim (§14.4)", async () => {
       const { generateToken, verifyToken } = await import("@/lib/auth");
 
-      const token = generateToken("user-abc", "editor");
+      const token = generateToken("user-abc");
       const payload = verifyToken(token);
 
       expect(payload).not.toBeNull();
       expect(payload!.userId).toBe("user-abc");
-      expect(payload!.role).toBe("editor");
+      expect((payload as unknown as { role?: string }).role).toBeUndefined();
     });
   });
 

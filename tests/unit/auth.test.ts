@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 
 const TEST_SECRET = "test-secret-key-for-testing-only";
 
@@ -41,28 +41,27 @@ describe("Auth Module", () => {
   });
 
   describe("generateToken / verifyToken", () => {
-    it("should generate a valid JWT token", async () => {
+    it("should generate a valid JWT token with no role claim (§14.4)", async () => {
       const { generateToken } = await import("@/lib/auth");
 
-      const token = generateToken("user-123", "admin");
+      const token = generateToken("user-123");
       const decoded = jwt.verify(token, TEST_SECRET) as {
         userId: string;
-        role: string;
+        role?: string;
       };
 
       expect(decoded.userId).toBe("user-123");
-      expect(decoded.role).toBe("admin");
+      expect(decoded.role).toBeUndefined();
     });
 
     it("should verify a valid token and return payload", async () => {
       const { generateToken, verifyToken } = await import("@/lib/auth");
 
-      const token = generateToken("user-456", "editor");
+      const token = generateToken("user-456");
       const payload = verifyToken(token);
 
       expect(payload).not.toBeNull();
       expect(payload!.userId).toBe("user-456");
-      expect(payload!.role).toBe("editor");
     });
 
     it("should return null for invalid token", async () => {

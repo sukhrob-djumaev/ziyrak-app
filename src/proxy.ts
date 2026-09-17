@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyToken } from "@/lib/auth";
+import { isPublicApiPath } from "@/lib/public-api-paths";
 
 const API_VERSION = "2026-04-07";
 
@@ -79,16 +80,17 @@ export function proxy(request: NextRequest) {
     return addHeaders(new NextResponse(null, { status: 204 }), requestId);
   }
 
-  // Public paths that don't require auth
-  const publicPaths = ["/login", "/setup", "/api/auth", "/api/health", "/api/openapi.json"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  // Public page paths (not part of the /api/** requireAuth-coverage
+  // contract in src/lib/public-api-paths.ts) plus the shared list of
+  // public /api/** paths — auth routes, health, the OpenAPI spec, and
+  // channel webhook endpoints authenticated via provider signature (or,
+  // for the Web Chat widget reserved here per §46.2 task 5, a
+  // per-connection publishable token) rather than a JWT/API key.
+  const publicPagePaths = ["/login", "/setup"];
+  const isPublic =
+    publicPagePaths.some((p) => pathname.startsWith(p)) || isPublicApiPath(pathname);
 
-  // Channel webhook endpoints (authenticated via provider signatures, not JWT)
-  if (
-    pathname.startsWith("/api/channels/phone/") ||
-    pathname.startsWith("/api/channels/sms") ||
-    pathname.startsWith("/api/channels/telegram")
-  ) {
+  if (isPublicApiPath(pathname) && !pathname.startsWith("/api/auth")) {
     return addHeaders(NextResponse.next(), requestId);
   }
 

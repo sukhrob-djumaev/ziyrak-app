@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { cookies } from "next/headers";
 
 function getJwtSecret(): string {
@@ -28,20 +28,31 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export function generateToken(userId: string, role: string): string {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+/**
+ * PLAN.md §14.4 — signs only `{ userId }`, deliberately no role at all.
+ * Role is tenant-relative (§9) and resolved fresh per request against
+ * current `Membership` data (`route-auth.ts`), never cached in a
+ * 7-day-lived token — a revoked/changed membership must take effect
+ * immediately, not after the token expires.
+ */
+export function generateToken(userId: string): string {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
 
-export function verifyToken(
-  token: string
-): { userId: string; role: string } | null {
+export function verifyToken(token: string): { userId: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+    return jwt.verify(token, JWT_SECRET) as { userId: string };
   } catch {
     return null;
   }
 }
 
+/**
+ * PLAN.md §46.1/§46.2 — identity now lives on `User`, not `Admin`. This
+ * returns bare identity only (no role — see `generateToken` above); a
+ * request's actual tenant role comes from `requireAuth()`'s `Membership`
+ * resolution, not from here.
+ */
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(TOKEN_NAME)?.value;
@@ -50,12 +61,12 @@ export async function getCurrentUser() {
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  const admin = await prisma.admin.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, username: true, name: true, role: true },
+    select: { id: true, username: true, name: true, isPlatformAdmin: true },
   });
 
-  return admin;
+  return user;
 }
 
 /**

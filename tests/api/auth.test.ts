@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import { fixtures } from "../helpers/fixtures";
 
@@ -25,7 +25,7 @@ describe("POST /api/auth", () => {
       const { hashPassword } = await import("@/lib/auth");
       const hashedPassword = await hashPassword("admin123");
 
-      mockPrisma.admin.findUnique.mockResolvedValue({
+      mockPrisma.user.findUnique.mockResolvedValue({
         ...fixtures.admin,
         password: hashedPassword,
       });
@@ -48,7 +48,7 @@ describe("POST /api/auth", () => {
       const { hashPassword } = await import("@/lib/auth");
       const hashedPassword = await hashPassword("correctpass");
 
-      mockPrisma.admin.findUnique.mockResolvedValue({
+      mockPrisma.user.findUnique.mockResolvedValue({
         ...fixtures.admin,
         password: hashedPassword,
       });
@@ -64,7 +64,7 @@ describe("POST /api/auth", () => {
     });
 
     it("should reject nonexistent user", async () => {
-      mockPrisma.admin.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       const { POST } = await import("@/app/api/auth/route");
       const request = createRequest("/api/auth", {
@@ -89,18 +89,21 @@ describe("POST /api/auth", () => {
   });
 
   describe("setup action", () => {
-    it("should create first admin", async () => {
+    it("should create first owner (Business + TenantPlacement + User + Membership)", async () => {
       const { isSetupComplete } = await import("@/lib/auth");
       (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
-      mockPrisma.admin.create.mockResolvedValue({
-        id: "new-admin",
+      mockPrisma.business.upsert.mockResolvedValue({ id: "biz-1", slug: "default" });
+      mockPrisma.tenantPlacement.upsert.mockResolvedValue({ businessId: "biz-1" });
+      mockPrisma.user.create.mockResolvedValue({
+        id: "new-user",
         username: "newadmin",
         name: "New Admin",
-        role: "admin",
       });
-      mockPrisma.settings.upsert.mockResolvedValue({});
-      mockPrisma.channel.upsert.mockResolvedValue({});
+      mockPrisma.membership.create.mockResolvedValue({ businessId: "biz-1", userId: "new-user", role: "owner" });
+      mockPrisma.businessConfig.upsert.mockResolvedValue({});
+      mockPrisma.channelConnection.findFirst.mockResolvedValue(null);
+      mockPrisma.channelConnection.create.mockResolvedValue({});
 
       const { POST } = await import("@/app/api/auth/route");
       const request = createRequest("/api/auth", {

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as campaignsService from "@/lib/campaign-crud/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "analytics:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "analytics:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -15,44 +15,22 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const channel = searchParams.get("channel");
 
-    const where: Record<string, unknown> = {};
-
-    if (status && status !== "all") {
-      where.status = status;
-    }
-
-    if (channel && channel !== "all") {
-      where.channel = channel;
-    }
-
-    const [campaigns, total] = await Promise.all([
-      prisma.campaign.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take,
-      }),
-      prisma.campaign.count({ where }),
-    ]);
+    const { campaigns, total } = await campaignsService.list(ctx, { status, channel, skip, take });
 
     return NextResponse.json(paginatedResponse(campaigns, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch campaigns:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch campaigns" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "automation:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
-    const { name, description, channel, message, subject, segments, scheduledAt } =
-      body;
+    const { name, description, channel, message, subject, segments, scheduledAt } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
@@ -68,25 +46,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const campaign = await prisma.campaign.create({
-      data: {
-        businessId: await getDefaultBusinessId(),
-        name: name.trim(),
-        description: description?.trim() || "",
-        channel: channel || "email",
-        message: message.trim(),
-        subject: subject?.trim() || "",
-        segments: segments || [],
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      },
-    });
+    const campaign = await campaignsService.create(ctx, { name, description, channel, message, subject, segments, scheduledAt });
 
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
     logger.error("Failed to create campaign:", error);
-    return NextResponse.json(
-      { error: "Failed to create campaign" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

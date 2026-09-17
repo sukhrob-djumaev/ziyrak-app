@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { evaluateRules } from "@/lib/automation";
+import type { TenantContext } from "@/lib/tenancy/context";
+
+const ctx: TenantContext = {
+  businessId: "test-biz",
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 const mockPrisma = prisma as unknown as {
   automationRule: {
@@ -33,6 +41,7 @@ describe("Automation Rule Engine", () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([makeRule()]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "I have a billing question" },
       { id: "conv-1" }
     );
@@ -52,6 +61,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "hello", channel: "whatsapp" },
       { id: "conv-1" }
     );
@@ -73,6 +83,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "URGENT: Server is down" },
       { id: "conv-1" }
     );
@@ -92,6 +103,7 @@ describe("Automation Rule Engine", () => {
 
     // Only one condition matches
     const result = await evaluateRules(
+      ctx,
       { content: "billing issue", channel: "whatsapp" },
       { id: "conv-1" }
     );
@@ -104,6 +116,7 @@ describe("Automation Rule Engine", () => {
 
     // findMany is called with { where: { isActive: true } }
     const result = await evaluateRules(
+      ctx,
       { content: "billing" },
       { id: "conv-1" }
     );
@@ -135,6 +148,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "I need help" },
       { id: "conv-1" }
     );
@@ -148,6 +162,7 @@ describe("Automation Rule Engine", () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([makeRule()]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "How is the weather?" },
       { id: "conv-1" }
     );
@@ -159,6 +174,7 @@ describe("Automation Rule Engine", () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([makeRule()]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "BILLING DEPARTMENT PLEASE" },
       { id: "conv-1" }
     );
@@ -179,6 +195,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "billing question" },
       { id: "conv-1" }
     );
@@ -192,6 +209,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "anything" },
       { id: "conv-1" }
     );
@@ -209,6 +227,7 @@ describe("Automation Rule Engine", () => {
     ]);
 
     const result = await evaluateRules(
+      ctx,
       { content: "hello" },
       { id: "conv-1", channel: "phone" }
     );
@@ -220,7 +239,7 @@ describe("Automation Rule Engine", () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([makeRule()]);
     mockPrisma.automationRule.update.mockResolvedValue({});
 
-    await evaluateRules({ content: "billing" }, { id: "conv-1" });
+    await evaluateRules(ctx, { content: "billing" }, { id: "conv-1" });
 
     // Allow background promise to resolve
     await new Promise((r) => setTimeout(r, 10));

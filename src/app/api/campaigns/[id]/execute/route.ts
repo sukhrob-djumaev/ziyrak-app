@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
 import { findTargetCustomers, type CampaignSegment } from "@/lib/campaigns";
 import { logger } from "@/lib/logger";
+import { toErrorResponse } from "@/lib/errors";
+import * as campaignsService from "@/lib/campaign-crud/service";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "automation:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
 
-    const campaign = await prisma.campaign.findUnique({ where: { id } });
-    if (!campaign) {
-      return NextResponse.json(
-        { error: "Campaign not found" },
-        { status: 404 }
-      );
-    }
+    const campaign = await campaignsService.getById(ctx, id);
 
     const customers = await findTargetCustomers(
+      ctx,
       campaign.segments as unknown as CampaignSegment[]
     );
 
@@ -32,9 +28,6 @@ export async function POST(
     });
   } catch (error) {
     logger.error("Failed to execute campaign:", error);
-    return NextResponse.json(
-      { error: "Failed to execute campaign" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 /**
  * Campaign Manager
@@ -60,11 +61,13 @@ export function matchesSegment(
  * Find customers matching all campaign segments.
  */
 export async function findTargetCustomers(
+  ctx: TenantContext,
   segments: CampaignSegment[],
   limit = 1000
 ): Promise<Array<{ id: string; name: string; email: string; phone: string; whatsapp: string }>> {
+  const db = getScopedPrisma(ctx);
   // Fetch all customers and filter in-memory for complex segment logic
-  const customers = await prisma.customer.findMany({
+  const customers = await db.customer.findMany({
     where: { isBlocked: false },
     select: {
       id: true,
@@ -89,19 +92,21 @@ export async function findTargetCustomers(
  * Proactive message - send a message to a specific customer.
  */
 export async function sendProactiveMessage(
+  ctx: TenantContext,
   customerId: string,
   channel: string,
   message: string
 ): Promise<{ conversationId: string } | null> {
-  const customer = await prisma.customer.findUnique({
+  const db = getScopedPrisma(ctx);
+  const customer = await db.customer.findUnique({
     where: { id: customerId },
   });
 
   if (!customer) return null;
 
-  const conversation = await prisma.conversation.create({
+  const conversation = await db.conversation.create({
     data: {
-      businessId: customer.businessId,
+      businessId: ctx.businessId,
       channel,
       customerName: customer.name,
       customerContact:
@@ -113,9 +118,9 @@ export async function sendProactiveMessage(
     },
   });
 
-  await prisma.message.create({
+  await db.message.create({
     data: {
-      businessId: customer.businessId,
+      businessId: ctx.businessId,
       conversationId: conversation.id,
       role: "assistant",
       content: message,
@@ -123,6 +128,7 @@ export async function sendProactiveMessage(
   });
 
   logger.info("Proactive message sent", {
+    businessId: ctx.businessId,
     customerId,
     channel,
     conversationId: conversation.id,

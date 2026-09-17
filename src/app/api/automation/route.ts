@@ -1,53 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as automationService from "@/lib/automation-rules/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "automation:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip, take } = parsePagination(searchParams);
     const type = searchParams.get("type");
 
-    const where: Record<string, unknown> = {};
-
-    if (type && type !== "all") {
-      where.type = type;
-    }
-
-    const [rules, total] = await Promise.all([
-      prisma.automationRule.findMany({
-        where,
-        orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-        skip,
-        take,
-      }),
-      prisma.automationRule.count({ where }),
-    ]);
+    const { rules, total } = await automationService.list(ctx, { type, skip, take });
 
     return NextResponse.json(paginatedResponse(rules, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch automation rules:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch automation rules" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "automation:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
-    const { name, description, type, isActive, conditions, actions, priority } =
-      body;
+    const { name, description, type, isActive, conditions, actions, priority } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
@@ -78,25 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rule = await prisma.automationRule.create({
-      data: {
-        businessId: await getDefaultBusinessId(),
-        name: name.trim(),
-        description: description?.trim() || "",
-        type,
-        isActive: isActive ?? true,
-        conditions,
-        actions,
-        priority: priority ?? 0,
-      },
-    });
+    const rule = await automationService.create(ctx, { name, description, type, isActive, conditions, actions, priority });
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error) {
     logger.error("Failed to create automation rule:", error);
-    return NextResponse.json(
-      { error: "Failed to create automation rule" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface Condition {
   field: string;
@@ -98,13 +99,17 @@ function ruleMatchesMessage(
  * Evaluates all active automation rules against a message and conversation.
  * Returns an array of matched actions sorted by rule priority (highest first).
  *
- * Called from the AI engine when a new message comes in.
+ * Not yet wired to any real call site (§2.4/§46.6 — full runtime automation
+ * reconnection is Phase 6 scope); already converted to explicit-`ctx` now
+ * so Phase 6 doesn't inherit an unscoped query here.
  */
 export async function evaluateRules(
+  ctx: TenantContext,
   message: Message,
   conversation: Conversation
 ): Promise<MatchedAction[]> {
-  const rules = await prisma.automationRule.findMany({
+  const db = getScopedPrisma(ctx);
+  const rules = await db.automationRule.findMany({
     where: { isActive: true },
     orderBy: { priority: "desc" },
   });
@@ -134,7 +139,7 @@ export async function evaluateRules(
       });
 
       // Increment trigger count in background
-      prisma.automationRule
+      db.automationRule
         .update({
           where: { id: rule.id },
           data: { triggerCount: { increment: 1 } },

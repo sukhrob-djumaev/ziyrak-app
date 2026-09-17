@@ -1,28 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as automationService from "@/lib/automation-rules/service";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "automation:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, type, isActive, conditions, actions, priority } =
-      body;
-
-    const existing = await prisma.automationRule.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Automation rule not found" },
-        { status: 404 }
-      );
-    }
+    const { name, description, type, isActive, conditions, actions, priority } = body;
 
     const validTypes = ["auto_route", "auto_tag", "auto_reply", "keyword_alert"];
     if (type !== undefined && !validTypes.includes(type)) {
@@ -32,26 +24,12 @@ export async function PUT(
       );
     }
 
-    const rule = await prisma.automationRule.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description: description.trim() }),
-        ...(type !== undefined && { type }),
-        ...(isActive !== undefined && { isActive }),
-        ...(conditions !== undefined && { conditions }),
-        ...(actions !== undefined && { actions }),
-        ...(priority !== undefined && { priority }),
-      },
-    });
+    const rule = await automationService.update(ctx, id, { name, description, type, isActive, conditions, actions, priority });
 
     return NextResponse.json(rule);
   } catch (error) {
     logger.error("Failed to update automation rule:", error);
-    return NextResponse.json(
-      { error: "Failed to update automation rule" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -59,28 +37,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "automation:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "automation:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-
-    const existing = await prisma.automationRule.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Automation rule not found" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.automationRule.delete({ where: { id } });
-
+    await automationService.remove(ctx, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Failed to delete automation rule:", error);
-    return NextResponse.json(
-      { error: "Failed to delete automation rule" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

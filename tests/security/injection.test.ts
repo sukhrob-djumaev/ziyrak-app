@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import { escapeHtml, sanitizeEmailSubject } from "@/lib/security";
 
@@ -158,7 +158,7 @@ describe("Injection Attack Prevention", () => {
   describe("Auth Security", () => {
     it("should not reveal whether username exists on failed login", async () => {
       // When user doesn't exist
-      mockPrisma.admin.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       const { POST } = await import("@/app/api/auth/route");
 
@@ -186,7 +186,10 @@ describe("Injection Attack Prevention", () => {
       const data = await parseJsonResponse(response);
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to fetch conversations");
+      // toErrorResponse() (§16.2) maps any non-AppError to a fully generic
+      // message — not even a resource-specific string — precisely so a
+      // thrown Prisma error's text can never reach the response body.
+      expect(data.error).toEqual({ code: "INTERNAL_ERROR", message: "An unexpected error occurred" });
       // Error message should NOT contain database details
       expect(JSON.stringify(data)).not.toContain("owly_production");
       expect(JSON.stringify(data)).not.toContain("PrismaClient");

@@ -1,60 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-
-const CHANNEL_TYPES = ["whatsapp", "email", "phone", "sms", "telegram"];
+import { toErrorResponse } from "@/lib/errors";
+import * as connectionsService from "@/lib/channels/connections-service";
 
 type RouteContext = { params: Promise<{ type: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
-  const auth = await requireAuth(request, "channels:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "channels:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { type } = await context.params;
 
-    if (!CHANNEL_TYPES.includes(type)) {
+    if (!connectionsService.isValidChannelType(type)) {
       return NextResponse.json(
         { error: "Invalid channel type" },
         { status: 400 }
       );
     }
 
-    const channel = await prisma.channel.findUnique({
-      where: { type },
-    });
-
-    if (!channel) {
-      return NextResponse.json({
-        id: null,
-        type,
-        isActive: false,
-        config: {},
-        status: "disconnected",
-        createdAt: null,
-        updatedAt: null,
-      });
-    }
-
+    const channel = await connectionsService.getByType(ctx, type);
     return NextResponse.json(channel);
   } catch (error) {
     logger.error("Failed to fetch channel:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch channel" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const auth = await requireAuth(request, "channels:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "channels:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { type } = await context.params;
 
-    if (!CHANNEL_TYPES.includes(type)) {
+    if (!connectionsService.isValidChannelType(type)) {
       return NextResponse.json(
         { error: "Invalid channel type" },
         { status: 400 }
@@ -64,39 +45,23 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const { isActive, config, status } = body;
 
-    const channel = await prisma.channel.upsert({
-      where: { type },
-      update: {
-        isActive: typeof isActive === "boolean" ? isActive : undefined,
-        config: config ?? undefined,
-        status: status ?? undefined,
-      },
-      create: {
-        type,
-        isActive: typeof isActive === "boolean" ? isActive : false,
-        config: config ?? {},
-        status: status ?? "disconnected",
-      },
-    });
+    const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, status });
 
     return NextResponse.json(channel);
   } catch (error) {
     logger.error("Failed to update channel:", error);
-    return NextResponse.json(
-      { error: "Failed to update channel" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const auth = await requireAuth(request, "channels:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "channels:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { type } = await context.params;
 
-    if (!CHANNEL_TYPES.includes(type)) {
+    if (!connectionsService.isValidChannelType(type)) {
       return NextResponse.json(
         { error: "Invalid channel type" },
         { status: 400 }
@@ -113,65 +78,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const channel = await prisma.channel.findUnique({ where: { type } });
+    const result = await connectionsService.performAction(ctx, type, action);
 
-    if (action === "disconnect") {
-      const updated = await prisma.channel.upsert({
-        where: { type },
-        update: { status: "disconnected" },
-        create: {
-          type,
-          isActive: false,
-          config: {},
-          status: "disconnected",
-        },
-      });
-      return NextResponse.json({
-        ...updated,
-        message: `${type} channel disconnected`,
-      });
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    if (action === "connect") {
-      if (!channel?.config || Object.keys(channel.config as object).length === 0) {
-        return NextResponse.json(
-          { error: "Channel must be configured before connecting" },
-          { status: 400 }
-        );
-      }
-
-      const updated = await prisma.channel.update({
-        where: { type },
-        data: { status: "connected", isActive: true },
-      });
-
-      return NextResponse.json({
-        ...updated,
-        message: `${type} channel connected`,
-      });
-    }
-
-    if (action === "test") {
-      if (!channel?.config || Object.keys(channel.config as object).length === 0) {
-        return NextResponse.json(
-          { error: "Channel must be configured before testing" },
-          { status: 400 }
-        );
-      }
-
+    if ("success" in result) {
       return NextResponse.json({
         success: true,
         message: `${type} connection test initiated`,
-        channel,
+        channel: result.connection,
       });
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return NextResponse.json({ ...result, message: `${type} channel ${action}ed` });
   } catch (error) {
     logger.error("Failed to perform channel action:", error);
-    return NextResponse.json(
-      { error: "Failed to perform channel action" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

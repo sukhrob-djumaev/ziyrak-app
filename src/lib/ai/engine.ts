@@ -206,7 +206,7 @@ export async function chat(
     });
   }
 
-  emitNewMessage(conversationId, { id: savedMessage.id, role: "assistant", content: response });
+  emitNewMessage(await getDefaultBusinessId(), conversationId, { id: savedMessage.id, role: "assistant", content: response });
 
   return response;
 }

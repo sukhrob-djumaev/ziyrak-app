@@ -1,14 +1,51 @@
-import { NextRequest } from "next/server";
-import { subscribe } from "@/lib/realtime";
+import { NextRequest, NextResponse } from "next/server";
+import { subscribe, tenantGlobalChannel, tenantConversationChannel } from "@/lib/realtime";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "conversations:read");
-  if (!isAuthenticated(auth)) return auth;
+const CONVERSATION_CHANNEL = /^conversation:(.+)$/;
 
-  const channel = request.nextUrl.searchParams.get("channel") || "global";
+/**
+ * PLAN.md §26.2/§33.2 — the client only ever names a *relative* channel
+ * (`global` or `conversation:<id>`); the actual tenant-prefixed channel
+ * (`tenant:<businessId>:...`) is always constructed here from the
+ * authenticated `ctx.businessId`, never accepted from the client, closing
+ * off any attempt to subscribe to another business's channel by supplying
+ * a `tenant:` prefix directly. A `conversation:<id>` subscription is only
+ * honored once the conversation is confirmed to belong to the caller's own
+ * business (via the tenant-scoped Prisma client) — guessing/reusing a
+ * known id from another business resolves to 404, never a live stream.
+ */
+export async function GET(request: NextRequest) {
+  const ctx = await requireAuth(request, "conversations:read");
+  if (!isAuthenticated(ctx)) return ctx;
+
+  const requested = request.nextUrl.searchParams.get("channel") || "global";
+
+  let channel: string;
+  if (requested === "global") {
+    channel = tenantGlobalChannel(ctx.businessId);
+  } else {
+    const match = requested.match(CONVERSATION_CHANNEL);
+    if (!match) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "channel must be \"global\" or \"conversation:<id>\"" } },
+        { status: 400 }
+      );
+    }
+    const conversationId = match[1];
+    const db = getScopedPrisma(ctx);
+    const conversation = await db.conversation.findUnique({ where: { id: conversationId } });
+    if (!conversation) {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "Conversation not found" } },
+        { status: 404 }
+      );
+    }
+    channel = tenantConversationChannel(ctx.businessId, conversationId);
+  }
 
   const stream = new ReadableStream({
     start(controller) {
@@ -16,7 +53,7 @@ export async function GET(request: NextRequest) {
 
       // Send initial connection event
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "connected", channel })}\n\n`)
+        encoder.encode(`data: ${JSON.stringify({ type: "connected", channel: requested })}\n\n`)
       );
 
       // Subscribe to events

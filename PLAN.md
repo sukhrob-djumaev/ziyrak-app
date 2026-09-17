@@ -2498,6 +2498,19 @@ Phase 0 complete (clean security/lint/test baseline to migrate from).
 ### Explicitly deferred
 Query-layer tenant enforcement (the Prisma extension, the raw-client lint rule) — Phase 2, and per §45.2 this phase's output must not be treated as externally safe until Phase 2 ships alongside it. A polished multi-business signup/onboarding flow — Phase 2/7 (this phase only needs the migration script's programmatic business creation to work, not a UI). `InfrastructurePolicy` and any non-default `DatabaseProfile`/`StorageProfile` — Phase 9 (this phase only introduces the control-plane *shape*, always resolving to the shared default).
 
+### Implementation record (Phase 1 complete)
+
+Phase 1 is implemented and complete. This is a record of concrete findings from that implementation, not a revision to the architecture above.
+
+- Final schema carries mandatory tenant ownership (`businessId NOT NULL`, FK, index) on every table in §12, plus every composite `@@unique`/composite FK from §8.4's table.
+- `src/lib/default-business.ts` is a **temporary compatibility layer**, introduced because the existing application still needs to operate against the Default Business until Phase 2 introduces real `TenantContext` resolution. It is transitional and **owned by Phase 2 for removal/replacement** — Phase 2 should delete it, not extend it, as each call site is converted to explicit `ctx`.
+- API-key authentication (`route-auth.ts`'s `authenticateApiKey()`) currently fails closed, since the plaintext `key` column it used to query no longer exists. Phase 2 task 9 wires the real `keyPrefix`+`keyHash` authentication path.
+- `Settings.aiApiKey` remains in the retained legacy `Settings` row — Phase 1 has no defined final destination for it. Phase 4 must migrate it once the AI provider configuration boundary (`AIProviderRegistry`) becomes real.
+- Legacy `Channel` rows were migrated into `ChannelConnection` by combining each channel's existing status with its corresponding `Settings` credentials/configuration (not itself a named §13.2 step, but the only coherent reading of §7.7).
+- `BusinessHours` was backfilled in place (same `"default"`-id row) rather than duplicated into a new row, since that is the implementation compatible with its final `NOT NULL` + `@@unique([businessId])` tenant ownership.
+- `ToolPolicy`, `ActionExecution`, and `InboundEventReceipt` were intentionally not created in Phase 1 — despite appearing in §12's full target-model table, their implementation phases are Phase 6/5, not §46.1's own task list.
+- Phase 1 remains explicitly **unsafe for real external multi-tenant onboarding** until Phase 2 completes authentication, tenant resolution, scoped Prisma access, and route-level enforcement.
+
 ---
 
 ## 46.2 Phase 2 — Authentication, Authorization, Tenant Isolation

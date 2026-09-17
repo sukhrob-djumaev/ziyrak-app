@@ -34,11 +34,26 @@ vi.mock("@/lib/route-auth", () => ({
   isAuthenticated: vi.fn().mockReturnValue(true),
 }));
 
-// Phase 1's default-business stopgap (§46.1) is deleted once every call site
-// is converted to ctx.businessId (Phase 2) — this mock is removed in the
-// same batch that removes the last real import of it.
+// Phase 1's default-business stopgap (§46.1), narrowed by the Phase 2
+// runtime-isolation audit to an explicit fail-closed guard
+// (assertDefaultBusinessOnly) plus the one remaining legitimate silent use
+// (getDefaultBusinessContext, for inbound-channel-webhook paths that have
+// no TenantContext at all yet, §14.3/Phase 5). assertDefaultBusinessOnly
+// defaults to a no-op success here because the mocked requireAuth() above
+// already resolves ctx.businessId to the same TEST_DEFAULT_BUSINESS_ID
+// getDefaultBusinessId() resolves to — matching the real module's
+// behavior for the common case; a test that specifically wants to exercise
+// the guard's rejection path overrides ctx.businessId (or this mock)
+// itself.
 vi.mock("@/lib/default-business", () => ({
   getDefaultBusinessId: vi.fn().mockResolvedValue(TEST_DEFAULT_BUSINESS_ID),
+  assertDefaultBusinessOnly: vi.fn().mockResolvedValue(undefined),
+  getDefaultBusinessContext: vi.fn().mockResolvedValue({
+    businessId: TEST_DEFAULT_BUSINESS_ID,
+    role: null,
+    actor: { kind: "channel_credential", channelConnectionId: "test-default-channel-connection" },
+    dataConnection: "shared-default",
+  }),
 }));
 
 // Mock realtime to prevent side effects in tests

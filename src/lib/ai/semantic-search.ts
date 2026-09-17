@@ -11,6 +11,8 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/logger";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import type { TenantContext } from "@/lib/tenancy/context";
 
 interface SearchResult {
   id: string;
@@ -89,10 +91,12 @@ function keywordScore(query: string, text: string): number {
  * Uses embeddings when available, falls back to keyword matching.
  */
 export async function searchKnowledgeBase(
+  ctx: TenantContext,
   query: string,
   limit = 5
 ): Promise<SearchResult[]> {
-  const entries = await prisma.knowledgeEntry.findMany({
+  const db = getScopedPrisma(ctx);
+  const entries = await db.knowledgeEntry.findMany({
     where: { isActive: true },
     include: { category: { select: { name: true } } },
   });
@@ -180,10 +184,12 @@ function keywordSearch(
  * Generate and store embedding for a knowledge entry.
  */
 export async function indexKnowledgeEntry(
+  ctx: TenantContext,
   entryId: string,
   apiKey: string
 ): Promise<boolean> {
-  const entry = await prisma.knowledgeEntry.findUnique({
+  const db = getScopedPrisma(ctx);
+  const entry = await db.knowledgeEntry.findUnique({
     where: { id: entryId },
   });
 
@@ -196,7 +202,7 @@ export async function indexKnowledgeEntry(
 
   const currentMetadata = (entry.metadata as Record<string, unknown>) || {};
 
-  await prisma.knowledgeEntry.update({
+  await db.knowledgeEntry.update({
     where: { id: entryId },
     data: {
       metadata: { ...currentMetadata, embedding },

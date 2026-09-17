@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { executeToolCall } from "@/lib/ai/tools";
+import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
  * Characterization suite (§46.0): pins today's behavior of the AI's
@@ -10,6 +11,13 @@ import { executeToolCall } from "@/lib/ai/tools";
  */
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+
+const ctx: TenantContext = {
+  businessId: "test-default-business-id",
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 describe("Characterization: create_ticket tool persists a Ticket row", () => {
   beforeEach(() => {
@@ -37,6 +45,7 @@ describe("Characterization: create_ticket tool persists a Ticket row", () => {
 
     const result = JSON.parse(
       await executeToolCall(
+        ctx,
         "create_ticket",
         {
           title: "Order not delivered",

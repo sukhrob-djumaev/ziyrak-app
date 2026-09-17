@@ -2,7 +2,8 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { resolveCustomer } from "@/lib/customer-resolver";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { getDefaultBusinessContext } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface PhoneConfig {
   twilioSid: string;
@@ -135,10 +136,17 @@ export async function handleIncomingCall(
     );
   }
 
+  // See channels/whatsapp.ts's identical comment — Phase 2 runtime-
+  // isolation audit finding: no per-connection inbound tenant resolution
+  // exists yet (Phase 5), so this explicitly scopes to the Default
+  // Business.
+  const ctx = await getDefaultBusinessContext();
+  const db = getScopedPrisma(ctx);
+
   // Create call log
-  await prisma.callLog.create({
+  await db.callLog.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       callSid,
       from,
       to: config.twilioPhone,
@@ -147,10 +155,10 @@ export async function handleIncomingCall(
   });
 
   // Resolve customer identity across channels
-  const customerId = await resolveCustomer("phone", from, "Phone Caller");
+  const customerId = await resolveCustomer(ctx, "phone", from, "Phone Caller");
 
   // Create or find conversation
-  let conversation = await prisma.conversation.findFirst({
+  let conversation = await db.conversation.findFirst({
     where: {
       channel: "phone",
       status: { in: ["active", "escalated"] },
@@ -162,7 +170,7 @@ export async function handleIncomingCall(
   });
 
   if (!conversation) {
-    conversation = await createNewConversation("phone", "Phone Caller", from, customerId);
+    conversation = await createNewConversation(ctx, "phone", "Phone Caller", from, customerId);
   }
 
   const settings = await prisma.settings.findFirst();
@@ -184,16 +192,19 @@ export async function handleSpeechInput(
     return generateTwiMLSay("I didn't catch that. Could you please repeat?");
   }
 
+  const ctx = await getDefaultBusinessContext();
+  const db = getScopedPrisma(ctx);
+
   // Get AI response
   let aiResponse: string;
   try {
-    aiResponse = await chat(conversationId, speechResult);
+    aiResponse = await chat(ctx, conversationId, speechResult);
   } catch {
     return generateTwiMLSay("I'm sorry, I'm having trouble right now. Please try again or hold for an agent.");
   }
 
   // Update call log
-  await prisma.callLog.updateMany({
+  await db.callLog.updateMany({
     where: { callSid },
     data: { status: "in-progress" },
   });
@@ -203,7 +214,9 @@ export async function handleSpeechInput(
 
 // End call handler
 export async function handleCallEnd(callSid: string, duration: number) {
-  await prisma.callLog.updateMany({
+  const ctx = await getDefaultBusinessContext();
+  const db = getScopedPrisma(ctx);
+  await db.callLog.updateMany({
     where: { callSid },
     data: {
       status: "completed",

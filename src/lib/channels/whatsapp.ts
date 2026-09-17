@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { logger } from "@/lib/logger";
 import { resolveCustomer } from "@/lib/customer-resolver";
+import { getDefaultBusinessContext } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 let whatsappClient: Client | null = null;
 let currentQR: string | null = null;
@@ -93,11 +95,20 @@ export async function initWhatsApp(): Promise<void> {
       const customerName = contact.pushname || contact.name || "Unknown";
       const customerContact = message.from;
 
+      // Phase 2 runtime-isolation audit finding: this inbound handler has
+      // no way to resolve "which business" yet — there is no
+      // ChannelConnection-based inbound identification (§14.3, Phase 5).
+      // getDefaultBusinessContext() makes that single-tenant limitation an
+      // explicit, visible choice at this call site rather than an implicit
+      // fallback buried inside chat()/resolveCustomer().
+      const ctx = await getDefaultBusinessContext();
+      const db = getScopedPrisma(ctx);
+
       // Resolve customer identity across channels
-      const customerId = await resolveCustomer("whatsapp", customerContact, customerName);
+      const customerId = await resolveCustomer(ctx, "whatsapp", customerContact, customerName);
 
       // Find or create conversation
-      let conversation = await prisma.conversation.findFirst({
+      let conversation = await db.conversation.findFirst({
         where: {
           channel: "whatsapp",
           status: { in: ["active", "escalated"] },
@@ -110,6 +121,7 @@ export async function initWhatsApp(): Promise<void> {
 
       if (!conversation) {
         conversation = await createNewConversation(
+          ctx,
           "whatsapp",
           customerName,
           customerContact,
@@ -133,7 +145,7 @@ export async function initWhatsApp(): Promise<void> {
       }
 
       // Get AI response
-      const aiResponse = await chat(conversation.id, messageContent);
+      const aiResponse = await chat(ctx, conversation.id, messageContent);
 
       // Send response back via WhatsApp
       await message.reply(aiResponse);

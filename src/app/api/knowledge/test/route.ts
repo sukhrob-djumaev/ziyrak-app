@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma/raw-client";
 import OpenAI from "openai";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { assertDefaultBusinessOnly } from "@/lib/default-business";
+import { AppError, toErrorResponse } from "@/lib/errors";
 import * as knowledgeService from "@/lib/knowledge/service";
 
 export async function POST(request: NextRequest) {
@@ -19,6 +21,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Phase 2 runtime-isolation audit finding: the knowledge entries below
+    // are already tenant-scoped via getScopedPrisma(ctx), but the AI
+    // provider/model/API key selection still reads the legacy global
+    // Settings singleton — without this guard, a non-default business
+    // would silently have its (correctly isolated) knowledge base tested
+    // using the Default Business's AI credentials/billing. Removed once
+    // Phase 4's AIProviderRegistry resolves per-business config.
+    await assertDefaultBusinessOnly(ctx, "Knowledge base testing");
 
     // Legacy Settings singleton, not a tenant-owned model (§46.1's
     // implementation record — Settings.aiApiKey has no defined final
@@ -123,6 +134,7 @@ Your answer here...
     });
   } catch (error) {
     logger.error("Failed to test knowledge base:", error);
+    if (error instanceof AppError) return toErrorResponse(error);
     const message =
       error instanceof Error ? error.message : "Failed to test knowledge base";
     return NextResponse.json({ error: message }, { status: 500 });

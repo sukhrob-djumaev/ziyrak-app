@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 
 // Mock OpenAI
 const mockOpenAICreateFn = vi.fn();
@@ -16,6 +18,16 @@ vi.mock("openai", () => {
 });
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+
+// assertDefaultBusinessOnly() (mocked in tests/setup.ts) checks this
+// against the also-mocked getDefaultBusinessId() — must match for chat()
+// to proceed past its guard.
+const ctx: TenantContext = {
+  businessId: TEST_DEFAULT_BUSINESS_ID,
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 describe("AI Engine", () => {
   beforeEach(async () => {
@@ -73,7 +85,7 @@ describe("AI Engine", () => {
     });
 
     const { chat } = await import("@/lib/ai/engine");
-    const response = await chat("conv-1", "Hello");
+    const response = await chat(ctx, "conv-1", "Hello");
 
     expect(response).toContain("AI is not configured");
   });
@@ -82,7 +94,7 @@ describe("AI Engine", () => {
     mockPrisma.conversation.findUnique.mockResolvedValue(null);
 
     const { chat } = await import("@/lib/ai/engine");
-    const response = await chat("nonexistent", "Hello");
+    const response = await chat(ctx, "nonexistent", "Hello");
 
     expect(response).toBe("Conversation not found.");
   });
@@ -98,7 +110,7 @@ describe("AI Engine", () => {
     });
 
     const { chat } = await import("@/lib/ai/engine");
-    const response = await chat("conv-1", "I need help");
+    const response = await chat(ctx, "conv-1", "I need help");
 
     expect(response).toBe("Hello! How can I help?");
     expect(mockOpenAICreateFn).toHaveBeenCalledWith(
@@ -121,7 +133,7 @@ describe("AI Engine", () => {
     });
 
     const { chat } = await import("@/lib/ai/engine");
-    await chat("conv-1", "Help me");
+    await chat(ctx, "conv-1", "Help me");
 
     // User message saved
     expect(mockPrisma.message.create).toHaveBeenCalledWith(
@@ -166,7 +178,7 @@ describe("AI Engine", () => {
     });
 
     const { chat } = await import("@/lib/ai/engine");
-    await chat("conv-1", "What is your return policy?");
+    await chat(ctx, "conv-1", "What is your return policy?");
 
     const callArgs = mockOpenAICreateFn.mock.calls[0][0];
     const systemMessage = callArgs.messages[0];
@@ -213,7 +225,7 @@ describe("AI Engine", () => {
     mockPrisma.conversation.findMany.mockResolvedValue([]);
 
     const { chat } = await import("@/lib/ai/engine");
-    const response = await chat("conv-1", "Do you know me?");
+    const response = await chat(ctx, "conv-1", "Do you know me?");
 
     expect(response).toBe("Based on your history, I can see...");
     expect(mockOpenAICreateFn).toHaveBeenCalledTimes(2);
@@ -230,7 +242,7 @@ describe("AI Engine", () => {
     });
 
     const { chat } = await import("@/lib/ai/engine");
-    const response = await chat("conv-1", "Hello");
+    const response = await chat(ctx, "conv-1", "Hello");
 
     expect(response).toContain("could not generate a response");
   });

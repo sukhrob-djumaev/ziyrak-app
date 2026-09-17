@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "conversations:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "conversations:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -22,7 +23,14 @@ export async function POST(request: NextRequest) {
     let convId = conversationId;
 
     if (!convId) {
+      // createNewConversation()/chat() below resolve entirely against
+      // ctx.businessId (§16.2) and fail closed via
+      // assertDefaultBusinessOnly() if this business isn't the one the AI
+      // chat pipeline's still-global Settings-derived config represents
+      // (Phase 2 runtime-isolation audit finding) — never silently against
+      // the Default Business regardless of who's actually asking.
       const conversation = await createNewConversation(
+        ctx,
         channel || "api",
         customerName || "API User",
         customerContact || ""
@@ -30,7 +38,7 @@ export async function POST(request: NextRequest) {
       convId = conversation.id;
     }
 
-    const response = await chat(convId, message.trim());
+    const response = await chat(ctx, convId, message.trim());
 
     return NextResponse.json({
       conversationId: convId,
@@ -38,9 +46,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Failed to process chat message:", error);
-    return NextResponse.json(
-      { error: "Failed to process message" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

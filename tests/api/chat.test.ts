@@ -80,7 +80,7 @@ describe("POST /api/chat", () => {
     const data = await parseJsonResponse(response);
 
     expect(data.conversationId).toBe("existing-conv");
-    expect(chat).toHaveBeenCalledWith("existing-conv", "Hello");
+    expect(chat).toHaveBeenCalledWith(expect.objectContaining({ businessId: expect.any(String) }), "existing-conv", "Hello");
   });
 
   it("should handle AI engine errors gracefully", async () => {

@@ -2,7 +2,9 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma/raw-client";
 import { owlyTools, executeToolCall } from "./tools";
 import { emitNewMessage } from "@/lib/realtime";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { assertDefaultBusinessOnly } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import type { TenantContext } from "@/lib/tenancy/context";
 import { analyzeSentiment, detectIntent, estimateConfidence, requiresHumanApproval } from "./guardrails";
 import type {
   AIMessage,
@@ -62,8 +64,9 @@ ${context.customerName !== "Unknown" ? `- Customer name: ${context.customerName}
 ${context.customerHistory.length > 0 ? context.customerHistory.join("\n") : "This is the customer's first interaction."}`;
 }
 
-async function getKnowledgeBase(): Promise<KnowledgeItem[]> {
-  const entries = await prisma.knowledgeEntry.findMany({
+async function getKnowledgeBase(ctx: TenantContext): Promise<KnowledgeItem[]> {
+  const db = getScopedPrisma(ctx);
+  const entries = await db.knowledgeEntry.findMany({
     where: { isActive: true },
     include: { category: true },
     orderBy: { priority: "desc" },
@@ -77,6 +80,13 @@ async function getKnowledgeBase(): Promise<KnowledgeItem[]> {
   }));
 }
 
+/**
+ * Still reads the legacy global Settings singleton (§10.2's BusinessConfig
+ * split + a real per-business AIProviderRegistry are Phase 4 scope) — safe
+ * to call only once the caller has already confirmed, via
+ * `assertDefaultBusinessOnly()`, that `ctx` is the one business this
+ * config is allowed to represent.
+ */
 async function getAIConfig(): Promise<AIConfig & ConversationContext> {
   const settings = await prisma.settings.upsert({
     where: { id: "default" },
@@ -103,16 +113,29 @@ async function getAIConfig(): Promise<AIConfig & ConversationContext> {
 }
 
 export async function chat(
+  ctx: TenantContext,
   conversationId: string,
   userMessage: string
 ): Promise<string> {
+  // Phase 2 runtime-isolation audit finding: chat() used to resolve its own
+  // businessId internally via the Default Business shim, so a real,
+  // authenticated Business B caller (e.g. via /api/chat) would have its
+  // conversation/messages silently written under the Default Business
+  // instead, and every business's active knowledge entries were merged
+  // into one shared AI prompt. This guard makes that fail closed instead:
+  // the AI chat pipeline (provider/model/API key, still Settings-derived)
+  // is only available for the Default Business until Phase 4 gives every
+  // business its own AIProviderRegistry-resolved config.
+  await assertDefaultBusinessOnly(ctx, "AI chat");
+
+  const db = getScopedPrisma(ctx);
   const config = await getAIConfig();
 
   if (!config.apiKey) {
     return "AI is not configured. Please add your API key in Settings > AI Configuration.";
   }
 
-  const conversation = await prisma.conversation.findUnique({
+  const conversation = await db.conversation.findUnique({
     where: { id: conversationId },
     include: {
       messages: { orderBy: { createdAt: "asc" }, take: 50 },
@@ -123,7 +146,7 @@ export async function chat(
     return "Conversation not found.";
   }
 
-  const knowledgeBase = await getKnowledgeBase();
+  const knowledgeBase = await getKnowledgeBase(ctx);
 
   const context: ConversationContext = {
     ...config,
@@ -155,7 +178,7 @@ export async function chat(
     const intent = detectIntent(userMessage);
 
     // Store metadata for dashboard visibility
-    await prisma.conversation.update({
+    await db.conversation.update({
       where: { id: conversationId },
       data: {
         metadata: {
@@ -168,10 +191,9 @@ export async function chat(
   }
 
   // Save user message
-  const businessId = await getDefaultBusinessId();
-  await prisma.message.create({
+  await db.message.create({
     data: {
-      businessId,
+      businessId: ctx.businessId,
       conversationId,
       role: "customer",
       content: userMessage,
@@ -179,12 +201,12 @@ export async function chat(
   });
 
   // Call AI
-  const response = await callAI(config, messages, conversationId);
+  const response = await callAI(ctx, config, messages, conversationId);
 
   // Save assistant message
-  const savedMessage = await prisma.message.create({
+  const savedMessage = await db.message.create({
     data: {
-      businessId,
+      businessId: ctx.businessId,
       conversationId,
       role: "assistant",
       content: response,
@@ -192,7 +214,7 @@ export async function chat(
   });
 
   // Update conversation timestamp
-  await prisma.conversation.update({
+  await db.conversation.update({
     where: { id: conversationId },
     data: { updatedAt: new Date() },
   });
@@ -200,18 +222,19 @@ export async function chat(
   // Confidence scoring
   const confidence = estimateConfidence(response, knowledgeBase.length, false);
   if (confidence.shouldEscalate) {
-    await prisma.conversation.update({
+    await db.conversation.update({
       where: { id: conversationId },
       data: { status: "escalated" },
     });
   }
 
-  emitNewMessage(await getDefaultBusinessId(), conversationId, { id: savedMessage.id, role: "assistant", content: response });
+  emitNewMessage(ctx.businessId, conversationId, { id: savedMessage.id, role: "assistant", content: response });
 
   return response;
 }
 
 async function callAI(
+  ctx: TenantContext,
   config: AIConfig,
   messages: AIMessage[],
   conversationId: string,
@@ -265,6 +288,7 @@ async function callAI(
     for (const toolCall of toolCalls) {
       const args = JSON.parse(toolCall.function.arguments);
       const result = await executeToolCall(
+        ctx,
         toolCall.function.name,
         args,
         conversationId
@@ -278,21 +302,27 @@ async function callAI(
     }
 
     // Continue the conversation with tool results
-    return callAI(config, messages, conversationId, depth + 1);
+    return callAI(ctx, config, messages, conversationId, depth + 1);
   }
 
   return choice.message.content || "I apologize, I could not generate a response.";
 }
 
 export async function createNewConversation(
+  ctx: TenantContext,
   channel: string,
   customerName: string,
   customerContact: string,
   customerId?: string
 ) {
-  return prisma.conversation.create({
+  // Same guard as chat() — see its comment. Checked here too since a
+  // caller could create a conversation without immediately chatting.
+  await assertDefaultBusinessOnly(ctx, "AI chat");
+
+  const db = getScopedPrisma(ctx);
+  return db.conversation.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       channel,
       customerName,
       customerContact,

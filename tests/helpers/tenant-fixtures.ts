@@ -63,6 +63,65 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
   };
 }
 
+/**
+ * Finds or creates the one real "default" Business (slug "default") that
+ * `getDefaultBusinessId()`/`assertDefaultBusinessOnly()`/
+ * `getDefaultBusinessContext()` resolve against in production (created by
+ * the Phase 1 migration or `prisma/seed.ts` there; CI's ephemeral database
+ * has neither run, so tests that exercise the real, unmocked guard need to
+ * create it themselves). Idempotent — safe to call from multiple test
+ * files sharing one database.
+ */
+export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
+  const existing = await prisma.business.findUnique({ where: { slug: "default" } });
+  if (existing) {
+    const membership = await prisma.membership.findFirst({
+      where: { businessId: existing.id, role: "owner" },
+      orderBy: { createdAt: "asc" },
+    });
+    if (membership) {
+      return {
+        businessId: existing.id,
+        slug: existing.slug,
+        ownerUserId: membership.userId,
+        ownerUsername: "",
+        ctx: {
+          businessId: existing.id,
+          role: "owner",
+          actor: { kind: "user", userId: membership.userId },
+          dataConnection: "shared-default",
+        },
+      };
+    }
+  }
+
+  const business = existing ?? (await prisma.business.create({ data: { slug: "default", name: "Default Business" } }));
+  await prisma.tenantPlacement.upsert({
+    where: { businessId: business.id },
+    update: {},
+    create: { businessId: business.id },
+  });
+
+  const passwordHash = await hashPassword("not-a-real-login-password");
+  const user = await prisma.user.create({
+    data: { username: `default-owner-${uniqueSuffix("d")}`, password: passwordHash, name: "Default Owner" },
+  });
+  await prisma.membership.create({ data: { businessId: business.id, userId: user.id, role: "owner" } });
+
+  return {
+    businessId: business.id,
+    slug: business.slug,
+    ownerUserId: user.id,
+    ownerUsername: user.username,
+    ctx: {
+      businessId: business.id,
+      role: "owner",
+      actor: { kind: "user", userId: user.id },
+      dataConnection: "shared-default",
+    },
+  };
+}
+
 /** Adds a second Membership (any role) to an existing seeded business's User pool, for role-check tests. */
 export async function addMember(
   businessId: string,

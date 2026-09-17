@@ -70,24 +70,28 @@ const eslintConfig = defineConfig([
       // (channels, business-hours, etc.) has already been cut over to its
       // Phase-1-built tenant-scoped replacement in this phase.
       "src/app/api/settings/route.ts",
-      // The AI chat/tool-execution pipeline and the channel-adapter
-      // integrations it's driven by (WhatsApp Web session, IMAP/SMTP,
-      // Twilio SMS/voice, Telegram bot). PLAN.md §46.2's own "Current code
-      // involved" list does not name these files, and §46.2's "Explicitly
-      // deferred" section places ToolPolicy/ExecutionPrincipal-based AI
-      // authorization and full ChannelAdapter contracts at Phase 6/Phase 5
-      // respectively — constructing a real `ai_agent`/`channel_credential`
-      // TenantContext for inbound-channel-triggered code is that same
-      // seam, not yet built. These remain on the Phase 1
-      // `getDefaultBusinessId()` compatibility shim until that phase's
-      // TenantContext-construction path exists; default-business.ts is
-      // therefore not deleted yet either (see its own header comment).
-      // This is a deliberate, reported Phase 2 scope boundary, not an
-      // oversight — see the Phase 2 completion report.
+      // Post-audit status (Phase 2 runtime-isolation audit): these files
+      // are now ctx-aware everywhere it's structurally possible
+      // (getScopedPrisma(ctx) for every tenant-owned model; customer-
+      // resolver.ts needed no raw-client allowlisting at all after the
+      // audit and was removed from this list entirely). The raw client
+      // remains here ONLY for the legacy global Settings singleton
+      // (provider/model/API key, SMTP/IMAP/Twilio/Telegram credentials) —
+      // genuinely global infra config with no per-business destination
+      // until Phase 4's AIProviderRegistry/Phase 5's ChannelAdapter exist.
+      // Every code path that reaches these files from an authenticated
+      // route now fails closed via assertDefaultBusinessOnly() rather than
+      // silently resolving to the Default Business (see
+      // default-business.ts's own header comment and the Phase 2
+      // completion report's runtime-isolation audit). The channel-adapter
+      // files' *inbound* (webhook-triggered) paths have no authenticated
+      // caller to fail closed for at all — they explicitly construct a
+      // Default-Business-only TenantContext via
+      // getDefaultBusinessContext(), since no per-connection inbound
+      // tenant resolution exists yet (Phase 5).
       "src/lib/ai/engine.ts",
       "src/lib/ai/semantic-search.ts",
       "src/lib/ai/tools.ts",
-      "src/lib/customer-resolver.ts",
       "src/lib/channels/email.ts",
       "src/lib/channels/phone.ts",
       "src/lib/channels/sms.ts",

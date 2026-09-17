@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { executeToolCall } from "@/lib/ai/tools";
+import type { TenantContext } from "@/lib/tenancy/context";
+
+const ctx: TenantContext = {
+  businessId: "test-biz",
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 // Mock nodemailer
 vi.mock("nodemailer", () => ({
@@ -42,6 +50,7 @@ describe("AI Tools", () => {
 
       const result = JSON.parse(
         await executeToolCall(
+          ctx,
           "create_ticket",
           {
             title: "Login issue",
@@ -77,7 +86,7 @@ describe("AI Tools", () => {
       });
 
       const result = JSON.parse(
-        await executeToolCall("create_ticket", {
+        await executeToolCall(ctx, "create_ticket", {
           title: "Issue",
           description: "Details",
           priority: "medium",
@@ -98,7 +107,7 @@ describe("AI Tools", () => {
       mockPrisma.ticket.update.mockResolvedValue({});
 
       const result = JSON.parse(
-        await executeToolCall("assign_to_person", {
+        await executeToolCall(ctx, "assign_to_person", {
           ticketId: "ticket-1",
           expertise: "billing",
         })
@@ -116,7 +125,7 @@ describe("AI Tools", () => {
       mockPrisma.teamMember.findFirst.mockResolvedValue(null);
 
       const result = JSON.parse(
-        await executeToolCall("assign_to_person", {
+        await executeToolCall(ctx, "assign_to_person", {
           ticketId: "ticket-1",
           expertise: "quantum-physics",
         })
@@ -138,7 +147,7 @@ describe("AI Tools", () => {
       });
 
       const result = JSON.parse(
-        await executeToolCall("send_internal_email", {
+        await executeToolCall(ctx, "send_internal_email", {
           to: "team@test.com",
           subject: "Urgent issue",
           body: "Please check ticket #123",
@@ -152,7 +161,7 @@ describe("AI Tools", () => {
       mockPrisma.settings.findFirst.mockResolvedValue({ smtpHost: null });
 
       const result = JSON.parse(
-        await executeToolCall("send_internal_email", {
+        await executeToolCall(ctx, "send_internal_email", {
           to: "team@test.com",
           subject: "Test",
           body: "Test body",
@@ -180,7 +189,7 @@ describe("AI Tools", () => {
       ]);
 
       const result = JSON.parse(
-        await executeToolCall("get_customer_history", {
+        await executeToolCall(ctx, "get_customer_history", {
           customerContact: "+1555",
         })
       );
@@ -194,7 +203,7 @@ describe("AI Tools", () => {
       mockPrisma.conversation.findMany.mockResolvedValue([]);
 
       const result = JSON.parse(
-        await executeToolCall("get_customer_history", {
+        await executeToolCall(ctx, "get_customer_history", {
           customerContact: "+9999",
         })
       );
@@ -208,7 +217,7 @@ describe("AI Tools", () => {
   describe("schedule_followup", () => {
     it("should return success with scheduled time", async () => {
       const result = JSON.parse(
-        await executeToolCall("schedule_followup", {
+        await executeToolCall(ctx, "schedule_followup", {
           conversationId: "conv-1",
           message: "How is everything going?",
           delayHours: 24,
@@ -237,7 +246,7 @@ describe("AI Tools", () => {
       global.fetch = mockFetch;
 
       const result = JSON.parse(
-        await executeToolCall("trigger_webhook", {
+        await executeToolCall(ctx, "trigger_webhook", {
           webhookName: "Slack",
           data: { event: "ticket_created" },
         })
@@ -257,7 +266,7 @@ describe("AI Tools", () => {
       mockPrisma.webhook.findFirst.mockResolvedValue(null);
 
       const result = JSON.parse(
-        await executeToolCall("trigger_webhook", {
+        await executeToolCall(ctx, "trigger_webhook", {
           webhookName: "NonExistent",
         })
       );
@@ -270,7 +279,7 @@ describe("AI Tools", () => {
   describe("unknown tool", () => {
     it("should return error for unknown tool name", async () => {
       const result = JSON.parse(
-        await executeToolCall("nonexistent_tool", {})
+        await executeToolCall(ctx, "nonexistent_tool", {})
       );
 
       expect(result.error).toContain("Unknown tool");

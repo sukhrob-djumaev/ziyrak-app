@@ -6,6 +6,8 @@ import { chat, createNewConversation } from "@/lib/ai/engine";
 import { escapeHtml, sanitizeEmailSubject } from "@/lib/security";
 import { logger } from "@/lib/logger";
 import { resolveCustomer } from "@/lib/customer-resolver";
+import { getDefaultBusinessContext } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface EmailConfig {
   imapHost: string;
@@ -71,11 +73,17 @@ async function processEmail(parsed: ParsedMail, config: EmailConfig) {
 
   if (!fromAddress) return;
 
+  // Phase 2 runtime-isolation audit finding: see whatsapp.ts's identical
+  // comment — no per-connection inbound tenant resolution exists yet
+  // (Phase 5), so this explicitly, visibly scopes to the Default Business.
+  const ctx = await getDefaultBusinessContext();
+  const db = getScopedPrisma(ctx);
+
   // Resolve customer identity across channels
-  const customerId = await resolveCustomer("email", fromAddress, fromName);
+  const customerId = await resolveCustomer(ctx, "email", fromAddress, fromName);
 
   // Find or create conversation
-  let conversation = await prisma.conversation.findFirst({
+  let conversation = await db.conversation.findFirst({
     where: {
       channel: "email",
       status: { in: ["active", "escalated"] },
@@ -88,6 +96,7 @@ async function processEmail(parsed: ParsedMail, config: EmailConfig) {
 
   if (!conversation) {
     conversation = await createNewConversation(
+      ctx,
       "email",
       fromName,
       fromAddress,
@@ -97,7 +106,7 @@ async function processEmail(parsed: ParsedMail, config: EmailConfig) {
 
   // Get AI response
   const messageContent = `Subject: ${subject}\n\n${textBody}`;
-  const aiResponse = await chat(conversation.id, messageContent);
+  const aiResponse = await chat(ctx, conversation.id, messageContent);
 
   // Send reply with branding
   const branding = await getEmailBranding();

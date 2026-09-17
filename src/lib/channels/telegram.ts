@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { resolveCustomer } from "@/lib/customer-resolver";
 import { logger } from "@/lib/logger";
+import { getDefaultBusinessContext } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface TelegramUpdate {
   update_id: number;
@@ -41,9 +43,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<stri
     const userName = [message.from.first_name, message.from.last_name].filter(Boolean).join(" ");
     const contact = message.from.username ? `@${message.from.username}` : chatId;
 
-    const customerId = await resolveCustomer("telegram", contact, userName);
+    // See whatsapp.ts's identical comment — Phase 2 runtime-isolation
+    // audit finding: no per-connection inbound tenant resolution exists
+    // yet (Phase 5), so this explicitly scopes to the Default Business.
+    const ctx = await getDefaultBusinessContext();
+    const db = getScopedPrisma(ctx);
 
-    let conversation = await prisma.conversation.findFirst({
+    const customerId = await resolveCustomer(ctx, "telegram", contact, userName);
+
+    let conversation = await db.conversation.findFirst({
       where: {
         channel: "telegram",
         status: { in: ["active", "escalated"] },
@@ -52,10 +60,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<stri
     });
 
     if (!conversation) {
-      conversation = await createNewConversation("telegram", userName, contact, customerId);
+      conversation = await createNewConversation(ctx, "telegram", userName, contact, customerId);
     }
 
-    const aiResponse = await chat(conversation.id, message.text);
+    const aiResponse = await chat(ctx, conversation.id, message.text);
 
     // Send reply via Telegram API
     const token = await getTelegramToken();

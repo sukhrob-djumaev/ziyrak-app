@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { resolveCustomer, normalizePhone } from "@/lib/customer-resolver";
+import type { TenantContext } from "@/lib/tenancy/context";
+
+const ctx: TenantContext = {
+  businessId: "test-biz",
+  role: "admin",
+  actor: { kind: "user", userId: "test-user" },
+  dataConnection: "shared-default",
+};
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -47,7 +55,7 @@ describe("Customer Resolver", () => {
         whatsapp: "",
       });
 
-      const result = await resolveCustomer("email", "john@test.com", "John");
+      const result = await resolveCustomer(ctx, "email", "john@test.com", "John");
       expect(result).toBe("cust-1");
     });
 
@@ -64,7 +72,7 @@ describe("Customer Resolver", () => {
         whatsapp: "5551234567@c.us",
       });
 
-      const result = await resolveCustomer("whatsapp", "5551234567@c.us", "Jane");
+      const result = await resolveCustomer(ctx, "whatsapp", "5551234567@c.us", "Jane");
       expect(result).toBe("cust-2");
     });
 
@@ -73,7 +81,7 @@ describe("Customer Resolver", () => {
       mockPrisma.customer.findFirst.mockResolvedValue(null);
       mockPrisma.customer.create.mockResolvedValue({ id: "new-cust" });
 
-      const result = await resolveCustomer("email", "new@test.com", "New User");
+      const result = await resolveCustomer(ctx, "email", "new@test.com", "New User");
 
       expect(result).toBe("new-cust");
       expect(mockPrisma.customer.create).toHaveBeenCalledWith({
@@ -88,7 +96,7 @@ describe("Customer Resolver", () => {
       mockPrisma.customer.findFirst.mockResolvedValue(null);
       mockPrisma.customer.create.mockResolvedValue({ id: "phone-cust" });
 
-      await resolveCustomer("phone", "+15551234567", "Phone Caller");
+      await resolveCustomer(ctx, "phone", "+15551234567", "Phone Caller");
 
       expect(mockPrisma.customer.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -109,7 +117,7 @@ describe("Customer Resolver", () => {
         whatsapp: "",
       });
 
-      await resolveCustomer("email", "existing@test.com", "Existing User");
+      await resolveCustomer(ctx, "email", "existing@test.com", "Existing User");
 
       expect(mockPrisma.customer.update).toHaveBeenCalledWith({
         where: { id: "existing-1" },
@@ -122,7 +130,7 @@ describe("Customer Resolver", () => {
     it("should handle empty customerContact", async () => {
       mockPrisma.customer.create.mockResolvedValue({ id: "empty-contact" });
 
-      const result = await resolveCustomer("api", "", "API User");
+      const result = await resolveCustomer(ctx, "api", "", "API User");
       expect(result).toBe("empty-contact");
     });
   });

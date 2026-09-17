@@ -1,6 +1,7 @@
 import { ToolDefinition } from "./types";
 import { prisma } from "@/lib/prisma/raw-client";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import type { TenantContext } from "@/lib/tenancy/context";
 import nodemailer from "nodemailer";
 
 export const owlyTools: ToolDefinition[] = [
@@ -159,43 +160,46 @@ export const owlyTools: ToolDefinition[] = [
 ];
 
 export async function executeToolCall(
+  ctx: TenantContext,
   toolName: string,
   args: Record<string, unknown>,
   conversationId?: string
 ): Promise<string> {
   switch (toolName) {
     case "create_ticket":
-      return await createTicket(args, conversationId);
+      return await createTicket(ctx, args, conversationId);
     case "assign_to_person":
-      return await assignToPerson(args);
+      return await assignToPerson(ctx, args);
     case "send_internal_email":
       return await sendInternalEmail(args);
     case "get_customer_history":
-      return await getCustomerHistory(args);
+      return await getCustomerHistory(ctx, args);
     case "schedule_followup":
       return await scheduleFollowup(args);
     case "trigger_webhook":
-      return await triggerWebhook(args);
+      return await triggerWebhook(ctx, args);
     default:
       return JSON.stringify({ error: `Unknown tool: ${toolName}` });
   }
 }
 
 async function createTicket(
+  ctx: TenantContext,
   args: Record<string, unknown>,
   conversationId?: string
 ): Promise<string> {
+  const db = getScopedPrisma(ctx);
   const department = args.department
-    ? await prisma.department.findFirst({
+    ? await db.department.findFirst({
         where: {
           name: { contains: args.department as string, mode: "insensitive" },
         },
       })
     : null;
 
-  const ticket = await prisma.ticket.create({
+  const ticket = await db.ticket.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       title: args.title as string,
       description: args.description as string,
       priority: (args.priority as string) || "medium",
@@ -211,11 +215,12 @@ async function createTicket(
   });
 }
 
-async function assignToPerson(args: Record<string, unknown>): Promise<string> {
+async function assignToPerson(ctx: TenantContext, args: Record<string, unknown>): Promise<string> {
+  const db = getScopedPrisma(ctx);
   const expertise = args.expertise as string;
   const ticketId = args.ticketId as string;
 
-  const member = await prisma.teamMember.findFirst({
+  const member = await db.teamMember.findFirst({
     where: {
       expertise: { contains: expertise, mode: "insensitive" },
       isAvailable: true,
@@ -230,7 +235,7 @@ async function assignToPerson(args: Record<string, unknown>): Promise<string> {
     });
   }
 
-  await prisma.ticket.update({
+  await db.ticket.update({
     where: { id: ticketId },
     data: { assignedToId: member.id, status: "in_progress" },
   });
@@ -278,14 +283,16 @@ async function sendInternalEmail(
 }
 
 async function getCustomerHistory(
+  ctx: TenantContext,
   args: Record<string, unknown>
 ): Promise<string> {
+  const db = getScopedPrisma(ctx);
   // Cross-channel lookup: prefer customerId for unified history
   const where = args.customerId
     ? { customerId: args.customerId as string }
     : { customerContact: args.customerContact as string };
 
-  const conversations = await prisma.conversation.findMany({
+  const conversations = await db.conversation.findMany({
     where,
     include: {
       messages: {
@@ -334,8 +341,9 @@ async function scheduleFollowup(
   });
 }
 
-async function triggerWebhook(args: Record<string, unknown>): Promise<string> {
-  const webhook = await prisma.webhook.findFirst({
+async function triggerWebhook(ctx: TenantContext, args: Record<string, unknown>): Promise<string> {
+  const db = getScopedPrisma(ctx);
+  const webhook = await db.webhook.findFirst({
     where: {
       name: { contains: args.webhookName as string, mode: "insensitive" },
       isActive: true,

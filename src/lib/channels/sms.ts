@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { resolveCustomer } from "@/lib/customer-resolver";
 import { logger } from "@/lib/logger";
+import { getDefaultBusinessContext } from "@/lib/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface SmsConfig {
   twilioSid: string;
@@ -32,9 +34,15 @@ export async function handleIncomingSms(
       return "Please send a message and we'll be happy to help!";
     }
 
-    const customerId = await resolveCustomer("sms", from, "SMS User");
+    // See whatsapp.ts's identical comment — Phase 2 runtime-isolation
+    // audit finding: no per-connection inbound tenant resolution exists
+    // yet (Phase 5), so this explicitly scopes to the Default Business.
+    const ctx = await getDefaultBusinessContext();
+    const db = getScopedPrisma(ctx);
 
-    let conversation = await prisma.conversation.findFirst({
+    const customerId = await resolveCustomer(ctx, "sms", from, "SMS User");
+
+    let conversation = await db.conversation.findFirst({
       where: {
         channel: "sms",
         status: { in: ["active", "escalated"] },
@@ -43,10 +51,10 @@ export async function handleIncomingSms(
     });
 
     if (!conversation) {
-      conversation = await createNewConversation("sms", "SMS User", from, customerId);
+      conversation = await createNewConversation(ctx, "sms", "SMS User", from, customerId);
     }
 
-    const aiResponse = await chat(conversation.id, body.trim());
+    const aiResponse = await chat(ctx, conversation.id, body.trim());
     return aiResponse;
   } catch (error) {
     logger.error("[SMS] Failed to process incoming message:", error);

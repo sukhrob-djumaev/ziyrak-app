@@ -1,45 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as knowledgeService from "@/lib/knowledge/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "knowledge:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "knowledge:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip, take } = parsePagination(searchParams);
 
-    const [categories, total] = await Promise.all([
-      prisma.category.findMany({
-        orderBy: { sortOrder: "asc" },
-        skip,
-        take,
-        include: {
-          _count: {
-            select: { entries: true },
-          },
-        },
-      }),
-      prisma.category.count(),
-    ]);
+    const { categories, total } = await knowledgeService.listCategories(ctx, { skip, take });
 
     return NextResponse.json(paginatedResponse(categories, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch categories:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch categories" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "knowledge:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "knowledge:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -52,32 +37,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const maxSort = await prisma.category.aggregate({
-      _max: { sortOrder: true },
-    });
-
-    const category = await prisma.category.create({
-      data: {
-        businessId: await getDefaultBusinessId(),
-        name: name.trim(),
-        description: description?.trim() || "",
-        icon: icon || "folder",
-        color: color || "#4A7C9B",
-        sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-      },
-      include: {
-        _count: {
-          select: { entries: true },
-        },
-      },
-    });
+    const category = await knowledgeService.createCategory(ctx, { name, description, icon, color });
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {
     logger.error("Failed to create category:", error);
-    return NextResponse.json(
-      { error: "Failed to create category" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

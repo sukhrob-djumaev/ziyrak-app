@@ -1,51 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as knowledgeService from "@/lib/knowledge/service";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "knowledge:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "knowledge:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
     const { name, description, icon, color, sortOrder } = body;
 
-    const existing = await prisma.category.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
-    }
-
-    const category = await prisma.category.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description: description.trim() }),
-        ...(icon !== undefined && { icon }),
-        ...(color !== undefined && { color }),
-        ...(sortOrder !== undefined && { sortOrder }),
-      },
-      include: {
-        _count: {
-          select: { entries: true },
-        },
-      },
-    });
+    const category = await knowledgeService.updateCategory(ctx, id, { name, description, icon, color, sortOrder });
 
     return NextResponse.json(category);
   } catch (error) {
     logger.error("Failed to update category:", error);
-    return NextResponse.json(
-      { error: "Failed to update category" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -53,28 +29,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "knowledge:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "knowledge:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-
-    const existing = await prisma.category.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.category.delete({ where: { id } });
-
+    await knowledgeService.removeCategory(ctx, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Failed to delete category:", error);
-    return NextResponse.json(
-      { error: "Failed to delete category" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

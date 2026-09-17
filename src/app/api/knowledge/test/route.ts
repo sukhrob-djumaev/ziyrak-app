@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import OpenAI from "openai";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import * as knowledgeService from "@/lib/knowledge/service";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "knowledge:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "knowledge:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -19,7 +20,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Load settings for AI configuration
+    // Legacy Settings singleton, not a tenant-owned model (§46.1's
+    // implementation record — Settings.aiApiKey has no defined final
+    // destination until Phase 4's AIProviderRegistry exists). Reading it
+    // here directly is a deliberate, narrow, allowlisted exception (see
+    // eslint.config.mjs) — the tenant-owned query below (knowledge
+    // entries) goes through the scoped client like everything else.
     const settings = await prisma.settings.findUnique({
       where: { id: "default" },
     });
@@ -31,16 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Load all active knowledge entries
-    const entries = await prisma.knowledgeEntry.findMany({
-      where: { isActive: true },
-      include: {
-        category: {
-          select: { id: true, name: true, color: true },
-        },
-      },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
-    });
+    const entries = await knowledgeService.listActiveEntriesForTest(ctx);
 
     if (entries.length === 0) {
       return NextResponse.json(

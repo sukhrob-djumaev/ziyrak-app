@@ -1,7 +1,7 @@
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS = [5000, 30000, 300000]; // 5s, 30s, 5min
@@ -26,10 +26,12 @@ export function generateSignature(payload: string, secret: string): string {
  * Deliver a webhook with retry logic and delivery tracking.
  */
 export async function deliverWebhook(
+  ctx: TenantContext,
   webhook: WebhookConfig,
   event: string,
   data: Record<string, unknown>
 ): Promise<{ deliveryId: string; success: boolean }> {
+  const db = getScopedPrisma(ctx);
   const payload = JSON.stringify({
     event,
     timestamp: new Date().toISOString(),
@@ -37,9 +39,9 @@ export async function deliverWebhook(
     data,
   });
 
-  const delivery = await prisma.webhookDelivery.create({
+  const delivery = await db.webhookDelivery.create({
     data: {
-      businessId: await getDefaultBusinessId(),
+      businessId: ctx.businessId,
       webhookId: webhook.id,
       event,
       payload: JSON.parse(payload),
@@ -48,17 +50,19 @@ export async function deliverWebhook(
     },
   });
 
-  const result = await attemptDelivery(webhook, payload, delivery.id);
+  const result = await attemptDelivery(ctx, webhook, payload, delivery.id);
 
   return { deliveryId: delivery.id, success: result };
 }
 
 async function attemptDelivery(
+  ctx: TenantContext,
   webhook: WebhookConfig,
   payload: string,
   deliveryId: string,
   attempt = 1
 ): Promise<boolean> {
+  const db = getScopedPrisma(ctx);
   const webhookSecret = process.env.WEBHOOK_SECRET || "";
   const signature = webhookSecret ? generateSignature(payload, webhookSecret) : "";
 
@@ -86,7 +90,7 @@ async function attemptDelivery(
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      await prisma.webhookDelivery.update({
+      await db.webhookDelivery.update({
         where: { id: deliveryId },
         data: {
           status: "delivered",
@@ -109,7 +113,7 @@ async function attemptDelivery(
       const retryDelay = RETRY_DELAYS[attempt - 1] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
       const nextRetryAt = new Date(Date.now() + retryDelay);
 
-      await prisma.webhookDelivery.update({
+      await db.webhookDelivery.update({
         where: { id: deliveryId },
         data: {
           status: "pending",
@@ -120,6 +124,7 @@ async function attemptDelivery(
       });
 
       logger.warn(`Webhook delivery failed, retrying in ${retryDelay / 1000}s`, {
+        businessId: ctx.businessId,
         deliveryId,
         webhookId: webhook.id,
         attempt,
@@ -128,7 +133,7 @@ async function attemptDelivery(
 
       // Schedule retry
       setTimeout(() => {
-        attemptDelivery(webhook, payload, deliveryId, attempt + 1).catch((err) =>
+        attemptDelivery(ctx, webhook, payload, deliveryId, attempt + 1).catch((err) =>
           logger.error("Webhook retry failed", err)
         );
       }, retryDelay);
@@ -137,7 +142,7 @@ async function attemptDelivery(
     }
 
     // All retries exhausted
-    await prisma.webhookDelivery.update({
+    await db.webhookDelivery.update({
       where: { id: deliveryId },
       data: {
         status: "failed",
@@ -148,6 +153,7 @@ async function attemptDelivery(
     });
 
     logger.error("Webhook delivery permanently failed", null, {
+      businessId: ctx.businessId,
       deliveryId,
       webhookId: webhook.id,
       event: "delivery_failed",
@@ -160,8 +166,9 @@ async function attemptDelivery(
 /**
  * Retry a specific failed delivery.
  */
-export async function retryDelivery(deliveryId: string): Promise<boolean> {
-  const delivery = await prisma.webhookDelivery.findUnique({
+export async function retryDelivery(ctx: TenantContext, deliveryId: string): Promise<boolean> {
+  const db = getScopedPrisma(ctx);
+  const delivery = await db.webhookDelivery.findUnique({
     where: { id: deliveryId },
     include: { webhook: true },
   });
@@ -172,12 +179,13 @@ export async function retryDelivery(deliveryId: string): Promise<boolean> {
 
   const payload = JSON.stringify(delivery.payload);
 
-  await prisma.webhookDelivery.update({
+  await db.webhookDelivery.update({
     where: { id: deliveryId },
     data: { status: "pending", attempts: 0, lastError: null },
   });
 
   return attemptDelivery(
+    ctx,
     {
       id: delivery.webhook.id,
       name: delivery.webhook.name,

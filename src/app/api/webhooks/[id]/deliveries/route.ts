@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { retryDelivery } from "@/lib/webhook-delivery";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as webhooksService from "@/lib/webhooks/service";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "webhooks:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -18,28 +19,12 @@ export async function GET(
     const { page, limit, skip, take } = parsePagination(searchParams);
     const status = searchParams.get("status");
 
-    const where: Record<string, unknown> = { webhookId: id };
-    if (status && status !== "all") {
-      where.status = status;
-    }
-
-    const [deliveries, total] = await Promise.all([
-      prisma.webhookDelivery.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take,
-      }),
-      prisma.webhookDelivery.count({ where }),
-    ]);
+    const { deliveries, total } = await webhooksService.listDeliveries(ctx, id, { status, skip, take });
 
     return NextResponse.json(paginatedResponse(deliveries, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch webhook deliveries:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch deliveries" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -47,8 +32,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "webhooks:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -62,9 +47,7 @@ export async function POST(
       );
     }
 
-    const delivery = await prisma.webhookDelivery.findFirst({
-      where: { id: deliveryId, webhookId: id },
-    });
+    const delivery = await webhooksService.findDeliveryForWebhook(ctx, id, deliveryId);
 
     if (!delivery) {
       return NextResponse.json(
@@ -73,14 +56,11 @@ export async function POST(
       );
     }
 
-    const success = await retryDelivery(deliveryId);
+    const success = await retryDelivery(ctx, deliveryId);
 
     return NextResponse.json({ success, deliveryId });
   } catch (error) {
     logger.error("Failed to retry webhook delivery:", error);
-    return NextResponse.json(
-      { error: "Failed to retry delivery" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

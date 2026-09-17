@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as webhooksService from "@/lib/webhooks/service";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "webhooks:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-    const webhook = await prisma.webhook.findUnique({ where: { id } });
-
-    if (!webhook) {
-      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
-    }
-
+    const webhook = await webhooksService.getById(ctx, id);
     return NextResponse.json(webhook);
   } catch (error) {
     logger.error("Failed to fetch webhook:", error);
-    return NextResponse.json({ error: "Failed to fetch webhook" }, { status: 500 });
+    return toErrorResponse(error);
   }
 }
 
@@ -29,19 +25,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "webhooks:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
-
-    const existing = await prisma.webhook.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
-    }
-
-    // Only allow known fields
     const { name, description, url, method, headers, triggerOn, isActive } = body;
 
     const validMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -56,23 +45,20 @@ export async function PUT(
       return NextResponse.json({ error: "URL must start with http:// or https://" }, { status: 400 });
     }
 
-    const webhook = await prisma.webhook.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(url !== undefined && { url }),
-        ...(method !== undefined && { method }),
-        ...(headers !== undefined && { headers }),
-        ...(triggerOn !== undefined && { triggerOn }),
-        ...(isActive !== undefined && { isActive }),
-      },
+    const webhook = await webhooksService.update(ctx, id, {
+      name,
+      description,
+      url,
+      method,
+      headers,
+      triggerOn,
+      isActive,
     });
 
     return NextResponse.json(webhook);
   } catch (error) {
     logger.error("Failed to update webhook:", error);
-    return NextResponse.json({ error: "Failed to update webhook" }, { status: 500 });
+    return toErrorResponse(error);
   }
 }
 
@@ -80,21 +66,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "webhooks:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-
-    const existing = await prisma.webhook.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
-    }
-
-    await prisma.webhook.delete({ where: { id } });
+    await webhooksService.remove(ctx, id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     logger.error("Failed to delete webhook:", error);
-    return NextResponse.json({ error: "Failed to delete webhook" }, { status: 500 });
+    return toErrorResponse(error);
   }
 }

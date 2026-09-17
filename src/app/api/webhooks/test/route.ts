@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import * as webhooksService from "@/lib/webhooks/service";
+import { NotFoundError } from "@/lib/errors";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "webhooks:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -17,8 +18,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const webhook = await prisma.webhook.findUnique({
-      where: { id: webhookId },
+    const webhook = await webhooksService.getById(ctx, webhookId).catch((error) => {
+      if (error instanceof NotFoundError) return null;
+      throw error;
     });
 
     if (!webhook) {

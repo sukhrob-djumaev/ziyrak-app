@@ -1,31 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as webhooksService from "@/lib/webhooks/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "webhooks:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
-  const { searchParams } = new URL(request.url);
-  const { page, limit, skip, take } = parsePagination(searchParams);
+  try {
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip, take } = parsePagination(searchParams);
 
-  const [webhooks, total] = await Promise.all([
-    prisma.webhook.findMany({
-      orderBy: { createdAt: "desc" },
-      skip,
-      take,
-    }),
-    prisma.webhook.count(),
-  ]);
+    const { webhooks, total } = await webhooksService.list(ctx, { skip, take });
 
-  return NextResponse.json(paginatedResponse(webhooks, total, page, limit));
+    return NextResponse.json(paginatedResponse(webhooks, total, page, limit));
+  } catch (error) {
+    return toErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "webhooks:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "webhooks:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   const body = await request.json();
   const { name, description, url, method, headers, triggerOn } = body;
@@ -37,17 +34,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const webhook = await prisma.webhook.create({
-    data: {
-      businessId: await getDefaultBusinessId(),
-      name,
-      description: description || "",
-      url,
-      method: method || "POST",
-      headers: headers || {},
-      triggerOn,
-    },
-  });
-
-  return NextResponse.json(webhook, { status: 201 });
+  try {
+    const webhook = await webhooksService.create(ctx, { name, description, url, method, headers, triggerOn });
+    return NextResponse.json(webhook, { status: 201 });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
 }

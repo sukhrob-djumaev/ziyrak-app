@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { isPublicApiPath } from "@/lib/public-api-paths";
 
 /**
@@ -15,10 +16,20 @@ import { isPublicApiPath } from "@/lib/public-api-paths";
 
 const API_ROOT = path.join(process.cwd(), "src", "app", "api");
 
+// A stale scratch directory left behind by a killed/crashed earlier run
+// (this file's own deliberate-violation tests write one) would otherwise
+// get swept into the static walk below and fail as a false positive — so
+// any directory matching this suite's own scratch-naming convention is
+// skipped, and each run additionally uses a fresh, unique directory name
+// (never a fixed one) so a leftover from a previous run can never collide
+// with the current one in the first place.
+const SCRATCH_DIR_PREFIX = "__coverage_scratch";
+
 function listRouteFiles(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {
+    if (entry.isDirectory() && entry.name.startsWith(SCRATCH_DIR_PREFIX)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...listRouteFiles(full));
@@ -58,7 +69,7 @@ describe("every src/app/api/**/route.ts is public-allowlisted or calls requireAu
 });
 
 describe("deliberate-violation test: an uncovered route is caught (§33.4 item 4's pattern, applied to §14.2)", () => {
-  const scratchDir = path.join(API_ROOT, "__coverage_scratch__");
+  const scratchDir = path.join(API_ROOT, `${SCRATCH_DIR_PREFIX}_${crypto.randomUUID()}__`);
   const scratchFile = path.join(scratchDir, "route.ts");
 
   afterEach(() => {

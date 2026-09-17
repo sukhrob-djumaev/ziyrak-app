@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { ESLint } from "eslint";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 /**
  * PLAN.md §33.4 item 5 / §36 item 7 — the deliberate-violation test: add an
@@ -13,7 +14,14 @@ import path from "node:path";
  * it's configured.
  */
 
-const SCRATCH_PATH = path.join(process.cwd(), "src", "lib", "__lint_scratch_raw_prisma_violation__.ts");
+// Unique per test run (not a fixed name) so this can never collide with a
+// concurrently-running suite/process touching the same path.
+const SCRATCH_PATH = path.join(
+  process.cwd(),
+  "src",
+  "lib",
+  `__lint_scratch_raw_prisma_violation_${crypto.randomUUID()}__.ts`
+);
 
 function writeScratchFile(contents: string) {
   fs.writeFileSync(SCRATCH_PATH, contents, "utf8");
@@ -55,7 +63,13 @@ describe("ESLint raw-Prisma-client import restriction (§8.3/§16.4/§33.4 item 
   });
 
   it("does not flag the same import inside the allowlisted tenancy module", async () => {
-    const allowlistedPath = path.join(process.cwd(), "src", "lib", "tenancy", "__lint_scratch_allowlisted__.ts");
+    const allowlistedPath = path.join(
+      process.cwd(),
+      "src",
+      "lib",
+      "tenancy",
+      `__lint_scratch_allowlisted_${crypto.randomUUID()}__.ts`
+    );
     fs.writeFileSync(
       allowlistedPath,
       `import { prisma } from "@/lib/prisma/raw-client";\n\nexport function legitimateControlPlaneAccess() {\n  return prisma.business.findMany();\n}\n`,

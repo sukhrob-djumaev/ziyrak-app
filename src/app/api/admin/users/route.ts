@@ -1,49 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { ROLES } from "@/lib/rbac";
+import { toErrorResponse } from "@/lib/errors";
+import * as adminUsersService from "@/lib/admin-users/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "admin:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "admin:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip, take } = parsePagination(searchParams);
 
-    const [users, total] = await Promise.all([
-      prisma.admin.findMany({
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          role: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-        skip,
-        take,
-      }),
-      prisma.admin.count(),
-    ]);
+    const { users, total } = await adminUsersService.list(ctx, { skip, take });
 
     return NextResponse.json(paginatedResponse(users, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch admin users:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch admin users" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "admin:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "admin:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -63,42 +44,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = await prisma.admin.findUnique({
-      where: { username: username.trim() },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Username already exists" },
-        { status: 409 }
-      );
-    }
-
-    const userRole = ROLES.includes(role) ? role : "viewer";
-
-    const hashed = await hashPassword(password);
-    const user = await prisma.admin.create({
-      data: {
-        username: username.trim(),
-        password: hashed,
-        name: name?.trim() || username.trim(),
-        role: userRole,
-      },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const user = await adminUsersService.create(ctx, { username, password, name, role });
 
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
     logger.error("Failed to create admin user:", error);
-    return NextResponse.json(
-      { error: "Failed to create admin user" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,37 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import * as businessHoursService from "@/lib/business-hours/service";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "business-hours:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "business-hours:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
-    let config = await prisma.businessHours.findUnique({
-      where: { id: "default" },
-    });
-
-    if (!config) {
-      config = await prisma.businessHours.create({
-        data: { id: "default", businessId: await getDefaultBusinessId() },
-      });
-    }
-
+    const config = await businessHoursService.get(ctx);
     return NextResponse.json(config);
   } catch (error) {
     logger.error("Failed to fetch business hours:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch business hours" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest) {
-  const auth = await requireAuth(request, "business-hours:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "business-hours:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -60,44 +48,22 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const config = await prisma.businessHours.upsert({
-      where: { id: "default" },
-      update: {
-        ...(enabled !== undefined && { enabled }),
-        ...(timezone !== undefined && { timezone }),
-        ...(monday !== undefined && { monday }),
-        ...(tuesday !== undefined && { tuesday }),
-        ...(wednesday !== undefined && { wednesday }),
-        ...(thursday !== undefined && { thursday }),
-        ...(friday !== undefined && { friday }),
-        ...(saturday !== undefined && { saturday }),
-        ...(sunday !== undefined && { sunday }),
-        ...(offlineMessage !== undefined && { offlineMessage }),
-      },
-      create: {
-        id: "default",
-        businessId: await getDefaultBusinessId(),
-        enabled: enabled ?? false,
-        timezone: timezone ?? "UTC",
-        monday: monday ?? "09:00-18:00",
-        tuesday: tuesday ?? "09:00-18:00",
-        wednesday: wednesday ?? "09:00-18:00",
-        thursday: thursday ?? "09:00-18:00",
-        friday: friday ?? "09:00-18:00",
-        saturday: saturday ?? "",
-        sunday: sunday ?? "",
-        offlineMessage:
-          offlineMessage ??
-          "We are currently offline. We will get back to you during business hours.",
-      },
+    const config = await businessHoursService.upsert(ctx, {
+      enabled,
+      timezone,
+      monday,
+      tuesday,
+      wednesday,
+      thursday,
+      friday,
+      saturday,
+      sunday,
+      offlineMessage,
     });
 
     return NextResponse.json(config);
   } catch (error) {
     logger.error("Failed to update business hours:", error);
-    return NextResponse.json(
-      { error: "Failed to update business hours" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

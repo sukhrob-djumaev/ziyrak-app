@@ -47,7 +47,13 @@ vi.mock("@/lib/realtime", () => ({
   emitConversationUpdate: vi.fn(),
   emitTyping: vi.fn(),
   publish: vi.fn(),
-  subscribe: vi.fn(),
+  subscribe: vi.fn().mockReturnValue(vi.fn()),
+  // §26.2 — real (not mocked) string-building helpers, not side effects;
+  // /api/realtime's route logic calls these directly to construct the
+  // tenant-prefixed channel it subscribes to.
+  tenantGlobalChannel: (businessId: string) => `tenant:${businessId}:global`,
+  tenantConversationChannel: (businessId: string, conversationId: string) =>
+    `tenant:${businessId}:conversation:${conversationId}`,
 }));
 
 // Mock next/headers

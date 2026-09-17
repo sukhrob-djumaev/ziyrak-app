@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { executeToolCall } from "@/lib/ai/tools";
 
 /**

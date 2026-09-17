@@ -8,7 +8,7 @@
  * layer" acceptance criterion.
  *
  * Not part of `npm run test`: this repo's test suite is deliberately
- * hermetic (tests/setup.ts mocks "@/lib/prisma" and overrides DATABASE_URL
+ * hermetic (tests/setup.ts mocks "@/lib/prisma/raw-client" and overrides DATABASE_URL
  * for every test), and the property under test — "the database itself
  * refuses this write" — cannot be verified against a mock. This is a
  * documented, re-runnable verification script instead, the same treatment

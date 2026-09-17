@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { maskSettingsSecrets } from "@/lib/security";
 import { updateSettingsSchema, validateBody } from "@/lib/validations";
 import { logger } from "@/lib/logger";

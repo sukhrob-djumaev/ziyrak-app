@@ -1,5 +1,5 @@
 import { ToolDefinition } from "./types";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { getDefaultBusinessId } from "@/lib/default-business";
 import nodemailer from "nodemailer";
 

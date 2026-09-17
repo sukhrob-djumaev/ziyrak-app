@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { resolveCustomer } from "@/lib/customer-resolver";
 import { getDefaultBusinessId } from "@/lib/default-business";

@@ -1,7 +1,7 @@
 import Imap from "imap";
 import { simpleParser, ParsedMail } from "mailparser";
 import nodemailer from "nodemailer";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { escapeHtml, sanitizeEmailSubject } from "@/lib/security";
 import { logger } from "@/lib/logger";

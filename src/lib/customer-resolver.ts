@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/logger";
 import { getDefaultBusinessId } from "@/lib/default-business";
 

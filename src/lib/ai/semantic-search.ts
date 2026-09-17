@@ -8,7 +8,7 @@
  * For production with pgvector, store in a dedicated vector column.
  */
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/logger";
 import { cacheGet, cacheSet } from "@/lib/cache";
 

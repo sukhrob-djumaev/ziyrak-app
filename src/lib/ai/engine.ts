@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { owlyTools, executeToolCall } from "./tools";
 import { emitNewMessage } from "@/lib/realtime";
 import { getDefaultBusinessId } from "@/lib/default-business";

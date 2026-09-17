@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/logger";
 
 let isShuttingDown = false;

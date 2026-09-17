@@ -1,6 +1,6 @@
 import { Client, LocalAuth, Message } from "whatsapp-web.js";
 import * as qrcode from "qrcode";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
 import { logger } from "@/lib/logger";
 import { resolveCustomer } from "@/lib/customer-resolver";

@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse, NotFoundError } from "@/lib/errors";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "canned:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "canned:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
     const { title, content, category, shortcut, isActive, usageCount } = body;
 
-    const existing = await prisma.cannedResponse.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Canned response not found" },
-        { status: 404 }
-      );
-    }
+    const db = getScopedPrisma(ctx);
+    const existing = await db.cannedResponse.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError("Canned response");
 
-    const response = await prisma.cannedResponse.update({
+    const response = await db.cannedResponse.update({
       where: { id },
       data: {
         ...(title !== undefined && { title: title.trim() }),
@@ -38,10 +35,7 @@ export async function PUT(
     return NextResponse.json(response);
   } catch (error) {
     logger.error("Failed to update canned response:", error);
-    return NextResponse.json(
-      { error: "Failed to update canned response" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -49,28 +43,20 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "canned:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "canned:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
+    const db = getScopedPrisma(ctx);
+    const existing = await db.cannedResponse.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError("Canned response");
 
-    const existing = await prisma.cannedResponse.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Canned response not found" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.cannedResponse.delete({ where: { id } });
+    await db.cannedResponse.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Failed to delete canned response:", error);
-    return NextResponse.json(
-      { error: "Failed to delete canned response" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

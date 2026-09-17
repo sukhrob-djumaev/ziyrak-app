@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 function getPeriodStart(period: string): Date {
   const now = new Date();
@@ -20,9 +20,10 @@ function formatDateKey(date: Date): string {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "analytics:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "analytics:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
+  const db = getScopedPrisma(ctx);
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("period") || "7d";
   const periodStart = getPeriodStart(period);
@@ -38,46 +39,46 @@ export async function GET(request: NextRequest) {
     messages,
   ] = await Promise.all([
     // Conversations in period
-    prisma.conversation.findMany({
+    db.conversation.findMany({
       where: { createdAt: { gte: periodStart } },
       select: { id: true, createdAt: true, satisfaction: true, status: true },
     }),
 
     // All conversations (for resolution rate)
-    prisma.conversation.findMany({
+    db.conversation.findMany({
       select: { status: true },
     }),
 
     // Channel breakdown in period
-    prisma.conversation.groupBy({
+    db.conversation.groupBy({
       by: ["channel"],
       where: { createdAt: { gte: periodStart } },
       _count: { id: true },
     }),
 
     // Tickets by priority in period
-    prisma.ticket.groupBy({
+    db.ticket.groupBy({
       by: ["priority"],
       where: { createdAt: { gte: periodStart } },
       _count: { id: true },
     }),
 
     // Tickets by status in period
-    prisma.ticket.groupBy({
+    db.ticket.groupBy({
       by: ["status"],
       where: { createdAt: { gte: periodStart } },
       _count: { id: true },
     }),
 
     // Top categories by entry count
-    prisma.category.findMany({
+    db.category.findMany({
       select: { name: true, _count: { select: { entries: true } } },
       orderBy: { entries: { _count: "desc" } },
       take: 8,
     }),
 
     // Team members with their resolved tickets in period
-    prisma.teamMember.findMany({
+    db.teamMember.findMany({
       select: {
         name: true,
         tickets: {
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     }),
 
     // Messages in period for response time estimation
-    prisma.message.findMany({
+    db.message.findMany({
       where: { createdAt: { gte: periodStart } },
       select: {
         conversationId: true,

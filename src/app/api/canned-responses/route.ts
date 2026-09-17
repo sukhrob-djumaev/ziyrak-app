@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import { toErrorResponse } from "@/lib/errors";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "canned:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "canned:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -20,29 +20,27 @@ export async function GET(request: NextRequest) {
       where.category = category;
     }
 
+    const db = getScopedPrisma(ctx);
     const [responses, total] = await Promise.all([
-      prisma.cannedResponse.findMany({
+      db.cannedResponse.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
         take,
       }),
-      prisma.cannedResponse.count({ where }),
+      db.cannedResponse.count({ where }),
     ]);
 
     return NextResponse.json(paginatedResponse(responses, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch canned responses:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch canned responses" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, "canned:create");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "canned:create");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
@@ -62,9 +60,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await prisma.cannedResponse.create({
+    const db = getScopedPrisma(ctx);
+    const response = await db.cannedResponse.create({
       data: {
-        businessId: await getDefaultBusinessId(),
+        businessId: ctx.businessId,
         title: title.trim(),
         content: content.trim(),
         category: category?.trim() || "General",
@@ -76,9 +75,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     logger.error("Failed to create canned response:", error);
-    return NextResponse.json(
-      { error: "Failed to create canned response" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "activity:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "activity:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -28,22 +29,20 @@ export async function GET(request: NextRequest) {
       where.createdAt = createdAt;
     }
 
+    const db = getScopedPrisma(ctx);
     const [activities, total] = await Promise.all([
-      prisma.activityLog.findMany({
+      db.activityLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
         take,
       }),
-      prisma.activityLog.count({ where }),
+      db.activityLog.count({ where }),
     ]);
 
     return NextResponse.json(paginatedResponse(activities, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch activity logs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch activity logs" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { OnboardingChecklist } from "@/components/ui/onboarding-checklist";
-import { prisma } from "@/lib/prisma";
+import { getTenantContextFromCookies } from "@/lib/route-auth";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import type { TenantContext } from "@/lib/tenancy/context";
 import {
   MessageSquare,
   Ticket,
@@ -13,7 +16,8 @@ import {
 } from "lucide-react";
 import { formatRelativeTime, getChannelLabel, getStatusColor } from "@/lib/utils";
 
-async function getStats() {
+async function getStats(ctx: TenantContext) {
+  const db = getScopedPrisma(ctx);
   const [
     totalConversations,
     activeConversations,
@@ -22,12 +26,12 @@ async function getStats() {
     totalMessages,
     recentConversations,
   ] = await Promise.all([
-    prisma.conversation.count(),
-    prisma.conversation.count({ where: { status: "active" } }),
-    prisma.ticket.count(),
-    prisma.ticket.count({ where: { status: "open" } }),
-    prisma.message.count(),
-    prisma.conversation.findMany({
+    db.conversation.count(),
+    db.conversation.count({ where: { status: "active" } }),
+    db.ticket.count(),
+    db.ticket.count({ where: { status: "open" } }),
+    db.message.count(),
+    db.conversation.findMany({
       take: 10,
       orderBy: { updatedAt: "desc" },
       include: {
@@ -37,7 +41,7 @@ async function getStats() {
     }),
   ]);
 
-  const resolvedConversations = await prisma.conversation.count({
+  const resolvedConversations = await db.conversation.count({
     where: { status: "resolved" },
   });
 
@@ -64,7 +68,10 @@ const channelIcons: Record<string, React.ElementType> = {
 };
 
 export default async function DashboardPage() {
-  const stats = await getStats();
+  const ctx = await getTenantContextFromCookies();
+  if (!ctx) redirect("/login");
+
+  const stats = await getStats(ctx);
 
   return (
     <>

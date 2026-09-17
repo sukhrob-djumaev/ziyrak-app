@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 const MAX_EXPORT_LIMIT = 50000;
 const DEFAULT_EXPORT_LIMIT = 10000;
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "export:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "export:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
+    const db = getScopedPrisma(ctx);
     const format = request.nextUrl.searchParams.get("format") || "json";
     const type = request.nextUrl.searchParams.get("type") || "conversations";
     const limit = Math.min(
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
     const dateWhere = Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {};
 
     if (type === "conversations") {
-      const conversations = await prisma.conversation.findMany({
+      const conversations = await db.conversation.findMany({
         where: dateWhere,
         include: {
           messages: true,
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === "tickets") {
-      const tickets = await prisma.ticket.findMany({
+      const tickets = await db.ticket.findMany({
         where: dateWhere,
         include: {
           department: true,
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === "customers") {
-      const customers = await prisma.customer.findMany({
+      const customers = await db.customer.findMany({
         where: dateWhere,
         orderBy: { lastContact: "desc" },
         take: limit,
@@ -75,7 +77,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === "knowledge") {
-      const entries = await prisma.knowledgeEntry.findMany({
+      const entries = await db.knowledgeEntry.findMany({
         include: { category: { select: { name: true } } },
         orderBy: { priority: "desc" },
         take: limit,
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid type. Supported: conversations, tickets, customers, knowledge" }, { status: 400 });
   } catch (error) {
     logger.error("Failed to export data:", error);
-    return NextResponse.json({ error: "Failed to export data" }, { status: 500 });
+    return toErrorResponse(error);
   }
 }
 

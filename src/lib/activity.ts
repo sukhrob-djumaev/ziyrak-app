@@ -1,8 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { getDefaultBusinessId } from "@/lib/default-business";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export async function logActivity(
+  ctx: TenantContext,
   action: string,
   entity: string,
   entityId: string | null,
@@ -10,9 +11,10 @@ export async function logActivity(
   userName?: string
 ): Promise<void> {
   try {
-    await prisma.activityLog.create({
+    const db = getScopedPrisma(ctx);
+    await db.activityLog.create({
       data: {
-        businessId: await getDefaultBusinessId(),
+        businessId: ctx.businessId,
         action,
         entity,
         entityId,

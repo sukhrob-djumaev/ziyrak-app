@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "analytics:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "analytics:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
+  const db = getScopedPrisma(ctx);
   const [
     totalConversations,
     activeConversations,
@@ -15,13 +16,13 @@ export async function GET(request: NextRequest) {
     totalMessages,
     channelBreakdown,
   ] = await Promise.all([
-    prisma.conversation.count(),
-    prisma.conversation.count({ where: { status: "active" } }),
-    prisma.conversation.count({ where: { status: "resolved" } }),
-    prisma.ticket.count(),
-    prisma.ticket.count({ where: { status: "open" } }),
-    prisma.message.count(),
-    prisma.conversation.groupBy({
+    db.conversation.count(),
+    db.conversation.count({ where: { status: "active" } }),
+    db.conversation.count({ where: { status: "resolved" } }),
+    db.ticket.count(),
+    db.ticket.count({ where: { status: "open" } }),
+    db.message.count(),
+    db.conversation.groupBy({
       by: ["channel"],
       _count: { id: true },
     }),

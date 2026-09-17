@@ -7,15 +7,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "customers:delete");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "customers:delete");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
     const { hardDelete } = body;
 
-    const result = await deleteCustomerData(id, hardDelete === true);
+    const result = await deleteCustomerData(ctx, id, hardDelete === true);
 
     return NextResponse.json(result);
   } catch (error) {

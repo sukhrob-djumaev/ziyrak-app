@@ -1,38 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { toErrorResponse } from "@/lib/errors";
+import * as customersService from "@/lib/customers/service";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "customers:read");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "customers:read");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-
-    const customer = await prisma.customer.findUnique({ where: { id } });
-    if (!customer) {
-      return NextResponse.json(
-        { error: "Customer not found" },
-        { status: 404 }
-      );
-    }
-
-    const notes = await prisma.customerNote.findMany({
-      where: { customerId: id },
-      orderBy: { createdAt: "desc" },
-    });
-
+    const notes = await customersService.listNotes(ctx, id);
     return NextResponse.json(notes);
   } catch (error) {
     logger.error("Failed to fetch customer notes:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch customer notes" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
@@ -40,8 +25,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "customers:update");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "customers:update");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
@@ -55,29 +40,10 @@ export async function POST(
       );
     }
 
-    const customer = await prisma.customer.findUnique({ where: { id } });
-    if (!customer) {
-      return NextResponse.json(
-        { error: "Customer not found" },
-        { status: 404 }
-      );
-    }
-
-    const note = await prisma.customerNote.create({
-      data: {
-        businessId: customer.businessId,
-        customerId: id,
-        content: content.trim(),
-        authorName: authorName?.trim() || "Admin",
-      },
-    });
-
+    const note = await customersService.addNote(ctx, id, content, authorName);
     return NextResponse.json(note, { status: 201 });
   } catch (error) {
     logger.error("Failed to create customer note:", error);
-    return NextResponse.json(
-      { error: "Failed to create customer note" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

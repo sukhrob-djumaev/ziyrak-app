@@ -7,12 +7,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth(request, "customers:export");
-  if (!isAuthenticated(auth)) return auth;
+  const ctx = await requireAuth(request, "customers:export");
+  if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
-    const data = await exportCustomerData(id);
+    const data = await exportCustomerData(ctx, id);
 
     if (!data) {
       return NextResponse.json(

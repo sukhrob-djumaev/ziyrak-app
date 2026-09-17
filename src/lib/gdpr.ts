@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 /**
  * GDPR Compliance Module
@@ -44,8 +45,12 @@ export function detectPII(text: string): { found: boolean; types: string[] } {
 /**
  * Export all data for a customer (GDPR data portability).
  */
-export async function exportCustomerData(customerId: string): Promise<Record<string, unknown> | null> {
-  const customer = await prisma.customer.findUnique({
+export async function exportCustomerData(
+  ctx: TenantContext,
+  customerId: string
+): Promise<Record<string, unknown> | null> {
+  const db = getScopedPrisma(ctx);
+  const customer = await db.customer.findUnique({
     where: { id: customerId },
     include: {
       notes: true,
@@ -108,10 +113,12 @@ export async function exportCustomerData(customerId: string): Promise<Record<str
  * Anonymizes conversation data instead of hard deleting to preserve analytics.
  */
 export async function deleteCustomerData(
+  ctx: TenantContext,
   customerId: string,
   hardDelete = false
 ): Promise<{ success: boolean; deletedRecords: number }> {
-  const customer = await prisma.customer.findUnique({
+  const db = getScopedPrisma(ctx);
+  const customer = await db.customer.findUnique({
     where: { id: customerId },
     include: { conversations: { select: { id: true } } },
   });
@@ -123,27 +130,27 @@ export async function deleteCustomerData(
   if (hardDelete) {
     // Full deletion - cascading
     for (const conv of customer.conversations) {
-      await prisma.message.deleteMany({ where: { conversationId: conv.id } });
-      await prisma.internalNote.deleteMany({ where: { conversationId: conv.id } });
-      await prisma.conversationTag.deleteMany({ where: { conversationId: conv.id } });
-      await prisma.ticket.deleteMany({ where: { conversationId: conv.id } });
+      await db.message.deleteMany({ where: { conversationId: conv.id } });
+      await db.internalNote.deleteMany({ where: { conversationId: conv.id } });
+      await db.conversationTag.deleteMany({ where: { conversationId: conv.id } });
+      await db.ticket.deleteMany({ where: { conversationId: conv.id } });
       deletedRecords += 5;
     }
-    await prisma.conversation.deleteMany({ where: { customerId } });
-    await prisma.customerNote.deleteMany({ where: { customerId } });
-    await prisma.customer.delete({ where: { id: customerId } });
+    await db.conversation.deleteMany({ where: { customerId } });
+    await db.customerNote.deleteMany({ where: { customerId } });
+    await db.customer.delete({ where: { id: customerId } });
     deletedRecords += customer.conversations.length + 2;
   } else {
     // Anonymization - preserve structure but remove PII
     for (const conv of customer.conversations) {
-      await prisma.message.updateMany({
+      await db.message.updateMany({
         where: { conversationId: conv.id },
         data: { content: "[REDACTED - GDPR]" },
       });
       deletedRecords++;
     }
 
-    await prisma.conversation.updateMany({
+    await db.conversation.updateMany({
       where: { customerId },
       data: {
         customerName: "Deleted User",
@@ -152,12 +159,13 @@ export async function deleteCustomerData(
       },
     });
 
-    await prisma.customerNote.deleteMany({ where: { customerId } });
-    await prisma.customer.delete({ where: { id: customerId } });
+    await db.customerNote.deleteMany({ where: { customerId } });
+    await db.customer.delete({ where: { id: customerId } });
     deletedRecords += 2;
   }
 
   logger.info("GDPR data deletion completed", {
+    businessId: ctx.businessId,
     customerId,
     hardDelete,
     deletedRecords,
@@ -170,11 +178,13 @@ export async function deleteCustomerData(
  * Apply data retention policy - delete data older than specified days.
  */
 export async function applyRetentionPolicy(
+  ctx: TenantContext,
   retentionDays: number
 ): Promise<{ conversationsDeleted: number; messagesDeleted: number }> {
+  const db = getScopedPrisma(ctx);
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-  const oldConversations = await prisma.conversation.findMany({
+  const oldConversations = await db.conversation.findMany({
     where: {
       status: { in: ["resolved", "closed"] },
       updatedAt: { lte: cutoff },
@@ -184,7 +194,7 @@ export async function applyRetentionPolicy(
 
   let messagesDeleted = 0;
   for (const conv of oldConversations) {
-    const result = await prisma.message.deleteMany({
+    const result = await db.message.deleteMany({
       where: { conversationId: conv.id },
     });
     messagesDeleted += result.count;
@@ -192,12 +202,13 @@ export async function applyRetentionPolicy(
 
   const conversationsDeleted = oldConversations.length;
   if (conversationsDeleted > 0) {
-    await prisma.conversation.deleteMany({
+    await db.conversation.deleteMany({
       where: { id: { in: oldConversations.map((c) => c.id) } },
     });
   }
 
   logger.info("Retention policy applied", {
+    businessId: ctx.businessId,
     retentionDays,
     conversationsDeleted,
     messagesDeleted,

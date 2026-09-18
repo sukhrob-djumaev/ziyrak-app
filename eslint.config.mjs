@@ -124,6 +124,70 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // PLAN.md §46.3/§5.7 — module dependency-direction boundary: a
+  // ChannelAdapter implementation must not import from `ai/` (it emits
+  // normalized events and lets the application layer decide what to do
+  // with them). This is enforced going forward; the five existing channel
+  // files still call `ai/engine.ts`'s `chat()`/`createNewConversation()`
+  // directly, which is real, pre-existing, and intentional until Phase 5
+  // gives every channel a real `ChannelAdapter` contract + the `events/`
+  // envelope to publish through instead (§19, §46.5) — rewriting that
+  // coupling now would be exactly the "build Phase 5 early" this phase's
+  // own principle forbids. Any *new* file under `channels/` is held to the
+  // target rule with no exception. `tests/security/module-boundary-lint.
+  // test.ts` is this rule's own deliberate-violation test, mirroring
+  // `raw-prisma-lint.test.ts`'s pattern.
+  {
+    files: ["src/lib/channels/**/*.{ts,tsx}"],
+    ignores: [
+      "src/lib/channels/email.ts",
+      "src/lib/channels/phone.ts",
+      "src/lib/channels/sms.ts",
+      "src/lib/channels/telegram.ts",
+      "src/lib/channels/whatsapp.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/lib/ai", "@/lib/ai/*"],
+              message:
+                "A ChannelAdapter implementation must not import from ai/ (PLAN.md §5.7/§19.1) — it should emit a normalized event and let the application layer decide what to do with it.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // PLAN.md §46.3/§5.7 — the other half of the same boundary: `ai/` may
+  // depend on the `AIProvider`/`EmbeddingProvider` *contracts* it owns
+  // (§21.1/§21.5, sketched at `src/lib/ai/providers/types.ts`), never on a
+  // concrete channel/messaging SDK directly. `ai/tools.ts` (the one file
+  // that used to import `nodemailer` here) moved to `tools/` in this same
+  // phase, so this rule has no exceptions to carry forward.
+  {
+    files: ["src/lib/ai/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            "whatsapp-web.js",
+            "twilio",
+            "nodemailer",
+            "imap",
+            "mailparser",
+          ].map((name) => ({
+            name,
+            message:
+              "ai/ must not import a concrete channel/messaging SDK directly (PLAN.md §5.7) — that belongs behind a channels/ or tools/ boundary.",
+          })),
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

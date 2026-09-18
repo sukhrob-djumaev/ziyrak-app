@@ -1,16 +1,22 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma/raw-client";
 import { owlyTools, executeToolCall } from "@/lib/tools/tools";
-import { emitNewMessage } from "@/lib/realtime/realtime";
 import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { analyzeSentiment, detectIntent, estimateConfidence, requiresHumanApproval } from "./guardrails";
+import { getKnowledgeBase } from "@/lib/knowledge/retrieval";
+import {
+  appendCustomerMessage,
+  appendAssistantMessage,
+  escalateConversation,
+  recordEscalationSignal,
+  notifyNewAssistantMessage,
+} from "@/lib/conversations/messaging";
 import type {
   AIMessage,
   AIConfig,
   ConversationContext,
-  KnowledgeItem,
 } from "./types";
 
 function buildSystemPrompt(context: ConversationContext): string {
@@ -62,22 +68,6 @@ ${context.customerName !== "Unknown" ? `- Customer name: ${context.customerName}
 
 ## Customer History
 ${context.customerHistory.length > 0 ? context.customerHistory.join("\n") : "This is the customer's first interaction."}`;
-}
-
-async function getKnowledgeBase(ctx: TenantContext): Promise<KnowledgeItem[]> {
-  const db = getScopedPrisma(ctx);
-  const entries = await db.knowledgeEntry.findMany({
-    where: { isActive: true },
-    include: { category: true },
-    orderBy: { priority: "desc" },
-  });
-
-  return entries.map((e: { category: { name: string }; title: string; content: string; priority: number }) => ({
-    category: e.category.name,
-    title: e.title,
-    content: e.content,
-    priority: e.priority,
-  }));
 }
 
 /**
@@ -178,57 +168,29 @@ export async function chat(
     const intent = detectIntent(userMessage);
 
     // Store metadata for dashboard visibility
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: {
-        metadata: {
-          escalationReason: approval.reason,
-          sentiment: sentiment.sentiment,
-          intent: intent.intent,
-        },
-      },
+    await recordEscalationSignal(ctx, conversationId, {
+      escalationReason: approval.reason,
+      sentiment: sentiment.sentiment,
+      intent: intent.intent,
     });
   }
 
   // Save user message
-  await db.message.create({
-    data: {
-      businessId: ctx.businessId,
-      conversationId,
-      role: "customer",
-      content: userMessage,
-    },
-  });
+  await appendCustomerMessage(ctx, conversationId, userMessage);
 
   // Call AI
   const response = await callAI(ctx, config, messages, conversationId);
 
   // Save assistant message
-  const savedMessage = await db.message.create({
-    data: {
-      businessId: ctx.businessId,
-      conversationId,
-      role: "assistant",
-      content: response,
-    },
-  });
-
-  // Update conversation timestamp
-  await db.conversation.update({
-    where: { id: conversationId },
-    data: { updatedAt: new Date() },
-  });
+  const savedMessage = await appendAssistantMessage(ctx, conversationId, response);
 
   // Confidence scoring
   const confidence = estimateConfidence(response, knowledgeBase.length, false);
   if (confidence.shouldEscalate) {
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: { status: "escalated" },
-    });
+    await escalateConversation(ctx, conversationId);
   }
 
-  emitNewMessage(ctx.businessId, conversationId, { id: savedMessage.id, role: "assistant", content: response });
+  notifyNewAssistantMessage(ctx, conversationId, { id: savedMessage.id, content: response });
 
   return response;
 }

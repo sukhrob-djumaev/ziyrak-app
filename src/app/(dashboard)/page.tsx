@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { OnboardingChecklist } from "@/components/ui/onboarding-checklist";
-import { getTenantContextFromCookies } from "@/lib/route-auth";
+import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import {

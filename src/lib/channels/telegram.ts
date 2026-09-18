@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
-import { resolveCustomer } from "@/lib/customer-resolver";
-import { logger } from "@/lib/logger";
-import { getDefaultBusinessContext } from "@/lib/default-business";
+import { resolveCustomer } from "@/lib/customers/customer-resolver";
+import { logger } from "@/lib/observability/logger";
+import { getDefaultBusinessContext } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface TelegramUpdate {

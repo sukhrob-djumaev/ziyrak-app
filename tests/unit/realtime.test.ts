@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Use actual realtime module (not mocked) for unit tests
-vi.unmock("@/lib/realtime");
+vi.unmock("@/lib/realtime/realtime");
 
 describe("Real-time Event System", () => {
   beforeEach(() => {
@@ -9,7 +9,7 @@ describe("Real-time Event System", () => {
   });
 
   it("should subscribe and receive published events", async () => {
-    const { subscribe, publish } = await import("@/lib/realtime");
+    const { subscribe, publish } = await import("@/lib/realtime/realtime");
     const callback = vi.fn();
 
     const unsubscribe = subscribe("test-channel", callback);
@@ -23,7 +23,7 @@ describe("Real-time Event System", () => {
   });
 
   it("should not receive events after unsubscribe", async () => {
-    const { subscribe, publish } = await import("@/lib/realtime");
+    const { subscribe, publish } = await import("@/lib/realtime/realtime");
     const callback = vi.fn();
 
     const unsubscribe = subscribe("test-ch", callback);
@@ -34,7 +34,7 @@ describe("Real-time Event System", () => {
   });
 
   it("should publish to global channel as well", async () => {
-    const { subscribe, publish } = await import("@/lib/realtime");
+    const { subscribe, publish } = await import("@/lib/realtime/realtime");
     const globalCb = vi.fn();
 
     const unsub = subscribe("global", globalCb);
@@ -48,7 +48,7 @@ describe("Real-time Event System", () => {
   });
 
   it("should include timestamp in events", async () => {
-    const { subscribe, publish } = await import("@/lib/realtime");
+    const { subscribe, publish } = await import("@/lib/realtime/realtime");
     const callback = vi.fn();
 
     const unsub = subscribe("ts-test", callback);
@@ -62,7 +62,7 @@ describe("Real-time Event System", () => {
   });
 
   it("should track subscriber count", async () => {
-    const { subscribe, getSubscriberCount } = await import("@/lib/realtime");
+    const { subscribe, getSubscriberCount } = await import("@/lib/realtime/realtime");
 
     const unsub1 = subscribe("ch1", vi.fn());
     const unsub2 = subscribe("ch2", vi.fn());

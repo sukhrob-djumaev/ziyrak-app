@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
-import { executeToolCall } from "@/lib/ai/tools";
+import { executeToolCall } from "@/lib/tools/tools";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**

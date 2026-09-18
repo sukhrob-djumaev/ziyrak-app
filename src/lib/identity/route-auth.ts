@@ -1,9 +1,9 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
-import { hasPermission, Permission } from "@/lib/rbac";
+import { verifyToken } from "@/lib/identity/auth";
+import { hasPermission, Permission } from "@/lib/rbac/rbac";
 import { prisma } from "@/lib/prisma/raw-client";
-import { resolveTenantPlacement } from "@/lib/tenancy/placement";
+import { resolveTenantPlacement } from "@/lib/platform/tenant-placement";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**

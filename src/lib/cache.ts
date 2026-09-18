@@ -7,7 +7,7 @@
  * while multi-instance deployments can use Redis for shared state.
  */
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 
 interface CacheEntry {
   value: string;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
-import { evaluateRules } from "@/lib/automation";
+import { evaluateRules } from "@/lib/automations/automation";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 const ctx: TenantContext = {

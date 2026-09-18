@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { toErrorResponse } from "@/lib/errors";
+import { logger } from "@/lib/observability/logger";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { toErrorResponse } from "@/lib/observability/errors";
 import * as businessHoursService from "@/lib/business-hours/service";
 
 export async function GET(request: NextRequest) {

@@ -8,12 +8,12 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * `getTenantContextFromCookies()` + `getScopedPrisma(ctx)` closes this.
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
-vi.mock("@/lib/route-auth", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
 }));
 
-import { generateToken } from "@/lib/auth";
+import { generateToken } from "@/lib/identity/auth";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
@@ -42,7 +42,7 @@ describe("tenant isolation: dashboard homepage Server Component", () => {
       get: (name: string) => (name === "owly-token" ? { value: tokenA } : undefined),
     });
 
-    const { getTenantContextFromCookies } = await import("@/lib/route-auth");
+    const { getTenantContextFromCookies } = await import("@/lib/identity/route-auth");
     const ctx = await getTenantContextFromCookies();
 
     expect(ctx).not.toBeNull();
@@ -60,7 +60,7 @@ describe("tenant isolation: dashboard homepage Server Component", () => {
       get: () => undefined,
     });
 
-    const { getTenantContextFromCookies } = await import("@/lib/route-auth");
+    const { getTenantContextFromCookies } = await import("@/lib/identity/route-auth");
     const ctx = await getTenantContextFromCookies();
 
     expect(ctx).toBeNull();

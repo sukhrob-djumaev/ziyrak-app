@@ -7,9 +7,9 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * tests/repository/composite-fk-bypass.test.ts (§33.1's own bypass case).
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
-vi.mock("@/lib/route-auth", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
 
-import { generateToken } from "@/lib/auth";
+import { generateToken } from "@/lib/identity/auth";
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";

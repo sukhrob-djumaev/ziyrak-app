@@ -1,6 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError } from "@/lib/observability/errors";
 import crypto from "crypto";
 
 /** PLAN.md §16.2/§9.4 — application-service layer for "admin/api-keys". */

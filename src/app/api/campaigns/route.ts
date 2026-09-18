@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { toErrorResponse } from "@/lib/errors";
-import * as campaignsService from "@/lib/campaign-crud/service";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { toErrorResponse } from "@/lib/observability/errors";
+import * as campaignsService from "@/lib/campaigns/campaign-crud/service";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "analytics:read");

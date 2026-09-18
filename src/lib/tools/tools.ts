@@ -1,4 +1,4 @@
-import { ToolDefinition } from "./types";
+import { ToolDefinition } from "@/lib/ai/types";
 import { prisma } from "@/lib/prisma/raw-client";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";

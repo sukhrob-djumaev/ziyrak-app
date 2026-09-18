@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generateSignature } from "@/lib/webhook-delivery";
+import { generateSignature } from "@/lib/integrations/webhook-delivery";
 import crypto from "crypto";
 
 describe("Webhook Delivery", () => {

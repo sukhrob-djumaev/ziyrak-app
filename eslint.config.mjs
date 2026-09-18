@@ -21,19 +21,22 @@ const eslintConfig = defineConfig([
   // PLAN.md §8.3/§16.4/§36 — the raw Prisma client bypasses tenant scoping
   // entirely, so it is unimportable from application/domain code outside a
   // small, explicit allowlist: the tenancy module itself (which is what
-  // legitimately needs it, to build the scoped client and resolve
-  // control-plane placement data), the pre-tenant-context identity/auth
-  // layer (which necessarily resolves User/Membership/ApiKey *before* a
-  // TenantContext exists to scope with), migration/seed scripts, and tests.
-  // §33.4 item 4's deliberate-violation test asserts this rule actually
-  // fires.
+  // legitimately needs it, to build the scoped client), the platform/
+  // control-plane module (§6 — Business/User/Membership/TenantPlacement
+  // resolution, which necessarily runs before a TenantContext exists to
+  // scope with), the pre-tenant-context identity/auth layer (same reason),
+  // migration/seed scripts, and tests. §33.4 item 4's deliberate-violation
+  // test asserts this rule actually fires. Paths below were updated for
+  // §46.3's module reorganization (§6) — the rationale on each unchanged
+  // from its pre-move comment.
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: [
       "src/lib/tenancy/**",
+      "src/lib/platform/**",
       "src/lib/prisma/**",
-      "src/lib/auth.ts",
-      "src/lib/route-auth.ts",
+      "src/lib/identity/auth.ts",
+      "src/lib/identity/route-auth.ts",
       "src/generated/**",
       // Reads the legacy, pre-Phase-1 Settings singleton for AI config
       // (Settings.aiApiKey) — not a tenant-owned model, and has no defined
@@ -42,11 +45,6 @@ const eslintConfig = defineConfig([
       // same file (knowledge entries) already goes through
       // getScopedPrisma(ctx) like everything else.
       "src/app/api/knowledge/test/route.ts",
-      // Manages the control-plane User table (create/credential update) as
-      // half of the "admin users" (team members) feature; its Membership
-      // access already goes through getScopedPrisma(ctx) — see the file's
-      // own header comment.
-      "src/lib/admin-users/service.ts",
       // First-run setup/login bootstrap: creates the Business/
       // TenantPlacement/User/Membership a TenantContext would itself be
       // resolved from, and resolves login against User before any ctx
@@ -56,9 +54,6 @@ const eslintConfig = defineConfig([
       // legacy Settings.aiApiKey reachability smoke-test (§4 above) — no
       // tenant data involved.
       "src/app/api/health/route.ts",
-      // Closes the raw connection pool on process shutdown
-      // (prisma.$disconnect()) — platform lifecycle, not a tenant query.
-      "src/lib/shutdown.ts",
       // Legacy Settings singleton (businessName/tone/channel-credential
       // fields) — superseded by BusinessConfig + ChannelConnection
       // (§10.2/§7.7), but Settings.aiApiKey has no defined final
@@ -90,18 +85,17 @@ const eslintConfig = defineConfig([
       // getDefaultBusinessContext(), since no per-connection inbound
       // tenant resolution exists yet (Phase 5).
       "src/lib/ai/engine.ts",
-      "src/lib/ai/semantic-search.ts",
-      "src/lib/ai/tools.ts",
+      "src/lib/knowledge/semantic-search.ts",
+      "src/lib/tools/tools.ts",
       "src/lib/channels/email.ts",
       "src/lib/channels/phone.ts",
       "src/lib/channels/sms.ts",
       "src/lib/channels/telegram.ts",
       "src/lib/channels/whatsapp.ts",
-      "src/lib/default-business.ts",
       // Reads the legacy Settings.twilioToken (§4 above) for Twilio
       // webhook-signature verification, used only by the deferred
       // channel-adapter webhook routes listed above.
-      "src/lib/twilio-verify.ts",
+      "src/lib/channels/twilio-verify.ts",
     ],
     rules: {
       "no-restricted-imports": [

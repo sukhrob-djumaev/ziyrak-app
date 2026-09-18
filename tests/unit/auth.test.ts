@@ -14,7 +14,7 @@ describe("Auth Module", () => {
 
   describe("hashPassword / verifyPassword", () => {
     it("should hash a password and verify it correctly", async () => {
-      const { hashPassword, verifyPassword } = await import("@/lib/auth");
+      const { hashPassword, verifyPassword } = await import("@/lib/identity/auth");
 
       const password = "securePassword123";
       const hash = await hashPassword(password);
@@ -25,14 +25,14 @@ describe("Auth Module", () => {
     });
 
     it("should reject wrong password", async () => {
-      const { hashPassword, verifyPassword } = await import("@/lib/auth");
+      const { hashPassword, verifyPassword } = await import("@/lib/identity/auth");
 
       const hash = await hashPassword("correctPassword");
       expect(await verifyPassword("wrongPassword", hash)).toBe(false);
     });
 
     it("should produce different hashes for same password (salt)", async () => {
-      const { hashPassword } = await import("@/lib/auth");
+      const { hashPassword } = await import("@/lib/identity/auth");
 
       const hash1 = await hashPassword("samePassword");
       const hash2 = await hashPassword("samePassword");
@@ -42,7 +42,7 @@ describe("Auth Module", () => {
 
   describe("generateToken / verifyToken", () => {
     it("should generate a valid JWT token with no role claim (§14.4)", async () => {
-      const { generateToken } = await import("@/lib/auth");
+      const { generateToken } = await import("@/lib/identity/auth");
 
       const token = generateToken("user-123");
       const decoded = jwt.verify(token, TEST_SECRET) as {
@@ -55,7 +55,7 @@ describe("Auth Module", () => {
     });
 
     it("should verify a valid token and return payload", async () => {
-      const { generateToken, verifyToken } = await import("@/lib/auth");
+      const { generateToken, verifyToken } = await import("@/lib/identity/auth");
 
       const token = generateToken("user-456");
       const payload = verifyToken(token);
@@ -65,7 +65,7 @@ describe("Auth Module", () => {
     });
 
     it("should return null for invalid token", async () => {
-      const { verifyToken } = await import("@/lib/auth");
+      const { verifyToken } = await import("@/lib/identity/auth");
 
       expect(verifyToken("invalid.token.here")).toBeNull();
       expect(verifyToken("")).toBeNull();
@@ -73,7 +73,7 @@ describe("Auth Module", () => {
     });
 
     it("should return null for token signed with wrong secret", async () => {
-      const { verifyToken } = await import("@/lib/auth");
+      const { verifyToken } = await import("@/lib/identity/auth");
 
       const forgedToken = jwt.sign(
         { userId: "hacker", role: "admin" },
@@ -85,7 +85,7 @@ describe("Auth Module", () => {
     });
 
     it("should return null for expired token", async () => {
-      const { verifyToken } = await import("@/lib/auth");
+      const { verifyToken } = await import("@/lib/identity/auth");
 
       const expiredToken = jwt.sign(
         { userId: "user-1", role: "admin" },
@@ -101,7 +101,7 @@ describe("Auth Module", () => {
 
   describe("setAuthCookie", () => {
     it("should return correct cookie properties", async () => {
-      const { setAuthCookie } = await import("@/lib/auth");
+      const { setAuthCookie } = await import("@/lib/identity/auth");
 
       const cookie = setAuthCookie("test-token-value");
 
@@ -116,7 +116,7 @@ describe("Auth Module", () => {
 
   describe("clearAuthCookie", () => {
     it("should return cookie with maxAge 0", async () => {
-      const { clearAuthCookie } = await import("@/lib/auth");
+      const { clearAuthCookie } = await import("@/lib/identity/auth");
 
       const cookie = clearAuthCookie();
 
@@ -129,7 +129,7 @@ describe("Auth Module", () => {
   describe("isSetupComplete", () => {
     it("is false when no Membership has role 'owner' (PLAN.md §46.1 task 13)", async () => {
       (prisma.membership.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
-      const { isSetupComplete } = await import("@/lib/auth");
+      const { isSetupComplete } = await import("@/lib/identity/auth");
 
       expect(await isSetupComplete()).toBe(false);
       expect(prisma.membership.count).toHaveBeenCalledWith({ where: { role: "owner" } });
@@ -137,7 +137,7 @@ describe("Auth Module", () => {
 
     it("is true once a Business has an owner", async () => {
       (prisma.membership.count as ReturnType<typeof vi.fn>).mockResolvedValue(1);
-      const { isSetupComplete } = await import("@/lib/auth");
+      const { isSetupComplete } = await import("@/lib/identity/auth");
 
       expect(await isSetupComplete()).toBe(true);
     });

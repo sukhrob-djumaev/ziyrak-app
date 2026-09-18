@@ -2,9 +2,9 @@ import { Client, LocalAuth, Message } from "whatsapp-web.js";
 import * as qrcode from "qrcode";
 import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
-import { logger } from "@/lib/logger";
-import { resolveCustomer } from "@/lib/customer-resolver";
-import { getDefaultBusinessContext } from "@/lib/default-business";
+import { logger } from "@/lib/observability/logger";
+import { resolveCustomer } from "@/lib/customers/customer-resolver";
+import { getDefaultBusinessContext } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 let whatsappClient: Client | null = null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { verifyToken } from "@/lib/auth";
-import { isPublicApiPath } from "@/lib/public-api-paths";
+import { verifyToken } from "@/lib/identity/auth";
+import { isPublicApiPath } from "@/lib/identity/public-api-paths";
 
 const API_VERSION = "2026-04-07";
 

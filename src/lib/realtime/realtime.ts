@@ -6,7 +6,7 @@
  * and doesn't require socket.io dependency.
  */
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 
 export type EventType =
   | "message:new"

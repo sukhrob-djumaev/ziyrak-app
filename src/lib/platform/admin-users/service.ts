@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma/raw-client";
-import { hashPassword } from "@/lib/auth";
-import { ROLES } from "@/lib/rbac";
-import { AppError, NotFoundError } from "@/lib/errors";
+import { hashPassword } from "@/lib/identity/auth";
+import { ROLES } from "@/lib/rbac/rbac";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 

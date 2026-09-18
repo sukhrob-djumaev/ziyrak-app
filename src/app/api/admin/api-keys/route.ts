@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { redactApiKeyHash } from "@/lib/security";
-import { toErrorResponse } from "@/lib/errors";
-import * as apiKeysService from "@/lib/admin-api-keys/service";
+import { toErrorResponse } from "@/lib/observability/errors";
+import * as apiKeysService from "@/lib/identity/admin-api-keys/service";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "admin:read");

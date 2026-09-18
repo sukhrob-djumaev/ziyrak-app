@@ -1,7 +1,7 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { assertSameTenant } from "@/lib/tenancy/assert-same-tenant";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError } from "@/lib/observability/errors";
 
 /** PLAN.md §16.2 — application-service layer for "knowledge" (categories + entries). */
 

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma/raw-client";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 
 let isShuttingDown = false;
 

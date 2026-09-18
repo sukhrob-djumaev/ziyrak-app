@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import * as webhooksService from "@/lib/webhooks/service";
-import { NotFoundError } from "@/lib/errors";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import * as webhooksService from "@/lib/integrations/webhooks/service";
+import { NotFoundError } from "@/lib/observability/errors";
 
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "webhooks:update");

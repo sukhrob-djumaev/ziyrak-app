@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { redactPII, detectPII } from "@/lib/gdpr";
+import { redactPII, detectPII } from "@/lib/customers/gdpr";
 
 describe("GDPR Module", () => {
   describe("redactPII", () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { isPublicApiPath } from "@/lib/public-api-paths";
+import { isPublicApiPath } from "@/lib/identity/public-api-paths";
 
 /**
  * PLAN.md §14.2/§36/§46.2 acceptance criteria — "A new route added with no
@@ -92,7 +92,7 @@ describe("deliberate-violation test: an uncovered route is caught (§33.4 item 4
     fs.mkdirSync(scratchDir, { recursive: true });
     fs.writeFileSync(
       scratchFile,
-      `import { requireAuth, isAuthenticated } from "@/lib/route-auth";\nimport { NextRequest, NextResponse } from "next/server";\n\nexport async function GET(request: NextRequest) {\n  const ctx = await requireAuth(request, "customers:read");\n  if (!isAuthenticated(ctx)) return ctx;\n  return NextResponse.json({ ok: true });\n}\n`,
+      `import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";\nimport { NextRequest, NextResponse } from "next/server";\n\nexport async function GET(request: NextRequest) {\n  const ctx = await requireAuth(request, "customers:read");\n  if (!isAuthenticated(ctx)) return ctx;\n  return NextResponse.json({ ok: true });\n}\n`,
       "utf8"
     );
 

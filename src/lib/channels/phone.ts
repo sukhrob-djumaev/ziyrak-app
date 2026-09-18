@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma/raw-client";
 import { chat, createNewConversation } from "@/lib/ai/engine";
-import { resolveCustomer } from "@/lib/customer-resolver";
-import { getDefaultBusinessContext } from "@/lib/default-business";
+import { resolveCustomer } from "@/lib/customers/customer-resolver";
+import { getDefaultBusinessContext } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 interface PhoneConfig {

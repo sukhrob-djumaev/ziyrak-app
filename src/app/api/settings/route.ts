@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/raw-client";
 import { maskSettingsSecrets } from "@/lib/security";
 import { updateSettingsSchema, validateBody } from "@/lib/validations";
-import { logger } from "@/lib/logger";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { assertDefaultBusinessOnly } from "@/lib/default-business";
-import { toErrorResponse } from "@/lib/errors";
+import { logger } from "@/lib/observability/logger";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
+import { toErrorResponse } from "@/lib/observability/errors";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "settings:read");

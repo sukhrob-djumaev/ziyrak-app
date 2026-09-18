@@ -6,9 +6,9 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * "admin/settings" batch (§46.2 task 8).
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
-vi.mock("@/lib/route-auth", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
 
-import { generateToken } from "@/lib/auth";
+import { generateToken } from "@/lib/identity/auth";
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import { seedBusiness, addMember, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";

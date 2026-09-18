@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleTelegramUpdate } from "@/lib/channels/telegram";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   try {

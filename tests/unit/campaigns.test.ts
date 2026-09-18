@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchesSegment } from "@/lib/campaigns";
+import { matchesSegment } from "@/lib/campaigns/campaigns";
 
 describe("Campaign Segmentation", () => {
   describe("matchesSegment", () => {

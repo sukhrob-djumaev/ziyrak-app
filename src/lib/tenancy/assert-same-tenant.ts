@@ -1,4 +1,4 @@
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError } from "@/lib/observability/errors";
 import type { ScopedPrisma } from "./scoped-prisma";
 import { TENANT_SCOPED_MODELS } from "./scoped-prisma";
 

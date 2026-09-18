@@ -5,7 +5,7 @@ import { createRequest, parseJsonResponse } from "../helpers/request";
 // Restore the real requireAuth/isAuthenticated implementation for this file.
 // tests/setup.ts mocks route-auth globally to always authenticate as admin,
 // which would hide the exact bug this suite exists to catch.
-vi.mock("@/lib/route-auth", async (importOriginal) => {
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => {
   return importOriginal();
 });
 

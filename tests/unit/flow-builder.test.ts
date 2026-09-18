@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { executeFlowNode, validateFlow, type Flow } from "@/lib/flow-builder";
+import { executeFlowNode, validateFlow, type Flow } from "@/lib/flows/flow-builder";
 
 describe("Flow Builder", () => {
   const testFlow: Flow = {

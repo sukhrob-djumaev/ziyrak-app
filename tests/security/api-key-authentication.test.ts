@@ -9,11 +9,11 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * business boundaries" isolation requirement.
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
-vi.mock("@/lib/route-auth", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
 
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
-import * as apiKeysService from "@/lib/admin-api-keys/service";
+import * as apiKeysService from "@/lib/identity/admin-api-keys/service";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 let businessA: SeededBusiness;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 function getPeriodStart(period: string): Date {

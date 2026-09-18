@@ -10,7 +10,7 @@ import crypto from "node:crypto";
  * mock's behavior, not the extension's or the database's actual behavior.
  *
  * Unmocks "@/lib/prisma/raw-client" the same way
- * tests/security/auth-bypass-regression.test.ts unmocks "@/lib/route-auth"
+ * tests/security/auth-bypass-regression.test.ts unmocks "@/lib/identity/route-auth"
  * — every other test file keeps using the fast in-memory mock from
  * tests/setup.ts; only this suite (and composite-fk-bypass.test.ts) needs
  * the real thing.
@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 import { getScopedPrisma, TENANT_SCOPED_MODELS, CrossTenantWriteError } from "@/lib/tenancy/scoped-prisma";
 import { runWithTenantContext } from "@/lib/tenancy/context";
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword } from "@/lib/identity/auth";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 
 let businessA: SeededBusiness;

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma/raw-client";
-import { AppError } from "@/lib/errors";
+import { AppError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 let cachedDefaultBusinessId: string | null = null;

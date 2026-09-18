@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getPlugins } from "@/lib/plugins";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "admin:read");

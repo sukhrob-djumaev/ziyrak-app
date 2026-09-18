@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { findTargetCustomers, type CampaignSegment } from "@/lib/campaigns";
-import { logger } from "@/lib/logger";
-import { toErrorResponse } from "@/lib/errors";
-import * as campaignsService from "@/lib/campaign-crud/service";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { findTargetCustomers, type CampaignSegment } from "@/lib/campaigns/campaigns";
+import { logger } from "@/lib/observability/logger";
+import { toErrorResponse } from "@/lib/observability/errors";
+import * as campaignsService from "@/lib/campaigns/campaign-crud/service";
 
 export async function POST(
   request: NextRequest,

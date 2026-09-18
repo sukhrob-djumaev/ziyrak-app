@@ -19,8 +19,8 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * gets persisted, not just the HTTP response shape.
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
-vi.mock("@/lib/route-auth", async (importOriginal) => importOriginal());
-vi.mock("@/lib/default-business", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
+vi.mock("@/lib/tenancy/default-business", async (importOriginal) => importOriginal());
 
 const mockOpenAICreateFn = vi.fn();
 vi.mock("openai", () => ({
@@ -35,7 +35,7 @@ vi.mock("@/lib/channels/whatsapp", () => ({
   disconnectWhatsApp: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { generateToken } from "@/lib/auth";
+import { generateToken } from "@/lib/identity/auth";
 import { prisma } from "@/lib/prisma/raw-client";
 import { createRequest, parseJsonResponse } from "../helpers/request";
 import {
@@ -44,7 +44,7 @@ import {
   findOrCreateDefaultBusiness,
   type SeededBusiness,
 } from "../helpers/tenant-fixtures";
-import * as apiKeysService from "@/lib/admin-api-keys/service";
+import * as apiKeysService from "@/lib/identity/admin-api-keys/service";
 import * as whatsappLib from "@/lib/channels/whatsapp";
 
 let bizDefault: SeededBusiness;

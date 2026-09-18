@@ -6,8 +6,8 @@ import { fixtures } from "../helpers/fixtures";
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
 // Mock auth functions
-vi.mock("@/lib/auth", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/auth")>();
+vi.mock("@/lib/identity/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/identity/auth")>();
   return {
     ...actual,
     getCurrentUser: vi.fn(),
@@ -22,7 +22,7 @@ describe("POST /api/auth", () => {
 
   describe("login action", () => {
     it("should login with valid credentials", async () => {
-      const { hashPassword } = await import("@/lib/auth");
+      const { hashPassword } = await import("@/lib/identity/auth");
       const hashedPassword = await hashPassword("admin123");
 
       mockPrisma.user.findUnique.mockResolvedValue({
@@ -45,7 +45,7 @@ describe("POST /api/auth", () => {
     });
 
     it("should reject invalid password", async () => {
-      const { hashPassword } = await import("@/lib/auth");
+      const { hashPassword } = await import("@/lib/identity/auth");
       const hashedPassword = await hashPassword("correctpass");
 
       mockPrisma.user.findUnique.mockResolvedValue({
@@ -90,7 +90,7 @@ describe("POST /api/auth", () => {
 
   describe("setup action", () => {
     it("should create first owner (Business + TenantPlacement + User + Membership)", async () => {
-      const { isSetupComplete } = await import("@/lib/auth");
+      const { isSetupComplete } = await import("@/lib/identity/auth");
       (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
       mockPrisma.business.upsert.mockResolvedValue({ id: "biz-1", slug: "default" });
@@ -124,7 +124,7 @@ describe("POST /api/auth", () => {
     });
 
     it("should reject setup when already completed", async () => {
-      const { isSetupComplete } = await import("@/lib/auth");
+      const { isSetupComplete } = await import("@/lib/identity/auth");
       (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       const { POST } = await import("@/app/api/auth/route");
@@ -174,7 +174,7 @@ describe("GET /api/auth", () => {
   });
 
   it("should return setupRequired when no admin exists", async () => {
-    const { isSetupComplete, getCurrentUser } = await import("@/lib/auth");
+    const { isSetupComplete, getCurrentUser } = await import("@/lib/identity/auth");
     (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
     (getCurrentUser as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -187,7 +187,7 @@ describe("GET /api/auth", () => {
   });
 
   it("should return authenticated user", async () => {
-    const { isSetupComplete, getCurrentUser } = await import("@/lib/auth");
+    const { isSetupComplete, getCurrentUser } = await import("@/lib/identity/auth");
     (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (getCurrentUser as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "admin-1",

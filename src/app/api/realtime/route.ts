@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { subscribe, tenantGlobalChannel, tenantConversationChannel } from "@/lib/realtime";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
+import { subscribe, tenantGlobalChannel, tenantConversationChannel } from "@/lib/realtime/realtime";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export const dynamic = "force-dynamic";

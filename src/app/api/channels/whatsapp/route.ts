@@ -4,9 +4,9 @@ import {
   initWhatsApp,
   disconnectWhatsApp,
 } from "@/lib/channels/whatsapp";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { assertDefaultBusinessOnly } from "@/lib/default-business";
-import { toErrorResponse } from "@/lib/errors";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
+import { toErrorResponse } from "@/lib/observability/errors";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "channels:read");

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/raw-client";
 import OpenAI from "openai";
-import { logger } from "@/lib/logger";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { assertDefaultBusinessOnly } from "@/lib/default-business";
-import { AppError, toErrorResponse } from "@/lib/errors";
+import { logger } from "@/lib/observability/logger";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
+import { AppError, toErrorResponse } from "@/lib/observability/errors";
 import * as knowledgeService from "@/lib/knowledge/service";
 
 export async function POST(request: NextRequest) {

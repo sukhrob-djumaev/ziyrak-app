@@ -1,6 +1,6 @@
 import type { TenantContext } from "./context";
 import { getBackstopTenantContext } from "./context";
-import { getDataPlaneClient } from "./placement";
+import { getDataPlaneClient } from "@/lib/platform/tenant-placement";
 
 /**
  * PLAN.md §8.3/§12 — every tenant-owned model that currently exists in the

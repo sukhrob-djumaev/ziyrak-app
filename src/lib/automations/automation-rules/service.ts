@@ -1,6 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError } from "@/lib/observability/errors";
 import { Prisma } from "@/generated/prisma/client";
 
 /** PLAN.md §16.2 — application-service layer for the "automation" rules CRUD routes. */

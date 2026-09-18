@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma/raw-client";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword } from "@/lib/identity/auth";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
@@ -13,7 +13,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
  * objects, no I/O) because these helpers require a real Postgres
  * connection — only test files that unmock "@/lib/prisma/raw-client" (the
  * same pattern tests/security/auth-bypass-regression.test.ts already uses
- * for "@/lib/route-auth") should import this.
+ * for "@/lib/identity/route-auth") should import this.
  */
 
 let counter = 0;

@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/observability/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 

@@ -27,7 +27,7 @@ describe("Conversation Engine", () => {
         { id: "m2", name: "Bob", expertise: "technical", department: { name: "Support" }, _count: { tickets: 5 } },
       ]);
 
-      const { routeConversation } = await import("@/lib/conversation-engine");
+      const { routeConversation } = await import("@/lib/conversations/conversation-engine");
       const result = await routeConversation(ctx, "skill_based", "billing");
 
       expect(result).not.toBeNull();
@@ -40,7 +40,7 @@ describe("Conversation Engine", () => {
         { id: "m2", name: "Bob", department: { name: "Support" }, _count: { tickets: 2 } },
       ]);
 
-      const { routeConversation } = await import("@/lib/conversation-engine");
+      const { routeConversation } = await import("@/lib/conversations/conversation-engine");
       const result = await routeConversation(ctx, "least_busy");
 
       expect(result).not.toBeNull();
@@ -50,7 +50,7 @@ describe("Conversation Engine", () => {
     it("should return null when no members available", async () => {
       mockPrisma.teamMember.findMany.mockResolvedValue([]);
 
-      const { routeConversation } = await import("@/lib/conversation-engine");
+      const { routeConversation } = await import("@/lib/conversations/conversation-engine");
       const result = await routeConversation(ctx);
 
       expect(result).toBeNull();
@@ -68,7 +68,7 @@ describe("Conversation Engine", () => {
       mockPrisma.internalNote.create.mockResolvedValue({});
       mockPrisma.conversation.update.mockResolvedValue({});
 
-      const { mergeConversations } = await import("@/lib/conversation-engine");
+      const { mergeConversations } = await import("@/lib/conversations/conversation-engine");
       const result = await mergeConversations(ctx, "primary", "secondary");
 
       expect(result).toBe(true);
@@ -81,7 +81,7 @@ describe("Conversation Engine", () => {
     it("should return false if conversation not found", async () => {
       mockPrisma.conversation.findUnique.mockResolvedValue(null);
 
-      const { mergeConversations } = await import("@/lib/conversation-engine");
+      const { mergeConversations } = await import("@/lib/conversations/conversation-engine");
       const result = await mergeConversations(ctx, "nonexistent", "other");
 
       expect(result).toBe(false);
@@ -93,7 +93,7 @@ describe("Conversation Engine", () => {
       mockPrisma.conversation.update.mockResolvedValue({});
       mockPrisma.internalNote.create.mockResolvedValue({});
 
-      const { executeMacro } = await import("@/lib/conversation-engine");
+      const { executeMacro } = await import("@/lib/conversations/conversation-engine");
       const result = await executeMacro(ctx, "conv-1", [
         { type: "set_status", value: "resolved" },
         { type: "add_note", value: "Issue resolved" },
@@ -104,7 +104,7 @@ describe("Conversation Engine", () => {
     });
 
     it("should handle unknown action types", async () => {
-      const { executeMacro } = await import("@/lib/conversation-engine");
+      const { executeMacro } = await import("@/lib/conversations/conversation-engine");
       const result = await executeMacro(ctx, "conv-1", [
         { type: "unknown_action", value: "test" },
       ], "Admin");

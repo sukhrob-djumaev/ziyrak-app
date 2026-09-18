@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleCallEnd } from "@/lib/channels/phone";
-import { validateTwilioSignature, getTwilioAuthToken } from "@/lib/twilio-verify";
-import { logger } from "@/lib/logger";
+import { validateTwilioSignature, getTwilioAuthToken } from "@/lib/channels/twilio-verify";
+import { logger } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   try {

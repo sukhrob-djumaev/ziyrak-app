@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma/raw-client";
-import { owlyTools, executeToolCall } from "./tools";
-import { emitNewMessage } from "@/lib/realtime";
-import { assertDefaultBusinessOnly } from "@/lib/default-business";
+import { owlyTools, executeToolCall } from "@/lib/tools/tools";
+import { emitNewMessage } from "@/lib/realtime/realtime";
+import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { analyzeSentiment, detectIntent, estimateConfidence, requiresHumanApproval } from "./guardrails";

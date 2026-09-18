@@ -11,7 +11,7 @@
 
 import crypto from "crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { ROLES } from "../src/lib/rbac";
+import { ROLES } from "../src/lib/rbac/rbac";
 import type { SecretResolver } from "../src/lib/secrets/types";
 import { ChannelCredentialSchema } from "../src/lib/secrets/credential-schemas";
 

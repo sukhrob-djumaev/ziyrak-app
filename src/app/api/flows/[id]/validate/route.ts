@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { validateFlow, type Flow } from "@/lib/flow-builder";
-import { logger } from "@/lib/logger";
-import { toErrorResponse } from "@/lib/errors";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { validateFlow, type Flow } from "@/lib/flows/flow-builder";
+import { logger } from "@/lib/observability/logger";
+import { toErrorResponse } from "@/lib/observability/errors";
 import * as flowsService from "@/lib/flows/service";
 
 export async function POST(

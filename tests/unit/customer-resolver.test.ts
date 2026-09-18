@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
-import { resolveCustomer, normalizePhone } from "@/lib/customer-resolver";
+import { resolveCustomer, normalizePhone } from "@/lib/customers/customer-resolver";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 const ctx: TenantContext = {

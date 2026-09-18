@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/route-auth";
-import { transferConversation } from "@/lib/conversation-engine";
-import { logger } from "@/lib/logger";
+import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/identity/route-auth";
+import { transferConversation } from "@/lib/conversations/conversation-engine";
+import { logger } from "@/lib/observability/logger";
 
 export async function POST(
   request: NextRequest,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AppError, errorResponse, Errors } from "@/lib/errors";
+import { AppError, errorResponse, Errors } from "@/lib/observability/errors";
 
 describe("Error Handling", () => {
   describe("AppError", () => {

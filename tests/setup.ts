@@ -24,7 +24,7 @@ vi.mock("@/lib/prisma/raw-client", () => ({
 export const TEST_DEFAULT_BUSINESS_ID = "test-default-business-id";
 export const TEST_DEFAULT_USER_ID = "test-admin-id";
 
-vi.mock("@/lib/route-auth", () => ({
+vi.mock("@/lib/identity/route-auth", () => ({
   requireAuth: vi.fn().mockResolvedValue({
     businessId: TEST_DEFAULT_BUSINESS_ID,
     role: "admin",
@@ -45,7 +45,7 @@ vi.mock("@/lib/route-auth", () => ({
 // behavior for the common case; a test that specifically wants to exercise
 // the guard's rejection path overrides ctx.businessId (or this mock)
 // itself.
-vi.mock("@/lib/default-business", () => ({
+vi.mock("@/lib/tenancy/default-business", () => ({
   getDefaultBusinessId: vi.fn().mockResolvedValue(TEST_DEFAULT_BUSINESS_ID),
   assertDefaultBusinessOnly: vi.fn().mockResolvedValue(undefined),
   getDefaultBusinessContext: vi.fn().mockResolvedValue({
@@ -57,7 +57,7 @@ vi.mock("@/lib/default-business", () => ({
 }));
 
 // Mock realtime to prevent side effects in tests
-vi.mock("@/lib/realtime", () => ({
+vi.mock("@/lib/realtime/realtime", () => ({
   emitNewMessage: vi.fn(),
   emitConversationUpdate: vi.fn(),
   emitTyping: vi.fn(),

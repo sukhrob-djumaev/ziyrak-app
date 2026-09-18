@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasPermission, hasMinRole, getPermissionsForRole } from "@/lib/rbac";
+import { hasPermission, hasMinRole, getPermissionsForRole } from "@/lib/rbac/rbac";
 
 describe("RBAC System", () => {
   describe("hasPermission", () => {

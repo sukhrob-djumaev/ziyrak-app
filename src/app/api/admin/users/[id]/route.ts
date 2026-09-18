@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
-import { requireAuth, isAuthenticated } from "@/lib/route-auth";
-import { toErrorResponse } from "@/lib/errors";
-import * as adminUsersService from "@/lib/admin-users/service";
+import { logger } from "@/lib/observability/logger";
+import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { toErrorResponse } from "@/lib/observability/errors";
+import * as adminUsersService from "@/lib/platform/admin-users/service";
 
 export async function PUT(
   request: NextRequest,

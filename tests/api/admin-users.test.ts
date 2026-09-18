@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { createRequest, parseJsonResponse } from "../helpers/request";
-import { ROLES } from "@/lib/rbac";
+import { ROLES } from "@/lib/rbac/rbac";
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 

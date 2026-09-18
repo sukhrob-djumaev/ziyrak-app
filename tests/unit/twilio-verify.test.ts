@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import crypto from "crypto";
-import { validateTwilioSignature } from "@/lib/twilio-verify";
+import { validateTwilioSignature } from "@/lib/channels/twilio-verify";
 
 describe("Twilio Signature Validation", () => {
   const authToken = "test-auth-token-12345";

@@ -8,7 +8,7 @@ import {
   clearAuthCookie,
   getCurrentUser,
   isSetupComplete,
-} from "@/lib/auth";
+} from "@/lib/identity/auth";
 
 // POST /api/auth - Login or Setup
 export async function POST(request: NextRequest) {

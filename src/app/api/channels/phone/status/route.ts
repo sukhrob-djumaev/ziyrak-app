@@ -1,31 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleCallEnd } from "@/lib/channels/phone";
-import { validateTwilioSignature, getTwilioAuthToken } from "@/lib/channels/twilio-verify";
+import { handleCallEnd } from "@/lib/channels/phone-adapter";
+import { normalizeFormRequest } from "@/lib/channels/http-request";
 import { logger } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const params: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      params[key] = String(value);
-    });
+    const normalized = await normalizeFormRequest(request);
+    const result = await handleCallEnd(normalized);
 
-    const authToken = await getTwilioAuthToken();
-    if (authToken) {
-      const signature = request.headers.get("x-twilio-signature") || "";
-      if (!validateTwilioSignature(authToken, signature, request.url, params)) {
-        logger.warn("[Phone] Invalid Twilio signature on status callback");
-        return new NextResponse("Forbidden", { status: 403 });
-      }
-    }
-
-    const callSid = params.CallSid || "";
-    const callDuration = parseInt(params.CallDuration || "0") || 0;
-    const callStatus = params.CallStatus || "";
-
-    if (callStatus === "completed" || callStatus === "failed" || callStatus === "no-answer") {
-      await handleCallEnd(callSid, callDuration);
+    if (result.kind === "rejected") {
+      return new NextResponse("Forbidden", { status: result.status });
     }
 
     return NextResponse.json({ ok: true });

@@ -1,32 +1,19 @@
 import OpenAI from "openai";
-import { prisma } from "@/lib/prisma/raw-client";
-import { chat, createNewConversation } from "@/lib/ai/engine";
-import { resolveCustomer } from "@/lib/customers/customer-resolver";
-import { getDefaultBusinessContext } from "@/lib/tenancy/default-business";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
-interface PhoneConfig {
-  twilioSid: string;
-  twilioToken: string;
-  twilioPhone: string;
-  elevenLabsKey: string;
-  elevenLabsVoice: string;
-  aiApiKey: string;
-}
-
-async function getPhoneConfig(): Promise<PhoneConfig | null> {
-  const settings = await prisma.settings.findFirst();
-  if (!settings?.twilioSid || !settings?.twilioToken) return null;
-
-  return {
-    twilioSid: settings.twilioSid,
-    twilioToken: settings.twilioToken,
-    twilioPhone: settings.twilioPhone,
-    elevenLabsKey: settings.elevenLabsKey,
-    elevenLabsVoice: settings.elevenLabsVoice,
-    aiApiKey: settings.aiApiKey,
-  };
-}
+/**
+ * PLAN.md §19.2/§46.5 — pure, tenant-agnostic Twilio/Whisper/ElevenLabs
+ * helpers. Business/tenant-aware call orchestration (customer/conversation
+ * resolution, `ChannelConnection` lookup, dedup) moved to
+ * `phone-adapter.ts`'s `PhoneAdapter` — this file has no `TenantContext`,
+ * no Prisma import, and no `ai/engine.ts` dependency, matching the same
+ * split every other migrated channel got.
+ *
+ * `transcribeAudio`/`synthesizeSpeech`/`generateTwiMLStream` are unused by
+ * the live call flow (Twilio's own `<Gather input="speech">`/`<Say>`
+ * already provide ASR/TTS) — true before this phase too, and not a Phase 5
+ * concern to wire up or remove (§2.4-style dead code, out of this phase's
+ * named scope).
+ */
 
 // Speech-to-Text using OpenAI Whisper
 export async function transcribeAudio(
@@ -80,6 +67,15 @@ export async function synthesizeSpeech(
   return Buffer.from(arrayBuffer);
 }
 
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // Generate TwiML response for incoming calls
 export function generateTwiMLGather(
   message: string,
@@ -95,11 +91,11 @@ export function generateTwiMLGather(
 </Response>`;
 }
 
-export function generateTwiMLSay(message: string): string {
+export function generateTwiMLSay(message: string, gatherCallbackUrl: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">${escapeXml(message)}</Say>
-  <Gather input="speech" action="/api/channels/phone/gather" method="POST" speechTimeout="auto" language="auto">
+  <Gather input="speech" action="${escapeXml(gatherCallbackUrl)}" method="POST" speechTimeout="auto" language="auto">
     <Say voice="alice">Is there anything else I can help with?</Say>
   </Gather>
   <Say voice="alice">Thank you for calling. Goodbye.</Say>
@@ -113,121 +109,4 @@ export function generateTwiMLStream(websocketUrl: string): string {
     <Stream url="${websocketUrl}" />
   </Connect>
 </Response>`;
-}
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-// Handle incoming call
-export async function handleIncomingCall(
-  from: string,
-  callSid: string
-): Promise<string> {
-  const config = await getPhoneConfig();
-  if (!config) {
-    return generateTwiMLSay(
-      "Sorry, the phone system is not properly configured. Please try again later."
-    );
-  }
-
-  // See channels/whatsapp.ts's identical comment — Phase 2 runtime-
-  // isolation audit finding: no per-connection inbound tenant resolution
-  // exists yet (Phase 5), so this explicitly scopes to the Default
-  // Business.
-  const ctx = await getDefaultBusinessContext();
-  const db = getScopedPrisma(ctx);
-
-  // Create call log
-  await db.callLog.create({
-    data: {
-      businessId: ctx.businessId,
-      callSid,
-      from,
-      to: config.twilioPhone,
-      status: "in-progress",
-    },
-  });
-
-  // Resolve customer identity across channels
-  const customerId = await resolveCustomer(ctx, "phone", from, "Phone Caller");
-
-  // Create or find conversation
-  let conversation = await db.conversation.findFirst({
-    where: {
-      channel: "phone",
-      status: { in: ["active", "escalated"] },
-      OR: [
-        { customerId },
-        { customerContact: from },
-      ],
-    },
-  });
-
-  if (!conversation) {
-    conversation = await createNewConversation(ctx, "phone", "Phone Caller", from, customerId);
-  }
-
-  const settings = await prisma.settings.findFirst();
-  const welcomeMessage =
-    settings?.welcomeMessage || "Hello! How can I help you today?";
-
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/channels/phone/gather?conversationId=${conversation.id}&callSid=${callSid}`;
-
-  return generateTwiMLGather(welcomeMessage, callbackUrl);
-}
-
-// Handle speech input during call
-export async function handleSpeechInput(
-  speechResult: string,
-  conversationId: string,
-  callSid: string
-): Promise<string> {
-  if (!speechResult || speechResult.trim() === "") {
-    return generateTwiMLSay("I didn't catch that. Could you please repeat?");
-  }
-
-  const ctx = await getDefaultBusinessContext();
-  const db = getScopedPrisma(ctx);
-
-  // Get AI response
-  let aiResponse: string;
-  try {
-    aiResponse = await chat(ctx, conversationId, speechResult);
-  } catch {
-    return generateTwiMLSay("I'm sorry, I'm having trouble right now. Please try again or hold for an agent.");
-  }
-
-  // Update call log
-  await db.callLog.updateMany({
-    where: { callSid },
-    data: { status: "in-progress" },
-  });
-
-  return generateTwiMLSay(aiResponse);
-}
-
-// End call handler
-export async function handleCallEnd(callSid: string, duration: number) {
-  const ctx = await getDefaultBusinessContext();
-  const db = getScopedPrisma(ctx);
-  await db.callLog.updateMany({
-    where: { callSid },
-    data: {
-      status: "completed",
-      duration,
-    },
-  });
-}
-
-export function getPhoneStatus() {
-  return {
-    configured: false,
-    status: "disconnected" as const,
-  };
 }

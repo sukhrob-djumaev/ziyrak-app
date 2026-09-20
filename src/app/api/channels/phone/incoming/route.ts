@@ -1,35 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleIncomingCall } from "@/lib/channels/phone";
-import { validateTwilioSignature, getTwilioAuthToken } from "@/lib/channels/twilio-verify";
+import { handleIncomingCall } from "@/lib/channels/phone-adapter";
+import { normalizeFormRequest } from "@/lib/channels/http-request";
 import { logger } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const params: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      params[key] = String(value);
-    });
+    const normalized = await normalizeFormRequest(request);
+    const result = await handleIncomingCall(normalized);
 
-    // Validate Twilio signature
-    const authToken = await getTwilioAuthToken();
-    if (authToken) {
-      const signature = request.headers.get("x-twilio-signature") || "";
-      const url = request.url;
-      if (!validateTwilioSignature(authToken, signature, url, params)) {
-        logger.warn("[Phone] Invalid Twilio signature on incoming call");
-        return new NextResponse("Forbidden", { status: 403 });
-      }
+    if (result.kind === "rejected") {
+      return new NextResponse("Forbidden", { status: result.status });
     }
 
-    const from = params.From || "";
-    const callSid = params.CallSid || "";
-
-    const twiml = await handleIncomingCall(from, callSid);
-
-    return new NextResponse(twiml, {
-      headers: { "Content-Type": "text/xml" },
-    });
+    return new NextResponse(result.twiml, { headers: { "Content-Type": "text/xml" } });
   } catch (error) {
     logger.error("[Phone] Failed to handle incoming call:", error);
     return new NextResponse(

@@ -1,34 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleSpeechInput } from "@/lib/channels/phone";
-import { validateTwilioSignature, getTwilioAuthToken } from "@/lib/channels/twilio-verify";
+import { phoneAdapter } from "@/lib/channels/phone-adapter";
+import { generateTwiMLSay } from "@/lib/channels/phone";
+import { normalizeFormRequest } from "@/lib/channels/http-request";
+import { processInboundMessage } from "@/lib/conversations/inbound";
 import { logger } from "@/lib/observability/logger";
 
+/**
+ * PLAN.md §17.5/§46.5 — the one channel leg that legitimately calls
+ * `processInboundMessage` synchronously rather than enqueuing (see
+ * `PhoneAdapter`'s own header comment): a live call has no way to receive
+ * an asynchronous reply, so the AI's response must already be in hand
+ * before this route can return TwiML.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const params: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      params[key] = String(value);
-    });
+    const conversationId = request.nextUrl.searchParams.get("conversationId") || "";
+    const normalized = await normalizeFormRequest(request, { conversationId });
+    const result = await phoneAdapter.validateInbound(normalized);
 
-    // Validate Twilio signature
-    const authToken = await getTwilioAuthToken();
-    if (authToken) {
-      const signature = request.headers.get("x-twilio-signature") || "";
-      const url = request.url;
-      if (!validateTwilioSignature(authToken, signature, url, params)) {
-        logger.warn("[Phone] Invalid Twilio signature on gather");
+    if (result.kind === "rejected") {
+      if (result.reason === "invalid_signature") {
         return new NextResponse("Forbidden", { status: 403 });
       }
+      return new NextResponse(generateTwiMLSay("I didn't catch that. Could you please repeat?", request.url), {
+        headers: { "Content-Type": "text/xml" },
+      });
     }
 
-    const speechResult = params.SpeechResult || "";
-    const conversationId = request.nextUrl.searchParams.get("conversationId") || "";
-    const callSid = request.nextUrl.searchParams.get("callSid") || params.CallSid || "";
+    if (result.kind === "duplicate") {
+      return new NextResponse(generateTwiMLSay("One moment please.", request.url), {
+        headers: { "Content-Type": "text/xml" },
+      });
+    }
 
-    const twiml = await handleSpeechInput(speechResult, conversationId, callSid);
-
-    return new NextResponse(twiml, {
+    const { response } = await processInboundMessage(result.ctx, result.event);
+    return new NextResponse(generateTwiMLSay(response, request.url), {
       headers: { "Content-Type": "text/xml" },
     });
   } catch (error) {

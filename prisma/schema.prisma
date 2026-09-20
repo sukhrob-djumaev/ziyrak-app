@@ -52,6 +52,7 @@ model Business {
   campaigns         Campaign[]
   flows             Flow[]
   businessHours     BusinessHours[]
+  aiInteractionLogs AIInteractionLog[]
 }
 
 model Membership {
@@ -114,20 +115,52 @@ model StorageProfile {
 // platform default" (§10.2); everything else mirrors Settings' own defaults.
 
 model BusinessConfig {
-  businessId        String   @id
-  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  businessName      String   @default("My Business")
-  businessDesc      String   @default("")
-  welcomeMessage    String   @default("Hello! How can I help you today?")
-  tone              String   @default("friendly")
-  language          String   @default("auto")
-  aiProvider        String?
-  aiModel           String?
-  embeddingProvider String?
-  maxTokens         Int?
-  temperature       Float?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  businessId              String   @id
+  business                Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessName            String   @default("My Business")
+  businessDesc            String   @default("")
+  welcomeMessage          String   @default("Hello! How can I help you today?")
+  tone                    String   @default("friendly")
+  language                String   @default("auto")
+  aiProvider              String?
+  aiModel                 String?
+  embeddingProvider       String?
+  maxTokens               Int?
+  temperature             Float?
+  // PLAN.md §46.4/§10.3 — opaque SecretResolver references, never a raw key
+  // in this row, mirroring ChannelConnection.credentialRef (§7.7). Each
+  // resolves (via getSecretResolver().decrypt()) to a JSON-encoded payload
+  // validated against ai/providers/credentials.ts's typed schema for the
+  // provider named in aiProvider/embeddingProvider at read time.
+  aiCredentialRef         String?
+  embeddingCredentialRef  String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// ==================== AI USAGE ATTRIBUTION (PLAN.md §46.4/§39.1) ====================
+// One row per generation or embedding call. Deliberately minimal — no
+// billing/quota engine (§39.2) — this exists only so cost can be attributed
+// per business from day one, since retrofitting attribution onto
+// untagged historical calls is not possible later (§39.1's own reasoning).
+
+model AIInteractionLog {
+  id               String        @id @default(uuid())
+  businessId       String
+  business         Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversationId   String?
+  // §8.4 composite FK — a log row can never reference another business's Conversation.
+  conversation     Conversation? @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: SetNull)
+  kind             String        // "generation" | "embedding"
+  provider         String
+  model            String
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int
+  createdAt        DateTime      @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([conversationId])
 }
 
 // ==================== CHANNEL CONNECTION (PLAN.md §7.7) ====================
@@ -304,10 +337,11 @@ model Conversation {
   tags            ConversationTag[]
   notes           InternalNote[]
   callLogs        CallLog[]
+  aiInteractionLogs AIInteractionLog[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog.conversationId
+  @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog/AIInteractionLog.conversationId
   @@index([channel])
   @@index([status])
   @@index([customerContact])

@@ -133,6 +133,7 @@ function createMockPrismaClient() {
     "internalNote",
     "campaign",
     "flow",
+    "aIInteractionLog",
   ];
 
   const client: Record<string, unknown> = {

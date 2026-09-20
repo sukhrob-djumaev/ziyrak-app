@@ -288,6 +288,10 @@ async function createMinimalRow(
       const customer = await db.customer.create({ data: { name: `${marker}-cust` } });
       return db.customerNote.create({ data: { customerId: customer.id, content: marker } });
     }
+    case "aIInteractionLog":
+      return db.aIInteractionLog.create({
+        data: { kind: "generation", provider: "fake", model: "fake-model", totalTokens: 1 },
+      });
   }
 }
 

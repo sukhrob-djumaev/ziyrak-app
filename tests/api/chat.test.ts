@@ -3,6 +3,15 @@ import { createRequest, parseJsonResponse } from "../helpers/request";
 
 vi.mock("@/lib/ai/engine", () => ({
   chat: vi.fn().mockResolvedValue("AI response here"),
+}));
+
+// PLAN.md §46.5 — createNewConversation moved from ai/engine.ts to
+// conversations/conversation-service.ts (it does nothing AI-related; it
+// only ever lived in ai/ because that's where the pre-Phase-5 codebase put
+// every conversation-adjacent function). processInboundMessage() —
+// conversations/inbound.ts, now the sole caller /api/chat routes through —
+// imports it from its real home.
+vi.mock("@/lib/conversations/conversation-service", () => ({
   createNewConversation: vi.fn().mockResolvedValue({ id: "new-conv-1" }),
 }));
 
@@ -12,7 +21,8 @@ describe("POST /api/chat", () => {
   });
 
   it("should return AI response for valid message", async () => {
-    const { chat, createNewConversation } = await import("@/lib/ai/engine");
+    const { chat } = await import("@/lib/ai/engine");
+    const { createNewConversation } = await import("@/lib/conversations/conversation-service");
     (chat as ReturnType<typeof vi.fn>).mockResolvedValue("Hello! How can I help?");
     (createNewConversation as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "conv-new" });
 
@@ -84,7 +94,8 @@ describe("POST /api/chat", () => {
   });
 
   it("should handle AI engine errors gracefully", async () => {
-    const { chat, createNewConversation } = await import("@/lib/ai/engine");
+    const { chat } = await import("@/lib/ai/engine");
+    const { createNewConversation } = await import("@/lib/conversations/conversation-service");
     (createNewConversation as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "conv-err" });
     (chat as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("OpenAI unavailable"));
 

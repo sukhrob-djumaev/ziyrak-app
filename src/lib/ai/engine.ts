@@ -21,6 +21,7 @@ import {
   recordEscalationSignal,
   notifyNewAssistantMessage,
 } from "@/lib/conversations/messaging";
+export { createNewConversation } from "@/lib/conversations/conversation-service";
 import type { AIMessage } from "./providers/types";
 import type { KnowledgeItem } from "@/lib/knowledge/types";
 import { logger } from "@/lib/observability/logger";
@@ -288,23 +289,4 @@ async function completeWithOneRetry(provider: AIProvider, request: CompletionReq
     }
     throw error;
   }
-}
-
-export async function createNewConversation(
-  ctx: TenantContext,
-  channel: string,
-  customerName: string,
-  customerContact: string,
-  customerId?: string
-) {
-  const db = getScopedPrisma(ctx);
-  return db.conversation.create({
-    data: {
-      businessId: ctx.businessId,
-      channel,
-      customerName,
-      customerContact,
-      ...(customerId && { customerId }),
-    },
-  });
 }

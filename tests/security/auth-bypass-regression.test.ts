@@ -11,19 +11,32 @@ vi.mock("@/lib/identity/route-auth", async (importOriginal) => {
 
 vi.mock("@/lib/ai/engine", () => ({
   chat: vi.fn().mockResolvedValue("should not be reached"),
+}));
+
+// PLAN.md §46.5 — createNewConversation moved to conversations/
+// conversation-service.ts; processInboundMessage() (the function /api/chat
+// now routes through) imports it from there, not ai/engine.ts.
+vi.mock("@/lib/conversations/conversation-service", () => ({
   createNewConversation: vi.fn().mockResolvedValue({ id: "should-not-be-reached" }),
 }));
 
+// PLAN.md §46.5 — these two channels' routes now call through the
+// ChannelAdapter contract (`whatsAppWebAdapter`/`emailAdapter`) instead of
+// standalone `initWhatsApp`/`startEmailListener` functions.
 vi.mock("@/lib/channels/whatsapp", () => ({
   getWhatsAppStatus: vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" }),
-  initWhatsApp: vi.fn().mockResolvedValue(undefined),
-  disconnectWhatsApp: vi.fn().mockResolvedValue(undefined),
+  whatsAppWebAdapter: {
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 vi.mock("@/lib/channels/email", () => ({
   getEmailStatus: vi.fn().mockReturnValue({ status: "disconnected" }),
-  startEmailListener: vi.fn().mockResolvedValue(undefined),
-  stopEmailListener: vi.fn().mockResolvedValue(undefined),
+  emailAdapter: {
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 const WRONG_SECRET = "attacker-controlled-secret";
@@ -107,7 +120,8 @@ describe("Auth bypass regression (§2.2 / §46.0)", () => {
   });
 
   it("never reaches the AI engine when /api/chat is called without auth", async () => {
-    const { chat, createNewConversation } = await import("@/lib/ai/engine");
+    const { chat } = await import("@/lib/ai/engine");
+    const { createNewConversation } = await import("@/lib/conversations/conversation-service");
     const { POST } = await import("@/app/api/chat/route");
 
     const request = createRequest("/api/chat", { method: "POST", body: { message: "hi" } });
@@ -118,7 +132,7 @@ describe("Auth bypass regression (§2.2 / §46.0)", () => {
   });
 
   it("never touches the WhatsApp client when /api/channels/whatsapp is called without auth", async () => {
-    const { initWhatsApp, disconnectWhatsApp } = await import("@/lib/channels/whatsapp");
+    const { whatsAppWebAdapter } = await import("@/lib/channels/whatsapp");
     const { POST } = await import("@/app/api/channels/whatsapp/route");
 
     const request = createRequest("/api/channels/whatsapp", {
@@ -127,7 +141,7 @@ describe("Auth bypass regression (§2.2 / §46.0)", () => {
     });
     await POST(request);
 
-    expect(initWhatsApp).not.toHaveBeenCalled();
-    expect(disconnectWhatsApp).not.toHaveBeenCalled();
+    expect(whatsAppWebAdapter.connect).not.toHaveBeenCalled();
+    expect(whatsAppWebAdapter.disconnect).not.toHaveBeenCalled();
   });
 });

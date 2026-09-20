@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chat, createNewConversation } from "@/lib/ai/engine";
+import { processInboundMessage } from "@/lib/conversations/inbound";
+import { buildMessageReceivedEvent } from "@/lib/events/types";
 import { logger } from "@/lib/observability/logger";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { toErrorResponse } from "@/lib/observability/errors";
 
+/**
+ * PLAN.md §17.6/§18.2/§46.5 — the internal chat API's own worked example:
+ * builds a normalized event and calls `processInboundMessage(ctx, event)`
+ * directly, awaited in the same request/response cycle (no webhook
+ * acknowledgment deadline to respect, so no dedup/enqueue step — those are
+ * for real provider channels, §17.4/§17.6). This route no longer
+ * duplicates "resolve customer → find/create conversation → chat()" itself
+ * at all; `processInboundMessage` is now the only place that logic exists.
+ */
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "conversations:create");
   if (!isAuthenticated(ctx)) return ctx;
@@ -20,30 +30,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message exceeds maximum length of 10000 characters" }, { status: 400 });
     }
 
-    let convId = conversationId;
-
-    if (!convId) {
-      // createNewConversation()/chat() below resolve entirely against
-      // ctx.businessId (§16.2) and fail closed via
-      // assertDefaultBusinessOnly() if this business isn't the one the AI
-      // chat pipeline's still-global Settings-derived config represents
-      // (Phase 2 runtime-isolation audit finding) — never silently against
-      // the Default Business regardless of who's actually asking.
-      const conversation = await createNewConversation(
-        ctx,
-        channel || "api",
-        customerName || "API User",
-        customerContact || ""
-      );
-      convId = conversation.id;
-    }
-
-    const response = await chat(ctx, convId, message.trim());
-
-    return NextResponse.json({
-      conversationId: convId,
-      response,
+    const event = buildMessageReceivedEvent({
+      businessId: ctx.businessId,
+      channel: channel || "api",
+      connectionId: "internal-chat-api",
+      conversationId: conversationId || undefined,
+      payload: {
+        text: message.trim(),
+        customerName: customerName || "API User",
+        customerContact: customerContact || "",
+      },
     });
+
+    const result = await processInboundMessage(ctx, event);
+
+    return NextResponse.json(result);
   } catch (error) {
     logger.error("Failed to process chat message:", error);
     return toErrorResponse(error);

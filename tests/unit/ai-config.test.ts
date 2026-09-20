@@ -119,7 +119,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     expect(mockPrisma.settings.findUnique).not.toHaveBeenCalled();
   });
 
-  it("stops consulting the legacy row once the Default Business has set its own aiProvider, even without a credential yet", async () => {
+  it("stops consulting the legacy row once BusinessConfig.aiProvider has diverged from it (an admin explicitly switched provider, no credential entered yet) — never silently uses the old provider's leftover key", async () => {
     const { resolveAIConfig } = await import("@/lib/ai/config");
 
     mockPrisma.businessConfig.findUnique.mockResolvedValue({
@@ -139,6 +139,31 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     const config = await resolveAIConfig(defaultCtx);
     expect(config.apiKey).toBeNull();
     expect(config.provider).toBe("anthropic");
+  });
+
+  it("still falls back to the legacy key when BusinessConfig.aiProvider merely mirrors it — Phase 1's own migration already copied Settings.aiProvider/aiModel/maxTokens/temperature verbatim into BusinessConfig for the one business that existed then, so 'aiProvider is set' alone must not be read as 'this business already migrated its credential'", async () => {
+    const { resolveAIConfig } = await import("@/lib/ai/config");
+
+    mockPrisma.businessConfig.findUnique.mockResolvedValue({
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+      aiProvider: "openai",
+      aiModel: "gpt-4o-mini",
+      maxTokens: 2048,
+      temperature: 0.7,
+      aiCredentialRef: null,
+    });
+    mockPrisma.settings.findUnique.mockResolvedValue({
+      id: "default",
+      aiProvider: "openai",
+      aiModel: "gpt-4o-mini",
+      aiApiKey: "sk-legacy-key-migrated-from-settings",
+      maxTokens: 2048,
+      temperature: 0.7,
+    });
+
+    const config = await resolveAIConfig(defaultCtx);
+    expect(config.apiKey).toBe("sk-legacy-key-migrated-from-settings");
+    expect(config.provider).toBe("openai");
   });
 
   it("is not configured (apiKey: null) for a business with no credential and no legacy fallback available", async () => {

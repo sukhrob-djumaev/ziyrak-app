@@ -25,11 +25,23 @@ import {
  *   1. `BusinessConfig.aiCredentialRef`/`embeddingCredentialRef` (any
  *      business) — the real, permanent home for this config now.
  *   2. The legacy `Settings` singleton, but ONLY for the Default Business,
- *      and ONLY as long as that business has not touched its own
- *      `BusinessConfig` AI fields at all yet (§13's "no two silent sources
- *      of truth" — once a business sets its own `aiProvider`/credential,
- *      the legacy row is never consulted for it again, even if the
- *      credential fails to decrypt).
+ *      and ONLY as long as `BusinessConfig.aiProvider` hasn't diverged from
+ *      what that legacy row itself says. This is deliberately NOT "aiProvider
+ *      is unset" — Phase 1's own migration script
+ *      (`splitSettingsIntoBusinessConfigAndChannelConnections`) already
+ *      copied `Settings.aiProvider`/`aiModel`/`maxTokens`/`temperature`
+ *      verbatim into the Default Business's `BusinessConfig` at migration
+ *      time (it could not copy `aiApiKey` — no destination existed for it
+ *      yet, which is exactly the gap this phase closes), so a freshly-
+ *      migrated system's `BusinessConfig.aiProvider` is already set and
+ *      equal to the legacy value from day one. Comparing against the legacy
+ *      row's own current provider (not "is aiProvider set") is what
+ *      correctly satisfies "a tenant configured for a non-OpenAI provider
+ *      does not silently send requests to OpenAI" (§46.4's acceptance
+ *      criteria): an admin who explicitly switches `BusinessConfig.
+ *      aiProvider` away from the legacy value, without entering a new
+ *      credential yet, must not fall back to the old provider's leftover
+ *      key.
  *   3. Not configured (`apiKey: null`) — every other case, including every
  *      non-Default business with no `BusinessConfig` credential of its own.
  * This is what actually retires the Phase 2 `assertDefaultBusinessOnly()`
@@ -144,16 +156,31 @@ export async function resolveAIConfig(ctx: TenantContext): Promise<ResolvedAICon
     return { provider, model, maxTokens, temperature, apiKey };
   }
 
-  // Only fall back to the legacy singleton if this business has never
-  // touched its own BusinessConfig AI fields — once it has (even without a
-  // credential yet), the legacy row is no longer a silent second source of
-  // truth for it.
-  const hasOwnAIConfig = Boolean(config?.aiProvider);
-  if (!hasOwnAIConfig) {
-    const legacy = await resolveLegacySettings(ctx);
-    if (legacy) {
+  // The legacy fallback: only for the Default Business, and only while
+  // BusinessConfig.aiProvider hasn't diverged from what the legacy row
+  // itself says. This is NOT simply "aiProvider is unset" — Phase 1's own
+  // migration (splitSettingsIntoBusinessConfigAndChannelConnections)
+  // already copied Settings.aiProvider/aiModel/maxTokens/temperature
+  // verbatim into the Default Business's BusinessConfig at migration time
+  // (it could not copy aiApiKey — no destination existed for it yet, which
+  // is exactly the gap this phase closes). So a freshly-migrated system's
+  // BusinessConfig.aiProvider is already non-null and equal to the legacy
+  // value — comparing against "is aiProvider set" would incorrectly treat
+  // that one-time migration copy as "already configured" and never fall
+  // back to the one real credential that actually exists. Comparing
+  // against the legacy row's own current provider instead correctly
+  // distinguishes "still exactly what Phase 1 copied" (fall back — the
+  // credential just hasn't been migrated yet) from "an admin explicitly
+  // selected a different provider through the new boundary, with no
+  // credential entered yet" (do not fall back — never silently use the old
+  // provider's leftover key for a provider the business didn't choose).
+  const legacy = await resolveLegacySettings(ctx);
+  if (legacy) {
+    const legacyProvider = normalizeProviderName(legacy.provider);
+    const divergedFromLegacy = config?.aiProvider != null && normalizeProviderName(config.aiProvider) !== legacyProvider;
+    if (!divergedFromLegacy) {
       return {
-        provider: normalizeProviderName(legacy.provider),
+        provider: legacyProvider,
         model: legacy.model,
         maxTokens: legacy.maxTokens,
         temperature: legacy.temperature,

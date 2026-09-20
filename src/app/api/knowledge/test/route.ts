@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma/raw-client";
-import OpenAI from "openai";
 import { logger } from "@/lib/observability/logger";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
-import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
 import { AppError, toErrorResponse } from "@/lib/observability/errors";
 import * as knowledgeService from "@/lib/knowledge/service";
+import { resolveAIConfig } from "@/lib/ai/config";
+import { aiProviderRegistry } from "@/lib/ai/providers/registry";
+import { recordAIInteraction } from "@/lib/ai/usage";
 
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "knowledge:read");
@@ -22,26 +22,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Phase 2 runtime-isolation audit finding: the knowledge entries below
-    // are already tenant-scoped via getScopedPrisma(ctx), but the AI
-    // provider/model/API key selection still reads the legacy global
-    // Settings singleton — without this guard, a non-default business
-    // would silently have its (correctly isolated) knowledge base tested
-    // using the Default Business's AI credentials/billing. Removed once
-    // Phase 4's AIProviderRegistry resolves per-business config.
-    await assertDefaultBusinessOnly(ctx, "Knowledge base testing");
+    // §46.4 — resolves this business's own AI provider/model/credential
+    // (BusinessConfig, falling back to legacy Settings for the Default
+    // Business only, per ai/config.ts's precedence) instead of the legacy
+    // global Settings singleton every business used to be fail-closed
+    // against (Phase 2's assertDefaultBusinessOnly guard, removed now that
+    // every business resolves its own config).
+    const aiConfig = await resolveAIConfig(ctx);
 
-    // Legacy Settings singleton, not a tenant-owned model (§46.1's
-    // implementation record — Settings.aiApiKey has no defined final
-    // destination until Phase 4's AIProviderRegistry exists). Reading it
-    // here directly is a deliberate, narrow, allowlisted exception (see
-    // eslint.config.mjs) — the tenant-owned query below (knowledge
-    // entries) goes through the scoped client like everything else.
-    const settings = await prisma.settings.findUnique({
-      where: { id: "default" },
-    });
-
-    if (!settings?.aiApiKey) {
+    if (!aiConfig.apiKey) {
       return NextResponse.json(
         { error: "AI API key is not configured. Please configure it in Settings." },
         { status: 400 }
@@ -79,21 +68,27 @@ Your answer here...
 ---SOURCES---
 [1, 3, 5]`;
 
-    const openai = new OpenAI({
-      apiKey: settings.aiApiKey,
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: settings.aiModel || "gpt-4o-mini",
+    const provider = aiProviderRegistry.get(aiConfig.provider, { apiKey: aiConfig.apiKey });
+    const completion = await provider.complete({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question.trim() },
       ],
-      max_tokens: settings.maxTokens || 2048,
-      temperature: settings.temperature ?? 0.7,
+      maxTokens: aiConfig.maxTokens,
+      temperature: aiConfig.temperature,
+      model: aiConfig.model,
     });
 
-    const responseText = completion.choices[0]?.message?.content || "";
+    await recordAIInteraction(ctx, {
+      kind: "generation",
+      provider: aiConfig.provider,
+      model: aiConfig.model,
+      promptTokens: completion.usage.promptTokens,
+      completionTokens: completion.usage.completionTokens,
+      totalTokens: completion.usage.totalTokens,
+    });
+
+    const responseText = completion.text ?? "";
 
     // Parse sources from response
     let answer = responseText;
@@ -129,7 +124,7 @@ Your answer here...
     return NextResponse.json({
       answer,
       sources,
-      model: settings.aiModel || "gpt-4o-mini",
+      model: aiConfig.model,
       totalEntries: entries.length,
     });
   } catch (error) {

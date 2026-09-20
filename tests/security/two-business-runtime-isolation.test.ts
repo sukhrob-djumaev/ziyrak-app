@@ -262,8 +262,11 @@ describe("Phase 2 runtime-isolation audit: /api/knowledge/test", () => {
     expect(data.sources[0].title).toBe("Default entry");
   });
 
-  it("Business B: rejected (501) before the AI provider is ever called — never tested against the Default Business's AI key/billing", async () => {
+  it("§46.4: Business B can now test its own knowledge base using its own AI credential — never the Default Business's AI key/billing", async () => {
     mockOpenAICreateFn.mockClear();
+    mockOpenAICreateFn.mockResolvedValueOnce({
+      choices: [{ message: { content: "Here is the B answer.\n---SOURCES---\n[1]" } }],
+    });
 
     const { POST } = await import("@/app/api/knowledge/test/route");
     const response = await POST(
@@ -271,9 +274,15 @@ describe("Phase 2 runtime-isolation audit: /api/knowledge/test", () => {
     );
     const data = await parseJsonResponse(response);
 
-    expect(response.status).toBe(501);
-    expect(data.error.code).toBe("NOT_YET_SUPPORTED");
-    expect(mockOpenAICreateFn).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(data.sources).toHaveLength(1);
+    expect(data.sources[0].title).toBe("B entry");
+
+    // Called with Business B's own resolved config, not the Default
+    // Business's legacy Settings-derived one.
+    expect(mockOpenAICreateFn).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "gpt-4o-mini" })
+    );
   });
 });
 

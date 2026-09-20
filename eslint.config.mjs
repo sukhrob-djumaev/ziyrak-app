@@ -46,13 +46,6 @@ const eslintConfig = defineConfig([
       // read in this file goes through getScopedPrisma(ctx)'s BusinessConfig
       // lookup like everything else.
       "src/lib/ai/config.ts",
-      // Reads the legacy, pre-Phase-1 Settings singleton for AI config
-      // (Settings.aiApiKey) — not a tenant-owned model, and has no defined
-      // final destination until Phase 4's AIProviderRegistry exists
-      // (§46.1's implementation record). The tenant-owned query in this
-      // same file (knowledge entries) already goes through
-      // getScopedPrisma(ctx) like everything else.
-      "src/app/api/knowledge/test/route.ts",
       // First-run setup/login bootstrap: creates the Business/
       // TenantPlacement/User/Membership a TenantContext would itself be
       // resolved from, and resolves login against User before any ctx

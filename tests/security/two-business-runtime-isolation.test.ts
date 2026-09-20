@@ -31,11 +31,32 @@ vi.mock("openai", async (importOriginal) => {
   return { ...actual, default: MockOpenAI };
 });
 
-vi.mock("@/lib/channels/whatsapp", () => ({
-  getWhatsAppStatus: vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" }),
-  initWhatsApp: vi.fn().mockResolvedValue(undefined),
-  disconnectWhatsApp: vi.fn().mockResolvedValue(undefined),
-}));
+// PLAN.md §46.5 — the route now calls through `whatsAppWebAdapter.connect/
+// disconnect()`, which internally still calls the same real, unmocked
+// `assertDefaultBusinessOnly()` this suite exists to exercise (it is NOT
+// mocked away here — only the actual whatsapp-web.js/Puppeteer calls
+// (`initWhatsApp`/`disconnectWhatsApp`) are, so this test proves the real
+// gate, not a re-implementation of it in the mock).
+vi.mock("@/lib/channels/whatsapp", async () => {
+  const { assertDefaultBusinessOnly } = await import("@/lib/tenancy/default-business");
+  const initWhatsApp = vi.fn().mockResolvedValue(undefined);
+  const disconnectWhatsApp = vi.fn().mockResolvedValue(undefined);
+  return {
+    getWhatsAppStatus: vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" }),
+    initWhatsApp,
+    disconnectWhatsApp,
+    whatsAppWebAdapter: {
+      connect: vi.fn(async (ctx: { businessId: string }, connectionId: string) => {
+        await assertDefaultBusinessOnly(ctx, "WhatsApp Web (internal dev/demo channel)");
+        return initWhatsApp(ctx, connectionId);
+      }),
+      disconnect: vi.fn(async (ctx: { businessId: string }) => {
+        await assertDefaultBusinessOnly(ctx, "WhatsApp Web (internal dev/demo channel)");
+        return disconnectWhatsApp();
+      }),
+    },
+  };
+});
 
 import { generateToken } from "@/lib/identity/auth";
 import { prisma } from "@/lib/prisma/raw-client";

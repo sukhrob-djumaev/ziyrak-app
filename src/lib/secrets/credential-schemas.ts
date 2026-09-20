@@ -27,6 +27,12 @@ export const TwilioCredentialSchema = z.object({
 export const TelegramCredentialSchema = z.object({
   type: z.literal("telegram"),
   botToken: z.string().min(1),
+  // PLAN.md §19.2/§32/§46.5 — Telegram has no built-in webhook signature
+  // scheme; `setWebhook`'s own `secret_token` parameter is the closest
+  // equivalent. Optional because a connection can exist before its webhook
+  // is (re-)registered, but TelegramAdapter.validateInbound() requires it
+  // to be set before honoring any inbound update.
+  secretToken: z.string().min(1).optional(),
 });
 
 export const EmailCredentialSchema = z.object({

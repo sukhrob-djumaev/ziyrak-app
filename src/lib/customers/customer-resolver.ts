@@ -20,11 +20,12 @@ export function normalizePhone(input: string): string {
  * through the raw, unscoped client — so an inbound message to one
  * business's channel could match and update *another* business's
  * Customer record purely by matching phone/email. Now takes `ctx`
- * explicitly and uses getScopedPrisma(ctx) throughout, so this is
- * structurally safe for whichever business `ctx` represents today (the
- * Default Business only, per the channel adapters' own guard — see
- * default-business.ts's getDefaultBusinessContext()) and remains correct
- * with zero further changes once Phase 5 passes a real per-connection ctx.
+ * explicitly and uses getScopedPrisma(ctx) throughout, so this was already
+ * structurally safe for whichever business `ctx` represented — as of
+ * Phase 5 (§46.5), every real channel adapter resolves that `ctx` from a
+ * genuine per-`ChannelConnection` lookup (`identity/channel-credential-
+ * auth.ts`), not the Default-Business-only shim this comment used to
+ * describe; no change was needed here to make that upgrade safe.
  */
 export async function resolveCustomer(
   ctx: TenantContext,

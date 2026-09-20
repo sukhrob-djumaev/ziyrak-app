@@ -37,6 +37,10 @@ const eslintConfig = defineConfig([
       "src/lib/prisma/**",
       "src/lib/identity/auth.ts",
       "src/lib/identity/route-auth.ts",
+      // PLAN.md §6/§14.3/§46.5 — resolves which business an identity-less
+      // inbound channel webhook belongs to (ChannelConnection lookup by
+      // provider identifier), the same pre-ctx reason route-auth.ts is here.
+      "src/lib/identity/channel-credential-auth.ts",
       "src/generated/**",
       // PLAN.md §46.4 — the one narrow, documented read of the legacy
       // Settings singleton left after this phase: resolveAIConfig()/
@@ -66,35 +70,18 @@ const eslintConfig = defineConfig([
       // (channels, business-hours, etc.) has already been cut over to its
       // Phase-1-built tenant-scoped replacement in this phase.
       "src/app/api/settings/route.ts",
-      // Post-audit status (Phase 2 runtime-isolation audit): these files
-      // are now ctx-aware everywhere it's structurally possible
-      // (getScopedPrisma(ctx) for every tenant-owned model; customer-
-      // resolver.ts needed no raw-client allowlisting at all after the
-      // audit and was removed from this list entirely). The raw client
-      // remains here ONLY for the legacy global Settings singleton
-      // (provider/model/API key, SMTP/IMAP/Twilio/Telegram credentials) —
-      // genuinely global infra config with no per-business destination
-      // until Phase 4's AIProviderRegistry/Phase 5's ChannelAdapter exist.
-      // Every code path that reaches these files from an authenticated
-      // route now fails closed via assertDefaultBusinessOnly() rather than
-      // silently resolving to the Default Business (see
-      // default-business.ts's own header comment and the Phase 2
-      // completion report's runtime-isolation audit). The channel-adapter
-      // files' *inbound* (webhook-triggered) paths have no authenticated
-      // caller to fail closed for at all — they explicitly construct a
-      // Default-Business-only TenantContext via
-      // getDefaultBusinessContext(), since no per-connection inbound
-      // tenant resolution exists yet (Phase 5).
+      // Post-audit status (Phase 2 runtime-isolation audit), narrowed
+      // further by Phase 5: every one of this list's *channel-adapter*
+      // entries (email/phone/sms/telegram/whatsapp) is gone as of §46.5 —
+      // each now resolves a real per-`ChannelConnection` `TenantContext`
+      // via `identity/channel-credential-auth.ts` instead of reading the
+      // legacy global `Settings` singleton or falling back to the Default
+      // Business (`getDefaultBusinessContext()`, itself now called only by
+      // `WhatsAppWebAdapter`'s permanently-gated dev/demo path, guarded by
+      // `assertDefaultBusinessOnly()`, not by silent fallback). The one
+      // remaining entry below reads `Settings.welcomeMessage`-equivalent
+      // global config with no per-business destination of its own yet.
       "src/lib/tools/tools.ts",
-      "src/lib/channels/email.ts",
-      "src/lib/channels/phone.ts",
-      "src/lib/channels/sms.ts",
-      "src/lib/channels/telegram.ts",
-      "src/lib/channels/whatsapp.ts",
-      // Reads the legacy Settings.twilioToken (§4 above) for Twilio
-      // webhook-signature verification, used only by the deferred
-      // channel-adapter webhook routes listed above.
-      "src/lib/channels/twilio-verify.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -123,28 +110,24 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // PLAN.md §46.3/§5.7 — module dependency-direction boundary: a
+  // PLAN.md §46.3/§46.5/§5.7 — module dependency-direction boundary: a
   // ChannelAdapter implementation must not import from `ai/` (it emits
   // normalized events and lets the application layer decide what to do
-  // with them). This is enforced going forward; the five existing channel
-  // files still call `ai/engine.ts`'s `chat()`/`createNewConversation()`
-  // directly, which is real, pre-existing, and intentional until Phase 5
-  // gives every channel a real `ChannelAdapter` contract + the `events/`
-  // envelope to publish through instead (§19, §46.5) — rewriting that
-  // coupling now would be exactly the "build Phase 5 early" this phase's
-  // own principle forbids. Any *new* file under `channels/` is held to the
-  // target rule with no exception. `tests/security/module-boundary-lint.
-  // test.ts` is this rule's own deliberate-violation test, mirroring
-  // `raw-prisma-lint.test.ts`'s pattern.
+  // with them). Phase 3 introduced this rule with a temporary allowlist for
+  // the five pre-existing channel files, which still called `ai/engine.ts`'s
+  // `chat()`/`createNewConversation()` directly pending the `ChannelAdapter`
+  // contract and `events/` envelope this phase introduces. That allowlist
+  // is gone: every channel (the five migrated adapters plus the new
+  // `WebChatAdapter`) now emits a normalized `ZiyrakEvent` and funnels
+  // through `processInboundMessage` (`conversations/inbound.ts`) instead of
+  // calling `ai/` directly — closing the architectural violation Phase 3
+  // deferred, per §46.5's own acceptance criteria. No exceptions remain.
+  // `tests/security/module-boundary-lint.test.ts` is this rule's own
+  // deliberate-violation test, mirroring `raw-prisma-lint.test.ts`'s
+  // pattern, and now also proves a real, previously-allowlisted file
+  // (`whatsapp.ts`) is held to the same rule as everything else.
   {
     files: ["src/lib/channels/**/*.{ts,tsx}"],
-    ignores: [
-      "src/lib/channels/email.ts",
-      "src/lib/channels/phone.ts",
-      "src/lib/channels/sms.ts",
-      "src/lib/channels/telegram.ts",
-      "src/lib/channels/whatsapp.ts",
-    ],
     rules: {
       "no-restricted-imports": [
         "error",

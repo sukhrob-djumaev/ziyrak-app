@@ -5,18 +5,20 @@ import type { TenantContext } from "@/lib/tenancy/context";
 let cachedDefaultBusinessId: string | null = null;
 
 /**
- * PLAN.md §46.1/§46.2 audit finding — this is no longer a silent,
+ * PLAN.md §46.1/§46.2/§46.5 audit findings — this is no longer a silent,
  * general-purpose fallback. Its ONLY remaining legitimate uses, after the
- * Phase 2 runtime-isolation audit, are:
+ * Phase 2 runtime-isolation audit and Phase 5's channel-adapter migration,
+ * are:
  *
  *   1. `assertDefaultBusinessOnly()`/`getDefaultBusinessContext()` below —
  *      explicit, fail-closed guards for the small set of features that
- *      structurally cannot be made tenant-aware without building
- *      Phase 4/5/6 architecture (the legacy Settings singleton; the AI
- *      chat pipeline's Settings-derived provider/model/API key; the
- *      channel-adapter subsystem, which has no way to resolve "which
- *      business" an inbound webhook belongs to until Phase 5's
- *      ChannelConnection-based resolution exists).
+ *      structurally cannot be made tenant-aware without building Phase
+ *      4/6 architecture (the legacy Settings singleton; `tools/tools.ts`'s
+ *      one remaining global-config read) or that are permanently,
+ *      architecturally single-tenant by design regardless of any future
+ *      phase (`WhatsAppWebAdapter`'s dev/demo-only session, §20.1/§20.2 —
+ *      every *other* channel adapter resolves a real per-`ChannelConnection`
+ *      `TenantContext` as of Phase 5 and no longer calls either function).
  *   2. Migration/seed scripts, which are not externally reachable at all.
  *
  * It must NEVER be called as an implicit substitute for a real
@@ -59,16 +61,21 @@ export async function assertDefaultBusinessOnly(
 }
 
 /**
- * For the channel-adapter subsystem specifically (§14.3/§46.2's own
- * finding): an inbound provider webhook (WhatsApp/SMS/email/Telegram/
- * phone) has no `TenantContext` at all — there is no JWT, no API key, and
- * no ChannelConnection-based resolution yet (that is Phase 5's job). This
- * constructs the one, explicit, documented `TenantContext` these adapters
- * are allowed to use until then, so the choice is visible at the call
- * site instead of buried inside `chat()`/`resolveCustomer()` as an
- * implicit fallback. `getScopedPrisma(ctx)` still enforces every query
- * against this businessId structurally — this is not a bypass, it is the
- * one tenant every unauthenticated inbound message is scoped to today.
+ * PLAN.md §14.3/§20.1-20.2/§46.5 — as of Phase 5, every real channel
+ * (SMS/Phone/Telegram/Email/WebChat) resolves a genuine per-`ChannelConnection`
+ * `TenantContext` via `identity/channel-credential-auth.ts` and no longer
+ * calls this function at all. Its one remaining legitimate caller is
+ * `WhatsAppWebAdapter.connect()` (`channels/whatsapp.ts`) — not because
+ * whatsapp-web.js's inbound path still lacks per-connection resolution
+ * (it now has one, via `sessionOwner`), but because §20.1/§20.2 make this
+ * adapter permanently, architecturally single-tenant (one shared Puppeteer
+ * session, platform-wide): `assertDefaultBusinessOnly()` (via this
+ * function's sibling above) is what gates *which* business is allowed to
+ * be that one tenant, and this function is what constructs its
+ * `TenantContext` once the gate passes. `getScopedPrisma(ctx)` still
+ * enforces every query against this businessId structurally either way —
+ * this was never a bypass, only the one tenant a given call site is
+ * explicitly, deliberately scoped to.
  */
 export async function getDefaultBusinessContext(): Promise<TenantContext> {
   const businessId = await getDefaultBusinessId();

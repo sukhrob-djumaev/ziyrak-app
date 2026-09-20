@@ -1,6 +1,9 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { ChannelCredentialSchema, type ChannelCredential } from "@/lib/secrets";
+import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { AppError } from "@/lib/observability/errors";
 
 /**
  * PLAN.md §7.7/§16.2 — tenant-scoped `ChannelConnection` access for the
@@ -16,7 +19,7 @@ import { Prisma } from "@/generated/prisma/client";
  * first one, instead of a single global row.
  */
 
-const CHANNEL_TYPES = ["whatsapp", "email", "phone", "sms", "telegram"] as const;
+const CHANNEL_TYPES = ["whatsapp", "email", "phone", "sms", "telegram", "webchat"] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 
 export function isValidChannelType(type: string): type is ChannelType {
@@ -53,11 +56,23 @@ export interface UpsertConnectionInput {
   isActive?: boolean;
   config?: Record<string, unknown>;
   status?: string;
+  /** PLAN.md §10.3 — validated against the type-matching schema and encrypted before storage; never persisted or echoed back raw. */
+  credential?: ChannelCredential;
+}
+
+async function resolveCredentialRef(type: string, credential: ChannelCredential | undefined): Promise<string | undefined> {
+  if (!credential) return undefined;
+  const validated = ChannelCredentialSchema.parse(credential);
+  if (validated.type !== type) {
+    throw new AppError(400, "VALIDATION_ERROR", `Credential type "${validated.type}" does not match connection type "${type}".`);
+  }
+  return encryptChannelCredential(validated);
 }
 
 export async function upsertByType(ctx: TenantContext, type: string, input: UpsertConnectionInput) {
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
+  const credentialRef = await resolveCredentialRef(type, input.credential);
 
   if (existing) {
     return db.channelConnection.update({
@@ -66,6 +81,7 @@ export async function upsertByType(ctx: TenantContext, type: string, input: Upse
         ...(input.isActive !== undefined && { isActive: input.isActive }),
         ...(input.config !== undefined && { config: input.config as Prisma.InputJsonValue }),
         ...(input.status !== undefined && { status: input.status }),
+        ...(credentialRef !== undefined && { credentialRef }),
       },
     });
   }
@@ -78,6 +94,7 @@ export async function upsertByType(ctx: TenantContext, type: string, input: Upse
       isActive: input.isActive ?? false,
       config: (input.config ?? {}) as Prisma.InputJsonValue,
       status: input.status ?? "disconnected",
+      ...(credentialRef !== undefined && { credentialRef }),
     },
   });
 }

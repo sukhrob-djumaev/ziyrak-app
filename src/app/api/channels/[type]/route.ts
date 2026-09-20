@@ -43,9 +43,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { isActive, config, status } = body;
+    const { isActive, config, status, credential } = body;
 
-    const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, status });
+    const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, status, credential });
 
     return NextResponse.json(channel);
   } catch (error) {

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type, isActive, config } = body;
+    const { type, isActive, config, credential } = body;
 
     if (!type || !connectionsService.isValidChannelType(type)) {
       return NextResponse.json(
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const channel = await connectionsService.upsertByType(ctx, type, { isActive, config });
+    const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, credential });
 
     return NextResponse.json(channel, { status: 200 });
   } catch (error) {

@@ -23,6 +23,7 @@ import {
 } from "@/lib/conversations/messaging";
 import type { AIMessage } from "./providers/types";
 import type { KnowledgeItem } from "@/lib/knowledge/types";
+import { logger } from "@/lib/observability/logger";
 
 interface ConversationProfile {
   businessName: string;
@@ -147,6 +148,14 @@ export async function chat(
   }
 
   const knowledgeBase = await knowledgeRetriever.retrieve(ctx, userMessage, { limit: 8 });
+  // §46.4 acceptance criteria: "manually inspectable via logged prompt
+  // sizes" — a cheap, direct way to confirm in production that a large
+  // knowledge base is never dumped unbounded into the prompt.
+  logger.info("Knowledge retrieval for chat prompt", {
+    businessId: ctx.businessId,
+    conversationId,
+    retrievedCount: knowledgeBase.length,
+  });
 
   // Guardrails: check if human approval needed
   const approval = requiresHumanApproval(userMessage);

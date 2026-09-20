@@ -22,8 +22,14 @@ vi.mock("openai", () => ({
 }));
 
 const twilioSendSpy = vi.fn().mockResolvedValue({ sid: "SM-outbound" });
+const twilioCallUpdateSpy = vi.fn().mockResolvedValue({ sid: "CA-updated" });
 vi.mock("twilio", () => ({
-  default: () => ({ messages: { create: twilioSendSpy } }),
+  default: () => ({
+    messages: { create: twilioSendSpy },
+    calls: (callSid: string) => ({
+      update: (params: unknown) => twilioCallUpdateSpy(callSid, params),
+    }),
+  }),
 }));
 
 import { prisma } from "@/lib/prisma/raw-client";
@@ -77,8 +83,39 @@ beforeAll(async () => {
   });
 });
 
+let phoneBusiness: SeededBusiness;
+const phoneNumber2 = `+1555${Math.floor(1000000 + Math.random() * 8999999)}`;
+const phoneAuthToken = "phone-fast-ack-token";
+
+beforeAll(async () => {
+  phoneBusiness = await seedBusiness("fast-ack-phone");
+
+  const phoneCredentialRef = await encryptChannelCredential({
+    type: "phone",
+    accountSid: "ACfastackphone",
+    authToken: phoneAuthToken,
+    phoneNumber: phoneNumber2,
+  });
+  await prisma.channelConnection.create({
+    data: {
+      businessId: phoneBusiness.businessId,
+      type: "phone",
+      name: "Phone Fast Ack",
+      isActive: true,
+      config: { phoneNumber: phoneNumber2 },
+      credentialRef: phoneCredentialRef,
+    },
+  });
+
+  const phoneAiCredentialRef = await encryptAIProviderCredential("openai", "sk-test-fast-ack-phone");
+  await prisma.businessConfig.create({
+    data: { businessId: phoneBusiness.businessId, aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
+  });
+});
+
 afterAll(async () => {
   await cleanupBusiness(business.businessId);
+  await cleanupBusiness(phoneBusiness.businessId);
 });
 
 describe("Fast-ack + unified processInboundMessage pipeline (§17.6/§18.2/§46.5)", () => {
@@ -150,6 +187,70 @@ describe("Fast-ack + unified processInboundMessage pipeline (§17.6/§18.2/§46.
     expect(twilioSendSpy).not.toHaveBeenCalled();
 
     const messagesAfterReplay = await prisma.message.findMany({ where: { conversationId: conversation!.id } });
+    expect(messagesAfterReplay.length).toBe(messages.length);
+  });
+});
+
+describe("Phone gather-turn fast-ack (§17.6/§46.5 acceptance-audit correction)", () => {
+  it("the /gather webhook ACKs with hold TwiML before the (artificially delayed) AI call resolves, then pushes the real answer into the live call", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        businessId: phoneBusiness.businessId,
+        channel: "phone",
+        customerName: "Phone Caller",
+        customerContact: "+15559990000",
+      },
+    });
+
+    const { POST } = await import("@/app/api/channels/phone/gather/route");
+
+    const callSid = `CA-${crypto.randomUUID()}`;
+    const url = `https://example.com/api/channels/phone/gather?conversationId=${conversation.id}`;
+    const params = { To: phoneNumber2, From: "+15559990000", SpeechResult: "What are your hours?", CallSid: callSid };
+    const request = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(phoneAuthToken, url, params) });
+
+    // Deliberately never resolved until after the webhook's own response is
+    // observed — if /gather ever regressed to awaiting the AI call inline,
+    // this await would hang until the test's timeout, not merely respond
+    // slowly (same proof shape as the SMS test above).
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    const twiml = await response.text();
+    // The immediate response is hold TwiML, never the AI's answer — proves
+    // the "content of the sync response" fix, not just "it responded fast".
+    expect(twiml).not.toContain("We're open");
+    expect(twiml).toContain("<Pause");
+
+    expect(twilioCallUpdateSpy).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => expect(mockOpenAICreateFn).toHaveBeenCalled());
+    resolveAICall("We're open 9am to 6pm, Monday through Saturday.");
+    await (jobQueue as unknown as FakeJobQueue).__drainForTests();
+
+    // The real answer is delivered by pushing new TwiML into the still-live
+    // call via Twilio's Calls resource update() — never through the
+    // webhook's own (already-sent) response body.
+    expect(twilioCallUpdateSpy).toHaveBeenCalledWith(
+      callSid,
+      expect.objectContaining({ twiml: expect.stringContaining("open 9am to 6pm, Monday through Saturday.") })
+    );
+
+    const messages = await prisma.message.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" } });
+    expect(messages.some((m) => m.role === "customer" && m.content === params.SpeechResult)).toBe(true);
+    expect(messages.some((m) => m.role === "assistant" && m.content === "We're open 9am to 6pm, Monday through Saturday.")).toBe(true);
+
+    // §17.4/§33.4 item 1 — redelivery of the identical CallSid+SpeechResult
+    // must not trigger a second AI/call-update.
+    twilioCallUpdateSpy.mockClear();
+    mockOpenAICreateFn.mockClear();
+    const replay = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(phoneAuthToken, url, params) });
+    const replayResponse = await POST(replay);
+    expect(replayResponse.status).toBe(200);
+    await (jobQueue as unknown as FakeJobQueue).__drainForTests();
+    expect(mockOpenAICreateFn).not.toHaveBeenCalled();
+    expect(twilioCallUpdateSpy).not.toHaveBeenCalled();
+
+    const messagesAfterReplay = await prisma.message.findMany({ where: { conversationId: conversation.id } });
     expect(messagesAfterReplay.length).toBe(messages.length);
   });
 });

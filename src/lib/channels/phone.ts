@@ -91,6 +91,34 @@ export function generateTwiMLGather(
 </Response>`;
 }
 
+/**
+ * PLAN.md §17.6/§46.5 (acceptance-audit correction) — parks a live call
+ * while the AI turn runs as a background job (§17.4/§25), instead of
+ * making Twilio's synchronous `<Gather>` action webhook wait on it. Twilio
+ * imposes a hard ~15s timeout on call-related webhooks (retry, then a
+ * fallback/error, on expiry) — verified against Twilio's own docs, not
+ * assumed — so this response must return well within that window
+ * regardless of how long the AI call takes. The `<Pause>` is interrupted
+ * the moment `PhoneAdapter.sendMessage()` pushes the real answer into the
+ * live call via the Calls resource's `update({twiml})` (also verified
+ * against Twilio's "Modify Calls In Progress" docs); the trailing
+ * `<Say>`/`<Gather>` only fire if that update never arrives in time,
+ * so a slow or failed AI call degrades to a graceful message instead of
+ * dead air or a dropped call.
+ */
+export function generateTwiMLHold(message: string, timeoutFallbackUrl: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">${escapeXml(message)}</Say>
+  <Pause length="25"/>
+  <Say voice="alice">Sorry for the wait — let's try that again.</Say>
+  <Gather input="speech" action="${escapeXml(timeoutFallbackUrl)}" method="POST" speechTimeout="auto" language="auto">
+    <Say voice="alice">Could you repeat that?</Say>
+  </Gather>
+  <Say voice="alice">Thank you for calling. Goodbye.</Say>
+</Response>`;
+}
+
 export function generateTwiMLSay(message: string, gatherCallbackUrl: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

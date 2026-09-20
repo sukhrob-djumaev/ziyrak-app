@@ -10,10 +10,9 @@ import type { z } from "zod";
 import { validateTwilioSignature } from "./twilio-verify";
 import { buildMessageReceivedEvent } from "@/lib/events/types";
 import { registerInboundEvent } from "@/lib/events/inbound-receipt";
-import { resolveCustomer } from "@/lib/customers/customer-resolver";
-import { createNewConversation } from "@/lib/conversations/conversation-service";
-import { generateTwiMLGather } from "./phone";
-import type { ChannelAdapter, ChannelStatus, NormalizedInboundRequest, SendResult, ValidateInboundResult } from "./types";
+import { resolveOrCreateConversation } from "@/lib/conversations/inbound";
+import { generateTwiMLGather, generateTwiMLSay } from "./phone";
+import type { ChannelAdapter, ChannelStatus, NormalizedInboundRequest, OutboundContent, SendResult, ValidateInboundResult } from "./types";
 import { registerChannelAdapter } from "./registry";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -65,18 +64,23 @@ async function resolvePhoneRequest(
  * of the turn's `SpeechResult` (§17.4's documented fallback-heuristic
  * allowance — Twilio issues no separate id per gather-turn, only per call).
  *
- * A live call's gather-turn cannot go through the fast-ack/enqueue/worker
- * pattern the way every other channel does (§17.6): the caller is on the
- * phone waiting for a synchronous TwiML response, and there is no
- * mechanism to "call back" into an active call asynchronously. Per §17.5's
- * own rule ("a direct, synchronous call when the caller needs the result
- * to proceed"), the `/gather` route calls `processInboundMessage` directly
- * after `validateInbound` returns `"new"`, instead of enqueuing — the
- * dedup/persistence guarantee is identical, only the dispatch is
- * synchronous. `sendMessage` is therefore a documented no-op: the reply is
- * already in hand as text before `processInboundMessage` returns, and is
- * delivered as TwiML in the same HTTP response, not through a second,
- * separate outbound call.
+ * Corrected after the Phase 5 acceptance audit: this phase's first pass
+ * had `/gather` call `processInboundMessage` synchronously, reasoning
+ * (wrongly) that a live call has no way to receive an asynchronous reply.
+ * It does: Twilio's Calls resource supports pushing new TwiML into a
+ * live, in-progress call via `update({ twiml })` (verified against
+ * Twilio's own "Modify Calls In Progress" docs), which is exactly the
+ * provider-supported continuation mechanism §17.6's fast-ack rule assumes
+ * exists for every real channel. `/gather` now ACKs immediately with hold
+ * TwiML (`generateTwiMLHold`, `channels/phone.ts`) and enqueues like every
+ * other channel; `sendMessage` below is what pushes the AI's answer into
+ * the still-live call once the job completes, via that same Calls API.
+ * What genuinely doesn't change: Twilio's `<Gather>` action webhook is
+ * synchronous by protocol (it blocks the call on the TwiML it gets back,
+ * with a hard ~15s timeout before retry/fallback, per Twilio's own docs)
+ * — the fix is that the *content* of that immediate response no longer
+ * has to contain the AI's answer, only something that keeps the call
+ * meaningfully open.
  */
 export class PhoneAdapter implements ChannelAdapter<NormalizedInboundRequest> {
   readonly type = "phone";
@@ -115,7 +119,10 @@ export class PhoneAdapter implements ChannelAdapter<NormalizedInboundRequest> {
       externalId: externalEventId,
       conversationId,
       payload: { text: speechResult, customerName: "Phone Caller", customerContact: params.From || "" },
-      metadata: { callSid },
+      // `sendMessage()` needs both: `callSid` to know which live call to
+      // push the answer into, `conversationId` to build the next turn's
+      // Gather callback URL (mirroring what handleIncomingCall put there).
+      metadata: { callSid, conversationId },
     });
 
     const registration = await registerInboundEvent(ctx, {
@@ -131,8 +138,39 @@ export class PhoneAdapter implements ChannelAdapter<NormalizedInboundRequest> {
     return { kind: "new", ctx, connectionId: resolved.connectionId, event, receiptId: registration.receiptId };
   }
 
-  async sendMessage(): Promise<SendResult> {
-    return { success: true };
+  /**
+   * Pushes the AI's answer into the still-live call via Twilio's Calls
+   * resource `update({ twiml })` (verified against Twilio's own "Modify
+   * Calls In Progress" docs) — this is what actually delivers the reply
+   * once the async job (enqueued by `/gather`) completes; the webhook's
+   * own immediate response was only ever the hold TwiML.
+   */
+  async sendMessage(ctx: TenantContext, connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+    const callSid = content.metadata?.callSid as string | undefined;
+    if (!callSid) {
+      return { success: false, error: "No callSid in metadata — cannot update a live call without knowing which one" };
+    }
+
+    const credential = await resolveChannelCredential(connectionId, TwilioCredentialSchema);
+    if (!credential) return { success: false, error: "Connection has no valid Twilio credential" };
+
+    const conversationId = content.metadata?.conversationId as string | undefined;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const nextGatherUrl = `${baseUrl}/api/channels/phone/gather${conversationId ? `?conversationId=${conversationId}` : ""}`;
+    const twiml = generateTwiMLSay(content.text, nextGatherUrl);
+
+    try {
+      const { default: twilio } = await import("twilio");
+      const client = twilio(credential.accountSid, credential.authToken);
+      await client.calls(callSid).update({ twiml });
+      return { success: true };
+    } catch (error) {
+      // The caller may have already hung up (call no longer in-progress) —
+      // Twilio's update then fails; log and drop rather than throw, same
+      // as every other adapter's best-effort outbound delivery.
+      logger.error("[PhoneAdapter] Failed to push AI response into live call:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
   }
 
   async getStatus(ctx: TenantContext, connectionId: string): Promise<ChannelStatus> {
@@ -194,14 +232,22 @@ export async function handleIncomingCall(request: NormalizedInboundRequest): Pro
     logger.info("[PhoneAdapter] Duplicate incoming-call webhook (CallSid already logged)", { callSid, error });
   }
 
-  const customerId = await resolveCustomer(ctx, "phone", from, "Phone Caller");
-
-  let conversation = await db.conversation.findFirst({
-    where: { channel: "phone", status: { in: ["active", "escalated"] }, OR: [{ customerId }, { customerContact: from }] },
-  });
-  if (!conversation) {
-    conversation = await createNewConversation(ctx, "phone", "Phone Caller", from, customerId);
-  }
+  // §46.5 acceptance-audit correction: reuses the exact same
+  // resolve-customer/find-or-create-conversation logic processInboundMessage
+  // itself uses (conversations/inbound.ts), rather than a second, hand-rolled
+  // copy of it — this leg genuinely can't go through processInboundMessage
+  // wholesale (there's no customer message yet, only a static greeting), but
+  // there's no reason its conversation-resolution step should duplicate
+  // logic that already exists.
+  const conversation = await resolveOrCreateConversation(
+    ctx,
+    buildMessageReceivedEvent({
+      businessId: ctx.businessId,
+      channel: "phone",
+      connectionId: resolution.result.resolved.connectionId,
+      payload: { text: "", customerName: "Phone Caller", customerContact: from },
+    })
+  );
 
   const businessConfig = await db.businessConfig.findUnique({ where: { businessId: ctx.businessId } });
   const welcomeMessage = businessConfig?.welcomeMessage || "Hello! How can I help you today?";

@@ -292,6 +292,10 @@ async function createMinimalRow(
       return db.aIInteractionLog.create({
         data: { kind: "generation", provider: "fake", model: "fake-model", totalTokens: 1 },
       });
+    case "inboundEventReceipt":
+      return db.inboundEventReceipt.create({
+        data: { source: "test", externalEventId: marker, eventType: "message.received", correlationId: marker },
+      });
   }
 }
 

@@ -53,6 +53,7 @@ model Business {
   flows             Flow[]
   businessHours     BusinessHours[]
   aiInteractionLogs AIInteractionLog[]
+  inboundEventReceipts InboundEventReceipt[]
 }
 
 model Membership {
@@ -184,6 +185,34 @@ model ChannelConnection {
 
   @@unique([businessId, id])
   @@index([businessId, type])
+}
+
+// ==================== INBOUND EVENT DEDUPLICATION (PLAN.md §17.4/§46.5) ====================
+// One row per (businessId, source, externalEventId) a provider ever
+// delivers. The unique constraint below is what makes registerInboundEvent()
+// (events/inbound-receipt.ts) an atomic check-and-mark: a redelivered
+// webhook's second INSERT hits this constraint and is treated as a
+// duplicate, never a second processing chain. `eventPayload` stores the
+// full normalized ZiyrakEvent JSON so a job handler can reload it from just
+// {businessId, receiptId} — required so the FakeJobQueue (this phase) and
+// the real PgBossJobQueue (Phase 6) can share the exact same call site: a
+// durable queue can only pass JSON-serializable, DB-referenceable payloads
+// across a process boundary, never a live in-memory object.
+
+model InboundEventReceipt {
+  id               String   @id @default(uuid())
+  businessId       String
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  source           String // "whatsapp", "email", "sms", "telegram", "phone", "webchat"
+  externalEventId  String
+  eventType        String
+  receivedAt       DateTime @default(now())
+  processingStatus String   @default("received") // received | enqueued | processed | failed
+  correlationId    String
+  eventPayload     Json     @default("{}")
+
+  @@unique([businessId, source, externalEventId])
+  @@index([businessId, processingStatus])
 }
 
 // ==================== SETTINGS ====================

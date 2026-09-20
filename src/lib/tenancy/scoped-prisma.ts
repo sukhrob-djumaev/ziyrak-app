@@ -9,14 +9,19 @@ import { getDataPlaneClient } from "@/lib/platform/tenant-placement";
  * §16.4, accessed only via the small `platform/` allowlist); retired legacy
  * models superseded in Phase 1 (`Settings`, `Admin`, `Channel`); and models
  * §12 assigns to later phases that do not exist yet (`ActionExecution`,
- * `InboundEventReceipt`, `ToolPolicy`).
+ * `ToolPolicy`).
  *
  * Model keys are the Prisma *client* property names (lower-camel), matching
  * how `uncapitalizeModel()` below normalizes the extension callback's
  * `model` argument (which Prisma passes as the schema's PascalCase name).
+ *
+ * PLAN.md §46.5 — `inboundEventReceipt` added now that the model exists
+ * (Phase 3's comment above named it as a later addition). `ToolPolicy`/
+ * `ActionExecution` remain excluded — Phase 6 scope, still don't exist.
  */
 export const TENANT_SCOPED_MODELS = [
   "membership",
+  "inboundEventReceipt",
   "customer",
   "customerNote",
   "conversation",

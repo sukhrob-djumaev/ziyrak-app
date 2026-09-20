@@ -1,144 +1,68 @@
 import Imap from "imap";
 import { simpleParser, ParsedMail } from "mailparser";
 import nodemailer from "nodemailer";
-import { prisma } from "@/lib/prisma/raw-client";
-import { chat, createNewConversation } from "@/lib/ai/engine";
-import { escapeHtml, sanitizeEmailSubject } from "@/lib/security";
 import { logger } from "@/lib/observability/logger";
-import { resolveCustomer } from "@/lib/customers/customer-resolver";
-import { getDefaultBusinessContext } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { escapeHtml, sanitizeEmailSubject } from "@/lib/security";
+import { resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { EmailCredentialSchema, type ChannelCredential } from "@/lib/secrets";
+import { buildMessageReceivedEvent } from "@/lib/events/types";
+import { registerInboundEvent } from "@/lib/events/inbound-receipt";
+import { enqueueInboundProcessing } from "@/lib/events/dispatch";
+import type { ChannelAdapter, ChannelStatus, OutboundContent, SendResult, ValidateInboundResult } from "./types";
+import { registerChannelAdapter } from "./registry";
+import type { TenantContext } from "@/lib/tenancy/context";
 
-interface EmailConfig {
-  imapHost: string;
-  imapPort: number;
-  imapUser: string;
-  imapPass: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPass: string;
-  smtpFrom: string;
-}
+type EmailCredential = Extract<ChannelCredential, { type: "email" }>;
 
+/**
+ * PLAN.md §19.2/§46.5 — like WhatsApp-Web (`whatsapp.ts`), the IMAP
+ * listener is a single, shared, process-global connection with no HTTP
+ * webhook to verify or ACK — `connect()`/`disconnect()` (§19.1's session-
+ * based channel methods) replace `startEmailListener`/`stopEmailListener`,
+ * and `sessionOwner` replaces the old implicit `getDefaultBusinessContext()`
+ * call: whichever business's `ChannelConnection` actually called `connect()`
+ * is what this process's one listener serves, explicitly, instead of being
+ * hardcoded to the Default Business. Dedup key: the email `Message-ID`
+ * header (§17.4/§19.2 — stable and provider-independent).
+ */
 let imapConnection: Imap | null = null;
 let isListening = false;
+let sessionOwner: { ctx: TenantContext; connectionId: string; credential: EmailCredential } | null = null;
 
-async function getEmailConfig(): Promise<EmailConfig | null> {
-  const settings = await prisma.settings.findFirst();
-  if (!settings?.imapHost || !settings?.smtpHost) return null;
-
-  return {
-    imapHost: settings.imapHost,
-    imapPort: settings.imapPort,
-    imapUser: settings.imapUser,
-    imapPass: settings.imapPass,
-    smtpHost: settings.smtpHost,
-    smtpPort: settings.smtpPort,
-    smtpUser: settings.smtpUser,
-    smtpPass: settings.smtpPass,
-    smtpFrom: settings.smtpFrom || settings.smtpUser,
-  };
-}
-
-function createImapConnection(config: EmailConfig): Imap {
+function createImapConnection(credential: EmailCredential): Imap {
   return new Imap({
-    user: config.imapUser,
-    password: config.imapPass,
-    host: config.imapHost,
-    port: config.imapPort,
+    user: credential.imapUser!,
+    password: credential.imapPass!,
+    host: credential.imapHost!,
+    port: credential.imapPort!,
     tls: true,
     tlsOptions: { rejectUnauthorized: false },
   });
 }
 
-function getSmtpTransporter(config: EmailConfig) {
+function getSmtpTransporter(credential: EmailCredential) {
   return nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort,
-    secure: config.smtpPort === 465,
-    auth: {
-      user: config.smtpUser,
-      pass: config.smtpPass,
-    },
-  });
-}
-
-async function processEmail(parsed: ParsedMail, config: EmailConfig) {
-  const fromAddress = parsed.from?.value?.[0]?.address;
-  const fromName =
-    parsed.from?.value?.[0]?.name || fromAddress || "Unknown";
-  const subject = parsed.subject || "No Subject";
-  const textBody = parsed.text || "";
-
-  if (!fromAddress) return;
-
-  // Phase 2 runtime-isolation audit finding: see whatsapp.ts's identical
-  // comment — no per-connection inbound tenant resolution exists yet
-  // (Phase 5), so this explicitly, visibly scopes to the Default Business.
-  const ctx = await getDefaultBusinessContext();
-  const db = getScopedPrisma(ctx);
-
-  // Resolve customer identity across channels
-  const customerId = await resolveCustomer(ctx, "email", fromAddress, fromName);
-
-  // Find or create conversation
-  let conversation = await db.conversation.findFirst({
-    where: {
-      channel: "email",
-      status: { in: ["active", "escalated"] },
-      OR: [
-        { customerId },
-        { customerContact: fromAddress },
-      ],
-    },
-  });
-
-  if (!conversation) {
-    conversation = await createNewConversation(
-      ctx,
-      "email",
-      fromName,
-      fromAddress,
-      customerId
-    );
-  }
-
-  // Get AI response
-  const messageContent = `Subject: ${subject}\n\n${textBody}`;
-  const aiResponse = await chat(ctx, conversation.id, messageContent);
-
-  // Send reply with branding
-  const branding = await getEmailBranding();
-  const transporter = getSmtpTransporter(config);
-  await transporter.sendMail({
-    from: config.smtpFrom,
-    to: fromAddress,
-    subject: sanitizeEmailSubject(`Re: ${subject}`),
-    text: aiResponse,
-    html: buildEmailHtml(aiResponse, branding),
-    inReplyTo: parsed.messageId,
-    references: parsed.messageId,
+    host: credential.smtpHost,
+    port: credential.smtpPort,
+    secure: credential.smtpPort === 465,
+    auth: { user: credential.smtpUser, pass: credential.smtpPass },
   });
 }
 
 interface EmailBranding {
   businessName: string;
-  primaryColor?: string;
 }
 
-async function getEmailBranding(): Promise<EmailBranding> {
-  const settings = await prisma.settings.findFirst({
-    select: { businessName: true },
-  });
-  return {
-    businessName: settings?.businessName || "Support",
-  };
+async function getEmailBranding(ctx: TenantContext): Promise<EmailBranding> {
+  const db = getScopedPrisma(ctx);
+  const config = await db.businessConfig.findUnique({ where: { businessId: ctx.businessId }, select: { businessName: true } });
+  return { businessName: config?.businessName || "Support" };
 }
 
 function buildEmailHtml(text: string, branding?: EmailBranding): string {
   const name = branding?.businessName || "Support";
-  const color = branding?.primaryColor || "#0F172A";
+  const color = "#0F172A";
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -165,20 +89,35 @@ function buildEmailHtml(text: string, branding?: EmailBranding): string {
 </html>`;
 }
 
-export async function startEmailListener() {
+async function handleParsedEmail(parsed: ParsedMail): Promise<void> {
+  if (!sessionOwner) return;
+
+  const result = await emailAdapter.validateInbound(parsed);
+  if (result.kind === "rejected") {
+    logger.warn("[Email] Inbound message rejected", { reason: result.reason });
+    return;
+  }
+  if (result.kind === "duplicate") return;
+
+  await enqueueInboundProcessing(result.ctx, result.receiptId, result.event);
+}
+
+export async function startEmailListener(ctx: TenantContext, connectionId: string): Promise<void> {
   if (isListening) return;
 
-  const config = await getEmailConfig();
-  if (!config) {
-    logger.info("[Email] Not configured, skipping listener start");
+  const credential = await resolveChannelCredential(connectionId, EmailCredentialSchema);
+  if (!credential?.imapHost || !credential.imapUser || !credential.imapPass || !credential.imapPort) {
+    logger.info("[Email] Not configured (no IMAP credential), skipping listener start");
     return;
   }
 
-  const imap = createImapConnection(config);
+  sessionOwner = { ctx, connectionId, credential };
+  const imap = createImapConnection(credential);
 
   imap.once("ready", () => {
     logger.info("[Email] IMAP connected");
     isListening = true;
+    updateConnectionStatus(ctx, connectionId, true, "connected");
 
     imap.openBox("INBOX", false, (err) => {
       if (err) {
@@ -199,9 +138,7 @@ export async function startEmailListener() {
                   logger.error("[Email] Parse error:", err);
                   return;
                 }
-                processEmail(parsed, config).catch((e) =>
-                  logger.error("[Email] Failed to process email:", e)
-                );
+                handleParsedEmail(parsed).catch((e) => logger.error("[Email] Failed to process email:", e));
               });
             });
           });
@@ -213,44 +150,47 @@ export async function startEmailListener() {
   imap.once("error", (err: Error) => {
     logger.error("[Email] IMAP error:", err);
     isListening = false;
+    updateConnectionStatus(ctx, connectionId, false, "error");
   });
 
   imap.once("end", () => {
     logger.info("[Email] IMAP disconnected");
     isListening = false;
+    updateConnectionStatus(ctx, connectionId, false, "disconnected");
   });
 
   imapConnection = imap;
   imap.connect();
 }
 
-export async function stopEmailListener() {
+function updateConnectionStatus(ctx: TenantContext, connectionId: string, isActive: boolean, status: string): void {
+  const db = getScopedPrisma(ctx);
+  db.channelConnection
+    .update({ where: { id: connectionId }, data: { isActive, status } })
+    .catch((error) => logger.error("[Email] Failed to update ChannelConnection status:", error));
+}
+
+/**
+ * Only tears down the listener if the caller's own connection is the one
+ * that actually owns it — since this is one shared, process-global
+ * listener (§19.2), without this check any business could disconnect
+ * *another* business's active email session simply by calling this with
+ * their own (different) connectionId.
+ */
+export async function stopEmailListener(connectionId?: string): Promise<void> {
+  if (connectionId && sessionOwner && sessionOwner.connectionId !== connectionId) {
+    return;
+  }
+
   if (imapConnection) {
     imapConnection.end();
     imapConnection = null;
     isListening = false;
   }
-}
-
-export async function sendEmail(
-  to: string,
-  subject: string,
-  body: string
-): Promise<boolean> {
-  const config = await getEmailConfig();
-  if (!config) return false;
-
-  const branding = await getEmailBranding();
-  const transporter = getSmtpTransporter(config);
-  await transporter.sendMail({
-    from: config.smtpFrom,
-    to,
-    subject,
-    text: body,
-    html: buildEmailHtml(body, branding),
-  });
-
-  return true;
+  if (sessionOwner) {
+    updateConnectionStatus(sessionOwner.ctx, sessionOwner.connectionId, false, "disconnected");
+  }
+  sessionOwner = null;
 }
 
 export function getEmailStatus() {
@@ -259,3 +199,98 @@ export function getEmailStatus() {
     status: isListening ? "connected" : "disconnected",
   };
 }
+
+export class EmailAdapter implements ChannelAdapter<ParsedMail> {
+  readonly type = "email";
+  readonly capabilities = {
+    supportsMedia: false,
+    supportsTemplates: false,
+    supportsTypingIndicator: false,
+    supportsDeliveryReceipts: false,
+    supportsMultipleConnections: true,
+  };
+
+  async validateInbound(parsed: ParsedMail): Promise<ValidateInboundResult> {
+    if (!sessionOwner) return { kind: "rejected", reason: "No active email listener session" };
+    const { ctx, connectionId } = sessionOwner;
+
+    const fromAddress = parsed.from?.value?.[0]?.address;
+    if (!fromAddress) return { kind: "rejected", reason: "No From address" };
+
+    const fromName = parsed.from?.value?.[0]?.name || fromAddress;
+    const subject = parsed.subject || "No Subject";
+    const textBody = parsed.text || "";
+    // A Message-ID is standard but not RFC-mandated — fall back to a
+    // deterministic hash of (from, subject, a coarse time bucket) per
+    // §17.4's own documented fallback-heuristic allowance.
+    const externalId =
+      parsed.messageId ||
+      `${fromAddress}:${subject}:${Math.floor((parsed.date?.getTime() ?? Date.now()) / 60000)}`;
+
+    const event = buildMessageReceivedEvent({
+      businessId: ctx.businessId,
+      channel: "email",
+      connectionId,
+      externalId,
+      payload: { text: `Subject: ${subject}\n\n${textBody}`, customerName: fromName, customerContact: fromAddress },
+      metadata: { subject, messageId: parsed.messageId },
+    });
+
+    const registration = await registerInboundEvent(ctx, {
+      source: "email",
+      externalEventId: externalId,
+      eventType: event.type,
+      correlationId: event.correlationId,
+      event,
+    });
+
+    if (registration.isDuplicate) return { kind: "duplicate" };
+
+    return { kind: "new", ctx, connectionId, event, receiptId: registration.receiptId };
+  }
+
+  async sendMessage(ctx: TenantContext, connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+    const credential = await resolveChannelCredential(connectionId, EmailCredentialSchema);
+    if (!credential) return { success: false, error: "Connection has no valid email credential" };
+
+    const subject = (content.metadata?.subject as string | undefined) || "Message from support";
+    const inReplyTo = content.metadata?.messageId as string | undefined;
+
+    try {
+      const branding = await getEmailBranding(ctx);
+      const transporter = getSmtpTransporter(credential);
+      await transporter.sendMail({
+        from: credential.smtpFrom,
+        to,
+        subject: sanitizeEmailSubject(inReplyTo ? `Re: ${subject}` : subject),
+        text: content.text,
+        html: buildEmailHtml(content.text, branding),
+        ...(inReplyTo && { inReplyTo, references: inReplyTo }),
+      });
+      return { success: true };
+    } catch (error) {
+      logger.error("[EmailAdapter] Failed to send message:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  async getStatus(ctx: TenantContext, connectionId: string): Promise<ChannelStatus> {
+    const db = getScopedPrisma(ctx);
+    const connection = await db.channelConnection.findUnique({ where: { id: connectionId } });
+    if (!connection?.isActive || !connection.credentialRef) {
+      return { connected: false, detail: "Not configured" };
+    }
+    return { connected: isListening && sessionOwner?.connectionId === connectionId };
+  }
+
+  async connect(ctx: TenantContext, connectionId: string): Promise<void> {
+    await startEmailListener(ctx, connectionId);
+  }
+
+  async disconnect(_ctx: TenantContext, connectionId: string): Promise<void> {
+    await stopEmailListener(connectionId);
+  }
+}
+
+export const emailAdapter = new EmailAdapter();
+registerChannelAdapter("email", emailAdapter);

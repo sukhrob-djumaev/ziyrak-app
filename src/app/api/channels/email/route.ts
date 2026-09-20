@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  startEmailListener,
-  stopEmailListener,
-  getEmailStatus,
-} from "@/lib/channels/email";
+import { getEmailStatus, emailAdapter } from "@/lib/channels/email";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
-import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { toErrorResponse } from "@/lib/observability/errors";
 
 export async function GET(request: NextRequest) {
@@ -20,32 +16,31 @@ export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "channels:update");
   if (!isAuthenticated(ctx)) return ctx;
 
-  try {
-    // Phase 2 runtime-isolation audit finding: the IMAP/SMTP listener is a
-    // single, shared, non-tenant-differentiated process-global connection
-    // (its credentials come from the legacy global Settings singleton).
-    // Without this guard, any authenticated business could start/stop the
-    // same shared listener another business's inbound email depends on.
-    // Removed once Phase 4/5 give every business its own ChannelConnection-
-    // backed email credentials.
-    await assertDefaultBusinessOnly(ctx, "Email connect/disconnect");
-  } catch (error) {
-    return toErrorResponse(error);
-  }
-
   const body = await request.json();
   const { action } = body;
 
-  if (action === "connect") {
-    await startEmailListener();
-    const status = getEmailStatus();
-    return NextResponse.json(status);
-  }
+  try {
+    const db = getScopedPrisma(ctx);
+    let connection = await db.channelConnection.findFirst({ where: { type: "email" } });
+    if (!connection) {
+      connection = await db.channelConnection.create({
+        data: { businessId: ctx.businessId, type: "email", name: "Email", isActive: false, config: {} },
+      });
+    }
 
-  if (action === "disconnect") {
-    await stopEmailListener();
-    return NextResponse.json({ status: "disconnected" });
-  }
+    if (action === "connect") {
+      await emailAdapter.connect?.(ctx, connection.id);
+      const status = getEmailStatus();
+      return NextResponse.json(status);
+    }
 
-  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    if (action === "disconnect") {
+      await emailAdapter.disconnect?.(ctx, connection.id);
+      return NextResponse.json({ status: "disconnected" });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
 }

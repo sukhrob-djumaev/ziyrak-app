@@ -1,11 +1,19 @@
-import OpenAI from "openai";
-import { prisma } from "@/lib/prisma/raw-client";
 import { owlyTools, executeToolCall } from "@/lib/tools/tools";
-import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { analyzeSentiment, detectIntent, estimateConfidence, requiresHumanApproval } from "./guardrails";
-import { getKnowledgeBase } from "@/lib/knowledge/retrieval";
+import {
+  analyzeSentiment,
+  detectIntent,
+  estimateConfidence,
+  requiresHumanApproval,
+  checkBlockedTopics,
+  enforceResponseLength,
+} from "./guardrails";
+import { knowledgeRetriever } from "@/lib/knowledge/retriever";
+import { resolveAIConfig, type ResolvedAIConfig } from "./config";
+import { aiProviderRegistry } from "./providers/registry";
+import { AIProviderError, type AIProvider, type CompletionRequest, type CompletionResult } from "./providers/types";
+import { recordAIInteraction } from "./usage";
 import {
   appendCustomerMessage,
   appendAssistantMessage,
@@ -13,13 +21,23 @@ import {
   recordEscalationSignal,
   notifyNewAssistantMessage,
 } from "@/lib/conversations/messaging";
-import type {
-  AIMessage,
-  AIConfig,
-  ConversationContext,
-} from "./types";
+import type { AIMessage } from "./providers/types";
+import type { KnowledgeItem } from "@/lib/knowledge/types";
 
-function buildSystemPrompt(context: ConversationContext): string {
+interface ConversationProfile {
+  businessName: string;
+  businessDesc: string;
+  tone: string;
+  language: string;
+}
+
+function buildSystemPrompt(
+  profile: ConversationProfile,
+  knowledgeBase: KnowledgeItem[],
+  customerName: string,
+  customerHistory: string[],
+  channel: string
+): string {
   const toneGuide: Record<string, string> = {
     friendly:
       "Be warm, approachable, and conversational. Use a casual but professional tone.",
@@ -32,23 +50,21 @@ function buildSystemPrompt(context: ConversationContext): string {
   };
 
   const knowledgeSection =
-    context.knowledgeBase.length > 0
-      ? context.knowledgeBase
+    knowledgeBase.length > 0
+      ? knowledgeBase
+          .slice()
           .sort((a, b) => b.priority - a.priority)
-          .map(
-            (k) =>
-              `[${k.category}] ${k.title}:\n${k.content}`
-          )
+          .map((k) => `[${k.category}] ${k.title}:\n${k.content}`)
           .join("\n\n---\n\n")
       : "No specific knowledge base entries available. Answer based on general knowledge about the business.";
 
-  return `You are Owly, the AI customer support assistant for ${context.businessName}.
+  return `You are Owly, the AI customer support assistant for ${profile.businessName}.
 
-${context.businessDesc ? `About the business: ${context.businessDesc}` : ""}
+${profile.businessDesc ? `About the business: ${profile.businessDesc}` : ""}
 
 ## Communication Style
-${toneGuide[context.tone] || toneGuide.friendly}
-${context.language !== "auto" ? `Always respond in: ${context.language}` : "Respond in the same language the customer uses."}
+${toneGuide[profile.tone] || toneGuide.friendly}
+${profile.language !== "auto" ? `Always respond in: ${profile.language}` : "Respond in the same language the customer uses."}
 
 ## Your Knowledge Base
 Use the following information to answer customer questions accurately:
@@ -63,65 +79,48 @@ ${knowledgeSection}
 - Use get_customer_history to check if the customer has contacted before
 - Never make up information that isn't in your knowledge base
 - Keep responses concise but thorough
-- The customer is contacting via: ${context.channel}
-${context.customerName !== "Unknown" ? `- Customer name: ${context.customerName}` : ""}
+- The customer is contacting via: ${channel}
+${customerName !== "Unknown" ? `- Customer name: ${customerName}` : ""}
 
 ## Customer History
-${context.customerHistory.length > 0 ? context.customerHistory.join("\n") : "This is the customer's first interaction."}`;
+${customerHistory.length > 0 ? customerHistory.join("\n") : "This is the customer's first interaction."}`;
 }
 
 /**
- * Still reads the legacy global Settings singleton (§10.2's BusinessConfig
- * split + a real per-business AIProviderRegistry are Phase 4 scope) — safe
- * to call only once the caller has already confirmed, via
- * `assertDefaultBusinessOnly()`, that `ctx` is the one business this
- * config is allowed to represent.
+ * PLAN.md §46.4/§10.2 — `BusinessConfig`'s non-AI, business-profile fields
+ * (the direct successor to the legacy `Settings` fields of the same name).
+ * Kept separate from `resolveAIConfig()` (`ai/config.ts`), which owns only
+ * provider/model/credential resolution — this is prompt-building input
+ * `chat()` already owned before this phase, not new AI-provider scope.
  */
-async function getAIConfig(): Promise<AIConfig & ConversationContext> {
-  const settings = await prisma.settings.upsert({
-    where: { id: "default" },
+async function resolveConversationProfile(ctx: TenantContext): Promise<ConversationProfile> {
+  const db = getScopedPrisma(ctx);
+  const config = await db.businessConfig.upsert({
+    where: { businessId: ctx.businessId },
     update: {},
-    create: { id: "default" },
+    create: { businessId: ctx.businessId },
   });
 
   return {
-    provider: settings.aiProvider,
-    model: settings.aiModel,
-    apiKey: settings.aiApiKey,
-    maxTokens: settings.maxTokens,
-    temperature: settings.temperature,
-    businessName: settings.businessName,
-    businessDesc: settings.businessDesc,
-    welcomeMessage: settings.welcomeMessage,
-    tone: settings.tone,
-    language: settings.language,
-    knowledgeBase: [],
-    customerName: "",
-    customerHistory: [],
-    channel: "",
+    businessName: config.businessName,
+    businessDesc: config.businessDesc,
+    tone: config.tone,
+    language: config.language,
   };
 }
+
+const BLOCKED_TOPIC_REDIRECT =
+  "I'm not able to help with that directly, but I can connect you with a team member who can assist you. Would you like me to do that?";
 
 export async function chat(
   ctx: TenantContext,
   conversationId: string,
   userMessage: string
 ): Promise<string> {
-  // Phase 2 runtime-isolation audit finding: chat() used to resolve its own
-  // businessId internally via the Default Business shim, so a real,
-  // authenticated Business B caller (e.g. via /api/chat) would have its
-  // conversation/messages silently written under the Default Business
-  // instead, and every business's active knowledge entries were merged
-  // into one shared AI prompt. This guard makes that fail closed instead:
-  // the AI chat pipeline (provider/model/API key, still Settings-derived)
-  // is only available for the Default Business until Phase 4 gives every
-  // business its own AIProviderRegistry-resolved config.
-  await assertDefaultBusinessOnly(ctx, "AI chat");
-
   const db = getScopedPrisma(ctx);
-  const config = await getAIConfig();
+  const [aiConfig, profile] = await Promise.all([resolveAIConfig(ctx), resolveConversationProfile(ctx)]);
 
-  if (!config.apiKey) {
+  if (!aiConfig.apiKey) {
     return "AI is not configured. Please add your API key in Settings > AI Configuration.";
   }
 
@@ -136,30 +135,18 @@ export async function chat(
     return "Conversation not found.";
   }
 
-  const knowledgeBase = await getKnowledgeBase(ctx);
+  // Pre-response guardrail (§18.1/§46.4 task 5): a blocked topic never
+  // reaches the model at all.
+  const blockedTopic = checkBlockedTopics(userMessage);
+  await appendCustomerMessage(ctx, conversationId, userMessage);
 
-  const context: ConversationContext = {
-    ...config,
-    knowledgeBase,
-    customerName: conversation.customerName,
-    channel: conversation.channel,
-    customerHistory: [],
-  };
-
-  // Build message history
-  const messages: AIMessage[] = [
-    { role: "system", content: buildSystemPrompt(context) },
-  ];
-
-  for (const msg of conversation.messages) {
-    if (msg.role === "customer") {
-      messages.push({ role: "user", content: msg.content });
-    } else if (msg.role === "assistant") {
-      messages.push({ role: "assistant", content: msg.content });
-    }
+  if (blockedTopic.blocked) {
+    const savedMessage = await appendAssistantMessage(ctx, conversationId, BLOCKED_TOPIC_REDIRECT);
+    notifyNewAssistantMessage(ctx, conversationId, { id: savedMessage.id, content: BLOCKED_TOPIC_REDIRECT });
+    return BLOCKED_TOPIC_REDIRECT;
   }
 
-  messages.push({ role: "user", content: userMessage });
+  const knowledgeBase = await knowledgeRetriever.retrieve(ctx, userMessage, { limit: 8 });
 
   // Guardrails: check if human approval needed
   const approval = requiresHumanApproval(userMessage);
@@ -175,17 +162,32 @@ export async function chat(
     });
   }
 
-  // Save user message
-  await appendCustomerMessage(ctx, conversationId, userMessage);
+  // Build message history
+  const messages: AIMessage[] = [
+    { role: "system", content: buildSystemPrompt(profile, knowledgeBase, conversation.customerName, [], conversation.channel) },
+  ];
+
+  for (const msg of conversation.messages) {
+    if (msg.role === "customer") {
+      messages.push({ role: "user", content: msg.content });
+    } else if (msg.role === "assistant") {
+      messages.push({ role: "assistant", content: msg.content });
+    }
+  }
+
+  messages.push({ role: "user", content: userMessage });
 
   // Call AI
-  const response = await callAI(ctx, config, messages, conversationId);
+  const { text: rawResponse, hasToolCalls } = await callAI(ctx, aiConfig, messages, conversationId);
+  const response = enforceResponseLength(rawResponse);
 
   // Save assistant message
   const savedMessage = await appendAssistantMessage(ctx, conversationId, response);
 
-  // Confidence scoring
-  const confidence = estimateConfidence(response, knowledgeBase.length, false);
+  // Confidence scoring — §2.3's hasToolCalls bug: this now reflects whether
+  // a tool was actually used anywhere in this turn's (possibly recursive)
+  // tool-call loop, not a hardcoded false.
+  const confidence = estimateConfidence(response, knowledgeBase.length, hasToolCalls);
   if (confidence.shouldEscalate) {
     await escalateConversation(ctx, conversationId);
   }
@@ -195,79 +197,88 @@ export async function chat(
   return response;
 }
 
+const FALLBACK_DEPTH_EXCEEDED =
+  "I apologize, but I'm having trouble processing your request. Let me connect you with a team member.";
+const FALLBACK_PROVIDER_ERROR =
+  "I'm temporarily unable to process your request. Please try again in a moment, or I can connect you with a team member.";
+
 async function callAI(
   ctx: TenantContext,
-  config: AIConfig,
+  config: ResolvedAIConfig,
   messages: AIMessage[],
   conversationId: string,
-  depth = 0
-): Promise<string> {
+  depth = 0,
+  usedToolInThisTurn = false
+): Promise<{ text: string; hasToolCalls: boolean }> {
   if (depth > 5) {
-    return "I apologize, but I'm having trouble processing your request. Let me connect you with a team member.";
+    return { text: FALLBACK_DEPTH_EXCEEDED, hasToolCalls: usedToolInThisTurn };
   }
 
-  const openai = new OpenAI({ apiKey: config.apiKey });
+  const provider = aiProviderRegistry.get(config.provider, { apiKey: config.apiKey! });
 
-  let response;
+  let result: CompletionResult;
   try {
-    response = await openai.chat.completions.create({
-      model: config.model,
-      messages: messages as OpenAI.ChatCompletionMessageParam[],
-      tools: owlyTools as OpenAI.ChatCompletionTool[],
-      max_tokens: config.maxTokens,
+    result = await completeWithOneRetry(provider, {
+      messages,
+      tools: owlyTools,
+      maxTokens: config.maxTokens,
       temperature: config.temperature,
+      model: config.model,
     });
   } catch {
-    return "I'm temporarily unable to process your request. Please try again in a moment, or I can connect you with a team member.";
+    return { text: FALLBACK_PROVIDER_ERROR, hasToolCalls: usedToolInThisTurn };
   }
 
-  const choice = response.choices[0];
+  await recordAIInteraction(ctx, {
+    conversationId,
+    kind: "generation",
+    provider: config.provider,
+    model: config.model,
+    promptTokens: result.usage.promptTokens,
+    completionTokens: result.usage.completionTokens,
+    totalTokens: result.usage.totalTokens,
+  });
 
-  if (
-    choice.finish_reason === "tool_calls" &&
-    choice.message.tool_calls?.length
-  ) {
-    // Process tool calls
-    const toolCalls = choice.message.tool_calls as Array<{
-      id: string;
-      type: string;
-      function: { name: string; arguments: string };
-    }>;
-
+  if (result.type === "tool_calls" && result.toolCalls?.length) {
     messages.push({
       role: "assistant",
-      content: choice.message.content || "",
-      tool_calls: toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function" as const,
-        function: {
-          name: tc.function.name,
-          arguments: tc.function.arguments,
-        },
-      })),
+      content: result.text ?? "",
+      tool_calls: result.toolCalls,
     });
 
-    for (const toolCall of toolCalls) {
-      const args = JSON.parse(toolCall.function.arguments);
-      const result = await executeToolCall(
-        ctx,
-        toolCall.function.name,
-        args,
-        conversationId
-      );
+    for (const toolCall of result.toolCalls) {
+      const args = JSON.parse(toolCall.arguments);
+      const toolResult = await executeToolCall(ctx, toolCall.name, args, conversationId);
 
       messages.push({
         role: "tool",
-        content: result,
+        content: toolResult,
         tool_call_id: toolCall.id,
       });
     }
 
     // Continue the conversation with tool results
-    return callAI(ctx, config, messages, conversationId, depth + 1);
+    return callAI(ctx, config, messages, conversationId, depth + 1, true);
   }
 
-  return choice.message.content || "I apologize, I could not generate a response.";
+  return { text: result.text || "I apologize, I could not generate a response.", hasToolCalls: usedToolInThisTurn };
+}
+
+/**
+ * PLAN.md §21.3 — one bounded retry for a `retryable` `AIProviderError`
+ * (rate limits, timeouts) before falling back to `callAI`'s own
+ * user-facing fallback message. A non-retryable error (auth, invalid
+ * request) or a second failed attempt propagates to the caller unchanged.
+ */
+async function completeWithOneRetry(provider: AIProvider, request: CompletionRequest): Promise<CompletionResult> {
+  try {
+    return await provider.complete(request);
+  } catch (error) {
+    if (error instanceof AIProviderError && error.retryable) {
+      return provider.complete(request);
+    }
+    throw error;
+  }
 }
 
 export async function createNewConversation(
@@ -277,10 +288,6 @@ export async function createNewConversation(
   customerContact: string,
   customerId?: string
 ) {
-  // Same guard as chat() — see its comment. Checked here too since a
-  // caller could create a conversation without immediately chatting.
-  await assertDefaultBusinessOnly(ctx, "AI chat");
-
   const db = getScopedPrisma(ctx);
   return db.conversation.create({
     data: {

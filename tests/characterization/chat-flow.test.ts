@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { createRequest, parseJsonResponse } from "../helpers/request";
+import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 
 /**
  * Characterization suite (§46.0): pins today's single-tenant /api/chat
@@ -45,18 +46,26 @@ describe("Characterization: POST /api/chat creates a conversation and persists m
       messages: [],
     });
 
-    mockPrisma.settings.upsert.mockResolvedValue({
+    // §46.4 — chat() now resolves config via resolveAIConfig()/
+    // resolveConversationProfile() (BusinessConfig, falling back to the
+    // legacy Settings singleton for the Default Business, per ai/
+    // config.ts's precedence) instead of reading Settings directly.
+    mockPrisma.businessConfig.findUnique.mockResolvedValue(null);
+    mockPrisma.businessConfig.upsert.mockResolvedValue({
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+      businessName: "Test Biz",
+      businessDesc: "",
+      welcomeMessage: "",
+      tone: "friendly",
+      language: "auto",
+    });
+    mockPrisma.settings.findUnique.mockResolvedValue({
       id: "default",
       aiProvider: "openai",
       aiModel: "gpt-4",
       aiApiKey: "sk-test",
       maxTokens: 1000,
       temperature: 0.7,
-      businessName: "Test Biz",
-      businessDesc: "",
-      welcomeMessage: "",
-      tone: "friendly",
-      language: "auto",
     });
 
     mockPrisma.knowledgeEntry.findMany.mockResolvedValue([]);

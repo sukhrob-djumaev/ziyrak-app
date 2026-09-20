@@ -34,7 +34,30 @@ describe("AI Engine", () => {
     vi.restoreAllMocks();
     mockOpenAICreateFn.mockReset();
 
-    // Default settings
+    // §46.4 — chat() now resolves AI provider/model/credential via
+    // resolveAIConfig() (BusinessConfig, falling back to the legacy
+    // Settings singleton for the Default Business per ai/config.ts's own
+    // precedence) and business-profile fields via a separate
+    // BusinessConfig upsert. No BusinessConfig row exists for this test's
+    // business yet, so both fall through to the legacy Settings values
+    // below — matching this suite's pre-Phase-4 fixture data exactly.
+    mockPrisma.businessConfig.findUnique.mockResolvedValue(null);
+    mockPrisma.businessConfig.upsert.mockResolvedValue({
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+      businessName: "Test Biz",
+      businessDesc: "A test business",
+      welcomeMessage: "Hello!",
+      tone: "friendly",
+      language: "auto",
+    });
+    mockPrisma.settings.findUnique.mockResolvedValue({
+      id: "default",
+      aiProvider: "openai",
+      aiModel: "gpt-4",
+      aiApiKey: "sk-test",
+      maxTokens: 1000,
+      temperature: 0.7,
+    });
     mockPrisma.settings.upsert.mockResolvedValue({
       id: "default",
       businessName: "Test Biz",
@@ -70,18 +93,13 @@ describe("AI Engine", () => {
   });
 
   it("should return fallback when AI API key is not configured", async () => {
-    mockPrisma.settings.upsert.mockResolvedValue({
+    mockPrisma.settings.findUnique.mockResolvedValue({
       id: "default",
       aiApiKey: "",
       aiProvider: "openai",
       aiModel: "gpt-4",
       maxTokens: 1000,
       temperature: 0.7,
-      businessName: "Test",
-      businessDesc: "",
-      welcomeMessage: "",
-      tone: "friendly",
-      language: "auto",
     });
 
     const { chat } = await import("@/lib/ai/engine");
@@ -245,5 +263,90 @@ describe("AI Engine", () => {
     const response = await chat(ctx, "conv-1", "Hello");
 
     expect(response).toContain("could not generate a response");
+  });
+
+  describe("§2.3/§46.4 regression: confidence scoring reflects a real tool call, not a hardcoded false", () => {
+    // Both scenarios use a short (<50 char) response with an empty
+    // knowledge base, so neither the response-length nor knowledge-base-size
+    // confidence bonuses apply — isolating exactly the `hasToolCalls` bonus
+    // this bug fix is about. Without it: score = 0.5 (escalates, < 0.6).
+    // With it: score = 0.6 (does not escalate).
+    it("escalates when no tool was used and the short response alone doesn't clear the confidence threshold", async () => {
+      mockOpenAICreateFn.mockResolvedValue({
+        choices: [{ finish_reason: "stop", message: { content: "OK." } }],
+      });
+      mockPrisma.conversation.update.mockClear();
+
+      const { chat } = await import("@/lib/ai/engine");
+      await chat(ctx, "conv-1", "Hello");
+
+      expect(mockPrisma.conversation.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: "escalated" }) })
+      );
+    });
+
+    it("does not escalate the same short response once a tool was actually used in the turn (the +0.1 bonus this bug fix restores)", async () => {
+      mockOpenAICreateFn
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              finish_reason: "tool_calls",
+              message: {
+                content: "",
+                tool_calls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "get_customer_history", arguments: JSON.stringify({ customerContact: "+1555" }) },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [{ finish_reason: "stop", message: { content: "OK." } }],
+        });
+      mockPrisma.conversation.findMany.mockResolvedValue([]);
+      mockPrisma.conversation.update.mockClear();
+
+      const { chat } = await import("@/lib/ai/engine");
+      await chat(ctx, "conv-1", "Do you know me?");
+
+      expect(mockPrisma.conversation.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: "escalated" }) })
+      );
+    });
+  });
+
+  describe("§46.4 task 5: checkBlockedTopics wired as a real pre-check", () => {
+    it("redirects a blocked-topic message instead of calling the model at all", async () => {
+      const { chat } = await import("@/lib/ai/engine");
+      const response = await chat(ctx, "conv-1", "Can you give me legal advice about this contract?");
+
+      expect(response).not.toContain("legal advice");
+      expect(response.toLowerCase()).toContain("team member");
+      expect(mockOpenAICreateFn).not.toHaveBeenCalled();
+
+      // The customer's message is still recorded, plus the redirect itself.
+      expect(mockPrisma.message.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ role: "customer", content: "Can you give me legal advice about this contract?" }) })
+      );
+      expect(mockPrisma.message.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ role: "assistant" }) })
+      );
+    });
+
+    it("does not redirect an ordinary message that merely mentions an unrelated topic", async () => {
+      mockOpenAICreateFn.mockResolvedValue({
+        choices: [{ finish_reason: "stop", message: { content: "Sure, here is our shipping policy." } }],
+      });
+
+      const { chat } = await import("@/lib/ai/engine");
+      const response = await chat(ctx, "conv-1", "What are your shipping rates?");
+
+      expect(response).toBe("Sure, here is our shipping policy.");
+      expect(mockOpenAICreateFn).toHaveBeenCalledTimes(1);
+    });
   });
 });

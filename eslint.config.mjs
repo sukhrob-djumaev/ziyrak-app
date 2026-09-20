@@ -92,8 +92,6 @@ const eslintConfig = defineConfig([
       // Default-Business-only TenantContext via
       // getDefaultBusinessContext(), since no per-connection inbound
       // tenant resolution exists yet (Phase 5).
-      "src/lib/ai/engine.ts",
-      "src/lib/knowledge/semantic-search.ts",
       "src/lib/tools/tools.ts",
       "src/lib/channels/email.ts",
       "src/lib/channels/phone.ts",

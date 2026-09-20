@@ -1,52 +1,39 @@
 /**
  * Semantic Search for Knowledge Base
  *
- * Uses OpenAI embeddings for vector similarity search.
- * Falls back to keyword matching when embeddings are unavailable.
+ * Uses the tenant's configured EmbeddingProvider for vector similarity
+ * search (§46.4/§21.5/§22.2). Falls back to keyword matching when no
+ * embedding provider is configured for the business, or when an individual
+ * entry has no stored embedding yet.
  *
  * Embeddings are stored in the KnowledgeEntry metadata field as JSON.
- * For production with pgvector, store in a dedicated vector column.
+ * For production with pgvector, store in a dedicated vector column (§22.3 —
+ * deferred, not needed at MVP knowledge-base sizes).
  */
 
-import { prisma } from "@/lib/prisma/raw-client";
-import { logger } from "@/lib/observability/logger";
-import { cacheGet, cacheSet } from "@/lib/cache";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import { logger } from "@/lib/observability/logger";
+import { resolveEmbeddingConfig } from "@/lib/ai/config";
+import { embeddingProviderRegistry } from "@/lib/ai/providers/embedding-registry";
+import type { EmbeddingProvider } from "@/lib/ai/providers/types";
+import { recordAIInteraction } from "@/lib/ai/usage";
 
 interface SearchResult {
   id: string;
   title: string;
   content: string;
   category: string;
+  priority: number;
   score: number;
 }
 
-/**
- * Generate embedding for a text using OpenAI.
- */
-async function generateEmbedding(text: string, apiKey: string): Promise<number[] | null> {
-  try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: text.substring(0, 8000),
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data.data?.[0]?.embedding || null;
-  } catch (error) {
-    logger.error("Failed to generate embedding:", error);
-    return null;
-  }
+/** Resolves the tenant's own EmbeddingProvider, or null if none is configured for this business. */
+async function resolveTenantEmbeddingProvider(ctx: TenantContext): Promise<EmbeddingProvider | null> {
+  const config = await resolveEmbeddingConfig(ctx);
+  if (!config.apiKey) return null;
+  return embeddingProviderRegistry.get(config.provider, { apiKey: config.apiKey });
 }
 
 /**
@@ -87,8 +74,10 @@ function keywordScore(query: string, text: string): number {
 }
 
 /**
- * Search the knowledge base semantically.
- * Uses embeddings when available, falls back to keyword matching.
+ * Search the knowledge base semantically, tenant-scoped. Uses the tenant's
+ * configured EmbeddingProvider when available, falls back to keyword
+ * matching when no embedding provider is configured, or an individual
+ * entry has no stored embedding yet.
  */
 export async function searchKnowledgeBase(
   ctx: TenantContext,
@@ -103,47 +92,55 @@ export async function searchKnowledgeBase(
 
   if (entries.length === 0) return [];
 
-  // Try to get API key for embeddings
-  const settings = await prisma.settings.findFirst({
-    select: { aiApiKey: true },
-  });
+  const embeddingProvider = await resolveTenantEmbeddingProvider(ctx);
 
   let results: SearchResult[];
 
-  if (settings?.aiApiKey) {
-    // Try semantic search with embeddings
-    const cacheKey = `embedding:${Buffer.from(query).toString("base64").substring(0, 50)}`;
+  if (embeddingProvider) {
+    // Cache key is tenant- and provider-scoped: two businesses (or a
+    // business that later switches embedding provider) must never share a
+    // cached vector, since different providers/keys can yield different
+    // embeddings for the same text.
+    const cacheKey = `embedding:${ctx.businessId}:${embeddingProvider.name}:${Buffer.from(query).toString("base64").substring(0, 50)}`;
     let queryEmbedding: number[] | null = null;
 
     const cached = await cacheGet(cacheKey);
     if (cached) {
       queryEmbedding = JSON.parse(cached);
     } else {
-      queryEmbedding = await generateEmbedding(query, settings.aiApiKey);
-      if (queryEmbedding) {
+      const embedded = await embeddingProvider.embed(query).catch((error) => {
+        logger.error("Failed to generate query embedding, falling back to keyword search:", error);
+        return null;
+      });
+      queryEmbedding = embedded?.vector ?? null;
+      if (queryEmbedding && embedded) {
         await cacheSet(cacheKey, JSON.stringify(queryEmbedding), 3600);
+        await recordAIInteraction(ctx, {
+          kind: "embedding",
+          provider: embeddingProvider.name,
+          model: embedded.model,
+          totalTokens: embedded.usage.totalTokens,
+        });
       }
     }
 
     if (queryEmbedding) {
+      const resolvedEmbedding = queryEmbedding;
       // Score entries using embeddings (stored in metadata) + keyword fallback
       results = entries.map((entry) => {
         const metadata = entry.metadata as Record<string, unknown> | null;
         const entryEmbedding = metadata?.embedding as number[] | null;
 
-        let score: number;
-        if (entryEmbedding) {
-          score = cosineSimilarity(queryEmbedding!, entryEmbedding);
-        } else {
-          // Fallback to keyword matching for entries without embeddings
-          score = keywordScore(query, `${entry.title} ${entry.content}`);
-        }
+        const score = entryEmbedding
+          ? cosineSimilarity(resolvedEmbedding, entryEmbedding)
+          : keywordScore(query, `${entry.title} ${entry.content}`);
 
         return {
           id: entry.id,
           title: entry.title,
           content: entry.content,
           category: entry.category.name,
+          priority: entry.priority,
           score,
         };
       });
@@ -152,7 +149,7 @@ export async function searchKnowledgeBase(
       results = keywordSearch(entries, query);
     }
   } else {
-    // No API key, use keyword search
+    // No embedding provider configured for this business, use keyword search
     results = keywordSearch(entries, query);
   }
 
@@ -167,6 +164,7 @@ function keywordSearch(
     id: string;
     title: string;
     content: string;
+    priority: number;
     category: { name: string };
   }>,
   query: string
@@ -176,18 +174,16 @@ function keywordSearch(
     title: entry.title,
     content: entry.content,
     category: entry.category.name,
+    priority: entry.priority,
     score: keywordScore(query, `${entry.title} ${entry.content}`),
   }));
 }
 
 /**
- * Generate and store embedding for a knowledge entry.
+ * Generate and store embedding for a knowledge entry, using the tenant's
+ * own configured EmbeddingProvider.
  */
-export async function indexKnowledgeEntry(
-  ctx: TenantContext,
-  entryId: string,
-  apiKey: string
-): Promise<boolean> {
+export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): Promise<boolean> {
   const db = getScopedPrisma(ctx);
   const entry = await db.knowledgeEntry.findUnique({
     where: { id: entryId },
@@ -195,17 +191,29 @@ export async function indexKnowledgeEntry(
 
   if (!entry) return false;
 
-  const text = `${entry.title}\n${entry.content}`;
-  const embedding = await generateEmbedding(text, apiKey);
+  const embeddingProvider = await resolveTenantEmbeddingProvider(ctx);
+  if (!embeddingProvider) return false;
 
-  if (!embedding) return false;
+  const text = `${entry.title}\n${entry.content}`;
+  const embedded = await embeddingProvider.embed(text).catch((error) => {
+    logger.error("Failed to generate knowledge entry embedding:", error);
+    return null;
+  });
+  if (!embedded) return false;
+
+  await recordAIInteraction(ctx, {
+    kind: "embedding",
+    provider: embeddingProvider.name,
+    model: embedded.model,
+    totalTokens: embedded.usage.totalTokens,
+  });
 
   const currentMetadata = (entry.metadata as Record<string, unknown>) || {};
 
   await db.knowledgeEntry.update({
     where: { id: entryId },
     data: {
-      metadata: { ...currentMetadata, embedding },
+      metadata: { ...currentMetadata, embedding: embedded.vector },
     },
   });
 

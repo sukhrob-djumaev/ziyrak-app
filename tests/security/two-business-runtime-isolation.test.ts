@@ -23,11 +23,13 @@ vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal())
 vi.mock("@/lib/tenancy/default-business", async (importOriginal) => importOriginal());
 
 const mockOpenAICreateFn = vi.fn();
-vi.mock("openai", () => ({
-  default: class MockOpenAI {
+vi.mock("openai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("openai")>();
+  class MockOpenAI {
     chat = { completions: { create: mockOpenAICreateFn } };
-  },
-}));
+  }
+  return { ...actual, default: MockOpenAI };
+});
 
 vi.mock("@/lib/channels/whatsapp", () => ({
   getWhatsAppStatus: vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" }),
@@ -46,6 +48,8 @@ import {
 } from "../helpers/tenant-fixtures";
 import * as apiKeysService from "@/lib/identity/admin-api-keys/service";
 import * as whatsappLib from "@/lib/channels/whatsapp";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { encryptAIProviderCredential } from "@/lib/ai/config";
 
 let bizDefault: SeededBusiness;
 let bizB: SeededBusiness;
@@ -65,10 +69,29 @@ beforeAll(async () => {
   // A real-looking AI key so chat()/knowledge-test's `!config.apiKey` early
   // return doesn't short-circuit before reaching the code this suite
   // exists to exercise. OpenAI itself is mocked (above) — no network call.
+  // Default Business: legacy Settings.aiApiKey fallback (§46.4/§10.4's own
+  // precedence — proves the fallback still works post-Phase-4 for a
+  // business that hasn't migrated to BusinessConfig yet).
   await prisma.settings.upsert({
     where: { id: "default" },
     update: { aiApiKey: "sk-test-runtime-isolation", aiProvider: "openai", aiModel: "gpt-4o-mini" },
     create: { id: "default", aiApiKey: "sk-test-runtime-isolation", aiProvider: "openai", aiModel: "gpt-4o-mini" },
+  });
+
+  // Business B: its own real, tenant-scoped BusinessConfig credential
+  // (§46.4) — the legacy Settings row above must never be reachable for
+  // it, and this is what makes it a meaningful "B now succeeds on its own
+  // config" case rather than an accidental Default-Business fallback.
+  const dbB = getScopedPrisma(bizB.ctx);
+  await dbB.businessConfig.upsert({
+    where: { businessId: bizB.businessId },
+    update: { aiProvider: "openai", aiModel: "gpt-4o-mini", aiCredentialRef: await encryptAIProviderCredential("openai", "sk-business-b-own-key") },
+    create: {
+      businessId: bizB.businessId,
+      aiProvider: "openai",
+      aiModel: "gpt-4o-mini",
+      aiCredentialRef: await encryptAIProviderCredential("openai", "sk-business-b-own-key"),
+    },
   });
 
   const defaultCategory = await prisma.category.create({
@@ -148,25 +171,37 @@ describe("Phase 2 runtime-isolation audit: /api/chat", () => {
     expect(systemPrompt).not.toContain(BIZ_B_KNOWLEDGE_MARKER);
   });
 
-  it("Business B: chat is rejected (501, fail closed) and never creates any row under the Default Business or calls the AI provider", async () => {
+  it("§46.4: Business B now succeeds on its own BusinessConfig credential, persists rows under its own businessId, and never touches the Default Business's data or knowledge", async () => {
     const beforeDefaultConvCount = await prisma.conversation.count({ where: { businessId: bizDefault.businessId } });
-    const beforeBConvCount = await prisma.conversation.count({ where: { businessId: bizB.businessId } });
     mockOpenAICreateFn.mockClear();
+    mockOpenAICreateFn.mockResolvedValueOnce({
+      choices: [{ finish_reason: "stop", message: { content: "Business B AI reply" } }],
+    });
 
     const { POST } = await import("@/app/api/chat/route");
     const response = await POST(
-      asB("/api/chat", { method: "POST", body: { message: "Business B secret message" } })
+      // Keyword-matches the seeded "B entry" title (no trailing punctuation
+      // on "entry" — keywordScore's matcher is a plain substring check, not
+      // punctuation-aware) — this mock's OpenAI class has no `embeddings`
+      // API, so the embedding call fails and knowledge retrieval falls back
+      // to keyword matching (semantic-search.ts's own graceful-degradation
+      // path, exercised deliberately here).
+      asB("/api/chat", { method: "POST", body: { message: "Please tell me about the B entry now" } })
     );
     const data = await parseJsonResponse(response);
 
-    expect(response.status).toBe(501);
-    expect(data.error.code).toBe("NOT_YET_SUPPORTED");
+    expect(response.status).toBe(200);
+    expect(data.response).toBe("Business B AI reply");
+
+    const conversation = await prisma.conversation.findUnique({ where: { id: data.conversationId } });
+    expect(conversation?.businessId).toBe(bizB.businessId);
+
+    const systemPrompt = mockOpenAICreateFn.mock.calls[0][0].messages[0].content as string;
+    expect(systemPrompt).toContain(BIZ_B_KNOWLEDGE_MARKER);
+    expect(systemPrompt).not.toContain(DEFAULT_KNOWLEDGE_MARKER);
 
     const afterDefaultConvCount = await prisma.conversation.count({ where: { businessId: bizDefault.businessId } });
-    const afterBConvCount = await prisma.conversation.count({ where: { businessId: bizB.businessId } });
     expect(afterDefaultConvCount).toBe(beforeDefaultConvCount);
-    expect(afterBConvCount).toBe(beforeBConvCount);
-    expect(mockOpenAICreateFn).not.toHaveBeenCalled();
   });
 });
 
@@ -290,9 +325,12 @@ describe("Phase 2 runtime-isolation audit: standard (non-guarded) CRUD persists 
 });
 
 describe("Phase 2 runtime-isolation audit: API keys resolve to their own business, never silently to the Default Business", () => {
-  it("Business B's API key hitting /api/chat resolves to Business B's own context and is fail-closed there too (not silently treated as Default)", async () => {
+  it("§46.4: Business B's API key hitting /api/chat resolves to Business B's own context and its own BusinessConfig credential (not silently treated as Default)", async () => {
     const { fullKey } = await apiKeysService.create(bizB.ctx, "runtime-isolation-b-key");
     mockOpenAICreateFn.mockClear();
+    mockOpenAICreateFn.mockResolvedValueOnce({
+      choices: [{ finish_reason: "stop", message: { content: "Business B AI reply via API key" } }],
+    });
 
     const { POST } = await import("@/app/api/chat/route");
     const response = await POST(
@@ -300,9 +338,11 @@ describe("Phase 2 runtime-isolation audit: API keys resolve to their own busines
     );
     const data = await parseJsonResponse(response);
 
-    expect(response.status).toBe(501);
-    expect(data.error.code).toBe("NOT_YET_SUPPORTED");
-    expect(mockOpenAICreateFn).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(data.response).toBe("Business B AI reply via API key");
+
+    const conversation = await prisma.conversation.findUnique({ where: { id: data.conversationId } });
+    expect(conversation?.businessId).toBe(bizB.businessId);
   });
 
   it("the Default Business's own API key correctly succeeds on the same route (symmetric proof — the guard checks identity, not the auth mechanism)", async () => {

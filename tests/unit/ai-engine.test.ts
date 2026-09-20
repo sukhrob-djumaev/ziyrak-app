@@ -5,16 +5,16 @@ import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 
 // Mock OpenAI
 const mockOpenAICreateFn = vi.fn();
-vi.mock("openai", () => {
-  return {
-    default: class MockOpenAI {
-      chat = {
-        completions: {
-          create: mockOpenAICreateFn,
-        },
-      };
-    },
-  };
+vi.mock("openai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("openai")>();
+  class MockOpenAI {
+    chat = {
+      completions: {
+        create: mockOpenAICreateFn,
+      },
+    };
+  }
+  return { ...actual, default: MockOpenAI };
 });
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -347,6 +347,45 @@ describe("AI Engine", () => {
 
       expect(response).toBe("Sure, here is our shipping policy.");
       expect(mockOpenAICreateFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("§21.3: one bounded retry for a retryable provider error", () => {
+    it("retries once on a retryable error (rate limit) and returns the retried success", async () => {
+      const { RateLimitError } = await import("openai");
+      mockOpenAICreateFn
+        .mockRejectedValueOnce(new RateLimitError(429, {}, "Rate limited", new Headers()))
+        .mockResolvedValueOnce({
+          choices: [{ finish_reason: "stop", message: { content: "Recovered after retry." } }],
+        });
+
+      const { chat } = await import("@/lib/ai/engine");
+      const response = await chat(ctx, "conv-1", "Hello");
+
+      expect(response).toBe("Recovered after retry.");
+      expect(mockOpenAICreateFn).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry a non-retryable error (auth) and falls back to the existing user-facing message after one call", async () => {
+      const { AuthenticationError } = await import("openai");
+      mockOpenAICreateFn.mockRejectedValue(new AuthenticationError(401, {}, "Invalid API key", new Headers()));
+
+      const { chat } = await import("@/lib/ai/engine");
+      const response = await chat(ctx, "conv-1", "Hello");
+
+      expect(response).toContain("temporarily unable to process your request");
+      expect(mockOpenAICreateFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to the existing user-facing message if the retry also fails", async () => {
+      const { RateLimitError } = await import("openai");
+      mockOpenAICreateFn.mockRejectedValue(new RateLimitError(429, {}, "Rate limited", new Headers()));
+
+      const { chat } = await import("@/lib/ai/engine");
+      const response = await chat(ctx, "conv-1", "Hello");
+
+      expect(response).toContain("temporarily unable to process your request");
+      expect(mockOpenAICreateFn).toHaveBeenCalledTimes(2);
     });
   });
 });

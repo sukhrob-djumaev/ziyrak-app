@@ -31,15 +31,3 @@ export function validateTwilioSignature(
 
   return crypto.timingSafeEqual(computedBuf, signatureBuf);
 }
-
-/**
- * Extract Twilio auth token from settings.
- */
-export async function getTwilioAuthToken(): Promise<string> {
-  // Dynamic import to avoid circular deps
-  const { prisma } = await import("@/lib/prisma/raw-client");
-  const settings = await prisma.settings.findFirst({
-    select: { twilioToken: true },
-  });
-  return settings?.twilioToken || "";
-}

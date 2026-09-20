@@ -173,6 +173,27 @@ export const updateSettingsSchema = z.object({
   whatsappPhone: z.string().max(50).optional(),
 }).strict();
 
+// AI provider settings (PLAN.md §46.4) — the real, tenant-scoped, per-
+// business AI provider/embedding/credential boundary. updateSettingsSchema's
+// aiProvider/aiModel/aiApiKey/maxTokens/temperature fields above are
+// deliberately left in place for one release, matching the two-step Settings
+// retirement policy §13.2.7 already established (Settings kept, unused by
+// new code, for one release) — the existing dashboard AI Configuration tab
+// (still Default-Business-only, gated by assertDefaultBusinessOnly) keeps
+// working unmodified against the legacy row. This is not a second silent
+// source of truth: ai/config.ts's resolveAIConfig() precedence (documented
+// and tested there) is explicit about exactly when the legacy row is still
+// consulted and when it is not.
+export const updateAISettingsSchema = z.object({
+  aiProvider: z.enum(["openai", "anthropic", "ollama"]).optional(),
+  aiModel: z.string().min(1).max(200).optional(),
+  aiApiKey: z.string().min(1).max(500).optional(),
+  embeddingProvider: z.enum(["openai"]).optional(),
+  embeddingApiKey: z.string().min(1).max(500).optional(),
+  maxTokens: z.number().int().min(100).max(128000).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+}).strict();
+
 // Canned Responses
 export const createCannedResponseSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),

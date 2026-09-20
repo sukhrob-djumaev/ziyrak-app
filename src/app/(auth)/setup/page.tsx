@@ -18,10 +18,20 @@ const TONE_OPTIONS = [
   { value: "technical", label: "Technical", desc: "Precise and detailed" },
 ];
 
+// PLAN.md §46.4 task 7 — only providers with a real, tested AIProvider
+// implementation (ai/providers/registry.ts) are listed as fully supported;
+// Ollama is honestly marked "coming soon" rather than silently broken
+// (§2.3's original bug — selecting it used to silently still call OpenAI).
+// "anthropic" matches AnthropicProvider.name/the registry key exactly.
 const PROVIDER_OPTIONS = [
-  { value: "openai", label: "OpenAI", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"] },
-  { value: "claude", label: "Claude (Anthropic)", models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"] },
-  { value: "ollama", label: "Ollama (Local)", models: ["llama3", "mistral", "codellama", "phi3"] },
+  { value: "openai", label: "OpenAI", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"], comingSoon: false },
+  {
+    value: "anthropic",
+    label: "Anthropic (Claude)",
+    models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+    comingSoon: false,
+  },
+  { value: "ollama", label: "Ollama (Local)", models: ["llama3", "mistral", "codellama", "phi3"], comingSoon: true },
 ];
 
 export default function SetupPage() {
@@ -130,13 +140,15 @@ export default function SetupPage() {
         setCompletedSteps((prev) => [...prev, 1]);
         setStep(2);
       } else if (step === 2) {
+        // §46.4 — the real, tenant-scoped AI provider boundary, not the
+        // legacy /api/settings singleton.
         const body: Record<string, string> = {
           aiProvider,
           aiModel,
         };
         if (aiApiKey.trim()) body.aiApiKey = aiApiKey.trim();
 
-        const res = await fetch("/api/settings", {
+        const res = await fetch("/api/settings/ai", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -349,9 +361,15 @@ export default function SetupPage() {
                   {PROVIDER_OPTIONS.map((p) => (
                     <option key={p.value} value={p.value}>
                       {p.label}
+                      {p.comingSoon ? " (coming soon)" : ""}
                     </option>
                   ))}
                 </select>
+                {PROVIDER_OPTIONS.find((p) => p.value === aiProvider)?.comingSoon && (
+                  <p className="mt-1.5 text-xs text-owly-text-light">
+                    Ollama support is coming soon — chat won&apos;t work with this provider selected yet. Pick OpenAI or Anthropic to get started today.
+                  </p>
+                )}
               </div>
 
               <div>

@@ -11,6 +11,13 @@ process.env.JWT_SECRET = "test-secret-key-for-testing-only";
 // configured environment isn't overridden.
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
 process.env.NODE_ENV = "test";
+// §46.4 — resolveAIConfig()/the new /api/settings/ai route round-trip real
+// SecretResolver.encrypt()/decrypt() calls (via the process-wide default
+// resolver, getSecretResolver()) rather than mocking the encryption layer
+// itself, matching tests/unit/secret-resolver.test.ts's own real-crypto
+// approach. Set once here (like JWT_SECRET above) so every test file gets a
+// working default resolver without repeating this.
+process.env.SECRET_KEY_V1 ??= "test-secret-key-v1-for-testing-only";
 
 // Mock Prisma globally
 vi.mock("@/lib/prisma/raw-client", () => ({

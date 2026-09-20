@@ -38,6 +38,14 @@ const eslintConfig = defineConfig([
       "src/lib/identity/auth.ts",
       "src/lib/identity/route-auth.ts",
       "src/generated/**",
+      // PLAN.md §46.4 — the one narrow, documented read of the legacy
+      // Settings singleton left after this phase: resolveAIConfig()/
+      // resolveEmbeddingConfig()'s Default-Business-only, "hasn't touched
+      // its own BusinessConfig yet" backward-compat fallback (this module's
+      // own header comment explains the precedence). Every other AI-config
+      // read in this file goes through getScopedPrisma(ctx)'s BusinessConfig
+      // lookup like everything else.
+      "src/lib/ai/config.ts",
       // Reads the legacy, pre-Phase-1 Settings singleton for AI config
       // (Settings.aiApiKey) — not a tenant-owned model, and has no defined
       // final destination until Phase 4's AIProviderRegistry exists

@@ -29,6 +29,20 @@
     window.localStorage.setItem(storageKey, conversationId);
   }
 
+  // Separate from conversationId and deliberately longer-lived: a visitor
+  // may start a new conversation over time (e.g. this one gets resolved by
+  // an agent), but resolveCustomer() (PLAN.md §5.3/§20.4's acceptance-audit
+  // correction) needs one stable id per visitor to correlate those as the
+  // same Customer, scoped to this businessId+connectionId by construction
+  // (a different widget, or the same widget on a different site, gets a
+  // different visitor id).
+  var visitorStorageKey = "ziyrak_webchat_visitor_" + connectionId;
+  var visitorId = window.localStorage.getItem(visitorStorageKey);
+  if (!visitorId) {
+    visitorId = crypto.randomUUID();
+    window.localStorage.setItem(visitorStorageKey, visitorId);
+  }
+
   var container = document.createElement("div");
   container.style.cssText =
     "position:fixed;bottom:16px;right:16px;width:320px;max-width:calc(100vw - 32px);" +
@@ -93,6 +107,7 @@
         token: token,
         conversationId: conversationId,
         clientMessageId: crypto.randomUUID(),
+        customerContact: visitorId,
         text: text,
       }),
     }).catch(function (err) {

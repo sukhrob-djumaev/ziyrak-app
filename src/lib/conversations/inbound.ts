@@ -42,13 +42,38 @@ export interface OutboundResult {
  * Every other real channel always has a non-empty `customerContact` and no
  * `conversationId`, so it always takes the fourth branch — identical to
  * each channel's own pre-Phase-5 `db.conversation.findFirst(...)` block.
+ *
+ * Exported (not just used internally by `processInboundMessage` below) so
+ * that Phone's call-start leg (`channels/phone-adapter.ts`'s
+ * `handleIncomingCall`) can reuse it too: that leg genuinely cannot go
+ * through `processInboundMessage` itself (there is no customer message yet
+ * to hand `chat()` — the greeting is static configuration, not an AI
+ * turn), but "resolve customer → find/create conversation" is exactly the
+ * same operation there as everywhere else, and hand-rolling a second copy
+ * of it would be precisely the duplicated orchestration §46.5's acceptance
+ * criteria forbid outside this one path.
  */
-async function resolveOrCreateConversation(ctx: TenantContext, event: ZiyrakEvent<MessageReceivedPayload>) {
+export async function resolveOrCreateConversation(ctx: TenantContext, event: ZiyrakEvent<MessageReceivedPayload>) {
   const db = getScopedPrisma(ctx);
 
   if (event.conversationId && event.source.channel === "webchat") {
     const existing = await db.conversation.findUnique({ where: { id: event.conversationId } });
     if (existing) return existing;
+
+    // PLAN.md §20.4/§46.5 acceptance-audit correction: §20.4 states
+    // "WebChatAdapter otherwise behaves like any other ChannelAdapter" —
+    // customer resolution is not a named exception, so it must not be
+    // skipped here just because the conversation id itself is
+    // client-supplied. `customerContact` is the widget's own persistent
+    // *visitor* id (distinct from this conversation's id — a visitor may
+    // start several conversations over time), so resolveCustomer() can
+    // correlate repeat visits to one Customer exactly like every other
+    // channel, via customer-resolver.ts's webchat case (metadata-based
+    // match, since Customer has no dedicated webchat column).
+    const customerId = event.payload.customerContact
+      ? await resolveCustomer(ctx, event.source.channel, event.payload.customerContact, event.payload.customerName)
+      : undefined;
+
     // `metadata.channelConnectionId` is what the public stream route
     // (`/api/channels/webchat/[connectionId]/stream`) checks so one
     // widget/connection cannot subscribe to another connection's
@@ -61,6 +86,7 @@ async function resolveOrCreateConversation(ctx: TenantContext, event: ZiyrakEven
         channel: event.source.channel,
         customerName: event.payload.customerName,
         customerContact: event.payload.customerContact,
+        ...(customerId && { customerId }),
         metadata: { channelConnectionId: event.source.connectionId },
       },
     });

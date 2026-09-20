@@ -99,6 +99,15 @@ async function findByChannelField(ctx: TenantContext, channel: string, contact: 
       return db.customer.findFirst({
         where: { phone: contact },
       });
+    case "webchat":
+      // No dedicated column (Customer only has email/phone/whatsapp) — the
+      // widget's persistent visitor id (distinct from any one
+      // conversationId, §20.4/§46.5's acceptance-audit correction) is
+      // matched via the generic `metadata` JSON field instead, the same
+      // JSON-path-query pattern already used for `ChannelConnection.config`.
+      return db.customer.findFirst({
+        where: { metadata: { path: ["webchatVisitorId"], equals: contact } },
+      });
     default:
       return null;
   }
@@ -120,6 +129,7 @@ async function createCustomer(
       ...(channel === "email" ? { email: contact } : {}),
       ...(channel === "whatsapp" ? { whatsapp: contact } : {}),
       ...(channel === "phone" ? { phone: contact } : {}),
+      ...(channel === "webchat" ? { metadata: { webchatVisitorId: contact } } : {}),
     },
   });
 

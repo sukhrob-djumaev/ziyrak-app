@@ -49,11 +49,23 @@ async function createWebChatConnection(businessId: string, allowedOrigins: strin
   return { connectionId: connection.id, token };
 }
 
-function buildMessageRequest(connectionId: string, token: string, origin: string, conversationId: string): NormalizedInboundRequest {
+function buildMessageRequest(
+  connectionId: string,
+  token: string,
+  origin: string,
+  conversationId: string,
+  extra: { customerContact?: string; text?: string } = {}
+): NormalizedInboundRequest {
   return {
     headers: { origin },
     routeParams: { connectionId },
-    json: { token, conversationId, clientMessageId: crypto.randomUUID(), text: "Hello, I need help" },
+    json: {
+      token,
+      conversationId,
+      clientMessageId: crypto.randomUUID(),
+      customerContact: extra.customerContact,
+      text: extra.text ?? "Hello, I need help",
+    },
     url: `https://example.com/api/channels/webchat/${connectionId}/message`,
   };
 }
@@ -184,5 +196,57 @@ describe("WebChat token/origin/tenant isolation (§20.4/§46.5)", () => {
     const ownResponse = await GET(ownRequest, { params: Promise.resolve({ connectionId: connectionId1 }) });
     expect(ownResponse.status).toBe(200);
     ownResponse.body?.cancel();
+  });
+
+  it("resolveCustomer correlates repeat visits from the same visitor across separate conversations, but not across different visitors (§5.3/§20.4 acceptance-audit correction)", async () => {
+    const { connectionId, token } = await createWebChatConnection(businessA.businessId, [ALLOWED_ORIGIN]);
+    const { processInboundMessage } = await import("@/lib/conversations/inbound");
+
+    const visitorId = crypto.randomUUID();
+    const conversationId1 = crypto.randomUUID();
+    const result1 = await webChatAdapter.validateInbound(
+      buildMessageRequest(connectionId, token, ALLOWED_ORIGIN, conversationId1, { customerContact: visitorId, text: "Hi, first visit" })
+    );
+    expect(result1.kind).toBe("new");
+    if (result1.kind !== "new") return;
+    await processInboundMessage(result1.ctx, result1.event);
+
+    const conversation1 = await prisma.conversation.findUnique({ where: { id: conversationId1 } });
+    expect(conversation1?.customerId).toBeTruthy();
+
+    const customer1 = await prisma.customer.findUnique({ where: { id: conversation1!.customerId! } });
+    expect(customer1).not.toBeNull();
+    expect((customer1!.metadata as Record<string, unknown>).webchatVisitorId).toBe(visitorId);
+
+    // A second, distinct conversation (e.g. the widget started a new
+    // session after the first was resolved) from the *same* visitor id
+    // must resolve to the *same* Customer record — proof that Web Chat
+    // does not skip customer resolution the way it did before this
+    // correction (previously Conversation.customerId was always null).
+    const conversationId2 = crypto.randomUUID();
+    const result2 = await webChatAdapter.validateInbound(
+      buildMessageRequest(connectionId, token, ALLOWED_ORIGIN, conversationId2, { customerContact: visitorId, text: "Hi again, second visit" })
+    );
+    expect(result2.kind).toBe("new");
+    if (result2.kind !== "new") return;
+    await processInboundMessage(result2.ctx, result2.event);
+
+    const conversation2 = await prisma.conversation.findUnique({ where: { id: conversationId2 } });
+    expect(conversation2?.customerId).toBe(customer1!.id);
+
+    // A different visitor id on the same connection must not be merged
+    // into the same Customer.
+    const otherVisitorId = crypto.randomUUID();
+    const conversationId3 = crypto.randomUUID();
+    const result3 = await webChatAdapter.validateInbound(
+      buildMessageRequest(connectionId, token, ALLOWED_ORIGIN, conversationId3, { customerContact: otherVisitorId, text: "A different visitor" })
+    );
+    expect(result3.kind).toBe("new");
+    if (result3.kind !== "new") return;
+    await processInboundMessage(result3.ctx, result3.event);
+
+    const conversation3 = await prisma.conversation.findUnique({ where: { id: conversationId3 } });
+    expect(conversation3?.customerId).toBeTruthy();
+    expect(conversation3?.customerId).not.toBe(customer1!.id);
   });
 });

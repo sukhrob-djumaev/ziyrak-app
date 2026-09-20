@@ -12,6 +12,13 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts"],
+    // PLAN.md §34.2 — the credential-gated, real-provider smoke suite
+    // (tests/integration/**) is structurally excluded from the default
+    // suite `npm run test`/CI run: it makes real network calls to a real
+    // AI provider and must never run automatically. Run it explicitly via
+    // `npm run test:smoke:anthropic` (vitest.integration.config.ts), never
+    // through this config.
+    exclude: ["**/node_modules/**", "**/.git/**", "tests/integration/**"],
     coverage: {
       provider: "v8",
       include: ["src/lib/**", "src/app/api/**", "src/proxy.ts"],

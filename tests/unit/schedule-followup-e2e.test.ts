@@ -121,6 +121,59 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     expect(savedMessage?.content).toBe("Just checking in!");
   });
 
+  // Post-Phase-7 hardening (browser acceptance pass): the model is never told
+  // its conversation's id — the system prompt does not contain it and no tool
+  // returns it — so it cannot supply one. The runtime conversation (which the
+  // orchestrator already passes to every tool call) is the only source of
+  // truth; asking the model for it made the tool unusable with a real model.
+  it("uses the runtime conversation when the model supplies no conversationId (a model cannot know it)", async () => {
+    sentMessages = [];
+    sendBehavior = () => ({ success: true });
+    const conversation = await seedConversation("runtimeconv");
+
+    const requested = await toolRegistry.execute(
+      aiCtx(conversation.id),
+      "schedule_followup",
+      { message: "Following up as promised", delayHours: 0 },
+      { toolCallId: "tc-followup-runtime-conv", conversationId: conversation.id }
+    );
+
+    expect(requested.status).toBe("scheduled");
+    await (jobQueue as unknown as FakeJobQueue).__drainForTests();
+    expect(sentMessages).toEqual([{ to: conversation.customerContact, text: "Following up as promised" }]);
+  });
+
+  it("ignores a model-supplied conversationId when a runtime conversation exists (an AI cannot aim a follow-up elsewhere)", async () => {
+    sentMessages = [];
+    sendBehavior = () => ({ success: true });
+    const conversation = await seedConversation("guessedid");
+    const other = await rawClient.conversation.create({
+      data: { businessId: business.businessId, channel: TEST_CHANNEL, customerName: "Someone Else", customerContact: "+15559999999" },
+    });
+
+    const requested = await toolRegistry.execute(
+      aiCtx(conversation.id),
+      "schedule_followup",
+      { conversationId: other.id, message: "Following up as promised", delayHours: 0 },
+      { toolCallId: "tc-followup-guessed-id", conversationId: conversation.id }
+    );
+
+    expect(requested.status).toBe("scheduled");
+    await (jobQueue as unknown as FakeJobQueue).__drainForTests();
+    expect(sentMessages).toEqual([{ to: conversation.customerContact, text: "Following up as promised" }]);
+  });
+
+  it("fails honestly when neither the model nor the runtime supplies a conversation", async () => {
+    const result = await toolRegistry.execute(
+      aiCtx("no-conv"),
+      "schedule_followup",
+      { message: "hi", delayHours: 1 },
+      { toolCallId: "tc-followup-no-conv-at-all" }
+    );
+    expect(result.success).toBe(false);
+    expect(result.status).toBe("failed");
+  });
+
   it("fails honestly when no active connection exists for the conversation's channel", async () => {
     const conversation = await rawClient.conversation.create({
       data: { businessId: business.businessId, channel: "no-connection-channel", customerName: "No Conn", customerContact: "+15550000" },

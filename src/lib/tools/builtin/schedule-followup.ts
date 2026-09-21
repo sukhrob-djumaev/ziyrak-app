@@ -6,7 +6,13 @@ import { computeIdempotencyKey } from "../idempotency";
 import type { ToolDefinition } from "../types";
 
 const schema = z.object({
-  conversationId: z.string().describe("The conversation ID"),
+  // The model is never told its conversation's id (the prompt does not contain
+  // it and no tool returns it), so it cannot supply one. The runtime
+  // conversation is authoritative; this field only exists for callers that
+  // have no runtime conversation (e.g. a human or API client) and is ignored
+  // whenever one exists, so an AI can never aim a follow-up at another
+  // conversation.
+  conversationId: z.string().optional().describe("Leave empty. The current conversation is used automatically."),
   message: z.string().describe("The follow-up message to send"),
   delayHours: z.number().describe("Hours to wait before sending the follow-up"),
 });
@@ -28,7 +34,12 @@ export const scheduleFollowupTool: ToolDefinition = {
   description: "Schedule a follow-up message to the customer after a specified time.",
   schema,
   async execute(ctx, args, runtimeCtx) {
-    const { conversationId, message, delayHours } = schema.parse(args);
+    const parsed = schema.parse(args);
+    const { message, delayHours } = parsed;
+    const conversationId = runtimeCtx.conversationId ?? parsed.conversationId;
+    if (!conversationId) {
+      return { success: false, status: "failed", message: "No conversation to schedule the follow-up in." };
+    }
     const db = getScopedPrisma(ctx);
 
     const conversation = await db.conversation.findUnique({ where: { id: conversationId } });

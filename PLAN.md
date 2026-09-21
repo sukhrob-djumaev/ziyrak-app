@@ -3124,19 +3124,19 @@ None of these six items block starting Phase 0, or any phase up to the one where
 
 ## Development Execution Protocol
 
-This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret any architectural decision made in §1–§45 or any phase's content in §46.0–§46.9. Where anything below appears to conflict with an earlier section, the earlier section (the architecture) governs, and the conflict itself should be raised per rule 12, not silently resolved either way.
+This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret any architectural decision made in §1–§45 or any phase's content in §46.0–§46.9. Where anything below appears to conflict with an earlier section, the earlier section (the architecture) governs, and the conflict itself should be raised per rule 11, not silently resolved either way.
 
 **1. Read `PLAN.md` first, every session.** Before touching code, an engineering session reads this document — at minimum the phase it has been assigned (§46.x), that phase's dependencies, and the architectural sections it references. A session that has not done this has not met the bar for starting work, regardless of how confident it is about the codebase from other context.
 
 **2. Scope discipline: work only the explicitly selected phase, module, or task.** A session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
 
-**3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 15, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
+**3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 14, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
 
 **4. Before writing code for a selected module, restate its contract from `PLAN.md`.** Concretely, identify: what it owns (its section in §6's module table, or the relevant model/contract section), its public contract (the interface it exposes — e.g., `ChannelAdapter` from §19.1, `ToolRegistry` from §23.2, `JobQueue` from §25.1), what it may depend on and what must not depend on it (§5.7's dependency-direction diagram and the per-module "depends on" column in §6), the tests required before/alongside it (§33/§34, plus that phase's own "Tests first" list), and its Definition of Done (that phase's "Acceptance criteria" list, verbatim — not a paraphrase of it). This restatement does not need to be a formal artifact; it needs to actually happen before implementation, not be skipped because the module "seems obvious." When the selected scope is a phase — or a task within one — that introduces or changes a workflow a user, administrator, agent, customer, or external provider interacts with, also settle at this point how that workflow will be verified in a real run (see "Browser and Live Workflow Verification" below), so it is scheduled rather than discovered missing at closure. The standing instruction for every such phase:
 
 > If this phase has a meaningful user-facing workflow, use available browser/computer-use tooling to exercise it end-to-end before phase closure. Do not stop at API/unit/integration tests when the actual product can be run and interacted with.
 
-**5. Follow the dependency direction already fixed in `PLAN.md`.** §5.7's rule — application/domain modules depend on contracts, never on concrete SDKs; infrastructure adapters never depend back on application/domain modules — is not a suggestion. A session that finds itself wanting to import, say, `ai/` from inside a `ChannelAdapter` implementation has found an architecture problem to raise (rule 12), not a shortcut to take.
+**5. Follow the dependency direction already fixed in `PLAN.md`.** §5.7's rule — application/domain modules depend on contracts, never on concrete SDKs; infrastructure adapters never depend back on application/domain modules — is not a suggestion. A session that finds itself wanting to import, say, `ai/` from inside a `ChannelAdapter` implementation has found an architecture problem to raise (rule 11), not a shortcut to take.
 
 **6. Tests first, wherever `PLAN.md` says so.** Every phase's "Tests first" section is a required ordering, not a nice-to-have: for tenant isolation, security regressions, and contract tests specifically, the test is written and confirmed failing against pre-change code before the change is made (this is already how §46.2's isolation-matrix rollout and §46.0's auth-bypass regression suite are specified — this rule generalizes what those phases already require to every phase).
 
@@ -3146,14 +3146,14 @@ This section makes `PLAN.md` directly usable as an operating manual by future Cl
 
 A module is developed and unit/contract-tested against its own interface (using the fakes named throughout this plan — `FakeAIProvider`, `FakeJobQueue`, `InMemoryRealtimeBus`, a fake `ChannelAdapter`, etc., per §34.1–§34.2) before it is wired into the modules that will actually call it in production. Integration then happens through the public contract already defined for that module (§6's table, the interface sections in §19/§21/§22/§25/§26/§27), not through a bespoke, one-off wiring path invented to save time.
 
-**9. Run the right test layers after every integration, not just at the end of a phase.** After wiring a module into its real caller: run that module's own unit/contract tests, the relevant integration test(s) from §34.3, tenant-isolation/security tests where the module touches tenant-owned data or a trust boundary (§33), and the full regression suite where the change is broad enough to warrant it (judgment call, but bias toward running it). **Do not postpone all integration to the end of a phase, and do not postpone all of the above to the end of implementation.** Modules are integrated continuously as they are completed, each time through the layers just listed. The final full-system verification (rule 16) is for proving the complete, already-integrated system end to end — it is not the first time independently-built pieces meet each other.
+**9. Run the right test layers after every integration, not just at the end of a phase.** After wiring a module into its real caller: run that module's own unit/contract tests, the relevant integration test(s) from §34.3, tenant-isolation/security tests where the module touches tenant-owned data or a trust boundary (§33), and the full regression suite where the change is broad enough to warrant it (judgment call, but bias toward running it). **Do not postpone all integration to the end of a phase, and do not postpone all of the above to the end of implementation.** Modules are integrated continuously as they are completed, each time through the layers just listed. The final full-system verification (rule 15) is for proving the complete, already-integrated system end to end — it is not the first time independently-built pieces meet each other.
 
 **10. A module or phase is done only when all of the following are true, not when the code merely compiles:**
    - Its required tests (rule 6) pass.
    - Its phase's acceptance criteria in `PLAN.md` (§46.x) pass, verbatim — not "close enough" or "the spirit of it."
    - Its integrations work through the intended contracts (rule 8), verified by the integration tests that exercise them.
    - No known tenant-isolation or security regression exists as a result of the change (§8, §32, §33).
-   - Where browser and live workflow verification applies (see "Browser and Live Workflow Verification" below), it has been performed and recorded — passing automated tests alone do not satisfy this rule for a user-facing or externally-integrated workflow.
+   - Where browser and live workflow verification applies (see "Browser and Live Workflow Verification" below), it has been performed and recorded (or, where browser/computer-use tooling was unavailable, handled as that subsection specifies) — passing automated tests alone do not satisfy this rule for a user-facing or externally-integrated workflow.
 
 **11. Do not silently change the architecture.** If implementation reveals that some part of `PLAN.md` is incorrect, impractical, or incomplete — a contract that doesn't fit the real provider API, a phase dependency that turns out to be wrong, a data-model detail that doesn't hold up — the session stops before making a significant deviation and instead: documents the problem concretely, explains specifically why the current plan does not work (not merely that a different approach is preferred), proposes the smallest reasonable correction, and identifies exactly which `PLAN.md` sections and phases the correction would touch. Architecture changes because implementation produced concrete evidence the original design was wrong — never because an agent prefers a different style, a trendier pattern, or a more elegant abstraction. This is the direct continuation of this document's own Principle 2 (§4): every abstraction and every contract in this plan was justified against something concrete, and any revision to one must be held to the same bar.
 
@@ -3233,6 +3233,14 @@ It is a per-phase activity: it does not replace §34.3's automated named workflo
 - Normal CI may continue to use fakes; credential-gated live tests remain a separate suite (§34.2).
 - Never print or commit secrets (§37.3).
 - If an external dependency prevents the required live verification, prepare the complete test path, record the missing dependency explicitly, and leave the corresponding acceptance criterion incomplete. A phase is not claimed complete while `PLAN.md` requires real-provider verification that has not occurred.
+
+**When browser/computer-use tooling is unavailable.** Missing tooling never turns an API, integration or unit test into browser verification, and a browser run that did not happen is never reported as having passed. As with external providers, an unavailable capability does not justify pretending the corresponding live acceptance criterion passed. Three cases are distinguished:
+
+1. **Tooling available** — the agent performs the workflow itself, as above.
+2. **Tooling unavailable, and browser/live verification is an explicit acceptance requirement** of the phase or workflow — the corresponding criterion stays incomplete and the phase is not tagged complete.
+3. **Tooling unavailable, and browser/live verification is supplementary only** (the workflow qualifies under this subsection, but the phase's acceptance criteria do not explicitly require a browser run) — the missing run is recorded as a verification limitation, and the phase may be completed only if every acceptance criterion it actually requires still passes.
+
+In cases 2 and 3 the agent also performs all automated and non-browser verification that remains possible, prepares or documents the exact browser workflow still to be executed (steps, environment/topology, and what to observe), and records in the implementation/acceptance record that browser/computer-use capability was unavailable.
 
 ## Git and Commit Workflow
 
@@ -3317,7 +3325,7 @@ Before marking a phase complete:
 - required tests pass,
 - full phase acceptance criteria pass,
 - full regression/security checks required by `PLAN.md` pass,
-- browser/live workflow verification has been determined to apply or not to apply (see "Browser and Live Workflow Verification" above) and, where it applies, has been performed and recorded as specified below,
+- browser/live workflow verification has been determined to apply or not to apply (see "Browser and Live Workflow Verification" above) and, where it applies, has been performed and recorded as specified below (or, where browser/computer-use tooling was unavailable, handled as that subsection specifies),
 - working tree contains no accidental phase leftovers,
 - deviations are documented.
 

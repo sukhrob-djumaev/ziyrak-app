@@ -39,7 +39,7 @@ describe("MetaCloudWhatsAppAdapter.validateInbound (§20.2/§46.7)", () => {
     });
 
     expect(result.kind).toBe("rejected");
-    expect(mockPrisma.channelConnection.findFirst).not.toHaveBeenCalled();
+    expect(mockPrisma.channelConnection.findMany).not.toHaveBeenCalled();
   });
 
   it("rejects malformed JSON without throwing", async () => {
@@ -66,7 +66,7 @@ describe("MetaCloudWhatsAppAdapter.validateInbound (§20.2/§46.7)", () => {
   });
 
   it("rejects when no ChannelConnection matches the payload's phone_number_id", async () => {
-    mockPrisma.channelConnection.findFirst.mockResolvedValue(null);
+    mockPrisma.channelConnection.findMany.mockResolvedValue([]);
     const { metaCloudWhatsAppAdapter } = await import("@/lib/channels/meta-whatsapp-adapter");
     const rawBody = JSON.stringify({
       object: "whatsapp_business_account",

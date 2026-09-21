@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ChannelCredentialSchema, type ChannelCredential } from "@/lib/secrets";
 import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { AppError } from "@/lib/observability/errors";
+import { prepareMetaCloudConnection } from "./meta-whatsapp-setup";
 
 /**
  * PLAN.md §7.7/§16.2 — tenant-scoped `ChannelConnection` access for the
@@ -69,9 +70,18 @@ async function resolveCredentialRef(type: string, credential: ChannelCredential 
   return encryptChannelCredential(validated);
 }
 
-export async function upsertByType(ctx: TenantContext, type: string, input: UpsertConnectionInput) {
+export async function upsertByType(ctx: TenantContext, type: string, rawInput: UpsertConnectionInput) {
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
+
+  // PLAN.md §46.7 — Meta Cloud's routing key (`config.phoneNumberId`) is
+  // derived from an ownership-verified credential, never client-supplied.
+  let input = rawInput;
+  if (type === "whatsapp_cloud") {
+    const prepared = await prepareMetaCloudConnection(ctx, rawInput, (existing?.config ?? undefined) as Record<string, unknown> | undefined);
+    input = { ...rawInput, config: prepared.config };
+  }
+
   const credentialRef = await resolveCredentialRef(type, input.credential);
 
   if (existing) {

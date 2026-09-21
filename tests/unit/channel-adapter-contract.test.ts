@@ -26,6 +26,7 @@ beforeEach(() => {
   // No ChannelConnection ever matches in this suite — every adapter's
   // validateInbound() should reject cleanly rather than throw.
   mockPrisma.channelConnection.findFirst.mockResolvedValue(null);
+  mockPrisma.channelConnection.findMany.mockResolvedValue([]);
   mockPrisma.channelConnection.findUnique.mockResolvedValue(null);
 });
 

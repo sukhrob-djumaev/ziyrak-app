@@ -41,14 +41,43 @@ export async function findConnectionByConfigField(
   value: string
 ): Promise<ResolvedConnection | null> {
   if (!value) return null;
-  const connection = await rawPrisma.channelConnection.findFirst({
+  const matches = await rawPrisma.channelConnection.findMany({
     where: {
       type,
       isActive: true,
       config: { path: [field], equals: value },
     },
+    take: 2,
   });
+  // Fail closed on ambiguity (PLAN.md §7.7/§46.7): if two active connections
+  // ever claim the same provider identifier, routing an inbound message to
+  // an arbitrary one of them would hand one business another's customer
+  // traffic. Nobody receiving it is the safe failure; save-time checks
+  // (`isConfigFieldClaimedByOtherBusiness`) exist to keep this from arising.
+  if (matches.length > 1) {
+    logger.error("Ambiguous ChannelConnection resolution — refusing to route", { type, field });
+    return null;
+  }
+  const connection = matches[0];
   return connection ? { businessId: connection.businessId, connectionId: connection.id } : null;
+}
+
+/**
+ * True when a connection of `type` belonging to a *different* business
+ * already claims this provider identifier (e.g. a Meta `phone_number_id`).
+ * Cross-tenant by nature, so it lives here with the other pre-`ctx` lookups.
+ */
+export async function isConfigFieldClaimedByOtherBusiness(
+  type: string,
+  field: string,
+  value: string,
+  businessId: string
+): Promise<boolean> {
+  const other = await rawPrisma.channelConnection.findFirst({
+    where: { type, businessId: { not: businessId }, config: { path: [field], equals: value } },
+    select: { id: true },
+  });
+  return other !== null;
 }
 
 /** Twilio's `To` (SMS) / dialed number (Phone) is the provider identifier both channels share (§19.2). */

@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/rbac/rbac";
 import type { ActionStatus, ToolDefinition, ToolResult, ToolRuntimeContext } from "./types";
 import { resolveEffectiveToolPolicy } from "./policy";
 import { computeIdempotencyKey } from "./idempotency";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 
 const TERMINAL_STATUSES: ReadonlySet<ActionStatus> = new Set(["succeeded", "failed", "cancelled"]);
 
@@ -182,9 +183,9 @@ export class ToolRegistry {
   async approve(ctx: TenantContext, actionExecutionId: string): Promise<ToolResult> {
     const db = getScopedPrisma(ctx);
     const record = await db.actionExecution.findUnique({ where: { id: actionExecutionId } });
-    if (!record) throw new Error(`ActionExecution ${actionExecutionId} not found.`);
+    if (!record) throw new NotFoundError("ActionExecution");
     if (record.status !== "pending_approval") {
-      throw new Error(`ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
+      throw new AppError(409, "NOT_PENDING_APPROVAL", `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
     }
 
     const tool = this.tools.get(record.tool);
@@ -202,9 +203,9 @@ export class ToolRegistry {
   async reject(ctx: TenantContext, actionExecutionId: string): Promise<void> {
     const db = getScopedPrisma(ctx);
     const record = await db.actionExecution.findUnique({ where: { id: actionExecutionId } });
-    if (!record) throw new Error(`ActionExecution ${actionExecutionId} not found.`);
+    if (!record) throw new NotFoundError("ActionExecution");
     if (record.status !== "pending_approval") {
-      throw new Error(`ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
+      throw new AppError(409, "NOT_PENDING_APPROVAL", `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
     }
     await db.actionExecution.update({ where: { id: record.id }, data: { status: "cancelled", completedAt: new Date() } });
   }

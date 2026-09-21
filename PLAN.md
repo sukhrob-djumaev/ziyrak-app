@@ -3132,7 +3132,9 @@ This section makes `PLAN.md` directly usable as an operating manual by future Cl
 
 **3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 15, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
 
-**4. Before writing code for a selected module, restate its contract from `PLAN.md`.** Concretely, identify: what it owns (its section in §6's module table, or the relevant model/contract section), its public contract (the interface it exposes — e.g., `ChannelAdapter` from §19.1, `ToolRegistry` from §23.2, `JobQueue` from §25.1), what it may depend on and what must not depend on it (§5.7's dependency-direction diagram and the per-module "depends on" column in §6), the tests required before/alongside it (§33/§34, plus that phase's own "Tests first" list), and its Definition of Done (that phase's "Acceptance criteria" list, verbatim — not a paraphrase of it). This restatement does not need to be a formal artifact; it needs to actually happen before implementation, not be skipped because the module "seems obvious."
+**4. Before writing code for a selected module, restate its contract from `PLAN.md`.** Concretely, identify: what it owns (its section in §6's module table, or the relevant model/contract section), its public contract (the interface it exposes — e.g., `ChannelAdapter` from §19.1, `ToolRegistry` from §23.2, `JobQueue` from §25.1), what it may depend on and what must not depend on it (§5.7's dependency-direction diagram and the per-module "depends on" column in §6), the tests required before/alongside it (§33/§34, plus that phase's own "Tests first" list), and its Definition of Done (that phase's "Acceptance criteria" list, verbatim — not a paraphrase of it). This restatement does not need to be a formal artifact; it needs to actually happen before implementation, not be skipped because the module "seems obvious." When the selected scope is a phase — or a task within one — that introduces or changes a workflow a user, administrator, agent, customer, or external provider interacts with, also settle at this point how that workflow will be verified in a real run (see "Browser and Live Workflow Verification" below), so it is scheduled rather than discovered missing at closure. The standing instruction for every such phase:
+
+> If this phase has a meaningful user-facing workflow, use available browser/computer-use tooling to exercise it end-to-end before phase closure. Do not stop at API/unit/integration tests when the actual product can be run and interacted with.
 
 **5. Follow the dependency direction already fixed in `PLAN.md`.** §5.7's rule — application/domain modules depend on contracts, never on concrete SDKs; infrastructure adapters never depend back on application/domain modules — is not a suggestion. A session that finds itself wanting to import, say, `ai/` from inside a `ChannelAdapter` implementation has found an architecture problem to raise (rule 12), not a shortcut to take.
 
@@ -3151,6 +3153,7 @@ A module is developed and unit/contract-tested against its own interface (using 
    - Its phase's acceptance criteria in `PLAN.md` (§46.x) pass, verbatim — not "close enough" or "the spirit of it."
    - Its integrations work through the intended contracts (rule 8), verified by the integration tests that exercise them.
    - No known tenant-isolation or security regression exists as a result of the change (§8, §32, §33).
+   - Where browser and live workflow verification applies (see "Browser and Live Workflow Verification" below), it has been performed and recorded — passing automated tests alone do not satisfy this rule for a user-facing or externally-integrated workflow.
 
 **11. Do not silently change the architecture.** If implementation reveals that some part of `PLAN.md` is incorrect, impractical, or incomplete — a contract that doesn't fit the real provider API, a phase dependency that turns out to be wrong, a data-model detail that doesn't hold up — the session stops before making a significant deviation and instead: documents the problem concretely, explains specifically why the current plan does not work (not merely that a different approach is preferred), proposes the smallest reasonable correction, and identifies exactly which `PLAN.md` sections and phases the correction would touch. Architecture changes because implementation produced concrete evidence the original design was wrong — never because an agent prefers a different style, a trendier pattern, or a more elegant abstraction. This is the direct continuation of this document's own Principle 2 (§4): every abstraction and every contract in this plan was justified against something concrete, and any revision to one must be held to the same bar.
 
@@ -3178,6 +3181,58 @@ Business/tenant setup (§46.1/§46.2, §7)
 ```
 
 This verification additionally and explicitly covers, per §33's isolation strategy and §31's reliability strategy: **multiple businesses operating simultaneously with confirmed cross-tenant isolation** (including the database-bypass tests, §8.4/§33.4 item 3), **duplicate provider delivery** (§33.4 item 1), **concurrent messages against the same conversation** (§33.4 item 2), **retries at every layer that has one** (AI provider, job, webhook delivery — §31.1, §33.4 item 6), **provider failures** (an AI provider or channel adapter returning errors, §21.3/§31.3), **job failures and dead-lettering** (§25, §31.3), **tool failures** (§23.2's error path), and **restart/recovery behavior** (a worker restarting mid-job, §46.6/§46.8's restart tests) — this list is a floor, not a ceiling; a session performing this verification should extend it where a specific phase's own acceptance criteria named a scenario not already covered above.
+
+### Browser and Live Workflow Verification
+
+> **Automated tests prove components and contracts. Browser/live execution proves the assembled user workflow.**
+
+Automated tests are necessary but are not sufficient acceptance evidence for user-facing or externally-integrated workflows. Phase 7 showed why: running the assembled product for real exposed defects that the unit, integration and security suites had not caught — `/widget.js` was redirected to `/login`; Web Chat replies produced in the worker process never reached the widget served by the web process; channel adapters were never registered inside the worker; runtime audit logging was missing; and an escalation path detached a Web Chat conversation from its connection (§46.7's implementation record). Each was a property of the assembled product — routing, process boundaries, runtime wiring, feature interaction — rather than of any one component.
+
+Whenever a phase introduces or changes a workflow that a real user, administrator, agent, customer, or external provider interacts with, the implementation phase must include a real execution of that workflow using the application itself. Examples:
+
+- signup, login and onboarding;
+- dashboard configuration;
+- business/tenant switching;
+- channel setup and credential configuration;
+- Web Chat widget installation and interaction;
+- customer conversations;
+- agent/human handoff;
+- approval workflows;
+- knowledge management;
+- tool/action configuration;
+- externally reachable webhook flows;
+- production channel integrations;
+- any flow whose correctness depends on routing, cookies, CORS, public assets, redirects, browser behavior, worker/web-process interaction, deployment/runtime configuration or process boundaries.
+
+Where browser/computer-use tooling is available, the implementing agent uses it directly instead of asking the developer to click through the workflow manually.
+
+For a browser-verifiable workflow, the agent:
+
+1. starts the actual application and the required supporting services/processes with production-equivalent configuration where practical (for this codebase: a production build with the worker running as its own process, §25.3/§5.8, rather than a single-process dev server);
+2. opens the application with browser/computer-use tooling;
+3. performs the workflow through the real UI or public product surface;
+4. does not substitute direct API or database calls for a UI action where a production UI exists for that step;
+5. observes the visible UI state, relevant network behavior, worker/web-process interaction, persisted state, audit/logging state (§38), and relevant external-provider behavior;
+6. verifies the outcome against the phase's acceptance criteria;
+7. treats any defect found as an implementation finding belonging to the owning phase (a defect that shows the plan itself is wrong is handled under rule 11, not fixed silently);
+8. adds a regression test where practical, makes the smallest fix, and repeats the browser/live workflow;
+9. records the exact workflow exercised and its result in the phase's implementation record, with the contents listed under "Phase completion" in the Git and Commit Workflow below.
+
+This complements, and never replaces, automated verification:
+
+- unit tests prove local behavior;
+- contract tests prove abstractions (§34.1);
+- integration and tenant-isolation/security tests prove boundaries, persistence and isolation (§33, §34.1);
+- browser/live workflow verification proves that the assembled product actually works from the user's perspective.
+
+It is a per-phase activity: it does not replace §34.3's automated named workflows or rule 15's final full-system verification. It is not required for a purely internal or mechanical phase with no meaningful user-facing workflow (for example, a module reorganization such as §46.3) unless that phase's acceptance criteria explicitly require it.
+
+**External providers.**
+
+- Use the provider's real sandbox/test environment when credentials and an appropriate environment exist.
+- Normal CI may continue to use fakes; credential-gated live tests remain a separate suite (§34.2).
+- Never print or commit secrets (§37.3).
+- If an external dependency prevents the required live verification, prepare the complete test path, record the missing dependency explicitly, and leave the corresponding acceptance criterion incomplete. A phase is not claimed complete while `PLAN.md` requires real-provider verification that has not occurred.
 
 ## Git and Commit Workflow
 
@@ -3262,8 +3317,21 @@ Before marking a phase complete:
 - required tests pass,
 - full phase acceptance criteria pass,
 - full regression/security checks required by `PLAN.md` pass,
+- browser/live workflow verification has been determined to apply or not to apply (see "Browser and Live Workflow Verification" above) and, where it applies, has been performed and recorded as specified below,
 - working tree contains no accidental phase leftovers,
 - deviations are documented.
+
+Before tagging a phase complete, determine whether browser/live verification applies. If it does, the phase's implementation record must include:
+
+- the environment/topology used (which processes, build mode, database, configuration),
+- the workflow executed,
+- the browser/UI actions performed,
+- external-provider involvement, if any,
+- the observable result,
+- defects discovered and fixed,
+- remaining external blockers.
+
+A phase whose acceptance criteria require real-provider verification that has not occurred is not tagged complete; the open criterion is recorded as open.
 
 ### Tags
 
@@ -3276,7 +3344,7 @@ phase-2-complete
 mvp-v1
 ```
 
-Only tag after the corresponding acceptance criteria pass.
+Only tag after the corresponding acceptance criteria pass and the phase-completion checks above — including the browser/live verification determination — are done.
 
 ### Agent behavior
 
@@ -3291,6 +3359,6 @@ Future Claude/Codex sessions must:
 
 ### After this section
 
-This document should now be re-read once, in full, to confirm the protocol above does not contradict any architectural decision or any phase's acceptance criteria already written — that check was performed as part of adding this section, and again when the Git and Commit Workflow section above was added. No other content in `PLAN.md` was altered to add either section.
+This document should now be re-read once, in full, to confirm the protocol above does not contradict any architectural decision or any phase's acceptance criteria already written — that check was performed as part of adding this section, and again when the Git and Commit Workflow section above was added. No other content in `PLAN.md` was altered to add either section. The "Browser and Live Workflow Verification" subsection was added later, with small cross-references in rules 4 and 10 above and in the Git and Commit Workflow's "Phase completion" and "Tags" sections; `PLAN.md` was re-read in full for that change, and it adds process only — no architectural decision, phase scope, implementation record, or acceptance criterion elsewhere was altered.
 
 **`PLAN.md` is now frozen for implementation.** Future changes to the architecture, module boundaries, data model, security design, or phase roadmap should originate from concrete findings surfaced during implementation (per rule 11 above), not from further speculative redesign in the absence of code having been written against it.

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
-import { executeToolCall } from "@/lib/tools/tools";
+import { createTicketTool } from "@/lib/tools/builtin/create-ticket";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
@@ -43,22 +43,19 @@ describe("Characterization: create_ticket tool persists a Ticket row", () => {
       departmentId: "dept-1",
     });
 
-    const result = JSON.parse(
-      await executeToolCall(
-        ctx,
-        "create_ticket",
-        {
-          title: "Order not delivered",
-          description: "Customer reports order #123 not delivered",
-          priority: "high",
-          department: "Technical Support",
-        },
-        "conv-1"
-      )
+    const result = await createTicketTool.execute(
+      ctx,
+      {
+        title: "Order not delivered",
+        description: "Customer reports order #123 not delivered",
+        priority: "high",
+        department: "Technical Support",
+      },
+      { conversationId: "conv-1" }
     );
 
     expect(result.success).toBe(true);
-    expect(result.ticketId).toBe("ticket-char-1");
+    expect((result.data as { ticketId: string }).ticketId).toBe("ticket-char-1");
     expect(mockPrisma.ticket.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

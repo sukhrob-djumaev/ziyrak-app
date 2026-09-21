@@ -81,7 +81,11 @@ const eslintConfig = defineConfig([
       // `assertDefaultBusinessOnly()`, not by silent fallback). The one
       // remaining entry below reads `Settings.welcomeMessage`-equivalent
       // global config with no per-business destination of its own yet.
-      "src/lib/tools/tools.ts",
+      // PLAN.md §46.6 — `tools/tools.ts`'s switch statement (and this SMTP
+      // read within it) was mechanically extracted into
+      // `tools/builtin/send-internal-email.ts` unchanged; the allowlist
+      // entry moves with it.
+      "src/lib/tools/builtin/send-internal-email.ts",
     ],
     rules: {
       "no-restricted-imports": [

@@ -90,6 +90,16 @@ describe("AI Engine", () => {
     // Default message creation
     mockPrisma.message.create.mockResolvedValue({ id: "msg-new" });
     mockPrisma.conversation.update.mockResolvedValue({});
+
+    // §46.6 — tool calls now go through ToolRegistry.execute(), which
+    // records a real ActionExecution row per attempt (§24.2). No prior
+    // attempt exists by default (idempotency short-circuit is off), and a
+    // fresh row's id is enough for callAI's tool-call loop below to
+    // proceed and update it after the tool itself runs.
+    mockPrisma.actionExecution.findUnique.mockResolvedValue(null);
+    mockPrisma.actionExecution.create.mockResolvedValue({ id: "action-exec-1" });
+    mockPrisma.actionExecution.update.mockResolvedValue({});
+    mockPrisma.toolPolicy.findUnique.mockResolvedValue(null);
   });
 
   it("should return fallback when AI API key is not configured", async () => {

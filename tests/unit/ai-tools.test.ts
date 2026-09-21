@@ -1,7 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
-import { executeToolCall } from "@/lib/tools/tools";
+import { createTicketTool } from "@/lib/tools/builtin/create-ticket";
+import { assignToPersonTool } from "@/lib/tools/builtin/assign-to-person";
+import { sendInternalEmailTool } from "@/lib/tools/builtin/send-internal-email";
+import { getCustomerHistoryTool } from "@/lib/tools/builtin/get-customer-history";
+import { triggerWebhookTool } from "@/lib/tools/builtin/trigger-webhook";
 import type { TenantContext } from "@/lib/tenancy/context";
+
+// The SSRF-hardened dispatcher itself has its own dedicated suite
+// (tests/security/http-dispatcher-ssrf.test.ts) — mocked here so this
+// file only tests this tool's own lookup/wiring logic.
+vi.mock("@/lib/integrations/http-dispatcher", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/integrations/http-dispatcher")>();
+  return { ...actual, dispatchHttpRequest: vi.fn() };
+});
+
+/**
+ * PLAN.md §23.2 — these tools were mechanically extracted from the old
+ * `tools/tools.ts` switch statement into `tools/builtin/*.ts`, one module
+ * per tool, each now a `ToolDefinition` with a Zod schema instead of a
+ * hand-written JSON-schema block. This suite tests each tool's own
+ * `execute()` directly — the same pre-existing per-tool logic, unchanged —
+ * rather than going through `ToolRegistry.execute()` (that's
+ * `tests/unit/tool-registry.test.ts`'s job: authorization, idempotency,
+ * ActionExecution recording, and the approval workflow).
+ */
 
 const ctx: TenantContext = {
   businessId: "test-biz",
@@ -10,7 +33,6 @@ const ctx: TenantContext = {
   dataConnection: "shared-default",
 };
 
-// Mock nodemailer
 vi.mock("nodemailer", () => ({
   default: {
     createTransport: vi.fn().mockReturnValue({
@@ -21,49 +43,33 @@ vi.mock("nodemailer", () => ({
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
-describe("AI Tools", () => {
+describe("Built-in tools (tools/builtin/*)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // Reset all mock implementations
     for (const model of Object.values(mockPrisma)) {
-      if (typeof model === "object" && model !== null) {
-        for (const method of Object.values(model)) {
-          if (typeof method === "function" && "mockReset" in method) {
-            (method as ReturnType<typeof vi.fn>).mockReset();
-          }
+      if (typeof model !== "object" || model === null) continue;
+      for (const method of Object.values(model)) {
+        if (typeof method === "function" && "mockReset" in method) {
+          (method as ReturnType<typeof vi.fn>).mockReset();
         }
       }
     }
   });
 
   describe("create_ticket", () => {
-    it("should create a ticket with correct fields", async () => {
-      mockPrisma.department.findFirst.mockResolvedValue({
-        id: "dept-1",
-        name: "Support",
-      });
-      mockPrisma.ticket.create.mockResolvedValue({
-        id: "ticket-1",
-        title: "Login issue",
-        priority: "high",
-      });
+    it("creates a ticket with correct fields", async () => {
+      mockPrisma.department.findFirst.mockResolvedValue({ id: "dept-1", name: "Support" });
+      mockPrisma.ticket.create.mockResolvedValue({ id: "ticket-1", title: "Login issue", priority: "high" });
 
-      const result = JSON.parse(
-        await executeToolCall(
-          ctx,
-          "create_ticket",
-          {
-            title: "Login issue",
-            description: "Cannot login",
-            priority: "high",
-            department: "Support",
-          },
-          "conv-1"
-        )
+      const result = await createTicketTool.execute(
+        ctx,
+        { title: "Login issue", description: "Cannot login", priority: "high", department: "Support" },
+        { conversationId: "conv-1" }
       );
 
       expect(result.success).toBe(true);
-      expect(result.ticketId).toBe("ticket-1");
+      expect(result.status).toBe("succeeded");
+      expect((result.data as { ticketId: string }).ticketId).toBe("ticket-1");
       expect(mockPrisma.ticket.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -77,20 +83,14 @@ describe("AI Tools", () => {
       );
     });
 
-    it("should create ticket without department when not found", async () => {
+    it("creates ticket without department when not found", async () => {
       mockPrisma.department.findFirst.mockResolvedValue(null);
-      mockPrisma.ticket.create.mockResolvedValue({
-        id: "ticket-2",
-        title: "Issue",
-        priority: "medium",
-      });
+      mockPrisma.ticket.create.mockResolvedValue({ id: "ticket-2", title: "Issue", priority: "medium" });
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "create_ticket", {
-          title: "Issue",
-          description: "Details",
-          priority: "medium",
-        })
+      const result = await createTicketTool.execute(
+        ctx,
+        { title: "Issue", description: "Details", priority: "medium" },
+        {}
       );
 
       expect(result.success).toBe(true);
@@ -98,46 +98,33 @@ describe("AI Tools", () => {
   });
 
   describe("assign_to_person", () => {
-    it("should assign ticket to matching team member", async () => {
-      mockPrisma.teamMember.findFirst.mockResolvedValue({
-        id: "member-1",
-        name: "Jane",
-        department: { name: "Billing" },
-      });
+    it("assigns ticket to matching team member", async () => {
+      mockPrisma.teamMember.findFirst.mockResolvedValue({ id: "member-1", name: "Jane", department: { name: "Billing" } });
       mockPrisma.ticket.update.mockResolvedValue({});
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "assign_to_person", {
-          ticketId: "ticket-1",
-          expertise: "billing",
-        })
-      );
+      const result = await assignToPersonTool.execute(ctx, { ticketId: "ticket-1", expertise: "billing" }, {});
 
       expect(result.success).toBe(true);
-      expect(result.assignedTo).toBe("Jane");
+      expect((result.data as { assignedTo: string }).assignedTo).toBe("Jane");
       expect(mockPrisma.ticket.update).toHaveBeenCalledWith({
         where: { id: "ticket-1" },
         data: { assignedToId: "member-1", status: "in_progress" },
       });
     });
 
-    it("should return failure when no matching member found", async () => {
+    it("returns failure when no matching member found", async () => {
       mockPrisma.teamMember.findFirst.mockResolvedValue(null);
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "assign_to_person", {
-          ticketId: "ticket-1",
-          expertise: "quantum-physics",
-        })
-      );
+      const result = await assignToPersonTool.execute(ctx, { ticketId: "ticket-1", expertise: "quantum-physics" }, {});
 
       expect(result.success).toBe(false);
+      expect(result.status).toBe("failed");
       expect(result.message).toContain("No available team member");
     });
   });
 
   describe("send_internal_email", () => {
-    it("should send email when SMTP is configured", async () => {
+    it("sends email when SMTP is configured", async () => {
       mockPrisma.settings.findFirst.mockResolvedValue({
         smtpHost: "smtp.test.com",
         smtpPort: 587,
@@ -146,27 +133,19 @@ describe("AI Tools", () => {
         smtpFrom: "support@test.com",
       });
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "send_internal_email", {
-          to: "team@test.com",
-          subject: "Urgent issue",
-          body: "Please check ticket #123",
-        })
+      const result = await sendInternalEmailTool.execute(
+        ctx,
+        { to: "team@test.com", subject: "Urgent issue", body: "Please check ticket #123" },
+        {}
       );
 
       expect(result.success).toBe(true);
     });
 
-    it("should return failure when SMTP not configured", async () => {
+    it("returns failure when SMTP not configured", async () => {
       mockPrisma.settings.findFirst.mockResolvedValue({ smtpHost: null });
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "send_internal_email", {
-          to: "team@test.com",
-          subject: "Test",
-          body: "Test body",
-        })
-      );
+      const result = await sendInternalEmailTool.execute(ctx, { to: "team@test.com", subject: "Test", body: "Test body" }, {});
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("Email not configured");
@@ -174,7 +153,7 @@ describe("AI Tools", () => {
   });
 
   describe("get_customer_history", () => {
-    it("should return conversation history", async () => {
+    it("returns conversation history", async () => {
       mockPrisma.conversation.findMany.mockResolvedValue([
         {
           channel: "whatsapp",
@@ -188,101 +167,73 @@ describe("AI Tools", () => {
         },
       ]);
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "get_customer_history", {
-          customerContact: "+1555",
-        })
-      );
+      const result = await getCustomerHistoryTool.execute(ctx, { customerContact: "+1555" }, {});
 
       expect(result.success).toBe(true);
-      expect(result.history).toHaveLength(1);
-      expect(result.history[0].channel).toBe("whatsapp");
+      const data = result.data as { history: Array<{ channel: string }> };
+      expect(data.history).toHaveLength(1);
+      expect(data.history[0].channel).toBe("whatsapp");
     });
 
-    it("should return empty history for new customer", async () => {
+    it("returns empty history for new customer", async () => {
       mockPrisma.conversation.findMany.mockResolvedValue([]);
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "get_customer_history", {
-          customerContact: "+9999",
-        })
-      );
+      const result = await getCustomerHistoryTool.execute(ctx, { customerContact: "+9999" }, {});
 
       expect(result.success).toBe(true);
-      expect(result.history).toHaveLength(0);
+      expect((result.data as { history: unknown[] }).history).toHaveLength(0);
       expect(result.message).toContain("No previous conversations");
     });
   });
 
-  describe("schedule_followup", () => {
-    it("should return success with scheduled time", async () => {
-      const result = JSON.parse(
-        await executeToolCall(ctx, "schedule_followup", {
-          conversationId: "conv-1",
-          message: "How is everything going?",
-          delayHours: 24,
-        })
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.scheduledFor).toBeDefined();
-    });
-  });
-
   describe("trigger_webhook", () => {
-    it("should trigger webhook when found and active", async () => {
+    it("dispatches the webhook when found and active, via the shared SSRF-hardened dispatcher", async () => {
       mockPrisma.webhook.findFirst.mockResolvedValue({
         id: "wh-1",
         name: "Slack",
-        url: "https://hooks.slack.com/test",
+        url: "https://hooks.slack.example/test",
         method: "POST",
         headers: {},
       });
 
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-      });
-      global.fetch = mockFetch;
+      const { dispatchHttpRequest } = await import("@/lib/integrations/http-dispatcher");
+      vi.mocked(dispatchHttpRequest).mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "trigger_webhook", {
-          webhookName: "Slack",
-          data: { event: "ticket_created" },
-        })
-      );
+      const result = await triggerWebhookTool.execute(ctx, { webhookName: "Slack", data: { event: "ticket_created" } }, {});
 
       expect(result.success).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "https://hooks.slack.com/test",
-        expect.objectContaining({
-          method: "POST",
-          signal: expect.any(AbortSignal),
-        })
+      expect(dispatchHttpRequest).toHaveBeenCalledWith(
+        "https://hooks.slack.example/test",
+        expect.objectContaining({ method: "POST" })
       );
     });
 
-    it("should return failure when webhook not found", async () => {
+    it("returns failure when webhook not found", async () => {
       mockPrisma.webhook.findFirst.mockResolvedValue(null);
 
-      const result = JSON.parse(
-        await executeToolCall(ctx, "trigger_webhook", {
-          webhookName: "NonExistent",
-        })
-      );
+      const result = await triggerWebhookTool.execute(ctx, { webhookName: "NonExistent" }, {});
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("No active webhook");
     });
-  });
 
-  describe("unknown tool", () => {
-    it("should return error for unknown tool name", async () => {
-      const result = JSON.parse(
-        await executeToolCall(ctx, "nonexistent_tool", {})
-      );
+    it("reports an SSRF rejection as a normal tool failure, not a thrown error", async () => {
+      mockPrisma.webhook.findFirst.mockResolvedValue({
+        id: "wh-2",
+        name: "Internal",
+        url: "http://169.254.169.254/latest/meta-data/",
+        method: "POST",
+        headers: {},
+      });
 
-      expect(result.error).toContain("Unknown tool");
+      const { dispatchHttpRequest, SSRFBlockedError } = await import("@/lib/integrations/http-dispatcher");
+      vi.mocked(dispatchHttpRequest).mockRejectedValue(new SSRFBlockedError("http://169.254.169.254/", "resolves to a disallowed address"));
+
+      const result = await triggerWebhookTool.execute(ctx, { webhookName: "Internal" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe("failed");
+      expect(result.message).toContain("Refusing to dispatch");
     });
   });
 });

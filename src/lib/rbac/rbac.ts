@@ -124,6 +124,12 @@ export const PERMISSIONS = {
   "business:delete": OWNER_ONLY,
   "business:transfer-ownership": OWNER_ONLY,
   "business:billing": OWNER_ONLY,
+
+  // Action executions (§23-24/§46.6) — approving/rejecting a
+  // pending_approval ActionExecution is a human decision distinct from
+  // whatever RBAC permission the underlying tool itself requires.
+  "actions:read": SUPERVISOR_ROLES,
+  "actions:approve": SUPERVISOR_ROLES,
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

@@ -54,6 +54,8 @@ model Business {
   businessHours     BusinessHours[]
   aiInteractionLogs AIInteractionLog[]
   inboundEventReceipts InboundEventReceipt[]
+  toolPolicies      ToolPolicy[]
+  actionExecutions  ActionExecution[]
 }
 
 model Membership {
@@ -673,6 +675,17 @@ model AutomationRule {
   description  String   @default("")
   type         String // auto_route, auto_tag, auto_reply, keyword_alert
   isActive     Boolean  @default(true)
+  // PLAN.md §46.6 task 6 — this rule had zero runtime effect before Phase 6
+  // reconnected evaluateRules() into processInboundMessage(). A pre-existing
+  // isActive:true row must not suddenly start firing just because the
+  // runtime wiring now exists; the Phase 6 data migration backfills this
+  // true for every such row, and evaluateRules() only matches
+  // requiresReconfirmation:false. A business clears it by explicitly saving
+  // the rule again in the dashboard (PUT /api/automation/:id) — that save
+  // is the "explicit re-confirmation" the plan requires. New rules created
+  // after this phase default to false (an admin creating a rule today
+  // already knows automation is live).
+  requiresReconfirmation Boolean @default(false)
   conditions   Json     @default("[]") // [{field, operator, value}]
   actions      Json     @default("[]") // [{type, target, value}]
   priority     Int      @default(0)
@@ -787,4 +800,51 @@ model Flow {
   updatedAt    DateTime @updatedAt
 
   @@index([businessId])
+}
+
+// ==================== TOOL POLICY / ACTION EXECUTION (PLAN.md §23.4/§24.2, Phase 6/§46.6) ====================
+
+// The AI-authorization dimension, independent of human RBAC (§9.5/§15.4).
+// One row per (businessId, tool); ToolRegistry.getAvailableTools()/.execute()
+// check this for `ai_agent`-kind actors instead of hasPermission().
+model ToolPolicy {
+  id                    String   @id @default(uuid())
+  businessId            String
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tool                  String
+  enabledForTenant      Boolean  @default(true)
+  allowedForAI          Boolean  @default(false)
+  allowedForHumanRoles  Json     @default("[\"agent\",\"supervisor\",\"admin\",\"owner\"]")
+  requiresHumanApproval Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([businessId, tool])
+  @@index([businessId])
+}
+
+// Every tool invocation's durable record (§24.1/§24.2) — an LLM's own
+// generated text is never the source of truth for whether an action
+// happened; this row is. `idempotencyKey` is NOT NULL: every execution
+// attempt has one (§24.4), identifying the attempt (AI provider toolCallId,
+// or an explicit client-supplied key) rather than a hash of arguments.
+model ActionExecution {
+  id             String    @id @default(uuid())
+  businessId     String
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tool           String
+  status         String    @default("requested") // requested | pending_approval | scheduled | running | succeeded | failed | cancelled
+  input          Json
+  result         Json?
+  conversationId String?
+  requestedBy    String // "ai" | userId | "system"
+  idempotencyKey String
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status])
+  @@index([businessId, conversationId])
 }

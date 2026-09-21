@@ -46,8 +46,8 @@ export class OpenAIProvider implements AIProvider {
     };
 
     if (choice.finish_reason === "tool_calls" && choice.message.tool_calls?.length) {
-      // owlyTools (tools/tools.ts) only ever defines function-type tools, so
-      // OpenAI only ever returns the "function" variant of its tool_calls
+      // The ToolRegistry (tools/registry.ts) only ever defines function-type
+      // tools, so OpenAI only ever returns the "function" variant of its tool_calls
       // union (the other, "custom", is a freeform-text tool this codebase
       // never registers) — filtered rather than assumed, since the SDK's
       // own type is a union.

@@ -1,4 +1,6 @@
-import { owlyTools, executeToolCall } from "@/lib/tools/tools";
+import "@/lib/tools/builtin";
+import { toolRegistry } from "@/lib/tools/registry";
+import { toProviderToolDefinition } from "@/lib/tools/schema-json";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import {
@@ -226,11 +228,23 @@ async function callAI(
 
   const provider = aiProviderRegistry.get(config.provider, { apiKey: config.apiKey! });
 
+  // PLAN.md §9.5 — the AI's own `ExecutionPrincipal`, distinct from
+  // whatever actor (`system_job` for a channel job, `user`/`api_key` for
+  // the internal chat API) originated this `chat()` call. ToolPolicy
+  // governs what the AI may call regardless of who/what triggered this
+  // conversation turn — never the caller's own RBAC role.
+  const aiActorCtx: TenantContext = {
+    ...ctx,
+    role: null,
+    actor: { kind: "ai_agent", conversationId, model: config.model },
+  };
+  const availableTools = await toolRegistry.getAvailableTools(aiActorCtx);
+
   let result: CompletionResult;
   try {
     result = await completeWithOneRetry(provider, {
       messages,
-      tools: owlyTools,
+      tools: availableTools.map(toProviderToolDefinition),
       maxTokens: config.maxTokens,
       temperature: config.temperature,
       model: config.model,
@@ -258,11 +272,14 @@ async function callAI(
 
     for (const toolCall of result.toolCalls) {
       const args = JSON.parse(toolCall.arguments);
-      const toolResult = await executeToolCall(ctx, toolCall.name, args, conversationId);
+      const toolResult = await toolRegistry.execute(aiActorCtx, toolCall.name, args, {
+        conversationId,
+        toolCallId: toolCall.id,
+      });
 
       messages.push({
         role: "tool",
-        content: toolResult,
+        content: JSON.stringify(toolResult),
         tool_call_id: toolCall.id,
       });
     }

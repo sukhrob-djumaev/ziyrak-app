@@ -144,6 +144,8 @@ function createMockPrismaClient() {
     "flow",
     "aIInteractionLog",
     "inboundEventReceipt",
+    "toolPolicy",
+    "actionExecution",
   ];
 
   const client: Record<string, unknown> = {

@@ -296,6 +296,12 @@ async function createMinimalRow(
       return db.inboundEventReceipt.create({
         data: { source: "test", externalEventId: marker, eventType: "message.received", correlationId: marker },
       });
+    case "toolPolicy":
+      return db.toolPolicy.create({ data: { tool: `test_tool_${marker}` } });
+    case "actionExecution":
+      return db.actionExecution.create({
+        data: { tool: "test_tool", input: {}, requestedBy: "system", idempotencyKey: marker },
+      });
   }
 }
 

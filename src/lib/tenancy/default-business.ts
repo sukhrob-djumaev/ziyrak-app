@@ -13,8 +13,9 @@ let cachedDefaultBusinessId: string | null = null;
  *   1. `assertDefaultBusinessOnly()`/`getDefaultBusinessContext()` below —
  *      explicit, fail-closed guards for the small set of features that
  *      structurally cannot be made tenant-aware without building Phase
- *      4/6 architecture (the legacy Settings singleton; `tools/tools.ts`'s
- *      one remaining global-config read) or that are permanently,
+ *      4/6 architecture (the legacy Settings singleton; `tools/builtin/
+ *      send-internal-email.ts`'s one remaining global-config read) or that
+ *      are permanently,
  *      architecturally single-tenant by design regardless of any future
  *      phase (`WhatsAppWebAdapter`'s dev/demo-only session, §20.1/§20.2 —
  *      every *other* channel adapter resolves a real per-`ChannelConnection`

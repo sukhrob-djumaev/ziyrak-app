@@ -51,8 +51,14 @@ export async function assertDefaultBusinessOnly(
   ctx: Pick<TenantContext, "businessId">,
   featureLabel: string
 ): Promise<void> {
-  const defaultBusinessId = await getDefaultBusinessId();
-  if (ctx.businessId !== defaultBusinessId) {
+  // A deployment with no Default Business (a fresh install: only signup
+  // creates businesses) has no "first business" for these legacy features to
+  // belong to, so they are unavailable to everyone — answered with the same
+  // 501 as any other non-default caller, never an unhandled not-found.
+  const defaultBusinessId =
+    cachedDefaultBusinessId ?? (await prisma.business.findUnique({ where: { slug: "default" }, select: { id: true } }))?.id ?? null;
+  if (defaultBusinessId) cachedDefaultBusinessId = defaultBusinessId;
+  if (!defaultBusinessId || ctx.businessId !== defaultBusinessId) {
     throw new AppError(
       501,
       "NOT_YET_SUPPORTED",

@@ -160,7 +160,15 @@ export async function chat(
   const [aiConfig, profile] = await Promise.all([resolveAIConfig(ctx), resolveConversationProfile(ctx)]);
 
   if (!aiConfig.apiKey) {
-    return "AI is not configured. Please add your API key in Settings > AI Configuration.";
+    // Persisted like every other early-return reply above (blocked topic,
+    // automation override): a channel whose delivery is "read the persisted
+    // message" (Web Chat, PLAN.md §17.3/§46.7) would otherwise show a visitor
+    // nothing at all while a new business is still mid-setup, and the owner
+    // reading the transcript couldn't see what the customer was told.
+    const notice = "AI is not configured. Please add your API key in Settings > AI Configuration.";
+    const savedNotice = await appendAssistantMessage(ctx, conversationId, notice);
+    notifyNewAssistantMessage(ctx, conversationId, { id: savedNotice.id, content: notice });
+    return notice;
   }
 
   const knowledgeBase = await knowledgeRetriever.retrieve(ctx, userMessage, { limit: 8 });

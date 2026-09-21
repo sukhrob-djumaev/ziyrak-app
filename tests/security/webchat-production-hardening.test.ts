@@ -345,3 +345,70 @@ describe("human handoff reaches the widget's channel (§44.3/§46.7)", () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe("persisted-message delivery for the widget (§17.3/§46.7)", () => {
+  async function startConversation() {
+    const conn = (await createConnection(tokenA)).data;
+    const { processInboundMessage } = await import("@/lib/conversations/inbound");
+    const conversationId = crypto.randomUUID();
+    const visitor = crypto.randomUUID();
+    const first = await webChatAdapter.validateInbound(message(conn.connectionId, conn.token, ORIGIN, conversationId, { customerContact: visitor, text: "Where is my order?" }));
+    if (first.kind !== "new") throw new Error("setup failed");
+    await processInboundMessage(first.ctx, first.event);
+    return { conn, conversationId, visitor, ctx: first.ctx };
+  }
+
+  async function poll(connectionId: string, params: Record<string, string>, origin = ORIGIN) {
+    const { GET } = await import("@/app/api/channels/webchat/[connectionId]/messages/route");
+    return GET(
+      createRequest(`/api/channels/webchat/${connectionId}/messages`, { headers: { origin, "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 250)}` }, searchParams: params }),
+      { params: Promise.resolve({ connectionId }) }
+    );
+  }
+
+  it("returns the visitor's persisted messages (including one written by another process/agent) and only newer ones after a cursor", async () => {
+    const { conn, conversationId, visitor } = await startConversation();
+    // Simulates the worker process (or a human agent) persisting a reply the web process's realtime bus never saw.
+    const reply = await prisma.message.create({ data: { businessId: businessA.businessId, conversationId, role: "assistant", content: "It ships tomorrow." } });
+    await prisma.message.create({ data: { businessId: businessA.businessId, conversationId, role: "system", content: "internal routing note" } });
+
+    const all = await poll(conn.connectionId, { token: conn.token, conversationId, visitorId: visitor });
+    expect(all.status).toBe(200);
+    expect(all.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    const body = await parseJsonResponse(all);
+    // (No AI is configured in this fixture, so the transcript also holds the
+    // persisted "AI is not configured" notice — see chat().)
+    expect(body.messages.map((m: { role: string; content: string }) => `${m.role}:${m.content}`)).toEqual([
+      "customer:Where is my order?",
+      expect.stringContaining("assistant:AI is not configured"),
+      "assistant:It ships tomorrow.",
+    ]);
+
+    const later = await prisma.message.create({ data: { businessId: businessA.businessId, conversationId, role: "assistant", content: "Anything else?" } });
+    const next = await parseJsonResponse(await poll(conn.connectionId, { token: conn.token, conversationId, visitorId: visitor, after: reply.id }));
+    expect(next.messages.map((m: { id: string }) => m.id)).toEqual([later.id]);
+  });
+
+  it("is only readable by the visitor that owns the conversation, through its own connection, with a valid token and origin", async () => {
+    const { conn, conversationId, visitor } = await startConversation();
+    const other = (await createConnection(tokenA)).data;
+    const foreign = (await createConnection(tokenB)).data;
+
+    expect((await poll(conn.connectionId, { token: conn.token, conversationId, visitorId: crypto.randomUUID() })).status).toBe(404);
+    expect((await poll(other.connectionId, { token: other.token, conversationId, visitorId: visitor })).status).toBe(404);
+    expect((await poll(foreign.connectionId, { token: foreign.token, conversationId, visitorId: visitor })).status).toBe(404);
+    expect((await poll(conn.connectionId, { token: "zy_pub_forged", conversationId, visitorId: visitor })).status).toBe(403);
+    expect((await poll(conn.connectionId, { token: conn.token, conversationId, visitorId: visitor }, OTHER_ORIGIN)).status).toBe(403);
+    expect((await poll(conn.connectionId, { token: conn.token, conversationId })).status).toBe(403);
+    expect((await poll(conn.connectionId, { token: conn.token, conversationId: crypto.randomUUID(), visitorId: visitor })).status).toBe(404);
+  });
+
+  it("a rotated token stops working for polling too", async () => {
+    const { conn, conversationId, visitor } = await startConversation();
+    const rotate = await import("@/app/api/channels/webchat-connections/[connectionId]/rotate-token/route");
+    const rotated = await parseJsonResponse(await adminCall(rotate.POST, "/x", tokenA, "POST", undefined, conn.connectionId));
+
+    expect((await poll(conn.connectionId, { token: conn.token, conversationId, visitorId: visitor })).status).toBe(403);
+    expect((await poll(conn.connectionId, { token: rotated.token, conversationId, visitorId: visitor })).status).toBe(200);
+  });
+});

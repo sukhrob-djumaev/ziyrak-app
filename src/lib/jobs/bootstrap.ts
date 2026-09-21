@@ -21,6 +21,13 @@
  * registration without each of the six channel adapters needing its own
  * explicit import (and without `events/` gaining a real, structural
  * dependency on `conversations/` — only `jobs/bootstrap.ts` does).
+ *
+ * Deliberately does NOT also import the channel adapter modules
+ * (`channels/bootstrap.ts` handles that, separately) — `channels/email.ts`/
+ * `channels/whatsapp.ts` both import `events/dispatch.ts`, which imports
+ * *this* file, so adding them here would create a real import cycle
+ * (`jobs/bootstrap` → `channels/email` → `events/dispatch` →
+ * `jobs/bootstrap`). `channels/bootstrap.ts` has no such back-edge.
  */
 import "@/lib/conversations/inbound";
 import "@/lib/jobs/handlers/deliver-webhook";

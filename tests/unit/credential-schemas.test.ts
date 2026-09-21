@@ -4,7 +4,7 @@ import { ChannelCredentialSchema } from "@/lib/secrets/credential-schemas";
 describe("ChannelCredentialSchema", () => {
   it("accepts a valid WhatsApp (Meta Cloud API) credential", () => {
     const result = ChannelCredentialSchema.safeParse({
-      type: "whatsapp",
+      type: "whatsapp_cloud",
       phoneNumberId: "123",
       accessToken: "token",
       businessAccountId: "456",

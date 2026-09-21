@@ -36,7 +36,8 @@ async function loadAdapters() {
   const { emailAdapter } = await import("@/lib/channels/email");
   const { whatsAppWebAdapter } = await import("@/lib/channels/whatsapp");
   const { webChatAdapter } = await import("@/lib/channels/webchat-adapter");
-  return { smsAdapter, telegramAdapter, phoneAdapter, emailAdapter, whatsAppWebAdapter, webChatAdapter };
+  const { metaCloudWhatsAppAdapter } = await import("@/lib/channels/meta-whatsapp-adapter");
+  return { smsAdapter, telegramAdapter, phoneAdapter, emailAdapter, whatsAppWebAdapter, webChatAdapter, metaCloudWhatsAppAdapter };
 }
 
 describe("ChannelAdapter contract (§19.1/§34.1)", () => {
@@ -130,5 +131,20 @@ describe("ChannelAdapter contract (§19.1/§34.1)", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     expect(result.kind).toBe("rejected");
+  });
+
+  it("MetaCloudWhatsAppAdapter rejects a request with an invalid signature instead of throwing", async () => {
+    const { metaCloudWhatsAppAdapter } = await loadAdapters();
+    const previous = process.env.META_APP_SECRET;
+    process.env.META_APP_SECRET = "test-app-secret";
+    try {
+      const result = await metaCloudWhatsAppAdapter.validateInbound({
+        headers: { "x-hub-signature-256": "sha256=0000000000000000000000000000000000000000000000000000000000000000" },
+        rawBody: JSON.stringify({ object: "whatsapp_business_account", entry: [] }),
+      });
+      expect(result.kind).toBe("rejected");
+    } finally {
+      process.env.META_APP_SECRET = previous;
+    }
   });
 });

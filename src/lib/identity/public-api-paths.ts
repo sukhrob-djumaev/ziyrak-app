@@ -17,6 +17,9 @@ export const PUBLIC_PATH_PREFIXES = [
   "/api/channels/sms",
   "/api/channels/telegram",
   "/api/channels/webchat/",
+  // PLAN.md §20.2/§46.7 — authenticated via Meta's own webhook verify token
+  // (GET) / X-Hub-Signature-256 (POST), never a JWT/API key.
+  "/api/channels/whatsapp-cloud/webhook",
 ];
 
 export function isPublicApiPath(pathname: string): boolean {

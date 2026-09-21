@@ -19,7 +19,7 @@ import { AppError } from "@/lib/observability/errors";
  * first one, instead of a single global row.
  */
 
-const CHANNEL_TYPES = ["whatsapp", "email", "phone", "sms", "telegram", "webchat"] as const;
+const CHANNEL_TYPES = ["whatsapp", "whatsapp_cloud", "email", "phone", "sms", "telegram", "webchat"] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 
 export function isValidChannelType(type: string): type is ChannelType {

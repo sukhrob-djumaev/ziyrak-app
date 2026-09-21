@@ -29,20 +29,34 @@ export interface ResolvedConnection {
   connectionId: string;
 }
 
+/**
+ * Generic "resolve the one active ChannelConnection of this type whose
+ * `config` JSON has this field set to this value" lookup — the shared shape
+ * behind every provider-identifier-keyed resolution (Twilio's `To`/dialed
+ * number, Meta's `phone_number_id`, §7.7/§19.2/§46.7).
+ */
+export async function findConnectionByConfigField(
+  type: string,
+  field: string,
+  value: string
+): Promise<ResolvedConnection | null> {
+  if (!value) return null;
+  const connection = await rawPrisma.channelConnection.findFirst({
+    where: {
+      type,
+      isActive: true,
+      config: { path: [field], equals: value },
+    },
+  });
+  return connection ? { businessId: connection.businessId, connectionId: connection.id } : null;
+}
+
 /** Twilio's `To` (SMS) / dialed number (Phone) is the provider identifier both channels share (§19.2). */
 export async function findConnectionByPhoneNumber(
   type: "sms" | "phone",
   phoneNumber: string
 ): Promise<ResolvedConnection | null> {
-  if (!phoneNumber) return null;
-  const connection = await rawPrisma.channelConnection.findFirst({
-    where: {
-      type,
-      isActive: true,
-      config: { path: ["phoneNumber"], equals: phoneNumber },
-    },
-  });
-  return connection ? { businessId: connection.businessId, connectionId: connection.id } : null;
+  return findConnectionByConfigField(type, "phoneNumber", phoneNumber);
 }
 
 /** Telegram/WhatsApp-Web/Email/WebChat resolve by a connection id the caller already has (a URL segment, or an allowlisted business's own connection). */

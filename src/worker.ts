@@ -15,6 +15,11 @@
 // — same convention prisma.config.ts already uses for the same reason.
 import "dotenv/config";
 import "@/lib/jobs/bootstrap";
+// PLAN.md §46.7 acceptance-audit finding — registers every channel adapter
+// so this process's own process-inbound-message job handler can actually
+// find one to send the AI's reply back through (see channels/bootstrap.ts's
+// own header for the full story).
+import "@/lib/channels/bootstrap";
 import { jobQueue } from "@/lib/jobs/queue";
 import { SWEEP_SLA_BREACHES_JOB, SWEEP_RETENTION_JOB } from "@/lib/jobs/job-types";
 import { prisma } from "@/lib/prisma/raw-client";

@@ -10,8 +10,21 @@ import { z } from "zod";
  * Keyed by the same channel `type` string ChannelConnection.type uses.
  */
 
+// PLAN.md §20.2/§46.7 — Meta Cloud WhatsApp is a distinct ChannelConnection
+// type ("whatsapp_cloud"), never "whatsapp" (WhatsAppWebAdapter's dev/demo-
+// only type string, §20.1) — the two are two different adapters behind the
+// same ChannelAdapter contract (§19.1), not two credential shapes for one
+// type. This schema had zero call sites before this phase (grep-confirmed),
+// so retyping its literal is a non-breaking correction of a scaffolded-but-
+// unwired type, not a migration. `phoneNumberId`/`accessToken`/
+// `businessAccountId` are per-ChannelConnection (a business's own system-user
+// token, scoped to its own WABA/phone number) — the App Secret used for
+// `X-Hub-Signature-256` verification and the webhook verify token are
+// platform-level (one Ziyrak-owned Meta App shared by every tenant, §20.2's
+// "one shared Ziyrak-owned webhook URL"), so they are read from env vars
+// (`META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN`) rather than stored here.
 export const MetaWhatsAppCredentialSchema = z.object({
-  type: z.literal("whatsapp"),
+  type: z.literal("whatsapp_cloud"),
   phoneNumberId: z.string().min(1),
   accessToken: z.string().min(1),
   businessAccountId: z.string().min(1),

@@ -38,6 +38,8 @@ export interface SendFollowupPayload {
   channel: string;
   to: string;
   message: string;
+  /** §24.3 — lets the handler update the same ActionExecution row the tool call created (requested/scheduled → running → succeeded/failed) once it actually runs. */
+  idempotencyKey: string;
 }
 
 export const EXECUTE_CAMPAIGN_JOB = "execute-campaign";

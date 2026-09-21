@@ -73,7 +73,13 @@ export class PgBossJobQueue implements JobQueue {
     opts?: { idempotencyKey?: string; singletonKey?: string }
   ): Promise<string> {
     await this.ensureQueue(jobType);
-    const id = await this.boss.send(jobType, payload, { singletonKey: opts?.singletonKey });
+    // §24.4 — an attempt-scoped idempotencyKey has no dedicated pg-boss
+    // field; falling back to it as the singletonKey when the caller hasn't
+    // set one of its own gives it real dedup value on queues whose policy
+    // enforces singleton semantics, and is a harmless no-op on `standard`
+    // queues that don't.
+    const singletonKey = opts?.singletonKey ?? opts?.idempotencyKey;
+    const id = await this.boss.send(jobType, payload, { singletonKey });
     if (!id) throw new Error(`PgBossJobQueue: send("${jobType}") did not return a job id.`);
     return id;
   }
@@ -84,7 +90,8 @@ export class PgBossJobQueue implements JobQueue {
     opts: { runAt: Date; idempotencyKey?: string; singletonKey?: string }
   ): Promise<string> {
     await this.ensureQueue(jobType);
-    const id = await this.boss.send(jobType, payload, { startAfter: opts.runAt, singletonKey: opts.singletonKey });
+    const singletonKey = opts.singletonKey ?? opts.idempotencyKey;
+    const id = await this.boss.send(jobType, payload, { startAfter: opts.runAt, singletonKey });
     if (!id) throw new Error(`PgBossJobQueue: send("${jobType}", { startAfter }) did not return a job id.`);
     return id;
   }

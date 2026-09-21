@@ -16,12 +16,14 @@ export interface EffectiveToolPolicy {
  * these by creating its own `ToolPolicy` row (§23.4's "edit via settings
  * UI, tenant-scoped" — the row always wins over the default when present).
  *
- * `schedule_followup.enabledForTenant` is `false` here — the literal
- * mechanism behind §24.3's Phase 6/7 boundary fix (review concern 11):
- * this tool is defined and registered from PR1 onward, but disabled for
- * every actor kind (AI and human alike) until PR3 flips this one value,
- * once a real durable queue exists to back the "scheduled" status it
- * would otherwise falsely claim.
+ * `schedule_followup.enabledForTenant` was `false` from PR1 through PR2 —
+ * the literal mechanism behind §24.3's Phase 6/7 boundary fix (review
+ * concern 11): the tool was defined and registered from PR1 onward, but
+ * disabled for every actor kind (AI and human alike) until this PR3 change
+ * flipped it to `true`, now that PR2's real `PgBossJobQueue` exists to
+ * back the "scheduled" status it returns (`tools/builtin/
+ * schedule-followup.ts`) — this is the first point in this codebase's
+ * history the tool has ever been reachable at all.
  */
 export const DEFAULT_TOOL_POLICIES: Record<string, EffectiveToolPolicy> = {
   create_ticket: {
@@ -37,7 +39,7 @@ export const DEFAULT_TOOL_POLICIES: Record<string, EffectiveToolPolicy> = {
     requiresHumanApproval: false,
   },
   schedule_followup: {
-    enabledForTenant: false, // PLAN.md §24.3/§46.6 PR3 — flips to true only once PgBossJobQueue exists.
+    enabledForTenant: true, // PLAN.md §24.3/§46.6 PR3 — flipped from false now that PgBossJobQueue exists.
     allowedForAI: true,
     allowedForHumanRoles: ["agent", "supervisor", "admin", "owner"],
     requiresHumanApproval: false,

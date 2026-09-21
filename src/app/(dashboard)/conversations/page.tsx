@@ -55,12 +55,14 @@ interface ConversationData {
 
 const channelIcons: Record<string, React.ElementType> = {
   whatsapp: MessageCircle,
+  whatsapp_cloud: MessageCircle,
   email: Mail,
   phone: Phone,
 };
 
 const channelColors: Record<string, string> = {
   whatsapp: "text-green-600 bg-green-50",
+  whatsapp_cloud: "text-green-600 bg-green-50",
   email: "text-blue-600 bg-blue-50",
   phone: "text-purple-600 bg-purple-50",
 };
@@ -68,6 +70,8 @@ const channelColors: Record<string, string> = {
 const channels = [
   { value: "all", label: "All Channels" },
   { value: "whatsapp", label: "WhatsApp" },
+  { value: "whatsapp_cloud", label: "WhatsApp (Cloud)" },
+  { value: "webchat", label: "Web Chat" },
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
 ];

@@ -16,11 +16,12 @@ describe("Proxy", () => {
 
   function createProxyRequest(
     path: string,
-    options: { cookies?: Record<string, string>; headers?: Record<string, string> } = {}
+    options: { cookies?: Record<string, string>; headers?: Record<string, string>; method?: string } = {}
   ): NextRequest {
     const url = new URL(path, "http://localhost:3000");
     const request = new NextRequest(url, {
       headers: options.headers || {},
+      method: options.method,
     });
     if (options.cookies) {
       for (const [name, value] of Object.entries(options.cookies)) {
@@ -200,6 +201,7 @@ describe("Proxy", () => {
 
       for (let i = 0; i < 5; i++) {
         const request = createProxyRequest("/api/auth", {
+          method: "POST",
           headers: { "x-forwarded-for": "1.2.3.4" },
         });
         const response = proxy(request);
@@ -213,6 +215,7 @@ describe("Proxy", () => {
       // Exhaust the rate limit
       for (let i = 0; i < 5; i++) {
         const request = createProxyRequest("/api/auth", {
+          method: "POST",
           headers: { "x-forwarded-for": "10.0.0.1" },
         });
         proxy(request);
@@ -220,6 +223,7 @@ describe("Proxy", () => {
 
       // 6th request should be blocked
       const request = createProxyRequest("/api/auth", {
+        method: "POST",
         headers: { "x-forwarded-for": "10.0.0.1" },
       });
       const response = proxy(request);
@@ -228,12 +232,30 @@ describe("Proxy", () => {
       expect(response.headers.get("Retry-After")).toBeDefined();
     });
 
+    // Post-Phase-7 hardening (browser acceptance pass): the dashboard's
+    // onboarding checklist and the login page call `GET /api/auth` (a
+    // read-only status check) on every load, so counting it against the
+    // 5/min brute-force budget made normal navigation 429.
+    it("does not count read-only GET /api/auth against the login brute-force limit", async () => {
+      const { proxy } = await import("@/proxy");
+
+      for (let i = 0; i < 12; i++) {
+        const response = proxy(createProxyRequest("/api/auth", { headers: { "x-forwarded-for": "10.9.9.9" } }));
+        expect(response.status).not.toBe(429);
+      }
+
+      // ...and it does not spend the login budget either.
+      const login = proxy(createProxyRequest("/api/auth", { method: "POST", headers: { "x-forwarded-for": "10.9.9.9" } }));
+      expect(login.status).not.toBe(429);
+    });
+
     it("should track different IPs independently", async () => {
       const { proxy } = await import("@/proxy");
 
       // Exhaust rate limit for IP A
       for (let i = 0; i < 6; i++) {
         const request = createProxyRequest("/api/auth", {
+          method: "POST",
           headers: { "x-forwarded-for": "192.168.1.1" },
         });
         proxy(request);
@@ -241,6 +263,7 @@ describe("Proxy", () => {
 
       // IP B should still be allowed
       const request = createProxyRequest("/api/auth", {
+        method: "POST",
         headers: { "x-forwarded-for": "192.168.1.2" },
       });
       const response = proxy(request);

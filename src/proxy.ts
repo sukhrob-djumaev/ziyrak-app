@@ -112,8 +112,11 @@ export function proxy(request: NextRequest) {
     return addHeaders(NextResponse.next(), requestId);
   }
 
-  // Rate limiting for auth endpoint
-  if (pathname.startsWith("/api/auth")) {
+  // Rate limiting for the auth endpoint's login/signup/logout attempts. The
+  // read-only status check (GET) is called by the login page and the
+  // dashboard's onboarding checklist on every load; counting it against the
+  // 5/min brute-force budget made ordinary navigation 429.
+  if (pathname.startsWith("/api/auth") && request.method === "POST") {
     const ip = getClientIp(request);
     const rateResult = checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
 

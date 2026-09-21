@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 /**
- * PLAN.md §33.1 — tenant isolation matrix for "automation" (rules),
- * "campaigns", and "flows" — grouped in one file since PLAN.md's own
- * Phase 2 batch ordering (§46.2 task 8) groups them as one batch.
+ * PLAN.md §33.1 — tenant isolation matrix for "automation" (rules) and
+ * "campaigns" — grouped in one file since PLAN.md's own Phase 2 batch
+ * ordering (§46.2 task 8) groups them as one batch (originally alongside
+ * "flows" too; its API routes were removed in §46.6 task 7 — flow-builder
+ * deprecation, `src/lib/flows/flow-builder.ts`'s header comment — so
+ * there is no longer a tenant-facing route for this file to isolation-test).
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
@@ -98,50 +101,6 @@ describe("tenant isolation: campaigns (§33.1)", () => {
     const { POST } = await import("@/app/api/campaigns/[id]/execute/route");
     const response = await POST(authedRequest(`/api/campaigns/${campaignB.id}/execute`, { method: "POST" }), {
       params: Promise.resolve({ id: campaignB.id }),
-    });
-
-    expect(response.status).toBe(404);
-  });
-});
-
-describe("tenant isolation: flows (§33.1)", () => {
-  it("Business A cannot list, fetch, update, or delete Business B's flow", async () => {
-    const dbB = getScopedPrisma(businessB.ctx);
-    const flowB = await dbB.flow.create({ data: { name: "B-flow" } });
-
-    const { GET } = await import("@/app/api/flows/route");
-    const listResponse = await GET(authedRequest("/api/flows", { searchParams: { limit: "200" } }));
-    const listData = await parseJsonResponse(listResponse);
-    expect(listData.data.map((f: { id: string }) => f.id)).not.toContain(flowB.id);
-
-    const { GET: GetOne, PUT, DELETE } = await import("@/app/api/flows/[id]/route");
-
-    const getResponse = await GetOne(authedRequest(`/api/flows/${flowB.id}`), {
-      params: Promise.resolve({ id: flowB.id }),
-    });
-    expect(getResponse.status).toBe(404);
-
-    const putResponse = await PUT(
-      authedRequest(`/api/flows/${flowB.id}`, { method: "PUT", body: { name: "hacked" } }),
-      { params: Promise.resolve({ id: flowB.id }) }
-    );
-    expect(putResponse.status).toBe(404);
-
-    const deleteResponse = await DELETE(authedRequest(`/api/flows/${flowB.id}`, { method: "DELETE" }), {
-      params: Promise.resolve({ id: flowB.id }),
-    });
-    expect(deleteResponse.status).toBe(404);
-
-    expect((await dbB.flow.findUnique({ where: { id: flowB.id } }))?.name).toBe("B-flow");
-  });
-
-  it("Business A cannot validate Business B's flow via a known id", async () => {
-    const dbB = getScopedPrisma(businessB.ctx);
-    const flowB = await dbB.flow.create({ data: { name: "B-validate" } });
-
-    const { POST } = await import("@/app/api/flows/[id]/validate/route");
-    const response = await POST(authedRequest(`/api/flows/${flowB.id}/validate`, { method: "POST" }), {
-      params: Promise.resolve({ id: flowB.id }),
     });
 
     expect(response.status).toBe(404);

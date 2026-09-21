@@ -15,6 +15,14 @@ vi.mock("@/lib/conversations/conversation-service", () => ({
   createNewConversation: vi.fn().mockResolvedValue({ id: "new-conv-1" }),
 }));
 
+// PLAN.md §46.6 task 6 — processInboundMessage() now also runs automation
+// rules; this route test isn't exercising automation, so it's mocked out
+// the same way chat()/createNewConversation are above.
+vi.mock("@/lib/automations/automation", () => ({
+  evaluateRules: vi.fn().mockResolvedValue([]),
+  applyAutomationActions: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -90,7 +98,14 @@ describe("POST /api/chat", () => {
     const data = await parseJsonResponse(response);
 
     expect(data.conversationId).toBe("existing-conv");
-    expect(chat).toHaveBeenCalledWith(expect.objectContaining({ businessId: expect.any(String) }), "existing-conv", "Hello");
+    // §46.6 task 6 — processInboundMessage() now passes a 4th
+    // overrideResponse option (undefined when no automation rule matched).
+    expect(chat).toHaveBeenCalledWith(
+      expect.objectContaining({ businessId: expect.any(String) }),
+      "existing-conv",
+      "Hello",
+      undefined
+    );
   });
 
   it("should handle AI engine errors gracefully", async () => {

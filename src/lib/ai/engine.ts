@@ -119,14 +119,10 @@ const BLOCKED_TOPIC_REDIRECT =
 export async function chat(
   ctx: TenantContext,
   conversationId: string,
-  userMessage: string
+  userMessage: string,
+  options?: { overrideResponse?: string }
 ): Promise<string> {
   const db = getScopedPrisma(ctx);
-  const [aiConfig, profile] = await Promise.all([resolveAIConfig(ctx), resolveConversationProfile(ctx)]);
-
-  if (!aiConfig.apiKey) {
-    return "AI is not configured. Please add your API key in Settings > AI Configuration.";
-  }
 
   const conversation = await db.conversation.findUnique({
     where: { id: conversationId },
@@ -148,6 +144,23 @@ export async function chat(
     const savedMessage = await appendAssistantMessage(ctx, conversationId, BLOCKED_TOPIC_REDIRECT);
     notifyNewAssistantMessage(ctx, conversationId, { id: savedMessage.id, content: BLOCKED_TOPIC_REDIRECT });
     return BLOCKED_TOPIC_REDIRECT;
+  }
+
+  // PLAN.md §46.6 task 6 — an automation rule's `auto_reply` action, once
+  // matched by `processInboundMessage`, takes precedence over calling the
+  // model at all for this turn (and deliberately doesn't require AI to be
+  // configured, unlike everything below — that's the point of a
+  // deterministic, automation-driven reply).
+  if (options?.overrideResponse) {
+    const savedMessage = await appendAssistantMessage(ctx, conversationId, options.overrideResponse);
+    notifyNewAssistantMessage(ctx, conversationId, { id: savedMessage.id, content: options.overrideResponse });
+    return options.overrideResponse;
+  }
+
+  const [aiConfig, profile] = await Promise.all([resolveAIConfig(ctx), resolveConversationProfile(ctx)]);
+
+  if (!aiConfig.apiKey) {
+    return "AI is not configured. Please add your API key in Settings > AI Configuration.";
   }
 
   const knowledgeBase = await knowledgeRetriever.retrieve(ctx, userMessage, { limit: 8 });

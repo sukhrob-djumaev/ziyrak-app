@@ -3,6 +3,17 @@ import { logger } from "@/lib/observability/logger";
 /**
  * Plugin System for Owly
  * Allows extending functionality via standardized hooks.
+ *
+ * PLAN.md §44.2/§46.6 task 7 — DEPRECATED from the tenant-facing product
+ * surface as of Phase 6, alongside the flow builder (`flows/flow-
+ * builder.ts`'s own header comment has the fuller reasoning). Its one API
+ * route (`src/app/api/admin/plugins`) was removed; this module is
+ * retained, unread by any live route, per the instruction not to discard
+ * working code without strong reason. `registerPlugin()`/`executeHooks()`
+ * already had zero real callers before this phase (nothing in this
+ * codebase ever registers a plugin) — this phase makes that dormancy
+ * explicit rather than leaving an unreachable admin-only listing route as
+ * the only sign of it.
  */
 
 export interface PluginContext {

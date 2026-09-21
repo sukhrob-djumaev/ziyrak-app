@@ -123,6 +123,9 @@ describe("Characterization: WhatsApp inbound message flow", () => {
     mockPrisma.knowledgeEntry.findMany.mockResolvedValue([]);
     mockPrisma.message.create.mockResolvedValue({ id: "msg-generated" });
     mockPrisma.conversation.update.mockResolvedValue({});
+    // §46.6 task 6 — processInboundMessage() now also evaluates automation
+    // rules before calling chat(); no rules configured for this suite.
+    mockPrisma.automationRule.findMany.mockResolvedValue([]);
 
     // §46.5 — dedup receipt persistence and job-context tenant resolution.
     // The job handler reloads the persisted event by receiptId

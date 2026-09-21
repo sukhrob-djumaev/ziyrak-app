@@ -124,7 +124,7 @@ describe("Automation Rule Engine", () => {
     expect(result).toHaveLength(0);
     expect(mockPrisma.automationRule.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isActive: true },
+        where: { isActive: true, requiresReconfirmation: false },
       })
     );
   });

@@ -71,6 +71,9 @@ describe("Characterization: POST /api/chat creates a conversation and persists m
     mockPrisma.knowledgeEntry.findMany.mockResolvedValue([]);
     mockPrisma.message.create.mockResolvedValue({ id: "msg-generated" });
     mockPrisma.conversation.update.mockResolvedValue({});
+    // §46.6 task 6 — processInboundMessage() now also evaluates automation
+    // rules before calling chat(); no rules configured for this suite.
+    mockPrisma.automationRule.findMany.mockResolvedValue([]);
 
     mockOpenAICreateFn.mockResolvedValue({
       choices: [{ finish_reason: "stop", message: { content: "Hello! How can I help you today?" } }],

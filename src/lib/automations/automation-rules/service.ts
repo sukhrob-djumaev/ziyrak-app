@@ -74,6 +74,11 @@ export async function update(ctx: TenantContext, id: string, input: UpdateRuleIn
       ...(input.conditions !== undefined && { conditions: input.conditions as Prisma.InputJsonValue }),
       ...(input.actions !== undefined && { actions: input.actions as Prisma.InputJsonValue }),
       ...(input.priority !== undefined && { priority: input.priority }),
+      // PLAN.md §46.6 task 6 — a business explicitly saving this rule
+      // through the dashboard (this route) is exactly the "explicit
+      // re-confirmation" the migration safeguard requires before a
+      // pre-existing, previously-inert rule can take real runtime effect.
+      requiresReconfirmation: false,
     },
   });
 }

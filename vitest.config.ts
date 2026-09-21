@@ -29,6 +29,13 @@ export default defineConfig({
         "src/app/(auth)/**",
       ],
     },
-    testTimeout: 10000,
+    // PLAN.md §46.6 — bumped from 10000: the real-ESLint-instance suites
+    // (tests/security/{module-boundary,raw-prisma}-lint.test.ts) each
+    // construct a fresh ESLint instance per test, and the flat config's
+    // load cost grows with the codebase's file count; under full-suite
+    // parallelism this phase's growth pushed that suite past the old
+    // 10s ceiling intermittently even though each test's own work is
+    // still well under a second — not a hang, a marginal ceiling.
+    testTimeout: 20000,
   },
 });

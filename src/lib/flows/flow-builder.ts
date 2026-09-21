@@ -2,6 +2,20 @@
  * Chatbot Flow Builder
  * Define conversation flows as a decision tree.
  * Visual builder on the frontend, this is the runtime engine.
+ *
+ * PLAN.md §44.2/§46.6 task 7 — DEPRECATED from the tenant-facing product
+ * surface as of Phase 6. Its API routes (`src/app/api/flows/*`) were
+ * removed; this module and the `Flow` Prisma model are retained, unread by
+ * any live route, per the instruction not to discard working code without
+ * strong reason. Reason: a separate node-graph "decide what happens next"
+ * engine substantially overlaps with what the AI orchestrator (§18) already
+ * does better, and maintaining two parallel engines for that job is exactly
+ * the duplicated-concept complexity Architectural Principle 2 (§4) argues
+ * against — `automation.ts`'s simpler condition/action rules (also §44.2)
+ * cover the "auto-tag/auto-route/auto-reply on a keyword" use case that
+ * matters at MVP scale, and are the one that was reconnected instead
+ * (§46.6 task 6). Do not wire this module into a live route without first
+ * revisiting that decision.
  */
 
 export type NodeType = "message" | "question" | "condition" | "action" | "ai_response" | "transfer" | "end";

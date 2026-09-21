@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { resolveCustomer } from "@/lib/customers/customer-resolver";
 import { chat } from "@/lib/ai/engine";
+import { evaluateRules, applyAutomationActions } from "@/lib/automations/automation";
 import { createNewConversation } from "@/lib/conversations/conversation-service";
 import type { ZiyrakEvent, MessageReceivedPayload } from "@/lib/events/types";
 import { loadReceiptEvent, markReceiptProcessed } from "@/lib/events/inbound-receipt";
@@ -138,7 +139,19 @@ export async function processInboundMessage(
   event: ZiyrakEvent<MessageReceivedPayload>
 ): Promise<OutboundResult> {
   const conversation = await resolveOrCreateConversation(ctx, event);
-  const response = await chat(ctx, conversation.id, event.payload.text);
+
+  // PLAN.md §44.2/§46.6 task 6 — automation's reconnection point. Runs for
+  // every inbound message, real side effects (tag/route/alert) applied
+  // immediately; a matched auto_reply, if any, short-circuits the AI call
+  // below via chat()'s overrideResponse option.
+  const matchedActions = await evaluateRules(
+    ctx,
+    { content: event.payload.text, channel: event.source.channel, customerName: event.payload.customerName },
+    { id: conversation.id, channel: event.source.channel, customerName: event.payload.customerName }
+  );
+  const overrideResponse = await applyAutomationActions(ctx, conversation, matchedActions);
+
+  const response = await chat(ctx, conversation.id, event.payload.text, overrideResponse ? { overrideResponse } : undefined);
 
   const adapter = getChannelAdapter(event.source.channel);
   const to = event.payload.customerContact;

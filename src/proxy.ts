@@ -67,9 +67,14 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = request.headers.get("x-request-id") || generateRequestId();
 
-  // Static files and Next.js internals
+  // Static files and Next.js internals. `/widget.js` is the embeddable Web
+  // Chat script (PLAN.md §20.4/§46.7): it is loaded by *anonymous visitors on
+  // a business's own website*, so it must never be behind the dashboard's
+  // login redirect (found by serving the production build — it 307'd to
+  // /login, which would have made every embedded widget silently fail to load).
   if (
     pathname.startsWith("/_next") ||
+    pathname === "/widget.js" ||
     pathname.startsWith("/favicon") ||
     pathname.endsWith(".png") ||
     pathname.endsWith(".svg") ||

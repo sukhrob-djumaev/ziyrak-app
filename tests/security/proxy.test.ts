@@ -249,6 +249,30 @@ describe("Proxy", () => {
     });
   });
 
+  describe("Embeddable Web Chat widget (PLAN.md §20.4/§46.7)", () => {
+    it("serves /widget.js to anonymous visitors — it is loaded on a business's own site, never behind the login redirect", async () => {
+      const { proxy } = await import("@/proxy");
+      const response = proxy(createProxyRequest("/widget.js"));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Location")).toBeNull();
+    });
+
+    it("does not let the widget's public prefix make the admin management routes public", async () => {
+      const { proxy } = await import("@/proxy");
+      for (const path of ["/api/channels/webchat-connections", "/api/channels/webchat-connections/abc/rotate-token"]) {
+        const response = proxy(createProxyRequest(path));
+        expect(response.status, path).toBe(401);
+      }
+    });
+
+    it("leaves CORS to the widget routes themselves (no global single-origin header on them)", async () => {
+      const { proxy } = await import("@/proxy");
+      const response = proxy(createProxyRequest("/api/channels/webchat/abc/message", { headers: { origin: "https://shop.example.com" } }));
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    });
+  });
+
   describe("Static files", () => {
     it("should pass through _next paths", async () => {
       const { proxy } = await import("@/proxy");

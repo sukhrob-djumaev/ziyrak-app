@@ -22,8 +22,14 @@ import { logActivity } from "@/lib/observability/activity";
  * a business to one Web Chat widget.
  */
 
-function appBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+/**
+ * The public base URL businesses paste into their site. `NEXT_PUBLIC_APP_URL`
+ * is the configured source of truth — but Next inlines `NEXT_PUBLIC_*` at
+ * *build* time, so an image built without it would bake in a wrong value; the
+ * origin the dashboard itself is being served from is the sensible fallback.
+ */
+function appBaseUrl(fallbackOrigin?: string): string {
+  return process.env.NEXT_PUBLIC_APP_URL || fallbackOrigin || "http://localhost:3000";
 }
 
 export interface WebChatConnectionView {
@@ -64,7 +70,8 @@ export async function listWebChatConnections(ctx: TenantContext): Promise<Omit<W
 /** Returns the token in the response exactly once — like an ApiKey's secret (§9.4), it is never retrievable again after this call. */
 export async function createWebChatConnection(
   ctx: TenantContext,
-  input: { name?: string; allowedOrigins: string[] }
+  input: { name?: string; allowedOrigins: string[] },
+  requestOrigin?: string
 ): Promise<WebChatConnectionView & { token: string }> {
   const db = getScopedPrisma(ctx);
   const token = generateWebChatToken();
@@ -85,7 +92,7 @@ export async function createWebChatConnection(
   return {
     ...toView(connection),
     token,
-    embedSnippet: buildWebChatEmbedSnippet({ appBaseUrl: appBaseUrl(), connectionId: connection.id, token }),
+    embedSnippet: buildWebChatEmbedSnippet({ appBaseUrl: appBaseUrl(requestOrigin), connectionId: connection.id, token }),
   };
 }
 
@@ -124,7 +131,7 @@ export async function updateWebChatConnection(
  * credential"), since `resolveChannelCredential()` always decrypts whatever
  * is currently stored, never a cached/previous value.
  */
-export async function rotateWebChatToken(ctx: TenantContext, connectionId: string): Promise<WebChatConnectionView & { token: string }> {
+export async function rotateWebChatToken(ctx: TenantContext, connectionId: string, requestOrigin?: string): Promise<WebChatConnectionView & { token: string }> {
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { id: connectionId, type: "webchat" } });
   if (!existing) throw new NotFoundError("Web Chat connection");
@@ -138,6 +145,6 @@ export async function rotateWebChatToken(ctx: TenantContext, connectionId: strin
   return {
     ...toView(updated),
     token,
-    embedSnippet: buildWebChatEmbedSnippet({ appBaseUrl: appBaseUrl(), connectionId: updated.id, token }),
+    embedSnippet: buildWebChatEmbedSnippet({ appBaseUrl: appBaseUrl(requestOrigin), connectionId: updated.id, token }),
   };
 }

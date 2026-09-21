@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { connectionId } = await context.params;
-    const rotated = await rotateWebChatToken(ctx, connectionId);
+    const rotated = await rotateWebChatToken(ctx, connectionId, request.nextUrl.origin);
     return NextResponse.json(rotated);
   } catch (error) {
     logger.error("Failed to rotate web chat token:", error);

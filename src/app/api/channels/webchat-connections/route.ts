@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // The token is returned in this response only — never retrievable again
     // (rotate it instead), matching an ApiKey secret's show-once contract (§9.4).
-    const created = await createWebChatConnection(ctx, validation.data);
+    const created = await createWebChatConnection(ctx, validation.data, request.nextUrl.origin);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     logger.error("Failed to create web chat connection:", error);

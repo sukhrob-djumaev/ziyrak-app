@@ -1,0 +1,4 @@
+{
+  "A": { "biz": "Northwind Bakery", "name": "Alice Baker", "user": "alice_bakery", "pass": "Bakery-Pass-2026!", "desc": "Artisan bakery in Tashkent: sourdough, pastries and custom cakes.", "welcome": "Welcome to Northwind Bakery!", "tone": "Friendly", "profile": "biz-a" },
+  "B": { "biz": "Volt Electric Scooters", "name": "Bob Volt", "user": "bob_scooters", "pass": "Scooter-Pass-2026!", "desc": "Electric scooter rental and repair shop with a fleet of 200 scooters.", "welcome": "Welcome to Volt!", "tone": "Professional", "profile": "biz-b" }
+}

@@ -11,6 +11,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/generated/**",
+    // Plain-Node (CommonJS), run-by-hand release-acceptance tooling
+    // (PLAN.md "MVP Browser Acceptance Suite") — not application code.
+    "scripts/acceptance/**",
   ]),
   {
     rules: {

@@ -44,7 +44,7 @@ export function OnboardingChecklist() {
       const [authRes, settingsRes, entriesRes, channelsRes, teamRes] =
         await Promise.all([
           fetch("/api/auth"),
-          fetch("/api/settings"),
+          fetch("/api/settings/ai"),
           fetch("/api/knowledge/entries"),
           fetch("/api/channels"),
           fetch("/api/team/members"),
@@ -76,8 +76,11 @@ export function OnboardingChecklist() {
           title: "Business profile configured",
           description: "Set your business name and details",
           href: "/settings",
-          completed:
-            !!settings.businessName && settings.businessName !== "My Business",
+          // Signup is the only way a business exists and it requires a
+          // business name, so any signed-in owner's profile is configured.
+          // (This used to read the legacy Default-Business-only /api/settings,
+          // which can never answer for a signed-up business.)
+          completed: auth.authenticated === true,
           icon: Building2,
         },
         {
@@ -85,7 +88,7 @@ export function OnboardingChecklist() {
           title: "AI configured",
           description: "Connect your AI provider with an API key",
           href: "/settings",
-          completed: !!settings.aiApiKey && settings.aiApiKey.length > 0,
+          completed: settings.aiConfigured === true,
           icon: Bot,
         },
         {

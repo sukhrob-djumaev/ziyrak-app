@@ -143,6 +143,14 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
   }
 
   async sendMessage(ctx: TenantContext, connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+    // `resolveChannelCredential` reads by id with no tenant check (it has to
+    // work for inbound webhooks, before any ctx exists) — so a *send* must
+    // itself prove the connection belongs to the acting business before its
+    // access token is ever decrypted (§46.7: "one business's credentials can
+    // never be used to send another business's response").
+    const owned = await getScopedPrisma(ctx).channelConnection.findFirst({ where: { id: connectionId, type: "whatsapp_cloud", isActive: true } });
+    if (!owned) return { success: false, error: "No active WhatsApp connection for this business" };
+
     const credential = await resolveChannelCredential(connectionId, MetaWhatsAppCredentialSchema);
     if (!credential) return { success: false, error: "Connection has no valid Meta WhatsApp credential" };
 

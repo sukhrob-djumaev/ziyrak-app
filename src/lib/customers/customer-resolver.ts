@@ -35,6 +35,13 @@ export async function resolveCustomer(
 ): Promise<string> {
   const db = getScopedPrisma(ctx);
 
+  // PLAN.md §20.2/§46.7 — a Meta Cloud conversation's channel is
+  // "whatsapp_cloud" (that is what routes replies/follow-ups to the right
+  // adapter and connection), but for *identifying the customer* it is just
+  // WhatsApp: the same person messaging over the legacy adapter, a CSV
+  // import, or a phone call must resolve to the same Customer row.
+  channel = channel === "whatsapp_cloud" ? "whatsapp" : channel;
+
   if (!customerContact) {
     return createCustomer(ctx, customerName, channel, customerContact);
   }

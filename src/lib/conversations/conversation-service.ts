@@ -1,5 +1,6 @@
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
+import { logActivity } from "@/lib/observability/activity";
 
 /**
  * PLAN.md §6 (`conversations/` owns "Conversation lifecycle") /§46.5 —
@@ -19,10 +20,12 @@ export async function createNewConversation(
   customerContact: string,
   customerId?: string,
   /** Web Chat only (§20.4) — the widget generates its own conversation id client-side so it knows what to subscribe to before the async job that creates the row has run. */
-  id?: string
+  id?: string,
+  /** The `ChannelConnection` the conversation arrived on — stamped so a later human reply is sent back through the same one (PLAN.md §46.7), not "whichever is first". */
+  connectionId?: string
 ) {
   const db = getScopedPrisma(ctx);
-  return db.conversation.create({
+  const conversation = await db.conversation.create({
     data: {
       ...(id && { id }),
       businessId: ctx.businessId,
@@ -30,6 +33,9 @@ export async function createNewConversation(
       customerName,
       customerContact,
       ...(customerId && { customerId }),
+      ...(connectionId && { metadata: { channelConnectionId: connectionId } }),
     },
   });
+  await logActivity(ctx, "conversation.created", "conversation", conversation.id, `New ${channel} conversation started by ${customerName}`, undefined, { channel });
+  return conversation;
 }

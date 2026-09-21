@@ -1,6 +1,7 @@
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { emitNewMessage } from "@/lib/realtime/realtime";
+import { logActivity } from "@/lib/observability/activity";
 
 /**
  * PLAN.md §46.3 (Phase 3) / §18.1 — moved out of `ai/engine.ts`'s `chat()`
@@ -65,6 +66,7 @@ export async function escalateConversation(ctx: TenantContext, conversationId: s
     where: { id: conversationId },
     data: { status: "escalated" },
   });
+  await logActivity(ctx, "conversation.escalated", "conversation", conversationId, "Conversation escalated for human attention");
 }
 
 export function notifyNewAssistantMessage(

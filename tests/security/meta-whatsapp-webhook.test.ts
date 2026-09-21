@@ -219,6 +219,29 @@ describe("MetaCloudWhatsAppAdapter webhook security (§20.2/§46.7)", () => {
   });
 });
 
+describe("MetaCloudWhatsAppAdapter.sendMessage tenant check (§46.7)", () => {
+  it("refuses to send through another business's connection, never decrypting its access token", async () => {
+    const connA = await createMetaConnection(businessA.businessId, "cross-send-a");
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "" });
+    const previousFetch = global.fetch;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    global.fetch = fetchSpy as any;
+    try {
+      // Business B's context, Business A's connection id.
+      const result = await metaCloudWhatsAppAdapter.sendMessage(businessB.ctx, connA.connectionId, "15550000000", { text: "stolen send" });
+      expect(result.success).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // An inactive connection can't send either.
+      await prisma.channelConnection.update({ where: { id: connA.connectionId }, data: { isActive: false } });
+      expect((await metaCloudWhatsAppAdapter.sendMessage(businessA.ctx, connA.connectionId, "15550000000", { text: "x" })).success).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+});
+
 describe("MetaCloudWhatsAppAdapter webhook route (§17.6/§20.2/§46.7)", () => {
   it("GET answers Meta's verification challenge only with the correct verify token", async () => {
     const { GET } = await import("@/app/api/channels/whatsapp-cloud/webhook/route");

@@ -6,6 +6,7 @@ import type { ActionStatus, ToolDefinition, ToolResult, ToolRuntimeContext } fro
 import { resolveEffectiveToolPolicy } from "./policy";
 import { computeIdempotencyKey } from "./idempotency";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
+import { logActivity } from "@/lib/observability/activity";
 
 const TERMINAL_STATUSES: ReadonlySet<ActionStatus> = new Set(["succeeded", "failed", "cancelled"]);
 
@@ -151,6 +152,7 @@ export class ToolRegistry {
           idempotencyKey,
         },
       });
+      await logActivity(ctx, "action.pending_approval", "action", null, `${requestedBy === "ai" ? "AI" : "A user"} requested "${name}", which needs human approval`, undefined, { tool: name, conversationId: runtimeCtx.conversationId ?? null });
       return {
         success: true,
         message: `This action ("${name}") requires human approval before it will run. It has been forwarded for review.`,
@@ -208,6 +210,7 @@ export class ToolRegistry {
       throw new AppError(409, "NOT_PENDING_APPROVAL", `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
     }
     await db.actionExecution.update({ where: { id: record.id }, data: { status: "cancelled", completedAt: new Date() } });
+    await logActivity(ctx, "action.rejected", "action", record.id, `"${record.tool}" was rejected and will not run`, undefined, { tool: record.tool });
   }
 
   private async runAndRecord(
@@ -228,6 +231,10 @@ export class ToolRegistry {
           completedAt: TERMINAL_STATUSES.has(result.status) ? new Date() : null,
         },
       });
+      await logActivity(ctx, `tool.${result.status}`, "action", actionExecutionId, `"${tool.name}" ${result.status}: ${result.message}`.slice(0, 500), undefined, {
+        tool: tool.name,
+        conversationId: runtimeCtx.conversationId ?? null,
+      });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -235,6 +242,7 @@ export class ToolRegistry {
         where: { id: actionExecutionId },
         data: { status: "failed", errorMessage: message, completedAt: new Date() },
       });
+      await logActivity(ctx, "tool.failed", "action", actionExecutionId, `"${tool.name}" failed: ${message}`.slice(0, 500), undefined, { tool: tool.name });
       return { success: false, message: `Tool "${tool.name}" failed: ${message}`, status: "failed" };
     }
   }

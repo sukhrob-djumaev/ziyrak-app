@@ -5,6 +5,7 @@ import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth
 import { generateWebChatToken } from "./webchat-adapter";
 import { buildWebChatEmbedSnippet } from "./webchat-embed";
 import { NotFoundError } from "@/lib/observability/errors";
+import { logActivity } from "@/lib/observability/activity";
 
 /**
  * PLAN.md §20.4/§46.7 — admin-authenticated CRUD for a business's own Web
@@ -80,6 +81,7 @@ export async function createWebChatConnection(
     },
   });
 
+  await logActivity(ctx, "channel.webchat.created", "channel", connection.id, "Web Chat widget created", undefined, { allowedOrigins: input.allowedOrigins });
   return {
     ...toView(connection),
     token,
@@ -110,6 +112,7 @@ export async function updateWebChatConnection(
     },
   });
 
+  await logActivity(ctx, "channel.webchat.updated", "channel", connectionId, "Web Chat widget settings changed", undefined, { isActive: updated.isActive });
   return toView(updated);
 }
 
@@ -130,6 +133,7 @@ export async function rotateWebChatToken(ctx: TenantContext, connectionId: strin
   const credentialRef = await encryptChannelCredential({ type: "webchat", widgetSecret: token });
 
   const updated = await db.channelConnection.update({ where: { id: connectionId }, data: { credentialRef } });
+  await logActivity(ctx, "channel.webchat.token_rotated", "channel", connectionId, "Web Chat widget token rotated");
 
   return {
     ...toView(updated),

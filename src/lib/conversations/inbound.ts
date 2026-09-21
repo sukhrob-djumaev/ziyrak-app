@@ -9,6 +9,7 @@ import { loadReceiptEvent, markReceiptProcessed } from "@/lib/events/inbound-rec
 import { jobQueue, PROCESS_INBOUND_MESSAGE_JOB, type ProcessInboundMessagePayload } from "@/lib/jobs/queue";
 import { getChannelAdapter } from "@/lib/channels/registry";
 import { logger } from "@/lib/observability/logger";
+import { logActivity } from "@/lib/observability/activity";
 
 export interface OutboundResult {
   conversationId: string;
@@ -91,7 +92,7 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     // widget/connection cannot subscribe to another connection's
     // conversation even within the same business (§20.4's own isolation
     // requirement, tighter than plain businessId scoping).
-    return db.conversation.create({
+    const created = await db.conversation.create({
       data: {
         id: event.conversationId,
         businessId: ctx.businessId,
@@ -102,6 +103,8 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
         metadata: { channelConnectionId: event.source.connectionId },
       },
     });
+    await logActivity(ctx, "conversation.created", "conversation", created.id, `New webchat conversation started by ${event.payload.customerName}`, undefined, { channel: "webchat" });
+    return created;
   }
 
   if (event.conversationId) {
@@ -112,7 +115,7 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
   const { customerContact, customerName } = event.payload;
 
   if (!customerContact) {
-    return createNewConversation(ctx, channel, customerName, customerContact);
+    return createNewConversation(ctx, channel, customerName, customerContact, undefined, undefined, event.source.connectionId);
   }
 
   const customerId = await resolveCustomer(ctx, channel, customerContact, customerName);
@@ -125,7 +128,7 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     },
   });
 
-  return existing ?? (await createNewConversation(ctx, channel, customerName, customerContact, customerId));
+  return existing ?? (await createNewConversation(ctx, channel, customerName, customerContact, customerId, undefined, event.source.connectionId));
 }
 
 /**

@@ -5,6 +5,7 @@ import { ChannelCredentialSchema, type ChannelCredential } from "@/lib/secrets";
 import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { AppError } from "@/lib/observability/errors";
 import { prepareMetaCloudConnection } from "./meta-whatsapp-setup";
+import { logActivity } from "@/lib/observability/activity";
 
 /**
  * PLAN.md §7.7/§16.2 — tenant-scoped `ChannelConnection` access for the
@@ -84,29 +85,30 @@ export async function upsertByType(ctx: TenantContext, type: string, rawInput: U
 
   const credentialRef = await resolveCredentialRef(type, input.credential);
 
-  if (existing) {
-    return db.channelConnection.update({
-      where: { id: existing.id },
-      data: {
-        ...(input.isActive !== undefined && { isActive: input.isActive }),
-        ...(input.config !== undefined && { config: input.config as Prisma.InputJsonValue }),
-        ...(input.status !== undefined && { status: input.status }),
-        ...(credentialRef !== undefined && { credentialRef }),
-      },
-    });
-  }
+  const saved = existing
+    ? await db.channelConnection.update({
+        where: { id: existing.id },
+        data: {
+          ...(input.isActive !== undefined && { isActive: input.isActive }),
+          ...(input.config !== undefined && { config: input.config as Prisma.InputJsonValue }),
+          ...(input.status !== undefined && { status: input.status }),
+          ...(credentialRef !== undefined && { credentialRef }),
+        },
+      })
+    : await db.channelConnection.create({
+        data: {
+          businessId: ctx.businessId,
+          type,
+          name: type,
+          isActive: input.isActive ?? false,
+          config: (input.config ?? {}) as Prisma.InputJsonValue,
+          status: input.status ?? "disconnected",
+          ...(credentialRef !== undefined && { credentialRef }),
+        },
+      });
 
-  return db.channelConnection.create({
-    data: {
-      businessId: ctx.businessId,
-      type,
-      name: type,
-      isActive: input.isActive ?? false,
-      config: (input.config ?? {}) as Prisma.InputJsonValue,
-      status: input.status ?? "disconnected",
-      ...(credentialRef !== undefined && { credentialRef }),
-    },
-  });
+  await logActivity(ctx, "channel.configured", "channel", saved.id, `${type} channel settings saved`, undefined, { type, credentialChanged: credentialRef !== undefined });
+  return saved;
 }
 
 export async function performAction(ctx: TenantContext, type: string, action: "connect" | "disconnect" | "test") {

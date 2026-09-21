@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/observability/logger";
-import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { requireAuth, isAuthenticated, resolveActorDisplayName } from "@/lib/identity/route-auth";
 import { toErrorResponse } from "@/lib/observability/errors";
 import { emitNewMessage } from "@/lib/realtime/realtime";
 import * as conversationsService from "@/lib/conversations/service";
+import { logActivity } from "@/lib/observability/activity";
+import { deliverAgentReply } from "@/lib/conversations/agent-reply";
 
 export async function GET(
   request: NextRequest,
@@ -44,8 +46,13 @@ export async function POST(
     const message = await conversationsService.addMessage(ctx, id, content, role);
 
     emitNewMessage(ctx.businessId, id, { id: message.id, role: message.role, content: message.content });
+    await logActivity(ctx, "message.sent", "conversation", id, "A team member replied in the conversation", await resolveActorDisplayName(ctx));
 
-    return NextResponse.json(message, { status: 201 });
+    // Only a reply written *as the business* (assistant role) is sent out; a
+    // "customer"/"system" row is a record, not something to transmit.
+    const delivery = message.role === "assistant" ? await deliverAgentReply(ctx, id, message.content) : { status: "not_applicable" as const, reason: "Not an outbound reply" };
+
+    return NextResponse.json({ ...message, delivery }, { status: 201 });
   } catch (error) {
     logger.error("Failed to create message:", error);
     return toErrorResponse(error);

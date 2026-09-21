@@ -8,6 +8,9 @@ import { logger } from "@/lib/observability/logger";
 
 type Handler = (ctx: TenantContext, payload: unknown) => Promise<void>;
 
+/** How many jobs one worker instance pulls and runs in parallel, per queue (see `start()`'s own comment). */
+const WORKER_LOCAL_CONCURRENCY = 10;
+
 /**
  * PLAN.md §25.1/§46.6 PR2 — the real, durable `JobQueue` implementation,
  * built and verified against pg-boss's actual installed API (v12,
@@ -97,12 +100,21 @@ export class PgBossJobQueue implements JobQueue {
    * every registered job type's queue exists, then starts a `work()`
    * poller for each. Never called by the web process, which only
    * enqueues/schedules (§25.3's "separate deployable" split).
+   *
+   * `localConcurrency` (verified against pg-boss's real `WorkOptions`)
+   * governs how many jobs *this one worker* pulls and runs in parallel per
+   * queue — it defaults to 1, which would make every queue serialize
+   * trivially regardless of key and silently defeat §25.5's own
+   * "different conversations process concurrently" half of the ordering
+   * guarantee (caught by this phase's own acceptance test). Set explicitly
+   * so `key_strict_fifo`'s per-key ordering is the thing actually doing the
+   * serializing for same-key jobs, not an accidental one-at-a-time worker.
    */
   async start(): Promise<void> {
     await this.boss.start();
     for (const [jobType, handler] of this.handlers) {
       await this.ensureQueue(jobType);
-      await this.boss.work(jobType, async (jobs: Job<{ businessId?: string }>[]) => {
+      await this.boss.work(jobType, { localConcurrency: WORKER_LOCAL_CONCURRENCY }, async (jobs: Job<{ businessId?: string }>[]) => {
         for (const job of jobs) {
           await this.runJob(jobType, job, handler);
         }

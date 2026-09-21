@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import * as webhooksService from "@/lib/integrations/webhooks/service";
 import { NotFoundError } from "@/lib/observability/errors";
+import { dispatchHttpRequest, SSRFBlockedError } from "@/lib/integrations/http-dispatcher";
 
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "webhooks:update");
@@ -50,23 +51,20 @@ export async function POST(request: NextRequest) {
         : {}),
     };
 
-    const fetchOptions: RequestInit = {
+    // PLAN.md §32.1/§46.6 — routed through the shared SSRF-hardened
+    // dispatcher, closing the third of the three call sites §32's own
+    // security table named (`trigger_webhook`, `webhook-delivery.ts`, and
+    // this "test webhook" route all previously called a raw, unprotected
+    // `fetch()` against an admin-configured URL).
+    const response = await dispatchHttpRequest(webhook.url, {
       method: webhook.method,
       headers,
-    };
+      body: webhook.method !== "GET" ? JSON.stringify(testPayload) : undefined,
+      timeoutMs: 10000,
+      includeResponseBody: true,
+    });
 
-    if (webhook.method !== "GET") {
-      fetchOptions.body = JSON.stringify(testPayload);
-    }
-
-    const response = await fetch(webhook.url, fetchOptions);
-
-    let responseBody: string;
-    try {
-      responseBody = await response.text();
-    } catch {
-      responseBody = "(unable to read response body)";
-    }
+    const responseBody = response.body ?? "(unable to read response body)";
 
     // Limit preview length
     const bodyPreview =
@@ -83,7 +81,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to send test webhook";
+      error instanceof SSRFBlockedError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Failed to send test webhook";
 
     return NextResponse.json(
       {

@@ -132,23 +132,29 @@ export interface DispatchOptions {
   body?: string;
   timeoutMs?: number;
   maxRedirects?: number;
+  /** Captures the final hop's response body as text (capped at `MAX_RESPONSE_BODY_BYTES`) — off by default, since most callers only need status. */
+  includeResponseBody?: boolean;
 }
 
 export interface DispatchResult {
   ok: boolean;
   status: number;
   statusText: string;
+  body?: string;
 }
 
 interface SingleHopResult {
   status: number;
   statusText: string;
   headers: http.IncomingHttpHeaders;
+  body?: string;
 }
+
+const MAX_RESPONSE_BODY_BYTES = 1_000_000; // 1MB cap — a preview/test feature, never a bulk-transfer path
 
 async function performRequest(
   url: URL,
-  options: { method: string; headers?: Record<string, string>; body?: string; timeoutMs: number }
+  options: { method: string; headers?: Record<string, string>; body?: string; timeoutMs: number; includeResponseBody?: boolean }
 ): Promise<SingleHopResult> {
   const records = await resolveAndValidate(url.hostname);
   const lookup = pinnedLookup(records);
@@ -167,8 +173,29 @@ async function performRequest(
         timeout: options.timeoutMs,
       },
       (res) => {
-        res.resume(); // callers here only need status/headers, never the body
-        res.on("end", () => resolve({ status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers: res.headers }));
+        if (!options.includeResponseBody) {
+          res.resume(); // most callers only need status/headers, never the body
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers: res.headers }));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let received = 0;
+        res.on("data", (chunk: Buffer) => {
+          if (received >= MAX_RESPONSE_BODY_BYTES) return;
+          const remaining = MAX_RESPONSE_BODY_BYTES - received;
+          const slice = chunk.length > remaining ? chunk.subarray(0, remaining) : chunk;
+          chunks.push(slice);
+          received += slice.length;
+        });
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            statusText: res.statusMessage ?? "",
+            headers: res.headers,
+            body: Buffer.concat(chunks).toString("utf8"),
+          })
+        );
       }
     );
     req.on("timeout", () => req.destroy(new Error(`Request to "${url.hostname}" timed out after ${options.timeoutMs}ms`)));
@@ -207,7 +234,13 @@ export async function dispatchHttpRequest(targetUrl: string, options: DispatchOp
       throw new SSRFBlockedError(currentUrl.toString(), `protocol "${currentUrl.protocol}" is not allowed`);
     }
 
-    const response = await performRequest(currentUrl, { method, headers: options.headers, body, timeoutMs });
+    const response = await performRequest(currentUrl, {
+      method,
+      headers: options.headers,
+      body,
+      timeoutMs,
+      includeResponseBody: options.includeResponseBody,
+    });
 
     const isRedirect = response.status >= 300 && response.status < 400;
     const location = response.headers.location;
@@ -220,7 +253,12 @@ export async function dispatchHttpRequest(targetUrl: string, options: DispatchOp
       continue;
     }
 
-    return { ok: response.status >= 200 && response.status < 300, status: response.status, statusText: response.statusText };
+    return {
+      ok: response.status >= 200 && response.status < 300,
+      status: response.status,
+      statusText: response.statusText,
+      body: response.body,
+    };
   }
 
   throw new SSRFBlockedError(targetUrl, `too many redirects (max ${maxRedirects})`);

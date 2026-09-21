@@ -1,11 +1,9 @@
 import crypto from "crypto";
-import { logger } from "@/lib/observability/logger";
+import { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-
-const MAX_ATTEMPTS = 3;
-const RETRY_DELAYS = [5000, 30000, 300000]; // 5s, 30s, 5min
-const DELIVERY_TIMEOUT = 10000;
+import { jobQueue } from "@/lib/jobs/queue";
+import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
 
 interface WebhookConfig {
   id: string;
@@ -23,7 +21,13 @@ export function generateSignature(payload: string, secret: string): string {
 }
 
 /**
- * Deliver a webhook with retry logic and delivery tracking.
+ * PLAN.md §25.2/§46.6 PR2 task 11 — creates the `WebhookDelivery` record
+ * and enqueues one durable `deliver-webhook` job for it. The actual HTTP
+ * attempt (and every retry) happens in the job handler
+ * (`jobs/handlers/deliver-webhook.ts`), not here — this function's own
+ * job is done once the attempt is durably queued, replacing the old
+ * `setTimeout`-recursive `attemptDelivery()` that ran (and retried)
+ * entirely in this process's event loop, lost on restart.
  */
 export async function deliverWebhook(
   ctx: TenantContext,
@@ -32,139 +36,34 @@ export async function deliverWebhook(
   data: Record<string, unknown>
 ): Promise<{ deliveryId: string; success: boolean }> {
   const db = getScopedPrisma(ctx);
-  const payload = JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    webhookId: webhook.id,
-    data,
-  });
 
   const delivery = await db.webhookDelivery.create({
     data: {
       businessId: ctx.businessId,
       webhookId: webhook.id,
       event,
-      payload: JSON.parse(payload),
+      payload: { event, timestamp: new Date().toISOString(), webhookId: webhook.id, data } as Prisma.InputJsonValue,
       status: "pending",
       attempts: 0,
     },
   });
 
-  const result = await attemptDelivery(ctx, webhook, payload, delivery.id);
+  await jobQueue.enqueue<DeliverWebhookPayload>(DELIVER_WEBHOOK_JOB, {
+    businessId: ctx.businessId,
+    webhookId: webhook.id,
+    deliveryId: delivery.id,
+  });
 
-  return { deliveryId: delivery.id, success: result };
-}
-
-async function attemptDelivery(
-  ctx: TenantContext,
-  webhook: WebhookConfig,
-  payload: string,
-  deliveryId: string,
-  attempt = 1
-): Promise<boolean> {
-  const db = getScopedPrisma(ctx);
-  const webhookSecret = process.env.WEBHOOK_SECRET || "";
-  const signature = webhookSecret ? generateSignature(payload, webhookSecret) : "";
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT);
-
-  try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "User-Agent": "Owly-Webhook/1.0",
-      ...webhook.headers,
-    };
-
-    if (signature) {
-      headers["X-Owly-Signature"] = signature;
-    }
-
-    const response = await fetch(webhook.url, {
-      method: webhook.method,
-      headers,
-      body: webhook.method !== "GET" ? payload : undefined,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      await db.webhookDelivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: "delivered",
-          statusCode: response.status,
-          attempts: attempt,
-        },
-      });
-      return true;
-    }
-
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    const errorMessage = error instanceof Error
-      ? (error.name === "AbortError" ? "Request timed out" : error.message)
-      : String(error);
-
-    if (attempt < MAX_ATTEMPTS) {
-      const retryDelay = RETRY_DELAYS[attempt - 1] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-      const nextRetryAt = new Date(Date.now() + retryDelay);
-
-      await db.webhookDelivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: "pending",
-          attempts: attempt,
-          lastError: errorMessage,
-          nextRetryAt,
-        },
-      });
-
-      logger.warn(`Webhook delivery failed, retrying in ${retryDelay / 1000}s`, {
-        businessId: ctx.businessId,
-        deliveryId,
-        webhookId: webhook.id,
-        attempt,
-        error: errorMessage,
-      });
-
-      // Schedule retry
-      setTimeout(() => {
-        attemptDelivery(ctx, webhook, payload, deliveryId, attempt + 1).catch((err) =>
-          logger.error("Webhook retry failed", err)
-        );
-      }, retryDelay);
-
-      return false;
-    }
-
-    // All retries exhausted
-    await db.webhookDelivery.update({
-      where: { id: deliveryId },
-      data: {
-        status: "failed",
-        attempts: attempt,
-        lastError: errorMessage,
-        statusCode: null,
-      },
-    });
-
-    logger.error("Webhook delivery permanently failed", null, {
-      businessId: ctx.businessId,
-      deliveryId,
-      webhookId: webhook.id,
-      event: "delivery_failed",
-    });
-
-    return false;
-  }
+  // "success" here means "durably queued for delivery," not "delivered" —
+  // §24.1's own rule (never claim a status the infrastructure hasn't
+  // backed yet) applies to this internal helper's return value exactly as
+  // it does to a ToolResult. Callers that need the terminal delivery
+  // status read WebhookDelivery.status once the job has run.
+  return { deliveryId: delivery.id, success: true };
 }
 
 /**
- * Retry a specific failed delivery.
+ * Re-queues a specific failed delivery for another attempt.
  */
 export async function retryDelivery(ctx: TenantContext, deliveryId: string): Promise<boolean> {
   const db = getScopedPrisma(ctx);
@@ -177,23 +76,16 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
     return false;
   }
 
-  const payload = JSON.stringify(delivery.payload);
-
   await db.webhookDelivery.update({
     where: { id: deliveryId },
     data: { status: "pending", attempts: 0, lastError: null },
   });
 
-  return attemptDelivery(
-    ctx,
-    {
-      id: delivery.webhook.id,
-      name: delivery.webhook.name,
-      url: delivery.webhook.url,
-      method: delivery.webhook.method,
-      headers: (delivery.webhook.headers || {}) as Record<string, string>,
-    },
-    payload,
-    deliveryId
-  );
+  await jobQueue.enqueue<DeliverWebhookPayload>(DELIVER_WEBHOOK_JOB, {
+    businessId: ctx.businessId,
+    webhookId: delivery.webhook.id,
+    deliveryId: delivery.id,
+  });
+
+  return true;
 }

@@ -9,6 +9,9 @@ RUN npm ci
 COPY . .
 
 RUN npx prisma generate
+# Dummy value only, so `next build` can statically analyze routes that import auth.ts;
+# the real secret is supplied at container runtime via .env / env_file, never baked into this image.
+ARG JWT_SECRET=build-time-placeholder-unused-at-runtime
 RUN npm run build
 
 # ---- Runner stage ----
@@ -55,10 +58,19 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/tsconfig.json ./
+# PLAN.md §25.3/§46.6 PR2 — the worker (`npm run worker`) is not part of
+# Next.js's own bundled output (`.next/`, copied above); it runs the real
+# TypeScript source directly via tsx (a devDependency, present here because
+# the builder stage's `npm ci` installs the full dependency tree — the
+# runner stage's node_modules is copied from it verbatim, not reinstalled
+# production-only). The whole src/ tree is needed, not just src/generated,
+# since the worker imports transitively across src/lib.
+COPY --from=builder /app/src ./src
 
-RUN chown -R nextjs:nodejs /app
+RUN mkdir -p /app/.wwebjs_auth && chown -R nextjs:nodejs /app
 
 USER nextjs
 

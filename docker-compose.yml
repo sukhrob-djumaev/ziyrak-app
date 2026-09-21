@@ -45,7 +45,28 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
+
+  # PLAN.md §25.3/§46.6 PR2 — a deliberate separate deployable from `app`
+  # from day one (same image, different entrypoint), so Phase 8's "scale
+  # workers independently of web replicas" is only a deployment-config
+  # change (a replica count), never an architectural one.
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["sh", "-c", "npx prisma migrate deploy && npm run worker"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
+      NODE_ENV: production
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   postgres_data:

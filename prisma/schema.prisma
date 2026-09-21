@@ -137,6 +137,12 @@ model BusinessConfig {
   // provider named in aiProvider/embeddingProvider at read time.
   aiCredentialRef         String?
   embeddingCredentialRef  String?
+  // PLAN.md §25.2/§46.6 — sweep-retention's own per-business setting
+  // ("reading each business's retention setting from BusinessConfig").
+  // Null means no retention policy configured — the sweep skips the
+  // business entirely rather than guessing a default and deleting data a
+  // business never asked to have purged.
+  retentionDays           Int?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

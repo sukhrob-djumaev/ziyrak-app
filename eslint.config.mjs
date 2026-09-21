@@ -86,6 +86,21 @@ const eslintConfig = defineConfig([
       // `tools/builtin/send-internal-email.ts` unchanged; the allowlist
       // entry moves with it.
       "src/lib/tools/builtin/send-internal-email.ts",
+      // PLAN.md §25.2/§46.6 PR2 task 12 — the two platform-wide recurring
+      // sweeps' own "platform/control-plane Business lookup" step (their
+      // header comments have the fuller reasoning): listing every business
+      // to iterate is necessarily a cross-tenant, control-plane query, the
+      // same justification `platform/tenant-placement.ts` itself has. Every
+      // other query either file makes is through `getScopedPrisma(ctx)`
+      // once that business's own `TenantContext` is resolved.
+      "src/lib/jobs/handlers/sweep-sla-breaches.ts",
+      "src/lib/jobs/handlers/sweep-retention.ts",
+      // The worker entrypoint's own process-lifecycle shutdown (raw
+      // `prisma.$disconnect()`), same justification as
+      // `lib/prisma/shutdown.ts` — which this allowlist already covers via
+      // `src/lib/prisma/**` — for the same operation from a different
+      // process.
+      "src/worker.ts",
     ],
     rules: {
       "no-restricted-imports": [

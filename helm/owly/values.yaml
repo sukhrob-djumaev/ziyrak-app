@@ -71,6 +71,21 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
+# -- Worker (PLAN.md §25.3/§46.6 PR2) — a separate Deployment running
+# `npm run worker` (src/worker.ts) against the same image, so it can be
+# scaled independently of the web app's replicaCount above.
+worker:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
 # -- Health probes
 probes:
   startup:

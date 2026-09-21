@@ -53,7 +53,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       : undefined;
 
   if (!conversation || owningConnectionId !== connectionId) {
-    return new Response("Not Found", { status: 404 });
+    // With the CORS headers: a new visitor's widget opens this stream before
+    // its conversation exists, and a header-less 404 is reported by the
+    // browser as a CORS failure that also closes the EventSource for good.
+    return new Response("Not Found", { status: 404, headers: cors });
   }
 
   const channel = tenantConversationChannel(ctx.businessId, conversationId);

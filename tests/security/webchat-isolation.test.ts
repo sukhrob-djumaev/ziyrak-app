@@ -198,6 +198,27 @@ describe("WebChat token/origin/tenant isolation (§20.4/§46.5)", () => {
     ownResponse.body?.cancel();
   });
 
+  // Post-Phase-7 hardening (browser acceptance pass): a brand-new visitor's
+  // widget opens the stream before its conversation row exists (the row is
+  // created by the first message's job). That 404 must still carry the
+  // connection's CORS headers — without them the browser reports a CORS
+  // failure instead of a 404, and the EventSource is closed for good.
+  it("answers a stream request for a not-yet-created conversation with 404 *and* the connection's CORS headers", async () => {
+    const { connectionId, token } = await createWebChatConnection(businessA.businessId, [ALLOWED_ORIGIN]);
+    const { GET } = await import("@/app/api/channels/webchat/[connectionId]/stream/route");
+
+    const response = await GET(
+      createRequest(`/api/channels/webchat/${connectionId}/stream`, {
+        headers: { origin: ALLOWED_ORIGIN },
+        searchParams: { token, conversationId: crypto.randomUUID() },
+      }),
+      { params: Promise.resolve({ connectionId }) }
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("access-control-allow-origin")).toBe(ALLOWED_ORIGIN);
+  });
+
   it("resolveCustomer correlates repeat visits from the same visitor across separate conversations, but not across different visitors (§5.3/§20.4 acceptance-audit correction)", async () => {
     const { connectionId, token } = await createWebChatConnection(businessA.businessId, [ALLOWED_ORIGIN]);
     const { processInboundMessage } = await import("@/lib/conversations/inbound");

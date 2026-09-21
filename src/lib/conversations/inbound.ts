@@ -59,7 +59,18 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
 
   if (event.conversationId && event.source.channel === "webchat") {
     const existing = await db.conversation.findUnique({ where: { id: event.conversationId } });
-    if (existing) return existing;
+    if (existing) {
+      // PLAN.md §46.7 — `WebChatAdapter.validateInbound` already refuses this
+      // case before a receipt is ever written; this is the second,
+      // independent check (a job replayed from an older receipt, or a future
+      // caller that skips the adapter) so a client-supplied conversation id
+      // can never route a message into another connection's/visitor's thread.
+      const owningConnectionId = (existing.metadata as Record<string, unknown> | null)?.channelConnectionId;
+      if (owningConnectionId !== event.source.connectionId || existing.customerContact !== event.payload.customerContact) {
+        throw new Error("Web Chat conversation does not belong to this connection/visitor");
+      }
+      return existing;
+    }
 
     // PLAN.md §20.4/§46.5 acceptance-audit correction: §20.4 states
     // "WebChatAdapter otherwise behaves like any other ChannelAdapter" —

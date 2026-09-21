@@ -704,7 +704,8 @@ export default function AdminPage() {
                   className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
                 >
                   <option value="admin">Admin - Full access</option>
-                  <option value="editor">Editor - Can edit content</option>
+                  <option value="supervisor">Supervisor - Manage team, knowledge, and approvals</option>
+                  <option value="agent">Agent - Reply to and handle conversations</option>
                   <option value="viewer">Viewer - Read-only access</option>
                 </select>
               </div>

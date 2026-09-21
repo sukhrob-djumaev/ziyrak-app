@@ -1,18 +1,26 @@
 /**
- * Ziyrak Web Chat widget embed script (PLAN.md §20.4/§46.5).
+ * Ziyrak Web Chat widget embed script (PLAN.md §20.4/§46.5/§46.7).
+ * Widget script version: 1 (keep in sync with WIDGET_SCRIPT_VERSION in
+ * src/lib/channels/webchat-embed.ts — the dashboard's copy-paste snippet
+ * references this file as /widget.js?v=<that version>).
  *
- * Usage on a business's own site:
- *   <script src="https://<ziyrak-host>/widget.js"
+ * Usage on a business's own site (the dashboard generates this exact snippet):
+ *   <script src="https://<ziyrak-host>/widget.js?v=1"
  *           data-connection-id="<connectionId>"
  *           data-token="zy_pub_..."
- *           data-api-base="https://<ziyrak-host>"></script>
+ *           data-api-base="https://<ziyrak-host>" defer></script>
  *
  * Deliberately minimal: no build step, no framework, a handful of DOM
  * nodes. The token is a publishable credential by design (§20.4) — it is
- * expected to be visible in this script tag's own markup.
+ * expected to be visible in this script tag's own markup. It authenticates
+ * only this widget's own message/stream endpoints and nothing else.
  */
 (function () {
   var script = document.currentScript;
+  if (!script) {
+    console.error("[ZiyrakWidget] must be loaded via a plain <script> tag");
+    return;
+  }
   var connectionId = script.getAttribute("data-connection-id");
   var token = script.getAttribute("data-token");
   var apiBase = script.getAttribute("data-api-base") || "";
@@ -21,6 +29,12 @@
     console.error("[ZiyrakWidget] data-connection-id and data-token are required");
     return;
   }
+
+  // A second embed of the same connection on one page would open two
+  // streams and render two widgets on top of each other.
+  var guardKey = "__ziyrakWidget_" + connectionId;
+  if (window[guardKey]) return;
+  window[guardKey] = true;
 
   var storageKey = "ziyrak_webchat_conversation_" + connectionId;
   var conversationId = window.localStorage.getItem(storageKey);
@@ -51,7 +65,7 @@
     '<div style="background:#0F172A;color:#fff;padding:10px 14px;border-radius:8px 8px 0 0;font-size:14px;">Chat with us</div>' +
     '<div id="ziyrak-log" style="background:#fff;border:1px solid #E2E8F0;height:280px;overflow-y:auto;padding:10px;font-size:13px;"></div>' +
     '<form id="ziyrak-form" style="display:flex;border:1px solid #E2E8F0;border-top:0;border-radius:0 0 8px 8px;overflow:hidden;">' +
-    '<input id="ziyrak-input" type="text" placeholder="Type a message..." style="flex:1;border:0;padding:10px;font-size:13px;outline:none;" />' +
+    '<input id="ziyrak-input" type="text" maxlength="4000" placeholder="Type a message..." style="flex:1;border:0;padding:10px;font-size:13px;outline:none;" />' +
     '<button type="submit" style="border:0;background:#0F172A;color:#fff;padding:0 14px;cursor:pointer;">Send</button>' +
     "</form>";
   document.body.appendChild(container);
@@ -62,10 +76,24 @@
 
   function appendMessage(role, text) {
     var line = document.createElement("div");
-    line.style.cssText = "margin-bottom:8px;" + (role === "assistant" ? "color:#0F172A;" : "color:#334155;text-align:right;");
+    var style = "margin-bottom:8px;";
+    if (role === "assistant") style += "color:#0F172A;";
+    else if (role === "system") style += "color:#B91C1C;font-size:12px;";
+    else style += "color:#334155;text-align:right;";
+    line.style.cssText = style;
     line.textContent = text;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
+  }
+
+  // Misconfiguration (revoked/rotated token, origin not on the business's
+  // allowlist, deactivated connection) must fail visibly to whoever is
+  // testing the embed, not silently swallow every message.
+  var unavailableShown = false;
+  function showUnavailable() {
+    if (unavailableShown) return;
+    unavailableShown = true;
+    appendMessage("system", "Chat is currently unavailable. Please try again later.");
   }
 
   function connectStream() {
@@ -81,6 +109,9 @@
     source.onmessage = function (evt) {
       try {
         var payload = JSON.parse(evt.data);
+        // Human-agent replies from the dashboard are stored/published with
+        // the same "assistant" role as AI replies (conversations/service.ts's
+        // addMessage), so a handed-off conversation keeps flowing here.
         if (payload.type === "message:new" && payload.data && payload.data.role === "assistant") {
           appendMessage("assistant", payload.data.content);
         }
@@ -89,7 +120,10 @@
       }
     };
     source.onerror = function () {
-      // EventSource retries on its own; nothing to do here.
+      // EventSource retries transient drops on its own. A closed stream
+      // (the server answered 403/404 — bad token, origin, or connection)
+      // will not recover by itself.
+      if (source.readyState === 2) showUnavailable();
     };
   }
 
@@ -110,9 +144,18 @@
         customerContact: visitorId,
         text: text,
       }),
-    }).catch(function (err) {
-      console.error("[ZiyrakWidget] Failed to send message", err);
-    });
+    })
+      .then(function (res) {
+        if (res.status === 429) {
+          appendMessage("system", "You're sending messages too quickly. Please wait a moment.");
+        } else if (!res.ok) {
+          showUnavailable();
+        }
+      })
+      .catch(function (err) {
+        console.error("[ZiyrakWidget] Failed to send message", err);
+        showUnavailable();
+      });
   });
 
   connectStream();

@@ -227,6 +227,33 @@ export const createApiKeySchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
 });
 
+// Web Chat connections (PLAN.md §20.4/§46.7) — an "origin" (no path, query,
+// or trailing slash) rather than an arbitrary URL, since this is compared
+// exactly against the browser's own `Origin` header (`webchat-adapter.ts`'s
+// `originAllowed()`).
+const webChatOriginSchema = z
+  .string()
+  .max(500)
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.origin === value && (url.protocol === "http:" || url.protocol === "https:");
+    } catch {
+      return false;
+    }
+  }, "Must be an origin like https://example.com (no path, query string, or trailing slash)");
+
+export const createWebChatConnectionSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  allowedOrigins: z.array(webChatOriginSchema).min(1, "At least one allowed origin is required"),
+});
+
+export const updateWebChatConnectionSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  allowedOrigins: z.array(webChatOriginSchema).min(1).optional(),
+  isActive: z.boolean().optional(),
+});
+
 // Internal Notes
 export const createNoteSchema = z.object({
   content: z.string().min(1, "Content is required").max(10000),

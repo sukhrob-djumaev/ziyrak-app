@@ -17,9 +17,16 @@ export async function recordEscalationSignal(
   metadata: { escalationReason: string | undefined; sentiment: string; intent: string }
 ): Promise<void> {
   const db = getScopedPrisma(ctx);
+  // Merge, never replace: `metadata` also carries `channelConnectionId` for
+  // Web Chat conversations (conversations/inbound.ts) — the field the public
+  // stream route and the visitor/connection binding check depend on
+  // (PLAN.md §20.4/§46.7). Overwriting it here would silently detach the
+  // widget from its own conversation the first time an escalation signal fired.
+  const existing = await db.conversation.findUnique({ where: { id: conversationId }, select: { metadata: true } });
+  const current = existing?.metadata && typeof existing.metadata === "object" ? (existing.metadata as Record<string, unknown>) : {};
   await db.conversation.update({
     where: { id: conversationId },
-    data: { metadata },
+    data: { metadata: { ...current, ...metadata } },
   });
 }
 

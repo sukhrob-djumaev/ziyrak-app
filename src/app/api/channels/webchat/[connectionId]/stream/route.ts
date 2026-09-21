@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { webChatAdapter } from "@/lib/channels/webchat-adapter";
 import { subscribe, tenantConversationChannel } from "@/lib/realtime/realtime";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,23 @@ type RouteContext = { params: Promise<{ connectionId: string }> };
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   const { connectionId } = await context.params;
+
+  // Each SSE connect does a DB-backed token/origin check — bound how often a
+  // single IP can trigger one (long-lived streams themselves are cheap; the
+  // repeated auth attempts are what an attacker would hammer).
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  if (!checkRateLimit(`webchat-stream-ip:${connectionId}:${ip}`, { maxRequests: 30, windowMs: 60_000 }).allowed) {
+    return new Response("Too Many Requests", { status: 429 });
+  }
+
   const token = request.nextUrl.searchParams.get("token") || "";
   const conversationId = request.nextUrl.searchParams.get("conversationId") || "";
   const origin = request.headers.get("origin") || "";
+  // EventSource is a cross-origin "simple" request (no preflight), but the
+  // browser still needs `Access-Control-Allow-Origin` on the response to let
+  // the embedding page read the stream — granted only for an origin on this
+  // connection's own allowlist (PLAN.md §20.4/§46.7).
+  const cors = await webChatAdapter.corsHeadersFor(connectionId, origin).catch(() => ({}));
 
   const ctx = await webChatAdapter.authenticateWidget(connectionId, token, origin);
   if (!ctx || !conversationId) {
@@ -79,6 +94,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   return new Response(stream, {
     headers: {
+      ...cors,
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",

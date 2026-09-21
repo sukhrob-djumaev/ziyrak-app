@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { WebChatCard } from "@/components/channels/webchat-card";
+import { MetaWhatsAppCard } from "@/components/channels/meta-whatsapp-card";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -883,12 +885,19 @@ export default function ChannelsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl">
-            <WhatsAppCard
-              channel={getChannel("whatsapp")}
-              onSave={handleSave}
-              onAction={handleAction}
-              saving={saving}
-            />
+            {/* PLAN.md §20.2/§46.7 — tenants connect WhatsApp through Meta Cloud
+                (below); the QR-code card is the dev/demo-only whatsapp-web.js
+                adapter, hidden unless a deployment explicitly enables it. */}
+            <MetaWhatsAppCard />
+            {process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB === "true" && (
+              <WhatsAppCard
+                channel={getChannel("whatsapp")}
+                onSave={handleSave}
+                onAction={handleAction}
+                saving={saving}
+              />
+            )}
+            <WebChatCard />
             <EmailCard
               channel={getChannel("email")}
               onSave={handleSave}

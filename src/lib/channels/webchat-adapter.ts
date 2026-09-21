@@ -13,6 +13,11 @@ interface WebChatConnectionConfig {
   rateLimitPerMinute?: number;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_TEXT_LENGTH = 4000;
+const MAX_ID_LENGTH = 128;
+const MAX_NAME_LENGTH = 200;
+
 interface WebChatMessageBody {
   token?: string;
   clientMessageId?: string;
@@ -76,6 +81,24 @@ export class WebChatAdapter implements ChannelAdapter<NormalizedInboundRequest> 
     return buildChannelCredentialContext(resolved);
   }
 
+  /**
+   * CORS headers for the public widget routes (PLAN.md §20.4/§46.7): an
+   * `Access-Control-Allow-Origin` is granted only when the caller's `Origin`
+   * is on *this connection's own* `allowedOrigins` — never `*`, never a
+   * global value — so the browser itself refuses to let a page on any other
+   * origin read a response, independent of the server-side origin check.
+   * This is not authentication (an attacker's non-browser client can send any
+   * `Origin` header); `authenticateWidget` remains the enforcing check.
+   */
+  async corsHeadersFor(connectionId: string, origin: string): Promise<Record<string, string>> {
+    if (!connectionId || !origin) return {};
+    const resolved = await findConnectionById("webchat", connectionId);
+    if (!resolved) return {};
+    const config = (await this.loadConfig(resolved.connectionId)) ?? {};
+    if (!originAllowed(origin, config.allowedOrigins)) return {};
+    return { "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+  }
+
   async validateInbound(request: NormalizedInboundRequest): Promise<ValidateInboundResult> {
     const connectionId = request.routeParams.connectionId;
     if (!connectionId) return { kind: "rejected", reason: "Missing connectionId in path" };
@@ -89,6 +112,40 @@ export class WebChatAdapter implements ChannelAdapter<NormalizedInboundRequest> 
     const ctx = await this.authenticateWidget(connectionId, body.token, origin);
     if (!ctx) return { kind: "rejected", reason: "Invalid token, origin, or connection" };
 
+    // PLAN.md §46.7 — the widget-supplied ids/text are attacker-controlled by
+    // construction (§20.4), so bound them before anything is persisted:
+    // `conversationId` becomes a `Conversation` primary key, so it must be a
+    // real UUID (what `crypto.randomUUID()` in the widget produces), not an
+    // arbitrary string; text/name/contact lengths are capped so one visitor
+    // can't push megabytes into a row or a model prompt.
+    if (
+      !UUID_PATTERN.test(body.conversationId) ||
+      body.clientMessageId.length > MAX_ID_LENGTH ||
+      body.text.length > MAX_TEXT_LENGTH ||
+      (body.customerName && body.customerName.length > MAX_NAME_LENGTH) ||
+      (body.customerContact && body.customerContact.length > MAX_ID_LENGTH)
+    ) {
+      return { kind: "rejected", reason: "Malformed message fields" };
+    }
+
+    const customerContact = body.customerContact || `webchat:${body.conversationId}`;
+
+    // A conversation id the visitor presents that already exists must belong
+    // to *this* connection and *this* visitor — otherwise anyone who learns a
+    // conversation id (a leaked URL, a shared screenshot) could append
+    // messages to someone else's thread, or a widget on connection 2 could
+    // write into connection 1's conversation within the same business. The
+    // scoped client already guarantees a different *business's* conversation
+    // is simply not found here.
+    const db = getScopedPrisma(ctx);
+    const existing = await db.conversation.findUnique({ where: { id: body.conversationId } });
+    if (existing) {
+      const owningConnectionId = (existing.metadata as Record<string, unknown> | null)?.channelConnectionId;
+      if (owningConnectionId !== connectionId || existing.customerContact !== customerContact) {
+        return { kind: "rejected", reason: "Conversation does not belong to this visitor/connection" };
+      }
+    }
+
     const event = buildMessageReceivedEvent({
       businessId: ctx.businessId,
       channel: "webchat",
@@ -98,7 +155,7 @@ export class WebChatAdapter implements ChannelAdapter<NormalizedInboundRequest> 
       payload: {
         text: body.text.trim(),
         customerName: body.customerName || "Website Visitor",
-        customerContact: body.customerContact || `webchat:${body.conversationId || body.clientMessageId}`,
+        customerContact,
       },
     });
 

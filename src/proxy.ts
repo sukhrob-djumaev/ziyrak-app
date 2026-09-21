@@ -23,7 +23,8 @@ function generateRequestId(): string {
 function addHeaders(
   response: NextResponse,
   requestId: string,
-  rateLimit?: { limit: number; remaining: number; resetAt: number }
+  rateLimit?: { limit: number; remaining: number; resetAt: number },
+  options?: { skipCors?: boolean }
 ): NextResponse {
   // Security headers
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
@@ -40,8 +41,10 @@ function addHeaders(
     response.headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
   }
 
-  // CORS
-  if (CORS_ORIGIN) {
+  // CORS — skipped for the public Web Chat widget routes (see proxy() below):
+  // their allowed origins are per-connection data, so the route handlers set
+  // `Access-Control-Allow-Origin` themselves rather than one global value.
+  if (CORS_ORIGIN && !options?.skipCors) {
     response.headers.set("Access-Control-Allow-Origin", CORS_ORIGIN);
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Request-Id");
@@ -73,6 +76,16 @@ export function proxy(request: NextRequest) {
     pathname.endsWith(".ico")
   ) {
     return NextResponse.next();
+  }
+
+  // PLAN.md §20.4/§46.7 — the embedded Web Chat widget calls these routes
+  // cross-origin from a business's own site, so the global single-origin
+  // CORS_ORIGIN policy below can neither apply (it is one fixed value) nor
+  // block the preflight: the route handlers answer OPTIONS and set CORS
+  // headers themselves, only for an origin on that connection's own
+  // `allowedOrigins`.
+  if (pathname.startsWith("/api/channels/webchat/")) {
+    return addHeaders(NextResponse.next(), requestId, undefined, { skipCors: true });
   }
 
   // CORS preflight

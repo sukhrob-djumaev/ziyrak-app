@@ -237,7 +237,16 @@ async function createMinimalRow(
     case "ticket":
       return db.ticket.create({ data: { title: marker, description: marker } });
     case "businessConfig":
-      return db.businessConfig.create({ data: { businessName: marker } });
+      // One row per business (businessId is the primary key), and a business
+      // provisioned through the real signup flow (SEED_VIA_SIGNUP=1) already
+      // has one — so set this business's own row rather than insert a second.
+      // The scoped client injects the tenant's own `businessId` into `where`
+      // (and into `create`), which is exactly the behavior under test.
+      return db.businessConfig.upsert({
+        where: { businessId: "injected-by-scoped-client" },
+        update: { businessName: marker },
+        create: { businessName: marker },
+      });
     case "businessHours":
       // id defaults to the literal string "default" (§13.2.9's backfill-in-place
       // note) — only safe for one row system-wide unless given an explicit id.

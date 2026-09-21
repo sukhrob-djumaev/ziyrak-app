@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateBody,
   loginSchema,
-  setupSchema,
+  signupSchema,
   createConversationSchema,
   createTicketSchema,
   createWebhookSchema,
@@ -41,33 +41,32 @@ describe("Input Validation Schemas", () => {
     });
   });
 
-  describe("setupSchema", () => {
-    it("should accept valid setup", () => {
-      const result = validateBody(setupSchema, {
-        action: "setup",
-        username: "admin",
-        password: "secure123",
-        name: "Admin User",
-      });
+  describe("signupSchema", () => {
+    const valid = { action: "signup", businessName: "Acme Support", username: "owner", password: "secure123", name: "Owner" };
+
+    it("should accept a valid signup", () => {
+      expect(validateBody(signupSchema, valid).success).toBe(true);
+    });
+
+    it("should reject a short username, a short password, and a missing business name", () => {
+      expect(validateBody(signupSchema, { ...valid, username: "ab" }).success).toBe(false);
+      expect(validateBody(signupSchema, { ...valid, password: "1234567" }).success).toBe(false);
+      expect(validateBody(signupSchema, { ...valid, businessName: "" }).success).toBe(false);
+    });
+
+    it("should reject usernames with characters that could impersonate or break lookups", () => {
+      expect(validateBody(signupSchema, { ...valid, username: "ow ner" }).success).toBe(false);
+      expect(validateBody(signupSchema, { ...valid, username: "owner\u202e" }).success).toBe(false);
+    });
+
+    it("should not accept tenant-controlling fields — they are stripped, never trusted", () => {
+      const result = validateBody(signupSchema, { ...valid, businessId: "other-tenant", role: "owner", isPlatformAdmin: true });
       expect(result.success).toBe(true);
-    });
-
-    it("should reject short username", () => {
-      const result = validateBody(setupSchema, {
-        action: "setup",
-        username: "ab",
-        password: "secure123",
-      });
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject short password", () => {
-      const result = validateBody(setupSchema, {
-        action: "setup",
-        username: "admin",
-        password: "12345",
-      });
-      expect(result.success).toBe(false);
+      if (result.success) {
+        expect(result.data).not.toHaveProperty("businessId");
+        expect(result.data).not.toHaveProperty("role");
+        expect(result.data).not.toHaveProperty("isPlatformAdmin");
+      }
     });
   });
 

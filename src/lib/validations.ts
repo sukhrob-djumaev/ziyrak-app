@@ -13,11 +13,23 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required").max(200),
 });
 
-export const setupSchema = z.object({
-  action: z.literal("setup"),
-  username: z.string().min(3, "Username must be at least 3 characters").max(100),
-  password: z.string().min(6, "Password must be at least 6 characters").max(200),
-  name: z.string().max(200).optional(),
+// PLAN.md §46.7 task 3 — the real multi-business signup body. Deliberately
+// carries no business id, role, or tenant placement: those are decided
+// server-side (`platform/provisioning.ts`), never accepted from the browser.
+export const signupSchema = z.object({
+  action: z.literal("signup"),
+  businessName: z.string().trim().min(2, "Business name must be at least 2 characters").max(100),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(100)
+    .regex(/^[A-Za-z0-9._@+-]+$/, "Username may only contain letters, numbers, and . _ @ + -"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  name: z.string().trim().max(200).optional(),
+  businessDesc: z.string().max(2000).optional(),
+  welcomeMessage: z.string().max(1000).optional(),
+  tone: z.enum(["friendly", "professional", "formal", "technical"]).optional(),
 });
 
 // Conversations

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 const STEPS = [
-  "Create Admin Account",
+  "Create Your Account",
   "Business Profile",
   "AI Configuration",
   "You're All Set!",
@@ -38,7 +38,6 @@ export default function SetupPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
 
   // Step 1 - Admin Account
@@ -62,23 +61,6 @@ export default function SetupPage() {
   // Step 4 - Summary
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
-  useEffect(() => {
-    async function checkSetup() {
-      try {
-        const res = await fetch("/api/auth");
-        const data = await res.json();
-        if (!data.setupRequired) {
-          router.replace("/login");
-          return;
-        }
-      } catch {
-        // Allow setup page to render
-      }
-      setChecking(false);
-    }
-    checkSetup();
-  }, [router]);
-
   function currentModels() {
     return PROVIDER_OPTIONS.find((p) => p.value === aiProvider)?.models || [];
   }
@@ -95,8 +77,8 @@ export default function SetupPage() {
           setLoading(false);
           return;
         }
-        if (password.length < 6) {
-          setError("Password must be at least 6 characters.");
+        if (password.length < 8) {
+          setError("Password must be at least 8 characters.");
           setLoading(false);
           return;
         }
@@ -106,38 +88,39 @@ export default function SetupPage() {
           return;
         }
 
+        // Nothing is created yet: the account and the business are created
+        // together, atomically, when the business profile step is submitted
+        // (PLAN.md §46.7 task 3) — so a half-finished signup never leaves an
+        // owner without a business.
+        setStep(1);
+      } else if (step === 1) {
+        if (!businessName.trim()) {
+          setError("Business name is required.");
+          setLoading(false);
+          return;
+        }
+
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "setup", name, username, password }),
+          body: JSON.stringify({
+            action: "signup",
+            name,
+            username,
+            password,
+            businessName: businessName.trim(),
+            businessDesc: businessDesc.trim(),
+            welcomeMessage: welcomeMessage.trim(),
+            tone,
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.error || "Setup failed.");
+          setError(typeof data.error === "string" ? data.error : "Signup failed.");
           setLoading(false);
           return;
         }
-        setCompletedSteps((prev) => [...prev, 0]);
-        setStep(1);
-      } else if (step === 1) {
-        const body: Record<string, string> = {};
-        if (businessName.trim()) body.businessName = businessName.trim();
-        if (businessDesc.trim()) body.businessDesc = businessDesc.trim();
-        if (welcomeMessage.trim()) body.welcomeMessage = welcomeMessage.trim();
-        body.tone = tone;
-
-        const res = await fetch("/api/settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error || "Failed to save business profile.");
-          setLoading(false);
-          return;
-        }
-        setCompletedSteps((prev) => [...prev, 1]);
+        setCompletedSteps((prev) => [...prev, 0, 1]);
         setStep(2);
       } else if (step === 2) {
         // §46.4 — the real, tenant-scoped AI provider boundary, not the
@@ -174,14 +157,6 @@ export default function SetupPage() {
     setStep((s) => Math.max(0, s - 1));
   }
 
-  if (checking) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-owly-primary border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <div className="bg-owly-surface rounded-2xl shadow-lg border border-owly-border overflow-hidden">
       {/* Header */}
@@ -189,7 +164,7 @@ export default function SetupPage() {
         <div className="flex items-center gap-3 mb-5">
           <Image src="/owly.png" alt="Owly" width={40} height={40} />
           <div>
-            <h1 className="text-lg font-bold text-owly-text">Set Up Owly</h1>
+            <h1 className="text-lg font-bold text-owly-text">Create Your Business</h1>
             <p className="text-xs text-owly-text-light">
               Step {step + 1} of {STEPS.length}
             </p>
@@ -223,7 +198,7 @@ export default function SetupPage() {
         {step === 0 && (
           <>
             <p className="text-sm text-owly-text-light mb-6">
-              Create your administrator account to get started.
+              Create the owner account for your new business.
             </p>
             <div className="space-y-4">
               <Field
@@ -248,7 +223,7 @@ export default function SetupPage() {
                 type="password"
                 value={password}
                 onChange={setPassword}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 autoComplete="new-password"
               />
               <Field
@@ -435,18 +410,18 @@ export default function SetupPage() {
         {step === 3 && (
           <>
             <p className="text-sm text-owly-text-light mb-6">
-              Your Owly instance is ready to go.
+              Your business is ready to go.
             </p>
             <div className="space-y-3 mb-6">
               <SummaryRow
                 done={completedSteps.includes(0)}
-                label="Admin account created"
+                label="Owner account created"
                 detail={username}
               />
               <SummaryRow
                 done={completedSteps.includes(1)}
                 label="Business profile configured"
-                detail={businessName || "Default settings"}
+                detail={businessName || "Business created"}
               />
               <SummaryRow
                 done={completedSteps.includes(2)}
@@ -467,7 +442,7 @@ export default function SetupPage() {
 
       {/* Footer Buttons */}
       <div className="border-t border-owly-border px-8 py-4 flex items-center justify-between">
-        {step > 0 && step < 3 ? (
+        {step === 1 ? (
           <button
             type="button"
             onClick={handleBack}
@@ -492,6 +467,8 @@ export default function SetupPage() {
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Saving...
               </span>
+            ) : step === 1 ? (
+              "Create Business"
             ) : step === 2 ? (
               "Finish Setup"
             ) : (

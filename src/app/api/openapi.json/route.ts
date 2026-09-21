@@ -43,9 +43,9 @@ const spec = {
       },
       post: {
         tags: ["Auth"],
-        summary: "Login, setup, or logout",
+        summary: "Login, sign up a new business, or logout",
         requestBody: {
-          content: { "application/json": { schema: { type: "object", properties: { action: { type: "string", enum: ["login", "setup", "logout"] }, username: { type: "string" }, password: { type: "string" } } } } },
+          content: { "application/json": { schema: { type: "object", properties: { action: { type: "string", enum: ["login", "signup", "logout"] }, username: { type: "string" }, password: { type: "string" } } } } },
         },
         responses: { "200": { description: "Success with auth token cookie" }, "401": { description: "Invalid credentials" } },
       },

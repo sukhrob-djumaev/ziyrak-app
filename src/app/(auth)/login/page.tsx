@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -146,6 +147,13 @@ export default function LoginPage() {
           )}
         </button>
       </form>
+
+      <p className="mt-6 text-center text-sm text-owly-text-light">
+        New here?{" "}
+        <Link href="/setup" className="font-medium text-owly-primary hover:underline">
+          Create a business
+        </Link>
+      </p>
     </div>
   );
 }

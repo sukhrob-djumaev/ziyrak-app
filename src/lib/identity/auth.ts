@@ -70,12 +70,11 @@ export async function getCurrentUser() {
 }
 
 /**
- * PLAN.md §46.1 task 13: "setup complete" now means "does a Business have an
- * owner" rather than "does any Admin row exist" — a Membership(role: "owner")
- * is what the Phase 1 migration creates for the earliest pre-existing Admin
- * (and what a fresh install's first bootstrap would create too), so this
- * stays accurate for both a migrated install and a brand-new one without
- * needing a real multi-business signup flow, which is Phase 2/7 scope.
+ * PLAN.md §46.1 task 13 / §46.7 task 3 — "does this deployment have any
+ * business at all yet" (any `Membership(role: "owner")` exists). Since Phase
+ * 7 this is only a first-visit UX hint (`GET /api/auth`'s `setupRequired`);
+ * it no longer gates anything — business creation is the repeatable
+ * `signup` action (`platform/provisioning.ts`), open to every new business.
  */
 export async function isSetupComplete(): Promise<boolean> {
   const ownerCount = await prisma.membership.count({ where: { role: "owner" } });

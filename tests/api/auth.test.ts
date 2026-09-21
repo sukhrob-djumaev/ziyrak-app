@@ -15,6 +15,8 @@ vi.mock("@/lib/identity/auth", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/platform/provisioning", () => ({ provisionBusiness: vi.fn() }));
+
 describe("POST /api/auth", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -88,52 +90,74 @@ describe("POST /api/auth", () => {
     });
   });
 
-  describe("setup action", () => {
-    it("should create first owner (Business + TenantPlacement + User + Membership)", async () => {
-      const { isSetupComplete } = await import("@/lib/identity/auth");
-      (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+  describe("signup action (PLAN.md §46.7 task 3)", () => {
+    const validSignup = { action: "signup", businessName: "Acme", username: "newowner", password: "secure1234", name: "New Owner" };
 
-      mockPrisma.business.upsert.mockResolvedValue({ id: "biz-1", slug: "default" });
-      mockPrisma.tenantPlacement.upsert.mockResolvedValue({ businessId: "biz-1" });
-      mockPrisma.user.create.mockResolvedValue({
-        id: "new-user",
-        username: "newadmin",
-        name: "New Admin",
-      });
-      mockPrisma.membership.create.mockResolvedValue({ businessId: "biz-1", userId: "new-user", role: "owner" });
-      mockPrisma.businessConfig.upsert.mockResolvedValue({});
-      mockPrisma.channelConnection.findFirst.mockResolvedValue(null);
-      mockPrisma.channelConnection.create.mockResolvedValue({});
+    it("creates a business through provisioning and signs the owner in", async () => {
+      const { provisionBusiness } = await import("@/lib/platform/provisioning");
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-new", slug: "acme-1234", userId: "new-user" });
+      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "new-user", username: "newowner", name: "New Owner" });
 
       const { POST } = await import("@/app/api/auth/route");
-      const request = createRequest("/api/auth", {
-        method: "POST",
-        body: {
-          action: "setup",
-          username: "newadmin",
-          password: "secure123",
-          name: "New Admin",
-        },
-      });
-
-      const response = await POST(request);
+      const response = await POST(createRequest("/api/auth", { method: "POST", body: validSignup }));
       const data = await parseJsonResponse(response);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(data.success).toBe(true);
+      expect(data.business).toEqual({ id: "biz-new", name: "Acme" });
+      expect(response.headers.get("set-cookie")).toContain("owly-token=");
+      expect(provisionBusiness).toHaveBeenCalledWith(expect.objectContaining({ businessName: "Acme", ownerUsername: "newowner" }));
     });
 
-    it("should reject setup when already completed", async () => {
+    it("stays open after a business already exists (no single-installation gate)", async () => {
       const { isSetupComplete } = await import("@/lib/identity/auth");
       (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+      const { provisionBusiness } = await import("@/lib/platform/provisioning");
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-2", slug: "second-1", userId: "u2" });
+      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "u2", username: "second", name: "Second" });
 
       const { POST } = await import("@/app/api/auth/route");
-      const request = createRequest("/api/auth", {
-        method: "POST",
-        body: { action: "setup", username: "admin", password: "pass123" },
-      });
+      const response = await POST(createRequest("/api/auth", { method: "POST", body: { ...validSignup, username: "second" } }));
+      expect(response.status).toBe(201);
+    });
 
-      const response = await POST(request);
+    it("never forwards a client-supplied business id or role to provisioning", async () => {
+      const { provisionBusiness } = await import("@/lib/platform/provisioning");
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-3", slug: "x-1", userId: "u3" });
+      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "u3", username: "newowner", name: "N" });
+
+      const { POST } = await import("@/app/api/auth/route");
+      await POST(createRequest("/api/auth", { method: "POST", body: { ...validSignup, businessId: "victim", role: "owner", isPlatformAdmin: true } }));
+
+      const input = (provisionBusiness as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
+      expect(JSON.stringify(input)).not.toContain("victim");
+      expect(input).not.toHaveProperty("role");
+      expect(input).not.toHaveProperty("isPlatformAdmin");
+    });
+
+    it("reports a taken username as 409", async () => {
+      const { provisionBusiness } = await import("@/lib/platform/provisioning");
+      const { AppError } = await import("@/lib/observability/errors");
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockRejectedValue(new AppError(409, "USERNAME_TAKEN", "That username is already taken."));
+
+      const { POST } = await import("@/app/api/auth/route");
+      const response = await POST(createRequest("/api/auth", { method: "POST", body: validSignup }));
+      expect(response.status).toBe(409);
+    });
+
+    it("rejects an invalid body before provisioning anything", async () => {
+      const { provisionBusiness } = await import("@/lib/platform/provisioning");
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockClear();
+
+      const { POST } = await import("@/app/api/auth/route");
+      const response = await POST(createRequest("/api/auth", { method: "POST", body: { action: "signup", username: "x", password: "short" } }));
+      expect(response.status).toBe(400);
+      expect(provisionBusiness).not.toHaveBeenCalled();
+    });
+
+    it("the old one-time 'setup' action no longer exists", async () => {
+      const { POST } = await import("@/app/api/auth/route");
+      const response = await POST(createRequest("/api/auth", { method: "POST", body: { action: "setup", username: "admin", password: "pass1234" } }));
       expect(response.status).toBe(400);
     });
   });
@@ -173,7 +197,7 @@ describe("GET /api/auth", () => {
     vi.restoreAllMocks();
   });
 
-  it("should return setupRequired when no admin exists", async () => {
+  it("should return setupRequired (a first-visit hint only) when no business exists yet", async () => {
     const { isSetupComplete, getCurrentUser } = await import("@/lib/identity/auth");
     (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(false);
     (getCurrentUser as ReturnType<typeof vi.fn>).mockResolvedValue(null);

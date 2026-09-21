@@ -78,8 +78,10 @@ beforeAll(async () => {
   });
 
   const aiCredentialRef = await encryptAIProviderCredential("openai", "sk-test-fast-ack");
-  await prisma.businessConfig.create({
-    data: { businessId: business.businessId, aiProvider: "openai", aiCredentialRef },
+  await prisma.businessConfig.upsert({
+    where: { businessId: business.businessId },
+    update: { aiProvider: "openai", aiCredentialRef },
+    create: { businessId: business.businessId, aiProvider: "openai", aiCredentialRef },
   });
 });
 
@@ -108,8 +110,10 @@ beforeAll(async () => {
   });
 
   const phoneAiCredentialRef = await encryptAIProviderCredential("openai", "sk-test-fast-ack-phone");
-  await prisma.businessConfig.create({
-    data: { businessId: phoneBusiness.businessId, aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
+  await prisma.businessConfig.upsert({
+    where: { businessId: phoneBusiness.businessId },
+    update: { aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
+    create: { businessId: phoneBusiness.businessId, aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
   });
 });
 

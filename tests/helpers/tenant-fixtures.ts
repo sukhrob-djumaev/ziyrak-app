@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
+import { provisionBusiness } from "@/lib/platform/provisioning";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
@@ -38,6 +39,36 @@ export interface SeededBusiness {
  */
 export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
   const suffix = uniqueSuffix(label);
+
+  // PLAN.md §46.7 — "the full §33 isolation matrix ... re-run against two
+  // businesses created through the real signup flow". With SEED_VIA_SIGNUP=1
+  // (`npm run test:signup-seeded`) every real-Postgres suite that seeds via
+  // this helper gets businesses built by the production provisioning path
+  // (`platform/provisioning.ts`) instead of hand-assembled rows, so the whole
+  // isolation matrix proves the *production onboarding path* produces
+  // correctly isolated data, not only script-seeded data.
+  if (process.env.SEED_VIA_SIGNUP === "1") {
+    const username = `owner-${suffix}`.slice(0, 100);
+    const provisioned = await provisionBusiness({
+      businessName: `Isolation Test Business ${suffix}`,
+      ownerUsername: username,
+      ownerPassword: "not-a-real-login-password",
+      ownerName: "Test Owner",
+    });
+    return {
+      businessId: provisioned.businessId,
+      slug: provisioned.slug,
+      ownerUserId: provisioned.userId,
+      ownerUsername: username,
+      ctx: {
+        businessId: provisioned.businessId,
+        role: "owner",
+        actor: { kind: "user", userId: provisioned.userId },
+        dataConnection: "shared-default",
+      },
+    };
+  }
+
   const slug = `test-${suffix}`;
 
   const business = await prisma.business.create({ data: { slug, name: `Isolation Test Business ${suffix}` } });

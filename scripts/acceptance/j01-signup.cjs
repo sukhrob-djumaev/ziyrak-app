@@ -1,5 +1,15 @@
 const L = require("./lib.cjs");
 const creds = require("./creds.json");
+// Real-model acceptance prep: with ACC_REAL_AI=1 (and start-all.sh started the same way, so no
+// llm-standin/OPENAI_BASE_URL is in play — see its own comment), this types a REAL provider
+// credential into the wizard's AI Configuration step instead of the stand-in's fake key, so J04/J06
+// exercise the real configured provider end to end. No application code changes for this — only
+// env vars. The key is read once and never included in `out`/screenshots/logged evidence.
+const REAL_AI = process.env.ACC_REAL_AI === "1";
+const REAL_AI_PROVIDER = process.env.ACC_REAL_AI_PROVIDER || "openai";
+const REAL_AI_MODEL = process.env.ACC_REAL_AI_MODEL || (REAL_AI_PROVIDER === "anthropic" ? "claude-3-5-haiku-20241022" : "gpt-4o-mini");
+const REAL_AI_KEY = process.env.ACC_REAL_AI_KEY;
+if (REAL_AI && !REAL_AI_KEY) throw new Error("ACC_REAL_AI=1 but ACC_REAL_AI_KEY is not set");
 async function clickText(p, sel, text) {
   const els = await p.$$(sel);
   for (const e of els) { const t = await e.evaluate((n) => n.innerText.trim()); if (t.includes(text)) { await e.click(); return; } }
@@ -20,8 +30,13 @@ async function clickText(p, sel, text) {
     await L.shot(p, `j1-${key}-step2`);
     await clickText(p, "button", "Create Business");
     await p.waitForSelector("#aiProvider");
-    await p.select("#aiProvider", "openai"); await p.select("#aiModel", "gpt-4o-mini");
-    await p.type("#aiApiKey", "sk-standin-" + key.toLowerCase() + "-not-a-real-key");
+    if (REAL_AI) {
+      await p.select("#aiProvider", REAL_AI_PROVIDER); await p.select("#aiModel", REAL_AI_MODEL);
+      await p.type("#aiApiKey", REAL_AI_KEY);
+    } else {
+      await p.select("#aiProvider", "openai"); await p.select("#aiModel", "gpt-4o-mini");
+      await p.type("#aiApiKey", "sk-standin-" + key.toLowerCase() + "-not-a-real-key");
+    }
     await clickText(p, "button", "Finish Setup");
     await p.waitForFunction(() => document.body.innerText.includes("Go to Dashboard"), { timeout: 15000 });
     await L.shot(p, `j1-${key}-done`);

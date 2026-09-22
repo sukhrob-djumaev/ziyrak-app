@@ -24,6 +24,14 @@ const K = {
     const entries = await p.evaluate(async () => (await (await fetch("/api/knowledge/entries")).json()).data.map((e) => ({ title: e.title, hasCode: /ZIYRAK-[AB]-CODE-\d+/.exec(e.content)?.[0], embeddingStored: !!(e.metadata && e.metadata.embedding) })));
     out[key] = { entries, apiWrites: ev.requests.filter((r) => r.m === "POST" && r.u.startsWith("/api/knowledge")).map((r) => `${r.m} ${r.s} ${r.u}`), consoleErrors: [...new Set(ev.consoleErrors)] };
     await b.close();
+
+    const own = out[key].entries.find((e) => e.title === k.title);
+    L.assert(!!own, `${key}: the entry created through the UI is readable back via the API`);
+    L.assert(own && own.hasCode === (key === "A" ? "ZIYRAK-A-CODE-731" : "ZIYRAK-B-CODE-284"), `${key}: entry carries its own business's code, got ${own && own.hasCode}`);
+    L.assert(out[key].apiWrites.some((w) => w.startsWith("POST 201 /api/knowledge/entries")), `${key}: creating the entry returned 201, got ${JSON.stringify(out[key].apiWrites)}`);
+    L.assert(out[key].consoleErrors.length === 0, `${key}: no console errors while managing knowledge, got ${JSON.stringify(out[key].consoleErrors)}`);
   }
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 4, phase: "knowledge-created-via-UI", ...out });
+  L.assert(!out.A.entries.some((e) => e.hasCode === "ZIYRAK-B-CODE-284"), `A's entries never contain B's code`);
+  L.assert(!out.B.entries.some((e) => e.hasCode === "ZIYRAK-A-CODE-731"), `B's entries never contain A's code`);
+  L.finish("J04", out);
 })().catch((e) => { console.error("ERR", e.message); process.exit(1); });

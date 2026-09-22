@@ -22,5 +22,18 @@ const L = require("./lib.cjs"); const creds = require("./creds.json");
   out.B_ticketsApi = await bp.evaluate(async () => (await (await fetch("/api/tickets")).json()).data.length);
   out.B_actionsApi = await bp.evaluate(async () => { const j = await (await fetch("/api/actions")).json(); return (j.data || []).length; });
   await bb.close();
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 8, ...out });
+
+  L.assert(out.visitor.ack && out.visitor.ack.status === 200, `visitor ACK is 200, got ${out.visitor.ack && out.visitor.ack.status}`);
+  L.assert(out.visitor.reply && /ticket created/i.test(out.visitor.reply), `visitor gets a ticket-created confirmation, got ${JSON.stringify(out.visitor.reply)}`);
+  L.assert(out.ticketsApi.length >= 1, `A's dashboard sees the ticket`);
+  L.assert(out.ticketsApi[0].priority === "high", `the ticket carries the priority the tool call requested, got ${out.ticketsApi[0].priority}`);
+  L.assert(out.ticketsApi[0].conversationId === "set", `the ticket is linked back to its conversation`);
+  const action = out.actionsApi.data.find((a) => a.tool === "create_ticket");
+  L.assert(action && action.status === "succeeded", `the create_ticket ActionExecution succeeded, got ${action && action.status}`);
+  L.assert(action && action.requestedBy === "ai", `the action is attributed to the AI, got ${action && action.requestedBy}`);
+  L.assert(out.B_ticketsApi === 0, `Business B sees none of A's tickets, got ${out.B_ticketsApi}`);
+  L.assert(out.B_actionsApi === 0, `Business B sees none of A's actions, got ${out.B_actionsApi}`);
+  L.assert(out.console.length === 0, `no console errors on the owner's tickets page, got ${JSON.stringify(out.console)}`);
+
+  L.finish("J08", out);
 })().catch((e) => { console.error("ERR", e.message); process.exit(1); });

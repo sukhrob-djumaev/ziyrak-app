@@ -23,5 +23,16 @@ async function ask(site, text) { const b = await L.launch("visitor-j14"); const 
   out.afterRule_B_sameQuestion = await ask("http://localhost:4021/", "What are your opening hours?");
   out.ruleFiredExactly = out.afterRule_A === RULE_REPLY; out.B_unaffected = out.afterRule_B_sameQuestion !== RULE_REPLY;
   out.console = [...new Set(ev.consoleErrors)];
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 14, ...out }); await ob.close();
+
+  L.assert(out.saveRule === 201, `creating the automation rule returns 201, got ${out.saveRule}`);
+  L.assert(out.ruleListed === true, `the rule appears in the automation list`);
+  const rule = out.ruleApi.find((r) => r.name === "Opening hours auto-answer");
+  L.assert(rule && rule.isActive === true, `the rule is active, got ${JSON.stringify(rule)}`);
+  L.assert(out.ruleFiredExactly === true, `the matching question gets the rule's exact reply, got ${JSON.stringify(out.afterRule_A)}`);
+  L.assert(out.afterRule_A_unrelated !== RULE_REPLY, `an unrelated question still goes to the AI, not the rule, got ${JSON.stringify(out.afterRule_A_unrelated)}`);
+  L.assert(out.B_unaffected === true, `Business B is unaffected by A's automation rule`);
+  L.assert(out.console.length === 0, `no console errors while managing automation, got ${JSON.stringify(out.console)}`);
+
+  L.finish("J14", out);
+  await ob.close();
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

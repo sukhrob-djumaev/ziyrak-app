@@ -31,6 +31,12 @@ const SITE = { A: "http://localhost:4020", B: "http://localhost:4021" };
     out[key].apiList = JSON.parse(JSON.stringify(list).replace(/zy_pub_[A-Za-z0-9_-]+/g, "zy_pub_<redacted>"));
     out[key].console = [...new Set(ev.consoleErrors)];
     await b.close();
+
+    L.assert(!!out[key].snippet, `${key}: a widget snippet was issued`);
+    L.assert(out[key].tokenPrefix === "zy_pub_", `${key}: the issued token is a zy_pub_ public token, got ${out[key].tokenPrefix}`);
+    L.assert(Array.isArray(out[key].apiList.data) && out[key].apiList.data.length >= 1, `${key}: the connection is listed via the API`);
+    L.assert(out[key].apiList.data[0] && out[key].apiList.data[0].isActive !== false, `${key}: the connection is active`);
+    L.assert(out[key].console.length === 0, `${key}: no console errors while setting up Web Chat, got ${JSON.stringify(out[key].console)}`);
   }
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 5, phase: "webchat-setup", ...out });
+  L.finish("J05", out);
 })().catch((e) => { console.error("ERR", e.message); process.exit(1); });

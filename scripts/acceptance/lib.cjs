@@ -6,7 +6,30 @@ const path = require("path");
 const SP = process.env.ACC_WORK_DIR || path.join(__dirname, ".work");
 fs.mkdirSync(SP, { recursive: true });
 // Any Chromium/Chrome-for-Testing binary. Set CHROMIUM_PATH, or it falls back to the browser puppeteer installed.
-const CHROMIUM = process.env.CHROMIUM_PATH || puppeteer.executablePath();
+// `puppeteer-core` alone has no browser of its own to resolve — `puppeteer.executablePath()` throws
+// ("path argument must be of type string") on a plain `npm ci` with no prior CHROMIUM_PATH-driven
+// install, which is exactly the state a future engineering agent starts from. The full `puppeteer`
+// package is a devDependency here for this reason: it downloads and caches its own Chrome for
+// Testing build, and puppeteer-core drives that binary identically. Falling back to it is what makes
+// `start-all.sh`/`run.sh` work out of the box, with no manual CHROMIUM_PATH step.
+function resolveChromium() {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  try {
+    const p = puppeteer.executablePath();
+    if (p) return p;
+  } catch {
+    // fall through
+  }
+  try {
+    return require("puppeteer").executablePath();
+  } catch (e) {
+    throw new Error(
+      "No Chromium/Chrome-for-Testing binary found. Run `npx puppeteer browsers install chrome` " +
+        "or set CHROMIUM_PATH to an existing Chrome/Chromium binary. (" + e.message + ")"
+    );
+  }
+}
+const CHROMIUM = resolveChromium();
 const BASE = process.env.ACC_BASE_URL || "http://localhost:3100";
 exports.BASE = BASE; exports.SP = SP;
 exports.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -60,7 +83,59 @@ exports.widgetSend = async (page, text, { timeoutMs = 45000 } = {}) => {
   return { ack, replyMs: reply ? Date.now() - t0 : null, reply, log: await page.$$eval("#ziyrak-log > div", (ds) => ds.map((d) => d.textContent)) };
 };
 
-// Evidence queries against the acceptance database. Default: the docker postgres this repo's compose file starts.
-// Override with ACC_PSQL, e.g. ACC_PSQL="psql postgresql://user:pw@host/ziyrak_acceptance".
+// Evidence queries against the acceptance database. Default: derived from ACC_DB (the same throwaway
+// database start-all.sh was pointed at), never a hardcoded database name — a hardcoded default would
+// silently read a stale `ziyrak_acceptance` left over from a previous run when this run used a
+// differently-named fresh database, exactly the "hidden state from a previous session" this harness
+// must not depend on. Override with ACC_PSQL for a non-docker/non-default-user Postgres, e.g.
+// ACC_PSQL="psql postgresql://user:pw@host/dbname".
 const { execSync } = require("child_process");
-exports.sql = (q) => execSync(process.env.ACC_PSQL || "docker exec -i owly-db-1 psql -U postgres -d ziyrak_acceptance -At -F ' | '", { input: q, encoding: "utf8" }).trim();
+function defaultPsqlCommand() {
+  if (process.env.ACC_PSQL) return process.env.ACC_PSQL;
+  if (process.env.ACC_DB) {
+    try {
+      const u = new URL(process.env.ACC_DB);
+      const db = decodeURIComponent(u.pathname.replace(/^\//, "")) || "postgres";
+      const user = decodeURIComponent(u.username || "postgres");
+      return `docker exec -i owly-db-1 psql -U ${user} -d ${db} -At -F ' | '`;
+    } catch {
+      // malformed ACC_DB — fall through to the loud warning below
+    }
+  }
+  console.error(
+    "lib.cjs: neither ACC_PSQL nor ACC_DB is set — sql() is falling back to the hardcoded " +
+      "'ziyrak_acceptance' database, which may be stale from a previous run. Set ACC_DB (as " +
+      "start-all.sh requires) or ACC_PSQL explicitly."
+  );
+  return "docker exec -i owly-db-1 psql -U postgres -d ziyrak_acceptance -At -F ' | '";
+}
+exports.sql = (q) => execSync(defaultPsqlCommand(), { input: q, encoding: "utf8" }).trim();
+
+// ---------------------------------------------------------------------------
+// Pass/fail assertions. Every journey script must call exports.assert() for
+// its acceptance-critical checks and finish with exports.finish() instead of
+// a bare console.log — printing observed JSON and exiting 0 whenever nothing
+// happened to throw is evidence collection, not acceptance verification: a
+// journey must fail loudly (non-zero exit) the moment an expected 404 comes
+// back 200, a secret leaks, or a count is wrong, not just when Puppeteer
+// itself throws.
+// ---------------------------------------------------------------------------
+const failures = [];
+exports.assert = (cond, msg) => {
+  if (!cond) {
+    failures.push(msg);
+    console.error("ASSERT FAIL: " + msg);
+  }
+  return cond;
+};
+exports.finish = (journeyLabel, out) => {
+  console.log(JSON.stringify(out, null, 1));
+  exports.log({ journey: journeyLabel, ...out });
+  if (failures.length) {
+    console.error(`\n${journeyLabel}: ${failures.length} assertion(s) FAILED:`);
+    for (const f of failures) console.error(" - " + f);
+    process.exitCode = 1;
+  } else {
+    console.error(`\n${journeyLabel}: all assertions passed.`);
+  }
+};

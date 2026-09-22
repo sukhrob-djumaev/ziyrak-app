@@ -42,5 +42,15 @@ const L = require("./lib.cjs"); const creds = require("./creds.json");
   const bb = await L.launch(creds.B.profile); const bp = await bb.newPage(); await bp.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.3.12" }); await bp.goto(L.BASE + "/conversations", { waitUntil: "networkidle0" });
   out.B_openA = await bp.evaluate(async (id) => (await fetch("/api/conversations/" + id)).status, convId);
   await bb.close();
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 11, ...out });
+
+  L.assert(out.usedStatusFilter === true, `owner's Escalated status filter control was found and used`);
+  L.assert(out.openedShows.manager === true, `the opened conversation shows the customer's original message`);
+  L.assert(out.agentSendApi && out.agentSendApi.status === 201, `the agent's reply is sent (201), got ${out.agentSendApi && out.agentSendApi.status}`);
+  L.assert(out.customerSawHumanReply === true, `the customer receives the human agent's reply in the widget`);
+  L.assert(out.afterRefresh.status === "escalated", `the conversation is still escalated after refresh, got ${out.afterRefresh.status}`);
+  L.assert(out.afterRefresh.msgs.length >= 2, `the conversation history persists across refresh, got ${JSON.stringify(out.afterRefresh.msgs)}`);
+  L.assert(out.console.length === 0, `no console errors on the owner's conversation view, got ${JSON.stringify(out.console)}`);
+  L.assert(out.B_openA === 404, `Business B cannot open A's escalated conversation, got ${out.B_openA}`);
+
+  L.finish("J11", out);
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

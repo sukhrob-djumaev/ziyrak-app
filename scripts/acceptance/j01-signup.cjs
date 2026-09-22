@@ -32,7 +32,23 @@ async function clickText(p, sel, text) {
     const cookies = (await p.cookies()).map((k) => ({ name: k.name, httpOnly: k.httpOnly, secure: k.secure, sameSite: k.sameSite, session: k.session, expiresIn: k.expires > 0 ? Math.round((k.expires - Date.now() / 1000) / 86400) + "d" : "session" }));
     await L.shot(p, `j1-${key}-dashboard`);
     const out = { key, urlAfter: p.url(), cookies, api: ev.requests.filter((r) => r.u.startsWith("/api/")).map((r) => `${r.m} ${r.s} ${r.u}`), failed: ev.failed, consoleErrors: ev.consoleErrors, pageErrors: ev.pageErrors, dashboardHead: (await L.text(p)).replace(/\n+/g, " | ").slice(0, 300), wizardText: wizardText.replace(/\n+/g, " | ") };
-    console.log(JSON.stringify(out, null, 1)); L.log({ journey: 1, ...out });
+
+    L.assert(out.urlAfter.startsWith(L.BASE + "/") && !out.urlAfter.includes("/setup") && !out.urlAfter.includes("/login"), `${key}: landed on the dashboard after signup, got ${out.urlAfter}`);
+    const cookie = out.cookies.find((c) => c.name === "owly-token");
+    L.assert(!!cookie, `${key}: owly-token cookie was set`);
+    L.assert(cookie && cookie.httpOnly === true, `${key}: owly-token is HttpOnly`);
+    L.assert(cookie && cookie.secure === true, `${key}: owly-token is Secure`);
+    L.assert(cookie && cookie.sameSite === "Lax", `${key}: owly-token is SameSite=Lax, got ${cookie && cookie.sameSite}`);
+    L.assert(out.wizardText.includes("Owner account created"), `${key}: wizard confirmed owner account created`);
+    L.assert(out.wizardText.includes("Business profile configured"), `${key}: wizard confirmed business profile configured`);
+    L.assert(out.wizardText.includes("AI provider configured"), `${key}: wizard confirmed AI provider configured`);
+    L.assert(out.dashboardHead.includes(c.biz) || out.dashboardHead.includes("Dashboard"), `${key}: dashboard rendered`);
+    L.assert(out.consoleErrors.length === 0, `${key}: no console errors on signup/dashboard, got ${JSON.stringify(out.consoleErrors)}`);
+    L.assert(out.pageErrors.length === 0, `${key}: no page errors on signup/dashboard, got ${JSON.stringify(out.pageErrors)}`);
+    const postAuth = out.api.find((a) => a.startsWith("POST 201 /api/auth"));
+    L.assert(!!postAuth, `${key}: POST /api/auth returned 201, got ${JSON.stringify(out.api)}`);
+
+    L.finish(`J01-${key}`, out);
     await b.close();
   }
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

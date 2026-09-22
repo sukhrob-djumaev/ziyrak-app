@@ -48,6 +48,24 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
     r.cookieAttrs = (await p.cookies()).filter((k) => k.name === "owly-token").map((k) => ({ httpOnly: k.httpOnly, secure: k.secure, sameSite: k.sameSite }));
     r.consoleErrors = [...new Set(ev.consoleErrors)]; r.failedNonPrefetch = ev.failed.filter((f) => !f.u.includes("_rsc="));
     out.perBusiness[key] = r; await b.close();
+
+    L.assert(r.me === c.user, `${key}: session identifies the signed-up owner, got ${r.me}`);
+    for (const path of Object.keys(r.nav)) L.assert(r.nav[path].startsWith("200 ->"), `${key}: ${path} loads (200) while authenticated, got ${r.nav[path]}`);
+    L.assert(r.signOutClicked === true, `${key}: Sign Out control was found and clicked`);
+    L.assert(r.afterSignOutUrl.startsWith("/login"), `${key}: sign-out navigates to /login, got ${r.afterSignOutUrl}`);
+    L.assert(!r.cookiesAfterLogout.includes("owly-token"), `${key}: owly-token cookie is cleared after sign-out`);
+    for (const [path, status] of Object.entries(r.api_after_logout)) L.assert(status === 401, `${key}: ${path} is 401 after sign-out, got ${status}`);
+    L.assert(r.page_after_logout.includes("-> /login"), `${key}: /conversations redirects to /login after sign-out, got ${r.page_after_logout}`);
+    L.assert(r.wrongPasswordMsg.includes("Invalid credentials"), `${key}: wrong password shows "Invalid credentials", got ${JSON.stringify(r.wrongPasswordMsg)}`);
+    L.assert(r.wrongPasswordUrl.startsWith("/login"), `${key}: wrong password stays on /login, got ${r.wrongPasswordUrl}`);
+    L.assert(!r.loginUrl.startsWith("/login"), `${key}: correct password leaves /login, got ${r.loginUrl}`);
+    L.assert(r.meAfterLogin === c.user, `${key}: re-login re-establishes the same session, got ${r.meAfterLogin}`);
+    const ca = r.cookieAttrs[0];
+    L.assert(ca && ca.httpOnly === true && ca.secure === true && ca.sameSite === "Lax", `${key}: post-login cookie is HttpOnly/Secure/SameSite=Lax, got ${JSON.stringify(ca)}`);
+    // A 401 from checking auth state right after sign-out (e.g. the header's own
+    // "am I logged in" check) is expected console noise, not a defect — present
+    // in the original passing baseline (PLAN.md §MVP Browser Acceptance Suite).
+    L.assert(r.consoleErrors.every((e) => /401/.test(e)), `${key}: only the documented post-logout 401 is acceptable console noise, got ${JSON.stringify(r.consoleErrors)}`);
   }
   // Unauthenticated: fresh isolated context
   const b = await L.launch("anon"); const ctx = await b.createBrowserContext(); const p = await ctx.newPage(); await p.setExtraHTTPHeaders({ "X-Forwarded-For": XFF.anon });
@@ -66,5 +84,22 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
   // Stateless-JWT observation: the pre-logout token of A, replayed from a plain HTTP client after A signed out
   const rep = await fetch(L.BASE + "/api/auth", { headers: { Cookie: "owly-token=" + tokens.A, "X-Forwarded-For": "10.0.0.98" } });
   out.replayOldTokenAfterLogout = { status: rep.status, user: (await rep.json()).user?.username };
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 2, ...out });
+
+  for (const path of ["/conversations", "/customers", "/admin", "/channels", "/knowledge/test"]) {
+    L.assert(u["page " + path].includes("-> /login"), `unauth: ${path} redirects to /login, got ${u["page " + path]}`);
+  }
+  for (const [call, status] of Object.entries(u)) {
+    if (call.startsWith("GET /api/") || call.startsWith("POST /api/")) {
+      const publicRoutes = ["GET /api/health", "GET /api/openapi.json"];
+      if (publicRoutes.includes(call)) L.assert(String(status) === "200", `unauth: ${call} stays public, got ${status}`);
+      else L.assert(String(status).startsWith("401"), `unauth: ${call} requires auth (401), got ${status}`);
+    }
+  }
+  L.assert(String(u["GET /widget.js"]) === "200", `unauth: /widget.js stays public, got ${u["GET /widget.js"]}`);
+  for (const [name] of Object.entries(forged)) {
+    L.assert(u[`forged cookie [${name}] API`] === 401, `unauth: forged cookie [${name}] is rejected on the API (401), got ${u[`forged cookie [${name}] API`]}`);
+    L.assert(u[`forged cookie [${name}] page /conversations`].includes("-> /login"), `unauth: forged cookie [${name}] on /conversations redirects to /login, got ${u[`forged cookie [${name}] page /conversations`]}`);
+  }
+
+  L.finish("J02", out);
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

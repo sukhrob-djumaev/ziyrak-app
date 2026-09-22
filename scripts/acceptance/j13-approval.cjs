@@ -35,5 +35,26 @@ async function askTicket(text) { const b = await L.launch("visitor-j13"); const 
   out.afterReject = { status: sql(`select status from "ActionExecution" where id='${id2}';`), tickets: `${t2} -> ${tickets()}` }; out.approveAfterReject = (await call(op, "POST", `/api/actions/${id2}/approve`, {})).s;
   out.activity = sql(`select action from "ActivityLog" where "businessId"=${BIZB} and (action like 'action.%' or action like 'tool.%') order by "createdAt";`).split("\n");
   sql(`update "ToolPolicy" set "requiresHumanApproval"=false where tool='create_ticket' and "businessId"=${BIZB};`);
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 13, ...out }); await ob.close();
+
+  L.assert(out.policy.includes("requiresHumanApproval=true"), `the approval policy is actually set, got ${out.policy}`);
+  L.assert(out.pendingAction && out.pendingAction.includes("pending_approval"), `create_ticket lands pending_approval, got ${out.pendingAction}`);
+  L.assert(out.ticketsWhilePending.match(/^(\d+) -> \1 /), `no ticket is created while the action is pending, got ${out.ticketsWhilePending}`);
+  L.assert(out.ownerSeesPending.some((a) => a.startsWith("create_ticket:pending_approval")), `the owner sees the pending action, got ${JSON.stringify(out.ownerSeesPending)}`);
+  L.assert(out.createViewer === 201, `the viewer account is created, got ${out.createViewer}`);
+  L.assert(out.viewerLoggedInAs === "viewer_b", `the viewer logs in through the real UI, got ${out.viewerLoggedInAs}`);
+  L.assert(out.viewerApprove === 403, `a viewer cannot approve, got ${out.viewerApprove}`);
+  L.assert(out.viewerReject === 403, `a viewer cannot reject, got ${out.viewerReject}`);
+  L.assert(out.stillPendingAfterViewer === "pending_approval", `the action is still pending after the viewer's denied attempts, got ${out.stillPendingAfterViewer}`);
+  L.assert(out.ownerApprove === 200, `the owner's approval succeeds, got ${out.ownerApprove}`);
+  L.assert(out.afterApprove.status === "succeeded", `the action succeeds after approval, got ${out.afterApprove.status}`);
+  L.assert(Number(out.afterApprove.ticketLinked) === 1, `exactly one ticket is created by the approved action, got ${out.afterApprove.ticketLinked}`);
+  L.assert(out.approveAgain === 409, `approving an already-approved action is rejected (409), got ${out.approveAgain}`);
+  L.assert(out.ticketsAfterSecondApprove === out.afterApprove.tickets, `a second approve does not create a second ticket, got ${out.ticketsAfterSecondApprove} vs ${out.afterApprove.tickets}`);
+  L.assert(out.ownerReject === 200, `the owner's rejection succeeds, got ${out.ownerReject}`);
+  L.assert(out.afterReject.status === "cancelled", `a rejected action ends cancelled, got ${out.afterReject.status}`);
+  L.assert(out.afterReject.tickets.match(/^(\d+) -> \1$/), `rejection creates no ticket, got ${out.afterReject.tickets}`);
+  L.assert(out.approveAfterReject !== 200, `a cancelled action cannot later be approved, got ${out.approveAfterReject}`);
+
+  L.finish("J13", out);
+  await ob.close();
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

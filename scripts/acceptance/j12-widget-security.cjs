@@ -65,5 +65,38 @@ const get = async (path, headers = {}) => { const r = await fetch(L.BASE + path,
   const fresh = await L.widgetSend(vp2, "What is your verification code?");
   out.freshEmbedWidget = { ack: fresh.ack && fresh.ack.status, reply: fresh.reply };
   await vb.close();
-  console.log(JSON.stringify(out, null, 1)); L.log({ journey: 12, ...out });
+
+  // Every widget-credential attack must be rejected; only the CONTROL/positive
+  // cases below are expected to succeed.
+  const mustSucceed = new Set([
+    "CONTROL valid token + connection + allowed origin",
+    "AFTER ROTATION: new token",
+    "AFTER ROTATION: B's token unaffected",
+  ]);
+  // A documented, accepted product quirk (PLAN.md's browser acceptance record): the message route
+  // fast-ACKs (200) before the worker resolves the conversation, so posting with a foreign
+  // conversationId still ACKs — the write itself never lands (verified separately below via
+  // injectedIntoAConversation), which is the actual safety property here, not the ACK status.
+  const ackOnlyNotSafety = new Set(["B's VALID token/origin writing into A's conversation id"]);
+  for (const [label, val] of Object.entries(c)) {
+    const status = typeof val === "object" && val !== null ? val.s : val;
+    if (typeof status !== "number") continue; // preflight strings handled separately below
+    if (ackOnlyNotSafety.has(label)) continue;
+    if (mustSucceed.has(label)) L.assert([200, 201].includes(status), `'${label}' should succeed, got ${status}`);
+    else L.assert(![200, 201].includes(status), `'${label}' must be rejected, got ${status}`);
+  }
+  L.assert(c["CONTROL valid token + connection + allowed origin"].acao === OA, `CONTROL response carries A's own origin in ACAO, got ${c["CONTROL valid token + connection + allowed origin"].acao}`);
+  L.assert(c["preflight from allowed origin"].includes(`acao=${OA}`), `preflight from A's allowed origin reflects it, got ${c["preflight from allowed origin"]}`);
+  L.assert(!c["preflight from evil origin"].includes(`acao=${EVIL}`), `preflight from an evil origin never reflects it, got ${c["preflight from evil origin"]}`);
+  L.assert(!c["preflight from B's origin on A's connection"].includes(`acao=${OB}`), `preflight from B's origin on A's connection never reflects it, got ${c["preflight from B's origin on A's connection"]}`);
+  L.assert(out.injectedIntoAConversation === "0", `nothing was written into A's conversation by any attack, got ${out.injectedIntoAConversation}`);
+  L.assert(out.rotation.tokenChanged === true, `token rotation actually changes the token`);
+  L.assert(out.rotation.sameConnection === true, `rotation keeps the same connection id`);
+  L.assert(out.rotation.ownerSessionStillValid === 200, `the owner's own session survives rotating the widget token, got ${out.rotation.ownerSessionStillValid}`);
+  L.assert(out.staleEmbedWidget.ack !== 200, `a stale (pre-rotation) embed is rejected, got ack=${out.staleEmbedWidget.ack}`);
+  L.assert(out.staleEmbedWidget.reply === null, `a stale embed never gets a reply, got ${JSON.stringify(out.staleEmbedWidget.reply)}`);
+  L.assert(out.freshEmbedWidget.ack === 200, `the freshly rotated embed works, got ack=${out.freshEmbedWidget.ack}`);
+  L.assert(!!out.freshEmbedWidget.reply, `the freshly rotated embed gets a reply`);
+
+  L.finish("J12", out);
 })().catch((e) => { console.error("ERR", e); process.exit(1); });

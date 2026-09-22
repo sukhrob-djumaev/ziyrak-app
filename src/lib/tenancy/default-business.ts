@@ -38,6 +38,31 @@ export async function getDefaultBusinessId(): Promise<string> {
 }
 
 /**
+ * The Default Business's id, or `null` on a deployment that has none (a
+ * fresh install: only signup creates businesses). Never throws for absence —
+ * the guards below decide what absence means.
+ */
+async function findDefaultBusinessId(): Promise<string | null> {
+  if (cachedDefaultBusinessId) return cachedDefaultBusinessId;
+  const id = (await prisma.business.findUnique({ where: { slug: "default" }, select: { id: true } }))?.id ?? null;
+  if (id) cachedDefaultBusinessId = id;
+  return id;
+}
+
+/**
+ * Whether `ctx` is the Default Business — the only business the legacy
+ * single-tenant surfaces (see `assertDefaultBusinessOnly`) may serve. A
+ * deployment with no Default Business has no such business, so this is
+ * `false` for everyone. For *describing* that constraint (a UI deciding
+ * which legacy panels to offer); it never grants access by itself — the
+ * routes behind those panels still enforce `assertDefaultBusinessOnly`.
+ */
+export async function isDefaultBusiness(ctx: Pick<TenantContext, "businessId">): Promise<boolean> {
+  const defaultBusinessId = await findDefaultBusinessId();
+  return defaultBusinessId !== null && ctx.businessId === defaultBusinessId;
+}
+
+/**
  * Fail-closed guard for a route/service that has a real, resolved
  * `TenantContext` (from `requireAuth()`) but whose underlying feature is
  * not yet tenant-aware (still reads/writes the legacy global `Settings`
@@ -55,10 +80,7 @@ export async function assertDefaultBusinessOnly(
   // creates businesses) has no "first business" for these legacy features to
   // belong to, so they are unavailable to everyone — answered with the same
   // 501 as any other non-default caller, never an unhandled not-found.
-  const defaultBusinessId =
-    cachedDefaultBusinessId ?? (await prisma.business.findUnique({ where: { slug: "default" }, select: { id: true } }))?.id ?? null;
-  if (defaultBusinessId) cachedDefaultBusinessId = defaultBusinessId;
-  if (!defaultBusinessId || ctx.businessId !== defaultBusinessId) {
+  if (!(await isDefaultBusiness(ctx))) {
     throw new AppError(
       501,
       "NOT_YET_SUPPORTED",

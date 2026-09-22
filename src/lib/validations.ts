@@ -185,6 +185,18 @@ export const updateSettingsSchema = z.object({
   whatsappPhone: z.string().max(50).optional(),
 }).strict();
 
+// Business profile (post-Phase-7 acceptance fix) — the tenant-scoped
+// BusinessConfig identity fields the dashboard's General settings tab edits.
+// The same bounds signup applies to the same fields. `.strict()`: no tenant
+// id, credential reference or retention setting can ride along.
+export const updateBusinessProfileSchema = z.object({
+  businessName: z.string().trim().min(2, "Business name must be at least 2 characters").max(100).optional(),
+  businessDesc: z.string().max(2000).optional(),
+  welcomeMessage: z.string().max(1000).optional(),
+  tone: z.enum(["friendly", "professional", "formal", "technical"]).optional(),
+  language: z.string().trim().min(1).max(20).optional(),
+}).strict();
+
 // AI provider settings (PLAN.md §46.4) — the real, tenant-scoped, per-
 // business AI provider/embedding/credential boundary. updateSettingsSchema's
 // aiProvider/aiModel/aiApiKey/maxTokens/temperature fields above are

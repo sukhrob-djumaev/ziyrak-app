@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
@@ -423,9 +424,11 @@ function GeneralSection({
 function AISection({
   data,
   update,
+  aiConfigured,
 }: {
   data: SettingsData;
   update: (field: keyof SettingsData, value: string | number) => void;
+  aiConfigured: boolean;
 }) {
   const modelOptions: Record<string, { value: string; label: string }[]> = {
     openai: [
@@ -433,10 +436,10 @@ function AISection({
       { value: "gpt-4o-mini", label: "GPT-4o Mini" },
       { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
     ],
-    claude: [
+    anthropic: [
       { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-      { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
-      { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku" },
+      { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
+      { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
     ],
     ollama: [
       { value: "llama3", label: "Llama 3" },
@@ -444,6 +447,8 @@ function AISection({
       { value: "codellama", label: "Code Llama" },
     ],
   };
+
+  const knownModels = modelOptions[data.aiProvider] || [];
 
   return (
     <div className="space-y-5">
@@ -456,11 +461,13 @@ function AISection({
             if (models && models.length > 0) {
               update("aiModel", models[0].value);
             }
+            // a key belongs to one provider; never carry a typed one across
+            update("aiApiKey", "");
           }}
           options={[
             { value: "openai", label: "OpenAI" },
-            { value: "claude", label: "Claude (Anthropic)" },
-            { value: "ollama", label: "Ollama (Local)" },
+            { value: "anthropic", label: "Claude (Anthropic)" },
+            { value: "ollama", label: "Ollama (Local — coming soon)" },
           ]}
         />
       </FormField>
@@ -468,17 +475,28 @@ function AISection({
         <SelectInput
           value={data.aiModel}
           onChange={(v) => update("aiModel", v)}
-          options={modelOptions[data.aiProvider] || []}
+          options={knownModels.some((m) => m.value === data.aiModel) || !data.aiModel
+            ? knownModels
+            : [{ value: data.aiModel, label: data.aiModel }, ...knownModels]}
         />
       </FormField>
-      <FormField label="API Key" description="Your provider API key. Not required for Ollama.">
+      <FormField
+        label="API Key"
+        description={
+          aiConfigured
+            ? "A key is stored (encrypted) for this business. The stored key is never shown — enter a new one only to replace it."
+            : "Your provider API key. It is stored encrypted and never shown again."
+        }
+      >
         <PasswordInput
           value={data.aiApiKey}
           onChange={(v) => update("aiApiKey", v)}
           placeholder={
             data.aiProvider === "ollama"
               ? "Not required for local models"
-              : "Enter your API key"
+              : aiConfigured
+                ? "Key configured — leave blank to keep it"
+                : "Enter your API key"
           }
         />
       </FormField>
@@ -762,12 +780,34 @@ const defaultSettings: SettingsData = {
   whatsappPhone: "",
 };
 
+/** The server's error message when it sent one, else `fallback`. */
+async function responseError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    const error = body?.error;
+    const message = typeof error === "string" ? error : error?.message;
+    return typeof message === "string" && message ? message : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const PROFILE_FIELDS = ["businessName", "businessDesc", "welcomeMessage", "tone", "language"] as const;
+const AI_FIELDS = ["aiProvider", "aiModel", "maxTokens", "temperature"] as const;
+
 export default function SettingsPage() {
   const [data, setData] = useState<SettingsData>(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<SectionKey>("general");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // General + AI are per-business (BusinessConfig, §46.4). The voice/phone/
+  // email/WhatsApp panels edit the legacy single-tenant Settings row, which
+  // only the Default Business still has — everyone else configures channel
+  // credentials per connection under Channels.
+  const [legacyAvailable, setLegacyAvailable] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
 
   const addToast = useCallback((type: "success" | "error", message: string) => {
     const id = Date.now();
@@ -778,19 +818,60 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((settings) => {
-        const merged = { ...defaultSettings };
-        for (const key of Object.keys(merged) as (keyof SettingsData)[]) {
-          if (settings[key] !== undefined && settings[key] !== null) {
-            (merged as Record<string, unknown>)[key] = settings[key];
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [profileRes, aiRes] = await Promise.all([
+          fetch("/api/settings/business"),
+          fetch("/api/settings/ai"),
+        ]);
+        if (!profileRes.ok) throw new Error(await responseError(profileRes, "Failed to load settings"));
+        if (!aiRes.ok) throw new Error(await responseError(aiRes, "Failed to load settings"));
+
+        const profile = await profileRes.json();
+        const ai = await aiRes.json();
+        const legacyAvailableNow = profile.legacyChannelSettingsAvailable === true;
+
+        const merged: SettingsData = { ...defaultSettings };
+        for (const key of [...PROFILE_FIELDS, ...AI_FIELDS] as const) {
+          const value = key in profile ? profile[key] : ai[key];
+          if (value !== undefined && value !== null) (merged as unknown as Record<string, unknown>)[key] = value;
+        }
+
+        if (legacyAvailableNow) {
+          const legacyRes = await fetch("/api/settings");
+          if (legacyRes.ok) {
+            const legacy = await legacyRes.json();
+            for (const key of Object.keys(merged) as (keyof SettingsData)[]) {
+              const isTenantField = (PROFILE_FIELDS as readonly string[]).includes(key) ||
+                (AI_FIELDS as readonly string[]).includes(key) || key === "aiApiKey";
+              if (isTenantField) continue;
+              if (legacy[key] !== undefined && legacy[key] !== null) {
+                (merged as unknown as Record<string, unknown>)[key] = legacy[key];
+              }
+            }
           }
         }
+
+        if (cancelled) return;
         setData(merged);
-      })
-      .catch(() => addToast("error", "Failed to load settings"))
-      .finally(() => setLoading(false));
+        setAiConfigured(ai.aiConfigured === true);
+        setLegacyAvailable(legacyAvailableNow);
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : "Failed to load settings";
+        setLoadError(message);
+        addToast("error", message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [addToast]);
 
   const update = (field: keyof SettingsData, value: string | number) => {
@@ -806,24 +887,48 @@ export default function SettingsPage() {
         payload[f] = data[f];
       }
 
-      const res = await fetch("/api/settings", {
+      let endpoint = "/api/settings";
+      if (activeTab === "general") {
+        endpoint = "/api/settings/business";
+      } else if (activeTab === "ai") {
+        endpoint = "/api/settings/ai";
+        // The stored key is never sent back to the browser, so an empty field
+        // means "keep the stored key" — only a newly typed one is submitted.
+        if (data.aiApiKey && data.aiProvider !== "ollama") {
+          payload.aiApiKey = data.aiApiKey;
+        } else {
+          delete payload.aiApiKey;
+        }
+      }
+
+      const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) throw new Error(await responseError(res, "Save failed"));
+
+      if (activeTab === "ai") {
+        const saved = await res.json();
+        setAiConfigured(saved.aiConfigured === true);
+        setData((prev) => ({ ...prev, aiApiKey: "" }));
+      }
       addToast("success", "Settings saved successfully");
-    } catch {
-      addToast("error", "Failed to save settings. Please try again.");
+    } catch (error) {
+      addToast("error", error instanceof Error && error.message !== "Save failed"
+        ? error.message
+        : "Failed to save settings. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
+  const visibleTabs = legacyAvailable ? tabs : tabs.filter((t) => t.key === "general" || t.key === "ai");
+
   const sectionRenderers: Record<SectionKey, React.ReactNode> = {
     general: <GeneralSection data={data} update={update} />,
-    ai: <AISection data={data} update={update} />,
+    ai: <AISection data={data} update={update} aiConfigured={aiConfigured} />,
     voice: <VoiceSection data={data} update={update} />,
     phone: <PhoneSection data={data} update={update} />,
     email: <EmailSection data={data} update={update} />,
@@ -841,6 +946,24 @@ export default function SettingsPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <>
+        <Header title="Settings" description="Configure your Owly instance" />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-4xl mx-auto bg-owly-surface rounded-xl border border-owly-border p-6 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-owly-text">Settings could not be loaded</h3>
+              <p className="text-sm text-owly-text-light mt-0.5">{loadError}</p>
+            </div>
+          </div>
+        </div>
+        <ToastContainer toasts={toasts} />
+      </>
+    );
+  }
+
   return (
     <>
       <Header title="Settings" description="Configure your Owly instance" />
@@ -848,7 +971,7 @@ export default function SettingsPage() {
         <div className="max-w-4xl mx-auto">
           {/* Tab navigation */}
           <div className="flex gap-1 p-1 bg-owly-bg rounded-xl border border-owly-border mb-6 overflow-x-auto">
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
               return (
@@ -868,6 +991,16 @@ export default function SettingsPage() {
               );
             })}
           </div>
+
+          {!legacyAvailable && (
+            <p className="text-sm text-owly-text-light mb-4">
+              Channel credentials (email, SMS, phone, WhatsApp, Telegram, Web Chat) are configured per channel in{" "}
+              <Link href="/channels" className="text-owly-primary hover:underline">
+                Channels
+              </Link>
+              .
+            </p>
+          )}
 
           {/* Section content */}
           <div className="bg-owly-surface rounded-xl border border-owly-border p-6 space-y-6">

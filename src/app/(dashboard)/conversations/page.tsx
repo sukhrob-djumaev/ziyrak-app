@@ -111,7 +111,7 @@ export default function ConversationsPage() {
       const res = await fetch(`/api/conversations?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load conversations");
       const data = await res.json();
-      setConversations(data);
+      setConversations(data.data);
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
       setFetchError("Failed to load conversations. Please try refreshing the page.");

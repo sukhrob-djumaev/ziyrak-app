@@ -71,8 +71,8 @@ export default function KnowledgeTestPage() {
         fetch("/api/knowledge/entries"),
       ]);
 
-      const categories = categoriesRes.ok ? await categoriesRes.json() : [];
-      const entries = entriesRes.ok ? await entriesRes.json() : [];
+      const categories = categoriesRes.ok ? (await categoriesRes.json()).data : [];
+      const entries = entriesRes.ok ? (await entriesRes.json()).data : [];
 
       const activeEntries = entries.filter((e: { isActive: boolean }) => e.isActive);
       const lastUpdated =

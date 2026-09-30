@@ -91,7 +91,13 @@ export default function ActivityPage() {
       const res = await fetch(`/api/activity?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
-        setData(json);
+        setData({
+          activities: json.data,
+          total: json.pagination.total,
+          page: json.pagination.page,
+          limit: json.pagination.limit,
+          totalPages: json.pagination.totalPages,
+        });
       }
     } catch (error) {
       console.error("Failed to fetch activities:", error);

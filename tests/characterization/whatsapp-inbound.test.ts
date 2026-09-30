@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
@@ -70,8 +70,17 @@ const testCtx = {
   dataConnection: "shared-default",
 };
 
+// A live WhatsApp Web session only exists on a deployment that enables the
+// dev/demo feature (PLAN.md §20.2; the adapter refuses to send otherwise).
+const originalWhatsAppWebFlag = process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB;
+afterAll(() => {
+  if (originalWhatsAppWebFlag === undefined) delete process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB;
+  else process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB = originalWhatsAppWebFlag;
+});
+
 describe("Characterization: WhatsApp inbound message flow", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB = "true";
     vi.restoreAllMocks();
     mockOpenAICreateFn.mockReset();
     sendMessageSpy.mockClear();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWhatsAppStatus, whatsAppWebAdapter } from "@/lib/channels/whatsapp";
+import { getWhatsAppStatus, getWhatsAppWebStatus, whatsAppWebAdapter } from "@/lib/channels/whatsapp";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { toErrorResponse } from "@/lib/observability/errors";
@@ -8,8 +8,14 @@ export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "channels:read");
   if (!isAuthenticated(ctx)) return ctx;
 
-  const status = getWhatsAppStatus();
-  return NextResponse.json(status);
+  // PLAN.md §20.2 — the shared session's status/QR belongs to the designated
+  // dev/demo business only, and only while the feature is enabled.
+  try {
+    const status = await getWhatsAppWebStatus(ctx);
+    return NextResponse.json(status);
+  } catch (error) {
+    return toErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {

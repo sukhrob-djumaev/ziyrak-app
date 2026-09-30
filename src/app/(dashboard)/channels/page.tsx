@@ -163,6 +163,7 @@ function WhatsAppCard({
   const [phoneNumber, setPhoneNumber] = useState(cfg.phoneNumber || "");
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isConnected = channel.status === "connected";
 
@@ -176,6 +177,7 @@ function WhatsAppCard({
   const handleConnect = async () => {
     setConnecting(true);
     setQrCode(null);
+    setQrError(null);
     try {
       const res = await fetch("/api/channels/whatsapp", {
         method: "POST",
@@ -185,6 +187,11 @@ function WhatsAppCard({
       if (res.ok) {
         const data = await res.json();
         if (data.qr) setQrCode(data.qr);
+        if (data.status === "error") {
+          setQrError(data.message || "Failed to connect to WhatsApp");
+          setConnecting(false);
+          return;
+        }
       }
       // Start polling for QR code / status updates
       if (pollRef.current) clearInterval(pollRef.current);
@@ -199,11 +206,17 @@ function WhatsAppCard({
               setConnecting(false);
               onAction("whatsapp", "connect");
             }
+            if (status.status === "error") {
+              if (pollRef.current) clearInterval(pollRef.current);
+              setConnecting(false);
+              setQrError(status.message || "Failed to connect to WhatsApp");
+            }
           }
         } catch { /* ignore polling errors */ }
       }, 3000);
     } catch {
       setConnecting(false);
+      setQrError("Failed to connect to WhatsApp");
     }
   };
 
@@ -301,6 +314,8 @@ function WhatsAppCard({
                       alt="WhatsApp QR Code"
                       className="w-full h-full object-contain"
                     />
+                  ) : qrError ? (
+                    <XCircle className="h-8 w-8 text-red-500" />
                   ) : connecting ? (
                     <Loader2 className="h-8 w-8 animate-spin text-green-600" />
                   ) : (
@@ -312,8 +327,10 @@ function WhatsAppCard({
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-owly-text-light text-center max-w-[220px]">
-                  {qrCode
+                <p className={cn("text-xs text-center max-w-[220px]", qrError ? "text-red-600" : "text-owly-text-light")}>
+                  {qrError
+                    ? qrError
+                    : qrCode
                     ? "Scan this QR code with WhatsApp on your phone to connect"
                     : "Click Connect to generate a QR code"}
                 </p>

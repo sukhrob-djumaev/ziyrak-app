@@ -1,5 +1,6 @@
 import OpenAI, { APIError, APIConnectionTimeoutError } from "openai";
 import type {
+  AIMessage,
   AIProvider,
   CompletionRequest,
   CompletionResult,
@@ -29,7 +30,7 @@ export class OpenAIProvider implements AIProvider {
     try {
       response = await this.client.chat.completions.create({
         model: request.model,
-        messages: request.messages as OpenAI.ChatCompletionMessageParam[],
+        messages: toOpenAIMessages(request.messages),
         tools: request.tools as OpenAI.ChatCompletionTool[] | undefined,
         max_tokens: request.maxTokens,
         temperature: request.temperature,
@@ -63,6 +64,33 @@ export class OpenAIProvider implements AIProvider {
 
     return { type: "text", text: choice.message.content ?? "", usage };
   }
+}
+
+/**
+ * Translates the provider-agnostic message history into OpenAI's wire shape. A cast is not enough: the
+ * contract's `ToolCallRequest` is flat (`{id, name, arguments}`), while OpenAI requires an assistant turn's
+ * tool calls echoed back as `{id, type: "function", function: {name, arguments}}` — without it the
+ * follow-up completion after a tool call is rejected with a 400 (found by real-OpenAI acceptance).
+ * `providerContent` is another provider's opaque turn data and is never sent.
+ */
+function toOpenAIMessages(messages: AIMessage[]): OpenAI.ChatCompletionMessageParam[] {
+  return messages.map((msg): OpenAI.ChatCompletionMessageParam => {
+    if (msg.role === "assistant" && msg.tool_calls?.length) {
+      return {
+        role: "assistant",
+        content: msg.content || null,
+        tool_calls: msg.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: "function",
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      };
+    }
+    if (msg.role === "tool") {
+      return { role: "tool", content: msg.content, tool_call_id: msg.tool_call_id ?? "" };
+    }
+    return { role: msg.role, content: msg.content };
+  });
 }
 
 function toAIProviderError(error: unknown): AIProviderError {

@@ -106,7 +106,10 @@ async function ask(site, name) {
   await clickEntryButton(p, TITLE, "Edit entry"); await L.sleep(500);
   // Controlled React textarea: clear it the way a user would (select all + delete), then type.
   await p.click("textarea[placeholder^='Write the knowledge content']");
-  await p.keyboard.down("Control"); await p.keyboard.press("KeyA"); await p.keyboard.up("Control"); await p.keyboard.press("Backspace");
+  // Select the text programmatically, then delete it with a real key press: keyboard select-all shortcuts are
+  // platform-specific (Ctrl+A only moves the caret on macOS, and Puppeteer cannot drive Cmd+A), which made the edit append.
+  await p.$eval("textarea[placeholder^='Write the knowledge content']", (el) => { el.focus(); el.select(); });
+  await p.keyboard.press("Backspace");
   await p.type("textarea[placeholder^='Write the knowledge content']", V2);
   await L.clickLast(p, "button", "Save Changes"); await L.sleep(1200);
   out.edited = await waitIndexed(p, TITLE, (v) => v.content === V2 && out.created && v.embeddingIndex.contentHash !== out.created.embeddingIndex.contentHash);

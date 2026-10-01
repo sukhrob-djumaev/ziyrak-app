@@ -10,7 +10,7 @@
 # always talks to the real Anthropic API regardless), and j01-signup.cjs types
 # ACC_REAL_AI_KEY (required) into the wizard instead of a fake key, with ACC_REAL_AI_PROVIDER
 # (openai|anthropic, default openai) and ACC_REAL_AI_MODEL (default gpt-4o-mini /
-# claude-3-5-haiku-20241022) selecting the model. Secrets are never echoed by this script.
+# claude-sonnet-5-5, the Ziyrak Anthropic default) selecting the model. Secrets are never echoed by this script.
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 work="${ACC_WORK_DIR:-$here/.work}"; mkdir -p "$work"

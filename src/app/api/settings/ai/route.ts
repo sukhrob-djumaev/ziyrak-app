@@ -3,7 +3,12 @@ import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { toErrorResponse } from "@/lib/observability/errors";
 import { validateBody, updateAISettingsSchema } from "@/lib/validations";
-import { encryptAIProviderCredential, encryptEmbeddingProviderCredential } from "@/lib/ai/config";
+import {
+  defaultModelForProvider,
+  encryptAIProviderCredential,
+  encryptEmbeddingProviderCredential,
+} from "@/lib/ai/config";
+import { isSupportedAnthropicModel, unsupportedAnthropicModelMessage } from "@/lib/ai/providers/anthropic-models";
 import { PLATFORM_AI_DEFAULTS } from "@/lib/platform/defaults";
 import { logger } from "@/lib/observability/logger";
 import { reindexStaleEntries } from "@/lib/knowledge/service";
@@ -25,6 +30,16 @@ interface AISettingsView {
   temperature: number;
   aiConfigured: boolean;
   embeddingConfigured: boolean;
+  /** False when the stored model is outside the supported catalog (e.g. a retired Claude id): it must be reselected. */
+  aiModelSupported: boolean;
+}
+
+function normalizeProvider(provider: string): string {
+  return provider === "claude" ? "anthropic" : provider;
+}
+
+function isSupportedModel(provider: string, model: string): boolean {
+  return normalizeProvider(provider) !== "anthropic" || isSupportedAnthropicModel(model);
 }
 
 function toView(config: {
@@ -36,14 +51,17 @@ function toView(config: {
   aiCredentialRef: string | null;
   embeddingCredentialRef: string | null;
 }): AISettingsView {
+  const aiProvider = config.aiProvider ?? PLATFORM_AI_DEFAULTS.aiProvider;
+  const aiModel = config.aiModel ?? defaultModelForProvider(aiProvider);
   return {
-    aiProvider: config.aiProvider ?? PLATFORM_AI_DEFAULTS.aiProvider,
-    aiModel: config.aiModel ?? PLATFORM_AI_DEFAULTS.aiModel,
+    aiProvider,
+    aiModel,
     embeddingProvider: config.embeddingProvider ?? config.aiProvider ?? PLATFORM_AI_DEFAULTS.embeddingProvider,
     maxTokens: config.maxTokens ?? PLATFORM_AI_DEFAULTS.maxTokens,
     temperature: config.temperature ?? PLATFORM_AI_DEFAULTS.temperature,
     aiConfigured: Boolean(config.aiCredentialRef),
     embeddingConfigured: Boolean(config.embeddingCredentialRef || config.aiCredentialRef),
+    aiModelSupported: isSupportedModel(aiProvider, aiModel),
   };
 }
 
@@ -89,6 +107,15 @@ export async function PUT(request: NextRequest) {
     const resolvedProvider = rest.aiProvider ?? existing.aiProvider ?? PLATFORM_AI_DEFAULTS.aiProvider;
     const resolvedEmbeddingProvider =
       rest.embeddingProvider ?? existing.embeddingProvider ?? resolvedProvider;
+
+    // A stored model is never silently swapped for another (possibly more
+    // expensive) one. A save that would leave the business on an unsupported
+    // Anthropic model, including a retired id saved before this catalog, is
+    // refused until a supported model is explicitly selected.
+    const resolvedModel = rest.aiModel ?? existing.aiModel ?? defaultModelForProvider(resolvedProvider);
+    if (!isSupportedModel(resolvedProvider, resolvedModel)) {
+      return NextResponse.json({ error: unsupportedAnthropicModelMessage(resolvedModel) }, { status: 400 });
+    }
 
     const data: Record<string, unknown> = { ...rest };
 

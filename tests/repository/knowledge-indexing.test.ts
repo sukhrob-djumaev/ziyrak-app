@@ -522,6 +522,65 @@ describe("tenant/provider isolation", () => {
   });
 });
 
+describe("Anthropic generation with no embedding provider (signed-up business, Default Business holds an OpenAI key)", () => {
+  it("indexes nothing, never constructs any embedding provider, never borrows the Default Business's key, and retrieves by keyword", async () => {
+    const defaultBusiness = await findOrCreateDefaultBusiness();
+    vi.mocked(getDefaultBusinessId).mockResolvedValue(defaultBusiness.businessId);
+    const settingsSpy = vi
+      .spyOn(prisma.settings, "findUnique")
+      .mockResolvedValue({ id: "default", aiProvider: "openai", aiModel: "gpt-4o-mini", maxTokens: 500, temperature: 0.7, aiApiKey: "sk-legacy-default-business" } as never);
+
+    const provisioned = await provisionBusiness({
+      businessName: "Anthropic Only Co",
+      ownerUsername: `anthropic-only-${Date.now()}`,
+      ownerPassword: "not-a-real-login-password",
+      ownerName: "Owner",
+    });
+    const ctx: TenantContext = { businessId: provisioned.businessId, role: "owner", actor: { kind: "user", userId: provisioned.userId }, dataConnection: "shared-default" };
+
+    try {
+      // Configured through the real settings route, exactly as the wizard does.
+      const { PUT } = await import("@/app/api/settings/ai/route");
+      const saved = await PUT(
+        createRequest("/api/settings/ai", {
+          method: "PUT",
+          body: { aiProvider: "anthropic", aiModel: "claude-sonnet-5-5", aiApiKey: "sk-ant-generation-only" },
+          cookies: { "owly-token": generateToken(provisioned.userId) },
+        })
+      );
+      expect(saved.status).toBe(200);
+
+      const { embeddingProviderRegistry } = await import("@/lib/ai/providers/embedding-registry");
+      expect(embeddingProviderRegistry.has("anthropic")).toBe(false);
+
+      const getCallsBefore = registrySpy.mock.calls.length;
+      const keysBefore = keysUsed.length;
+      const category = await createCategory(ctx, "anthropic-only");
+      const entry = await knowledgeService.createEntry(ctx, {
+        categoryId: category.id,
+        title: "Kiwi delivery",
+        content: "Kiwi fruit is delivered every Monday.",
+      });
+      await fakeQueue.__drainForTests();
+
+      expect(await indexKnowledgeEntry(ctx, entry.id)).toMatchObject({ status: "skipped", reason: "unsupported_embedding_provider" });
+      expect(readStoredEmbedding((await readEntry(ctx, entry.id))!.metadata)).toBeNull();
+
+      const results = await knowledgeRetriever.retrieve(ctx, "kiwi delivery", { limit: 5 });
+      expect(results.map((r) => r.id)).toContain(entry.id);
+
+      // No embedding provider was ever constructed for this business — not
+      // an Anthropic one, and not OpenAI with the Default Business's key.
+      expect(registrySpy.mock.calls.length).toBe(getCallsBefore);
+      expect(keysUsed.slice(keysBefore)).toEqual([]);
+    } finally {
+      settingsSpy.mockRestore();
+      vi.mocked(getDefaultBusinessId).mockResolvedValue("test-default-business-id");
+      await cleanupBusiness(provisioned.businessId);
+    }
+  });
+});
+
 describe("embedding configuration changes", () => {
   it("an embedding stored under a different provider is not trusted by retrieval", async () => {
     const category = await createCategory(businessA.ctx, "provider-change");

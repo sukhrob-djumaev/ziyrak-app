@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { ANTHROPIC_DEFAULT_MODEL, ANTHROPIC_MODELS } from "@/lib/ai/providers/anthropic-models";
 
 const STEPS = [
   "Create Your Account",
@@ -23,15 +24,31 @@ const TONE_OPTIONS = [
 // Ollama is honestly marked "coming soon" rather than silently broken
 // (§2.3's original bug — selecting it used to silently still call OpenAI).
 // "anthropic" matches AnthropicProvider.name/the registry key exactly.
+// Anthropic's list is the shared supported catalog (ai/providers/
+// anthropic-models.ts), so the wizard can never offer a retired model id.
+const toOptions = (ids: string[]) => ids.map((id) => ({ value: id, label: id }));
 const PROVIDER_OPTIONS = [
-  { value: "openai", label: "OpenAI", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"], comingSoon: false },
+  {
+    value: "openai",
+    label: "OpenAI",
+    models: toOptions(["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]),
+    defaultModel: "gpt-4o-mini",
+    comingSoon: false,
+  },
   {
     value: "anthropic",
     label: "Anthropic (Claude)",
-    models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+    models: ANTHROPIC_MODELS.map((m) => ({ value: m.id, label: m.label })),
+    defaultModel: ANTHROPIC_DEFAULT_MODEL,
     comingSoon: false,
   },
-  { value: "ollama", label: "Ollama (Local)", models: ["llama3", "mistral", "codellama", "phi3"], comingSoon: true },
+  {
+    value: "ollama",
+    label: "Ollama (Local)",
+    models: toOptions(["llama3", "mistral", "codellama", "phi3"]),
+    defaultModel: "llama3",
+    comingSoon: true,
+  },
 ];
 
 export default function SetupPage() {
@@ -326,10 +343,7 @@ export default function SetupPage() {
                   onChange={(e) => {
                     const prov = e.target.value;
                     setAiProvider(prov);
-                    const models =
-                      PROVIDER_OPTIONS.find((p) => p.value === prov)?.models ||
-                      [];
-                    setAiModel(models[0] || "");
+                    setAiModel(PROVIDER_OPTIONS.find((p) => p.value === prov)?.defaultModel || "");
                   }}
                   className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
                 >
@@ -361,8 +375,8 @@ export default function SetupPage() {
                   className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
                 >
                   {currentModels().map((m) => (
-                    <option key={m} value={m}>
-                      {m}
+                    <option key={m.value} value={m.value}>
+                      {m.label}
                     </option>
                   ))}
                 </select>

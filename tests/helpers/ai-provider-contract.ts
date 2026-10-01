@@ -18,8 +18,8 @@ const TEXT_REQUEST: CompletionRequest = {
   model: "test-model",
 };
 
-export async function assertTextCompletionContract(provider: AIProvider): Promise<void> {
-  const result = await provider.complete(TEXT_REQUEST);
+export async function assertTextCompletionContract(provider: AIProvider, model = TEXT_REQUEST.model): Promise<void> {
+  const result = await provider.complete({ ...TEXT_REQUEST, model });
   expect(result.type).toBe("text");
   expect(typeof result.text).toBe("string");
   expect(result.usage.promptTokens).toBeGreaterThanOrEqual(0);
@@ -29,7 +29,8 @@ export async function assertTextCompletionContract(provider: AIProvider): Promis
 
 export async function assertToolCallCompletionContract(
   provider: AIProvider,
-  toolName: string
+  toolName: string,
+  model = "test-model"
 ): Promise<void> {
   const request: CompletionRequest = {
     messages: [{ role: "user", content: "What's my order status?" }],
@@ -45,7 +46,7 @@ export async function assertToolCallCompletionContract(
     ],
     maxTokens: 100,
     temperature: 0.7,
-    model: "test-model",
+    model,
   };
 
   const result = await provider.complete(request);

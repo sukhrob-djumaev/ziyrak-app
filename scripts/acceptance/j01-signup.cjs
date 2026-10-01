@@ -7,7 +7,7 @@ const creds = require("./creds.json");
 // env vars. The key is read once and never included in `out`/screenshots/logged evidence.
 const REAL_AI = process.env.ACC_REAL_AI === "1";
 const REAL_AI_PROVIDER = process.env.ACC_REAL_AI_PROVIDER || "openai";
-const REAL_AI_MODEL = process.env.ACC_REAL_AI_MODEL || (REAL_AI_PROVIDER === "anthropic" ? "claude-3-5-haiku-20241022" : "gpt-4o-mini");
+const REAL_AI_MODEL = process.env.ACC_REAL_AI_MODEL || (REAL_AI_PROVIDER === "anthropic" ? "claude-sonnet-5-5" : "gpt-4o-mini");
 const REAL_AI_KEY = process.env.ACC_REAL_AI_KEY;
 if (REAL_AI && !REAL_AI_KEY) throw new Error("ACC_REAL_AI=1 but ACC_REAL_AI_KEY is not set");
 async function clickText(p, sel, text) {

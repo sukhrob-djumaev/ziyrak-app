@@ -23,6 +23,14 @@ export interface AIMessage {
   content: string;
   tool_call_id?: string;
   tool_calls?: ToolCallRequest[];
+  /**
+   * Opaque, provider-specific copy of an assistant turn exactly as the
+   * provider returned it (`CompletionResult.providerContent`). Only the
+   * provider that produced it reads it, and only within one tool-call loop:
+   * Anthropic requires thinking blocks to be passed back unchanged with the
+   * tool_use turn they preceded. Never persisted.
+   */
+  providerContent?: { provider: string; content: unknown };
 }
 
 /** A provider-agnostic tool call, translated to/from each SDK's native shape by its own provider. */
@@ -55,6 +63,8 @@ export interface CompletionResult {
   /** Each carries the provider's own tool-call id — §24.4's future idempotency key. */
   toolCalls?: ToolCallRequest[];
   usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+  /** See `AIMessage.providerContent`; set on tool_calls results by providers that need it. */
+  providerContent?: { provider: string; content: unknown };
 }
 
 export type AIProviderErrorCode =

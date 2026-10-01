@@ -270,7 +270,17 @@ async function callAI(
       temperature: config.temperature,
       model: config.model,
     });
-  } catch {
+  } catch (error) {
+    // The customer gets the honest fallback copy, never fabricated content;
+    // the operator gets the reason. Never log the credential or prompt.
+    logger.warn("AI provider call failed; replying with fallback copy", {
+      businessId: ctx.businessId,
+      conversationId,
+      provider: config.provider,
+      model: config.model,
+      code: error instanceof AIProviderError ? error.code : "unknown",
+      reason: error instanceof Error ? error.message : String(error),
+    });
     return { text: FALLBACK_PROVIDER_ERROR, hasToolCalls: usedToolInThisTurn };
   }
 
@@ -289,6 +299,7 @@ async function callAI(
       role: "assistant",
       content: result.text ?? "",
       tool_calls: result.toolCalls,
+      providerContent: result.providerContent,
     });
 
     for (const toolCall of result.toolCalls) {

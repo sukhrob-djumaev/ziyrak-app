@@ -59,7 +59,7 @@ describe("AIProviderRegistry (§46.4/§21.2) — dispatch is real, not hardcoded
       messages: [{ role: "user", content: "hi" }],
       maxTokens: 10,
       temperature: 0.5,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
     });
 
     expect(result.text).toBe("from anthropic");

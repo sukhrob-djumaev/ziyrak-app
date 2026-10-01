@@ -33,7 +33,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     mockPrisma.businessConfig.findUnique.mockResolvedValue({
       businessId: otherBusinessCtx.businessId,
       aiProvider: "anthropic",
-      aiModel: "claude-sonnet-4-20250514",
+      aiModel: "claude-sonnet-5-5",
       embeddingProvider: null,
       maxTokens: 1500,
       temperature: 0.4,
@@ -44,7 +44,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     const config = await resolveAIConfig(otherBusinessCtx);
     expect(config).toEqual({
       provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
       maxTokens: 1500,
       temperature: 0.4,
       apiKey: "sk-ant-own-key",
@@ -99,6 +99,33 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
 
     const config = await resolveAIConfig(defaultCtx);
     expect(config.provider).toBe("anthropic");
+    // A retired stored model stays exactly as stored (never remapped to a
+    // newer, possibly pricier model); AnthropicProvider refuses it honestly.
+    expect(config.model).toBe("claude-3-opus-20240229");
+  });
+
+  it("keeps a retired Anthropic model a business saved earlier, unchanged", async () => {
+    const { encryptAIProviderCredential, resolveAIConfig } = await import("@/lib/ai/config");
+    mockPrisma.businessConfig.findUnique.mockResolvedValue({
+      businessId: otherBusinessCtx.businessId,
+      aiProvider: "anthropic",
+      aiModel: "claude-3-5-haiku-20241022",
+      aiCredentialRef: await encryptAIProviderCredential("anthropic", "sk-ant-own-key"),
+    });
+    const config = await resolveAIConfig(otherBusinessCtx);
+    expect(config.model).toBe("claude-3-5-haiku-20241022");
+  });
+
+  it("an Anthropic business with no stored model resolves to the catalog default, not the OpenAI platform default", async () => {
+    const { encryptAIProviderCredential, resolveAIConfig } = await import("@/lib/ai/config");
+    mockPrisma.businessConfig.findUnique.mockResolvedValue({
+      businessId: otherBusinessCtx.businessId,
+      aiProvider: "anthropic",
+      aiModel: null,
+      aiCredentialRef: await encryptAIProviderCredential("anthropic", "sk-ant-own-key"),
+    });
+    const config = await resolveAIConfig(otherBusinessCtx);
+    expect(config.model).toBe("claude-sonnet-5-5");
   });
 
   it("never falls back to legacy Settings for a non-Default business", async () => {

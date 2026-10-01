@@ -34,7 +34,7 @@ describe("AnthropicProvider (§46.4/§21.2) satisfies the AIProvider contract", 
       stop_reason: "end_turn",
       usage: { input_tokens: 10, output_tokens: 5 },
     });
-    await assertTextCompletionContract(new AnthropicProvider("sk-ant-test"));
+    await assertTextCompletionContract(new AnthropicProvider("sk-ant-test"), "claude-sonnet-5-5");
   });
 
   it("wraps a tool-call completion", async () => {
@@ -43,7 +43,7 @@ describe("AnthropicProvider (§46.4/§21.2) satisfies the AIProvider contract", 
       stop_reason: "tool_use",
       usage: { input_tokens: 20, output_tokens: 10 },
     });
-    await assertToolCallCompletionContract(new AnthropicProvider("sk-ant-test"), "get_order_status");
+    await assertToolCallCompletionContract(new AnthropicProvider("sk-ant-test"), "get_order_status", "claude-sonnet-5-5");
   });
 
   it("maps the system-role message to the top-level system param, not a message", async () => {
@@ -60,7 +60,7 @@ describe("AnthropicProvider (§46.4/§21.2) satisfies the AIProvider contract", 
       ],
       maxTokens: 100,
       temperature: 0.5,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
     });
 
     expect(mockCreateFn).toHaveBeenCalledWith(
@@ -78,7 +78,7 @@ describe("AnthropicProvider (§46.4/§21.2) satisfies the AIProvider contract", 
       messages: [{ role: "user", content: "hi" }],
       maxTokens: 10,
       temperature: 0.5,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
     })).rejects.toMatchObject({ code: "auth", retryable: false } satisfies Partial<AIProviderError>);
   });
 
@@ -89,7 +89,7 @@ describe("AnthropicProvider (§46.4/§21.2) satisfies the AIProvider contract", 
       messages: [{ role: "user", content: "hi" }],
       maxTokens: 10,
       temperature: 0.5,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
     })).rejects.toMatchObject({ code: "rate_limit", retryable: true });
   });
 });
@@ -127,5 +127,122 @@ describe("toAnthropicMessages (§46.4) — provider-agnostic AIMessage[] to Anth
       { role: "user", content: "hi" },
     ]);
     expect(system).toBe("First.\n\nSecond.");
+  });
+});
+
+describe("AnthropicProvider model catalog and per-model request shape", () => {
+  beforeEach(() => {
+    mockCreateFn.mockReset();
+    mockCreateFn.mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      stop_reason: "end_turn",
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+  });
+
+  const base = { messages: [{ role: "user" as const, content: "hi" }], maxTokens: 2048, temperature: 0.7 };
+
+  it.each(["claude-3-5-haiku-20241022", "claude-3-opus-20240229", "claude-sonnet-4-20250514", "gpt-4o-mini"])(
+    "refuses unsupported/retired model %s before any network call, without substituting another model",
+    async (model) => {
+      const error = await new AnthropicProvider("sk-ant-test").complete({ ...base, model }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(AIProviderError);
+      expect(error).toMatchObject({ code: "invalid_request", retryable: false });
+      expect((error as Error).message).toContain(model);
+      expect(mockCreateFn).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["claude-sonnet-5-5", "claude-opus-5-5"])(
+    "%s: omits temperature, sets low effort and leaves max_tokens room for adaptive thinking",
+    async (model) => {
+      await new AnthropicProvider("sk-ant-test").complete({ ...base, model });
+      const params = mockCreateFn.mock.calls[0][0];
+      expect(params.model).toBe(model);
+      expect(params).not.toHaveProperty("temperature");
+      expect(params.output_config).toEqual({ effort: "low" });
+      expect(params.max_tokens).toBe(8192);
+      expect(params).not.toHaveProperty("thinking");
+    }
+  );
+
+  it("claude-haiku-4-5: sends the business temperature and max_tokens, no effort", async () => {
+    await new AnthropicProvider("sk-ant-test").complete({ ...base, model: "claude-haiku-4-5" });
+    const params = mockCreateFn.mock.calls[0][0];
+    expect(params.temperature).toBe(0.7);
+    expect(params.max_tokens).toBe(2048);
+    expect(params).not.toHaveProperty("output_config");
+  });
+
+  it("keeps a larger business max_tokens on thinking models", async () => {
+    await new AnthropicProvider("sk-ant-test").complete({ ...base, maxTokens: 12000, model: "claude-sonnet-5-5" });
+    expect(mockCreateFn.mock.calls[0][0].max_tokens).toBe(12000);
+  });
+
+  it("reads text by block type, ignoring a leading (empty) thinking block", async () => {
+    mockCreateFn.mockResolvedValue({
+      content: [{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text: "Answer" }],
+      stop_reason: "end_turn",
+      usage: { input_tokens: 3, output_tokens: 4 },
+    });
+    const result = await new AnthropicProvider("sk-ant-test").complete({ ...base, model: "claude-sonnet-5-5" });
+    expect(result).toMatchObject({ type: "text", text: "Answer" });
+  });
+
+  it("a refusal is an honest non-retryable error, never an empty 'reply'", async () => {
+    mockCreateFn.mockResolvedValue({ content: [], stop_reason: "refusal", usage: { input_tokens: 3, output_tokens: 0 } });
+    await expect(
+      new AnthropicProvider("sk-ant-test").complete({ ...base, model: "claude-sonnet-5-5" })
+    ).rejects.toMatchObject({ code: "invalid_request", retryable: false });
+  });
+
+  it("max_tokens spent before any reply text is an honest error", async () => {
+    mockCreateFn.mockResolvedValue({
+      content: [{ type: "thinking", thinking: "", signature: "sig" }],
+      stop_reason: "max_tokens",
+      usage: { input_tokens: 3, output_tokens: 8192 },
+    });
+    await expect(
+      new AnthropicProvider("sk-ant-test").complete({ ...base, model: "claude-opus-5-5" })
+    ).rejects.toMatchObject({ code: "invalid_request", retryable: false });
+  });
+
+  it("returns the tool_use turn with its thinking blocks, and replays it unchanged on the next call", async () => {
+    mockCreateFn.mockResolvedValueOnce({
+      content: [
+        { type: "thinking", thinking: "", signature: "sig-1" },
+        { type: "text", text: "Let me open a ticket." },
+        { type: "tool_use", id: "toolu_9", name: "create_ticket", input: { title: "Broken scooter" } },
+      ],
+      stop_reason: "tool_use",
+      usage: { input_tokens: 10, output_tokens: 10 },
+    });
+    const provider = new AnthropicProvider("sk-ant-test");
+    const first = await provider.complete({ ...base, model: "claude-sonnet-5-5" });
+    expect(first.type).toBe("tool_calls");
+    expect(first.providerContent?.provider).toBe("anthropic");
+
+    await provider.complete({
+      ...base,
+      model: "claude-sonnet-5-5",
+      messages: [
+        ...base.messages,
+        { role: "assistant", content: first.text ?? "", tool_calls: first.toolCalls, providerContent: first.providerContent },
+        { role: "tool", content: '{"success":true}', tool_call_id: "toolu_9" },
+      ],
+    });
+    const replayed = mockCreateFn.mock.calls[1][0].messages;
+    expect(replayed[1]).toEqual({
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "", signature: "sig-1" },
+        { type: "text", text: "Let me open a ticket." },
+        { type: "tool_use", id: "toolu_9", name: "create_ticket", input: { title: "Broken scooter" } },
+      ],
+    });
+    expect(replayed[2]).toEqual({
+      role: "user",
+      content: [{ type: "tool_result", tool_use_id: "toolu_9", content: '{"success":true}' }],
+    });
   });
 });

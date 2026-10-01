@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { ANTHROPIC_DEFAULT_MODEL, ANTHROPIC_MODELS, getAnthropicModel, isSupportedAnthropicModel } from "@/lib/ai/providers/anthropic-models";
 import { useEffect, useState, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
@@ -436,11 +437,7 @@ function AISection({
       { value: "gpt-4o-mini", label: "GPT-4o Mini" },
       { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
     ],
-    anthropic: [
-      { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-      { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
-      { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
-    ],
+    anthropic: ANTHROPIC_MODELS.map((m) => ({ value: m.id, label: m.label })),
     ollama: [
       { value: "llama3", label: "Llama 3" },
       { value: "mistral", label: "Mistral" },
@@ -458,7 +455,9 @@ function AISection({
           onChange={(v) => {
             update("aiProvider", v);
             const models = modelOptions[v];
-            if (models && models.length > 0) {
+            if (v === "anthropic") {
+              update("aiModel", ANTHROPIC_DEFAULT_MODEL);
+            } else if (models && models.length > 0) {
               update("aiModel", models[0].value);
             }
             // a key belongs to one provider; never carry a typed one across
@@ -477,8 +476,19 @@ function AISection({
           onChange={(v) => update("aiModel", v)}
           options={knownModels.some((m) => m.value === data.aiModel) || !data.aiModel
             ? knownModels
-            : [{ value: data.aiModel, label: data.aiModel }, ...knownModels]}
+            : [
+                {
+                  value: data.aiModel,
+                  label: data.aiProvider === "anthropic" ? `${data.aiModel} (retired — select a supported model)` : data.aiModel,
+                },
+                ...knownModels,
+              ]}
         />
+        {data.aiProvider === "anthropic" && data.aiModel && !isSupportedAnthropicModel(data.aiModel) && (
+          <p className="mt-1.5 text-xs text-red-600">
+            This model is no longer supported. Choose a supported model and save; replies fail until you do.
+          </p>
+        )}
       </FormField>
       <FormField
         label="API Key"
@@ -510,7 +520,14 @@ function AISection({
           displayValue={data.maxTokens.toLocaleString()}
         />
       </FormField>
-      <FormField label="Temperature" description="Controls randomness. Lower values make responses more focused, higher values more creative.">
+      <FormField
+        label="Temperature"
+        description={
+          data.aiProvider === "anthropic" && getAnthropicModel(data.aiModel)?.sampling === false
+            ? "Not used by this Claude model; it manages response variability itself."
+            : "Controls randomness. Lower values make responses more focused, higher values more creative."
+        }
+      >
         <SliderInput
           value={data.temperature}
           onChange={(v) => update("temperature", v)}

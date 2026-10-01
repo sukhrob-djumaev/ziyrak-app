@@ -12,6 +12,7 @@ import {
   type AIProviderCredential,
   type EmbeddingProviderCredential,
 } from "./providers/credentials";
+import { ANTHROPIC_DEFAULT_MODEL } from "./providers/anthropic-models";
 
 /**
  * PLAN.md §46.4/§10.2/§10.4 — resolves a business's real, tenant-scoped AI
@@ -75,6 +76,15 @@ const LEGACY_PROVIDER_ALIASES: Record<string, string> = { claude: "anthropic" };
 
 function normalizeProviderName(name: string): string {
   return LEGACY_PROVIDER_ALIASES[name] ?? name;
+}
+
+/**
+ * The model used when a business has chosen a provider but stored no model.
+ * Only fills an unset value: a stored model, even a retired one, is never
+ * replaced here (the provider rejects unsupported ids honestly instead).
+ */
+export function defaultModelForProvider(provider: string): string {
+  return normalizeProviderName(provider) === "anthropic" ? ANTHROPIC_DEFAULT_MODEL : PLATFORM_AI_DEFAULTS.aiModel;
 }
 
 async function decryptCredential<T extends { provider: string; apiKey: string }>(
@@ -147,7 +157,7 @@ export async function resolveAIConfig(ctx: TenantContext): Promise<ResolvedAICon
   const config = await db.businessConfig.findUnique({ where: { businessId: ctx.businessId } });
 
   const provider = normalizeProviderName(config?.aiProvider ?? PLATFORM_AI_DEFAULTS.aiProvider);
-  const model = config?.aiModel ?? PLATFORM_AI_DEFAULTS.aiModel;
+  const model = config?.aiModel ?? defaultModelForProvider(provider);
   const maxTokens = config?.maxTokens ?? PLATFORM_AI_DEFAULTS.maxTokens;
   const temperature = config?.temperature ?? PLATFORM_AI_DEFAULTS.temperature;
 

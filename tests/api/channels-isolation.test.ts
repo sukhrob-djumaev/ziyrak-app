@@ -34,16 +34,18 @@ function authedRequest(path: string, options: Parameters<typeof createRequest>[1
 }
 
 describe("tenant isolation: channels (§33.1)", () => {
-  it("Business A configuring 'whatsapp' does not see or affect Business B's whatsapp connection", async () => {
+  // Not "whatsapp": that type selects the dev/demo-only WhatsApp Web adapter,
+  // which an ordinary business may not configure at all (whatsapp-web-demo-isolation.test.ts).
+  it("Business A configuring 'sms' does not see or affect Business B's sms connection", async () => {
     const dbB = getScopedPrisma(businessB.ctx);
     await dbB.channelConnection.create({
-      data: { type: "whatsapp", name: "whatsapp", isActive: true, status: "connected", config: { secret: "b-secret" } },
+      data: { type: "sms", name: "sms", isActive: true, status: "connected", config: { secret: "b-secret" } },
     });
 
     const { GET, PUT } = await import("@/app/api/channels/[type]/route");
 
-    const getResponse = await GET(authedRequest("/api/channels/whatsapp"), {
-      params: Promise.resolve({ type: "whatsapp" }),
+    const getResponse = await GET(authedRequest("/api/channels/sms"), {
+      params: Promise.resolve({ type: "sms" }),
     });
     const getData = await parseJsonResponse(getResponse);
 
@@ -53,12 +55,12 @@ describe("tenant isolation: channels (§33.1)", () => {
     expect(getData.config).toEqual({});
 
     const putResponse = await PUT(
-      authedRequest("/api/channels/whatsapp", { method: "PUT", body: { config: { secret: "a-secret" } } }),
-      { params: Promise.resolve({ type: "whatsapp" }) }
+      authedRequest("/api/channels/sms", { method: "PUT", body: { config: { secret: "a-secret" } } }),
+      { params: Promise.resolve({ type: "sms" }) }
     );
     expect(putResponse.status).toBe(200);
 
-    const bConnection = await dbB.channelConnection.findFirst({ where: { type: "whatsapp" } });
+    const bConnection = await dbB.channelConnection.findFirst({ where: { type: "sms" } });
     expect((bConnection?.config as Record<string, unknown>)?.secret).toBe("b-secret");
   });
 

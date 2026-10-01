@@ -19,6 +19,7 @@ const MAX_INPUT_CHARS = 8000;
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   readonly name = "openai";
   readonly dimensions = DIMENSIONS;
+  readonly model = MODEL;
   private readonly client: OpenAI;
 
   constructor(apiKey: string) {

@@ -124,6 +124,21 @@ export function isEmbeddingUsable(
   );
 }
 
+/**
+ * The single definition of "this entry's stored embedding is current for
+ * this business's embedding provider": same content hash, provider,
+ * dimensions and (when the provider declares it) model. Used by the worker
+ * (skip re-embedding) and by the reindex scan (skip enqueueing); retrieval
+ * applies the same `isEmbeddingUsable` rule against the query's vector.
+ */
+export function isEmbeddingCurrent(
+  stored: StoredKnowledgeEmbedding | null,
+  entry: SearchableText,
+  provider: Pick<EmbeddingProvider, "name" | "dimensions" | "model">
+): boolean {
+  return isEmbeddingUsable(stored, entry, { provider: provider.name, dimensions: provider.dimensions, model: provider.model });
+}
+
 /** Strips the raw vector from an entry's metadata for API responses; provenance stays visible. */
 export function withoutEmbeddingVector<T extends { metadata: unknown }>(entry: T): T {
   const metadata = entry.metadata;
@@ -192,10 +207,9 @@ export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): 
   }
   const provider = resolved.provider;
 
-  // Same text, same provider, right shape → nothing to do (a duplicate job,
-  // a re-save of unchanged text, a retry after a success that already landed).
-  const stored = readStoredEmbedding(entry.metadata);
-  if (isEmbeddingUsable(stored, entry, { provider: provider.name, dimensions: provider.dimensions })) {
+  // Same text, same provider/model, right shape → nothing to do (a duplicate
+  // job, a re-save of unchanged text, a retry after a success that already landed).
+  if (isEmbeddingCurrent(readStoredEmbedding(entry.metadata), entry, provider)) {
     return { status: "already_current", provider: provider.name };
   }
 
@@ -269,7 +283,15 @@ export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): 
  */
 export async function enqueueKnowledgeIndexing(ctx: TenantContext, entryId: string): Promise<boolean> {
   try {
-    await jobQueue.enqueue<IndexKnowledgeEntryPayload>(INDEX_KNOWLEDGE_ENTRY_JOB, { businessId: ctx.businessId, entryId });
+    // One *queued* job per entry (the queue's "short" policy, jobs/queue-config.ts):
+    // a second request while one is still waiting joins it — harmless, since the
+    // job always re-reads the entry's current text. An already-running job does
+    // not block a new one, so an edit made mid-embedding still gets indexed.
+    await jobQueue.enqueue<IndexKnowledgeEntryPayload>(
+      INDEX_KNOWLEDGE_ENTRY_JOB,
+      { businessId: ctx.businessId, entryId },
+      { singletonKey: knowledgeIndexJobKey(ctx.businessId, entryId) }
+    );
     return true;
   } catch (error) {
     logger.error("[knowledge-indexing] failed to enqueue indexing job; entry stays keyword-retrievable", undefined, {
@@ -281,18 +303,78 @@ export async function enqueueKnowledgeIndexing(ctx: TenantContext, entryId: stri
   }
 }
 
+export function knowledgeIndexJobKey(businessId: string, entryId: string): string {
+  return `${businessId}:${entryId}`;
+}
+
+export interface KnowledgeReindexResult {
+  /** Whether this business currently has an embedding provider the platform can use. */
+  provider: { status: "available"; name: string; model?: string } | { status: "not_configured" | "unsupported"; name: string };
+  /** Active entries evaluated. */
+  examined: number;
+  /** Active entries whose stored embedding is already current — not queued. */
+  current: number;
+  /** Entries with a missing or stale embedding for which an indexing job is now queued (or was already waiting). */
+  queued: number;
+  /** Entries that needed indexing but could not be enqueued (logged); a rerun retries them. */
+  enqueueFailed: number;
+}
+
+const REINDEX_PAGE_SIZE = 200;
+
 /**
- * Re-enqueues every active entry of this business — used when its
- * embedding configuration changes (provider or key), which invalidates
- * every stored vector at once. Each job skips an entry that is already
- * current, so this never re-embeds needlessly.
+ * Tenant-scoped backfill/repair: examines this business's active entries
+ * only (scoped client) and queues the existing `index-knowledge-entry` job
+ * for each whose stored embedding is missing or stale by `isEmbeddingCurrent`
+ * — no embedding, edited since indexing, or produced by a different
+ * provider/model/dimensions than the business's current provider. Current
+ * entries are not queued, so rerunning is cheap and safe; queued jobs
+ * re-check currentness before embedding anyway. With no usable embedding
+ * provider nothing is queued (a job could only skip), and the result says
+ * so. Used by AI-settings changes and the operator backfill script.
  */
-export async function enqueueBusinessKnowledgeReindex(ctx: TenantContext): Promise<number> {
+export async function enqueueKnowledgeReindex(ctx: TenantContext): Promise<KnowledgeReindexResult> {
   const db = getScopedPrisma(ctx);
-  const entries = await db.knowledgeEntry.findMany({ where: { isActive: true }, select: { id: true } });
-  let enqueued = 0;
-  for (const { id } of entries) {
-    if (await enqueueKnowledgeIndexing(ctx, id)) enqueued++;
+  const resolved = await resolveTenantEmbeddingProvider(ctx);
+  const provider: KnowledgeReindexResult["provider"] =
+    resolved.status === "available"
+      ? { status: "available", name: resolved.provider.name, model: resolved.provider.model }
+      : { status: resolved.status, name: resolved.providerName };
+  const result: KnowledgeReindexResult = { provider, examined: 0, current: 0, queued: 0, enqueueFailed: 0 };
+
+  // Paged by id so a large knowledge base is never loaded (vectors included) at once.
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await db.knowledgeEntry.findMany({
+      where: { isActive: true, ...(cursor ? { id: { gt: cursor } } : {}) },
+      select: { id: true, title: true, content: true, metadata: true },
+      orderBy: { id: "asc" },
+      take: REINDEX_PAGE_SIZE,
+    });
+    if (page.length === 0) break;
+    cursor = page[page.length - 1].id;
+
+    for (const entry of page) {
+      result.examined++;
+      if (resolved.status !== "available") continue;
+      if (isEmbeddingCurrent(readStoredEmbedding(entry.metadata), entry, resolved.provider)) {
+        result.current++;
+      } else if (await enqueueKnowledgeIndexing(ctx, entry.id)) {
+        result.queued++;
+      } else {
+        result.enqueueFailed++;
+      }
+    }
   }
-  return enqueued;
+
+  logger.info("[knowledge-indexing] reindex scan", {
+    businessId: ctx.businessId,
+    provider: provider.name,
+    providerStatus: provider.status,
+    examined: result.examined,
+    current: result.current,
+    queued: result.queued,
+    enqueueFailed: result.enqueueFailed,
+  });
+  return result;
 }

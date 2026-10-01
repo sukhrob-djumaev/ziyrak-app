@@ -69,6 +69,7 @@ const LEXICAL_WEIGHT = 0.05;
 
 export class ConceptEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = CONCEPTS.length + LEXICAL_DIMENSIONS;
+  readonly model: string = "fake-concept-v1";
   readonly requests: string[] = [];
 
   constructor(

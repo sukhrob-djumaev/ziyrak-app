@@ -2,7 +2,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { assertSameTenant } from "@/lib/tenancy/assert-same-tenant";
 import { NotFoundError } from "@/lib/observability/errors";
-import { enqueueKnowledgeIndexing, enqueueBusinessKnowledgeReindex, withoutEmbeddingVector } from "./indexing";
+import { enqueueKnowledgeIndexing, enqueueKnowledgeReindex, withoutEmbeddingVector, type KnowledgeReindexResult } from "./indexing";
 // Registers the `index-knowledge-entry` handler in this process too, so the
 // in-process FakeJobQueue (tests) can dispatch what this module enqueues;
 // the real worker registers it via jobs/bootstrap.ts.
@@ -178,12 +178,13 @@ export async function updateEntry(ctx: TenantContext, id: string, input: UpdateE
 }
 
 /**
- * Re-enqueues indexing for every active entry — called when the business's
- * embedding provider/credential changes, since every stored vector was
- * produced under the previous configuration.
+ * Queues indexing for every active entry whose stored embedding is missing
+ * or stale (`indexing.ts`'s `enqueueKnowledgeReindex`) — called when the
+ * business's embedding provider/credential changes, and by the operator
+ * backfill script.
  */
-export async function reindexAllEntries(ctx: TenantContext): Promise<number> {
-  return enqueueBusinessKnowledgeReindex(ctx);
+export async function reindexStaleEntries(ctx: TenantContext): Promise<KnowledgeReindexResult> {
+  return enqueueKnowledgeReindex(ctx);
 }
 
 export async function removeEntry(ctx: TenantContext, id: string): Promise<void> {

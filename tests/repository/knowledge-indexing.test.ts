@@ -31,7 +31,7 @@ import { generateToken } from "@/lib/identity/auth";
 import { provisionBusiness } from "@/lib/platform/provisioning";
 import * as knowledgeService from "@/lib/knowledge/service";
 import { knowledgeRetriever } from "@/lib/knowledge/retriever";
-import { indexKnowledgeEntry, knowledgeContentHash, readStoredEmbedding, enqueueBusinessKnowledgeReindex } from "@/lib/knowledge/indexing";
+import { indexKnowledgeEntry, knowledgeContentHash, readStoredEmbedding, enqueueKnowledgeReindex } from "@/lib/knowledge/indexing";
 import { handleIndexKnowledgeEntry } from "@/lib/jobs/handlers/index-knowledge-entry";
 import { jobQueue } from "@/lib/jobs/queue";
 import { INDEX_KNOWLEDGE_ENTRY_JOB } from "@/lib/jobs/job-types";
@@ -116,7 +116,11 @@ describe("create → durable indexing job → stored embedding", () => {
       content: "We are open every weekend from 9 to 5.",
     });
 
-    expect(enqueueSpy).toHaveBeenCalledWith(INDEX_KNOWLEDGE_ENTRY_JOB, { businessId: businessA.businessId, entryId: created.id });
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      INDEX_KNOWLEDGE_ENTRY_JOB,
+      { businessId: businessA.businessId, entryId: created.id },
+      { singletonKey: `${businessA.businessId}:${created.id}` }
+    );
     // The request never claims indexing completed: the returned entry carries no embedding.
     expect(readStoredEmbedding(created.metadata)).toBeNull();
     enqueueSpy.mockRestore();
@@ -561,11 +565,11 @@ describe("embedding configuration changes", () => {
     expect(readStoredEmbedding((await readEntry(businessB.ctx, active.id))!.metadata)).not.toBeNull();
   });
 
-  it("enqueueBusinessKnowledgeReindex never enqueues another business's entries", async () => {
+  it("enqueueKnowledgeReindex never enqueues another business's entries", async () => {
     const catA = await createCategory(businessA.ctx, "reindex-a");
     const entryA = await getScopedPrisma(businessA.ctx).knowledgeEntry.create({ data: { categoryId: catA.id, title: "A", content: "Dogs." } });
     const enqueueSpy = vi.spyOn(jobQueue, "enqueue");
-    await enqueueBusinessKnowledgeReindex(businessB.ctx);
+    await enqueueKnowledgeReindex(businessB.ctx);
     const payloads = enqueueSpy.mock.calls.map(([, payload]) => payload as { businessId: string; entryId: string });
     expect(payloads.some((p) => p.entryId === entryA.id)).toBe(false);
     expect(payloads.every((p) => p.businessId === businessB.businessId)).toBe(true);

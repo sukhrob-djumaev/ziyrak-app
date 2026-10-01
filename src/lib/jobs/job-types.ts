@@ -47,3 +47,16 @@ export interface ExecuteCampaignPayload {
   businessId: string;
   campaignId: string;
 }
+
+/**
+ * PLAN.md §25.2 ("Knowledge embedding indexing → `index-knowledge-entry`
+ * job — non-blocking") — embeds one knowledge entry's *current* content
+ * with its own business's configured `EmbeddingProvider`. Carries only ids:
+ * the handler always re-reads the entry, so a job never embeds text that
+ * was already replaced by the time it runs (`knowledge/indexing.ts`).
+ */
+export const INDEX_KNOWLEDGE_ENTRY_JOB = "index-knowledge-entry";
+export interface IndexKnowledgeEntryPayload {
+  businessId: string;
+  entryId: string;
+}

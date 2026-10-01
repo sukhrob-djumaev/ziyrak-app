@@ -6,6 +6,11 @@
 //   - calls tools when the user's intent matches, using only info a model could have
 //     (it is NOT told the conversation id, exactly like the real product's prompt)
 //   - says "I'm not sure ... team member" when the prompt has no answer
+//   - serves /embeddings with DETERMINISTIC, comparable 1536-d vectors (the size the product's
+//     OpenAIEmbeddingProvider expects): hashed bag-of-words plus ONE tiny hand-written concept
+//     ("refund": "money back" ~ "reimbursed"). That is enough to prove the product stores entry
+//     embeddings and ranks by them (a question sharing no word with an entry can still retrieve
+//     it); it is NOT a real embedding model and says nothing about real-model retrieval quality.
 // Every request is appended to llm-requests.jsonl so prompt contents can be inspected.
 const http = require("http");
 const fs = require("fs");
@@ -22,6 +27,27 @@ function readBody(req) {
     req.on("data", (c) => (d += c));
     req.on("end", () => resolve(d));
   });
+}
+const EMB_DIMS = 1536;
+const CONCEPT_DIMS = 16; // dims [0, 16) are hand-written concepts; the rest are hashed words
+const CONCEPT_PHRASES = { "money back": 0, "get back": 0 };
+const CONCEPT_WORDS = { refund: 0, refunds: 0, refunded: 0, reimburse: 0, reimbursed: 0, reimbursement: 0 };
+function fnv(word) {
+  let h = 2166136261;
+  for (let i = 0; i < word.length; i++) h = Math.imul(h ^ word.charCodeAt(i), 16777619) >>> 0;
+  return h;
+}
+function standinEmbedding(input) {
+  let text = String(input).toLowerCase();
+  const v = new Array(EMB_DIMS).fill(0);
+  for (const [phrase, dim] of Object.entries(CONCEPT_PHRASES)) {
+    if (text.includes(phrase)) { v[dim] += 1; text = text.split(phrase).join(" "); }
+  }
+  for (const word of text.split(/[^a-z0-9]+/).filter(Boolean)) {
+    if (word in CONCEPT_WORDS) v[CONCEPT_WORDS[word]] += 1;
+    else v[CONCEPT_DIMS + (fnv(word) % (EMB_DIMS - CONCEPT_DIMS))] += 0.05;
+  }
+  return v;
 }
 function send(res, code, obj) {
   const s = JSON.stringify(obj);
@@ -76,7 +102,9 @@ http
         data: inputs.map((s, i) => ({
           object: "embedding",
           index: i,
-          embedding: Array.from({ length: 32 }, (_, k) => (crypto.createHash("md5").update(String(s) + k).digest()[0] - 128) / 128),
+          // The OpenAI SDK asks for encoding_format "base64" by default and decodes it itself
+          // (little-endian float32); answer in whichever encoding was requested, as the real API does.
+          embedding: body.encoding_format === "base64" ? Buffer.from(new Float32Array(standinEmbedding(s)).buffer).toString("base64") : standinEmbedding(s),
         })),
         usage: { prompt_tokens: 5, total_tokens: 5 },
       });
@@ -118,6 +146,10 @@ http
       } else if (/refund/i.test(u) && toolNames.includes("issue_refund")) {
         decision = "tool:issue_refund";
         out = toolCompletion(model, "issue_refund", { reason: u });
+      } else if (/money back/i.test(u)) {
+        // J04b: answer only from whatever policy codes retrieval put in the prompt.
+        decision = codes.length ? "answer-from-prompt" : "no-knowledge";
+        out = textCompletion(model, codes.length ? `Per our policy (reference ${codes.join(" and ")}), you can get a reimbursement.` : "I'm not sure about that. Let me connect you with a team member who can help.");
       } else if (/code|verification|reference/i.test(u)) {
         if (codes.length) {
           decision = "answer-from-prompt";

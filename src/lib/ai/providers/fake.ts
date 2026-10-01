@@ -36,6 +36,7 @@ function defaultTextResult(): CompletionResult {
 /** The `EmbeddingProvider` equivalent (§21.5's own fake, named alongside §21.4's). */
 export class FakeEmbeddingProvider implements EmbeddingProvider {
   readonly name = "fake";
+  readonly model = "fake-embedding";
   readonly dimensions: number;
   readonly requests: string[] = [];
 

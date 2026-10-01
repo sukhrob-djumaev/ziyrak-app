@@ -91,5 +91,12 @@ export interface EmbeddingResult {
 export interface EmbeddingProvider {
   readonly name: string;
   readonly dimensions: number;
+  /**
+   * The model `embed()` will report in `EmbeddingResult.model`, when the
+   * provider knows it up front. Optional and additive: it lets knowledge
+   * indexing tell that a stored vector came from a different model (e.g.
+   * after the model constant changes) without making an embedding call.
+   */
+  readonly model?: string;
   embed(text: string): Promise<EmbeddingResult>;
 }

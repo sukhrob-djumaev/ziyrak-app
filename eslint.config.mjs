@@ -98,6 +98,11 @@ const eslintConfig = defineConfig([
       // once that business's own `TenantContext` is resolved.
       "src/lib/jobs/handlers/sweep-sla-breaches.ts",
       "src/lib/jobs/handlers/sweep-retention.ts",
+      // Operator knowledge-embedding backfill: lists which businesses to
+      // visit (control-plane Business query, same reason as the sweeps
+      // above), then works on each through its own TenantContext and the
+      // tenant-scoped enqueueKnowledgeReindex(ctx).
+      "src/lib/knowledge/backfill.ts",
       // The worker entrypoint's own process-lifecycle shutdown (raw
       // `prisma.$disconnect()`), same justification as
       // `lib/prisma/shutdown.ts` — which this allowlist already covers via

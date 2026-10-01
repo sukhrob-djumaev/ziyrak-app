@@ -17,6 +17,15 @@ const ctx: TenantContext = {
   dataConnection: "shared-default",
 };
 
+/** A stored embedding with the provenance the indexing job writes (knowledge/indexing.ts) — bare vectors are not trusted. */
+async function indexedMetadata(vector: number[], text: { title: string; content: string }, model = "test") {
+  const { knowledgeContentHash } = await import("@/lib/knowledge/indexing");
+  return {
+    embedding: vector,
+    embeddingIndex: { provider: "openai", model, dimensions: vector.length, contentHash: knowledgeContentHash(text), indexedAt: new Date().toISOString() },
+  };
+}
+
 function entry(overrides: Partial<{ id: string; title: string; content: string; priority: number; metadata: Record<string, unknown> }> = {}) {
   return {
     id: overrides.id ?? "entry-1",
@@ -62,9 +71,10 @@ describe("searchKnowledgeBase (§46.4/§22.2)", () => {
     const { resolveEmbeddingConfig } = await import("@/lib/ai/config");
     vi.mocked(resolveEmbeddingConfig).mockResolvedValue({ provider: "openai", apiKey: "sk-test" });
 
+    const text = { title: "Return Policy", content: "30-day returns allowed" };
     mockPrisma.knowledgeEntry.findMany.mockResolvedValue([
-      entry({ id: "1", metadata: { embedding: [1, 0, 0] } }),
-      entry({ id: "2", metadata: { embedding: [0, 1, 0] } }),
+      entry({ id: "1", metadata: await indexedMetadata([1, 0, 0], text) }),
+      entry({ id: "2", metadata: await indexedMetadata([0, 1, 0], text) }),
     ]);
 
     const embedSpy = vi.fn().mockResolvedValue({ vector: [1, 0, 0], model: "test", usage: { totalTokens: 3 } });

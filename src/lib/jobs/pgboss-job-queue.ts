@@ -80,8 +80,15 @@ export class PgBossJobQueue implements JobQueue {
     // queues that don't.
     const singletonKey = opts?.singletonKey ?? opts?.idempotencyKey;
     const id = await this.boss.send(jobType, payload, { singletonKey });
-    if (!id) throw new Error(`PgBossJobQueue: send("${jobType}") did not return a job id.`);
-    return id;
+    if (id) return id;
+    // A queue whose policy allows only one queued job per key ("short",
+    // e.g. index-knowledge-entry) answers a duplicate send with null: the
+    // work is already waiting. Report that job, not a failure.
+    if (singletonKey) {
+      const [waiting] = await this.boss.findJobs(jobType, { key: singletonKey, queued: true });
+      if (waiting) return waiting.id;
+    }
+    throw new Error(`PgBossJobQueue: send("${jobType}") did not return a job id.`);
   }
 
   async schedule<T>(

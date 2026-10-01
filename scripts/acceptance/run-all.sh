@@ -13,6 +13,9 @@
 # suggests J03 runs third. This script is the corrected, real run order; use
 # it instead of invoking run.sh jNN.cjs in numeric order.
 #
+# j04b-semantic-knowledge runs LAST on purpose: it adds a policy entry to Business A's knowledge,
+# and running it earlier would put that entry into later journeys' prompts.
+#
 # Requires: ACC_DB (the throwaway acceptance database's URL — the same one
 # start-all.sh was pointed at) and the topology already running
 # (`ACC_DB=... scripts/acceptance/start-all.sh`).
@@ -20,7 +23,7 @@ set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 : "${ACC_DB:?set ACC_DB to the throwaway acceptance database URL (same one start-all.sh used)}"
 
-JOURNEYS="j01-signup j02-auth-session j04-knowledge j05-webchat-setup j06a-webchat-visitor-a j06b-webchat-visitor-b-and-cross-probes j08-tool-create-ticket j09-j10-followup-and-worker-restart j11-handoff j03-tenant-isolation j03b-tenant-isolation-followup j12-widget-security j13-approval j14-automation j15-runtime"
+JOURNEYS="j01-signup j02-auth-session j04-knowledge j05-webchat-setup j06a-webchat-visitor-a j06b-webchat-visitor-b-and-cross-probes j08-tool-create-ticket j09-j10-followup-and-worker-restart j11-handoff j03-tenant-isolation j03b-tenant-isolation-followup j12-widget-security j13-approval j14-automation j15-runtime j04b-semantic-knowledge"
 
 fail=""
 for j in $JOURNEYS; do

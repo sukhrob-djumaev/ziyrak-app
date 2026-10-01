@@ -4,21 +4,23 @@
  * Uses the tenant's configured EmbeddingProvider for vector similarity
  * search (§46.4/§21.5/§22.2). Falls back to keyword matching when no
  * embedding provider is configured for the business, or when an individual
- * entry has no stored embedding yet.
+ * entry has no *usable* stored embedding — none yet (its indexing job
+ * hasn't run or failed), or one produced for different text or by a
+ * different provider/model than the query's (see `knowledge/indexing.ts`).
  *
- * Embeddings are stored in the KnowledgeEntry metadata field as JSON.
+ * Embeddings are stored in the KnowledgeEntry metadata field as JSON,
+ * written by the `index-knowledge-entry` job (`knowledge/indexing.ts`).
  * For production with pgvector, store in a dedicated vector column (§22.3 —
  * deferred, not needed at MVP knowledge-base sizes).
  */
 
+import crypto from "crypto";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { logger } from "@/lib/observability/logger";
-import { resolveEmbeddingConfig } from "@/lib/ai/config";
-import { embeddingProviderRegistry } from "@/lib/ai/providers/embedding-registry";
-import type { EmbeddingProvider } from "@/lib/ai/providers/types";
 import { recordAIInteraction } from "@/lib/ai/usage";
+import { isEmbeddingUsable, readStoredEmbedding, redactProviderMessage, resolveTenantEmbeddingProvider } from "./indexing";
 
 interface SearchResult {
   id: string;
@@ -29,11 +31,19 @@ interface SearchResult {
   score: number;
 }
 
-/** Resolves the tenant's own EmbeddingProvider, or null if none is configured for this business. */
-async function resolveTenantEmbeddingProvider(ctx: TenantContext): Promise<EmbeddingProvider | null> {
-  const config = await resolveEmbeddingConfig(ctx);
-  if (!config.apiKey) return null;
-  return embeddingProviderRegistry.get(config.provider, { apiKey: config.apiKey });
+interface CachedQueryEmbedding {
+  vector: number[];
+  model: string;
+}
+
+function parseCachedQueryEmbedding(raw: string): CachedQueryEmbedding | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<CachedQueryEmbedding>;
+    if (Array.isArray(parsed.vector) && typeof parsed.model === "string") return { vector: parsed.vector, model: parsed.model };
+  } catch {
+    // fall through — an unreadable cache entry is just a miss
+  }
+  return null;
 }
 
 /**
@@ -92,28 +102,36 @@ export async function searchKnowledgeBase(
 
   if (entries.length === 0) return [];
 
-  const embeddingProvider = await resolveTenantEmbeddingProvider(ctx);
+  const resolved = await resolveTenantEmbeddingProvider(ctx);
+  const embeddingProvider = resolved.status === "available" ? resolved.provider : null;
 
   let results: SearchResult[];
 
   if (embeddingProvider) {
-    // Cache key is tenant- and provider-scoped: two businesses (or a
-    // business that later switches embedding provider) must never share a
-    // cached vector, since different providers/keys can yield different
-    // embeddings for the same text.
-    const cacheKey = `embedding:${ctx.businessId}:${embeddingProvider.name}:${Buffer.from(query).toString("base64").substring(0, 50)}`;
-    let queryEmbedding: number[] | null = null;
+    // Cache key is tenant- and provider-scoped (two businesses, or a
+    // business that later switches embedding provider, must never share a
+    // cached vector) and keyed by a hash of the *whole* query — a key built
+    // from a truncated prefix let two different questions with the same
+    // opening words share one vector. Only the query vector is cached;
+    // entries and their stored embeddings are read fresh on every call, so
+    // a newly indexed or edited entry is reflected on the very next query.
+    const queryHash = crypto.createHash("sha256").update(query).digest("hex");
+    const cacheKey = `embedding:${ctx.businessId}:${embeddingProvider.name}:${queryHash}`;
+    let queryEmbedding: CachedQueryEmbedding | null = null;
 
     const cached = await cacheGet(cacheKey);
-    if (cached) {
-      queryEmbedding = JSON.parse(cached);
-    } else {
+    if (cached) queryEmbedding = parseCachedQueryEmbedding(cached);
+    if (!queryEmbedding) {
       const embedded = await embeddingProvider.embed(query).catch((error) => {
-        logger.error("Failed to generate query embedding, falling back to keyword search:", error);
+        logger.error("Failed to generate query embedding, falling back to keyword search", undefined, {
+          businessId: ctx.businessId,
+          provider: embeddingProvider.name,
+          error: redactProviderMessage(error instanceof Error ? error.message : String(error)),
+        });
         return null;
       });
-      queryEmbedding = embedded?.vector ?? null;
-      if (queryEmbedding && embedded) {
+      if (embedded && embedded.vector.length > 0) {
+        queryEmbedding = { vector: embedded.vector, model: embedded.model };
         await cacheSet(cacheKey, JSON.stringify(queryEmbedding), 3600);
         await recordAIInteraction(ctx, {
           kind: "embedding",
@@ -126,13 +144,17 @@ export async function searchKnowledgeBase(
 
     if (queryEmbedding) {
       const resolvedEmbedding = queryEmbedding;
-      // Score entries using embeddings (stored in metadata) + keyword fallback
+      // Score each entry by cosine similarity when its stored embedding is
+      // usable for this query (same text, provider, model, dimensions);
+      // otherwise by keyword, exactly as before indexing existed.
       results = entries.map((entry) => {
-        const metadata = entry.metadata as Record<string, unknown> | null;
-        const entryEmbedding = metadata?.embedding as number[] | null;
-
-        const score = entryEmbedding
-          ? cosineSimilarity(resolvedEmbedding, entryEmbedding)
+        const stored = readStoredEmbedding(entry.metadata);
+        const score = isEmbeddingUsable(stored, entry, {
+          provider: embeddingProvider.name,
+          model: resolvedEmbedding.model,
+          dimensions: resolvedEmbedding.vector.length,
+        })
+          ? cosineSimilarity(resolvedEmbedding.vector, stored.vector)
           : keywordScore(query, `${entry.title} ${entry.content}`);
 
         return {
@@ -149,7 +171,7 @@ export async function searchKnowledgeBase(
       results = keywordSearch(entries, query);
     }
   } else {
-    // No embedding provider configured for this business, use keyword search
+    // No (supported) embedding provider configured for this business, use keyword search
     results = keywordSearch(entries, query);
   }
 
@@ -177,45 +199,4 @@ function keywordSearch(
     priority: entry.priority,
     score: keywordScore(query, `${entry.title} ${entry.content}`),
   }));
-}
-
-/**
- * Generate and store embedding for a knowledge entry, using the tenant's
- * own configured EmbeddingProvider.
- */
-export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): Promise<boolean> {
-  const db = getScopedPrisma(ctx);
-  const entry = await db.knowledgeEntry.findUnique({
-    where: { id: entryId },
-  });
-
-  if (!entry) return false;
-
-  const embeddingProvider = await resolveTenantEmbeddingProvider(ctx);
-  if (!embeddingProvider) return false;
-
-  const text = `${entry.title}\n${entry.content}`;
-  const embedded = await embeddingProvider.embed(text).catch((error) => {
-    logger.error("Failed to generate knowledge entry embedding:", error);
-    return null;
-  });
-  if (!embedded) return false;
-
-  await recordAIInteraction(ctx, {
-    kind: "embedding",
-    provider: embeddingProvider.name,
-    model: embedded.model,
-    totalTokens: embedded.usage.totalTokens,
-  });
-
-  const currentMetadata = (entry.metadata as Record<string, unknown>) || {};
-
-  await db.knowledgeEntry.update({
-    where: { id: entryId },
-    data: {
-      metadata: { ...currentMetadata, embedding: embedded.vector },
-    },
-  });
-
-  return true;
 }

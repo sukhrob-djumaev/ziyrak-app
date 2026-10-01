@@ -610,6 +610,7 @@ describe("observability", () => {
     const entry = await db.knowledgeEntry.create({ data: { categoryId: category.id, title: "Secret", content: body } });
     const warn = vi.spyOn(logger, "warn");
     const error = vi.spyOn(logger, "error");
+    const consoleError = vi.spyOn(console, "error");
 
     providerA.failures.push(new AIProviderError("rate_limit", "Rate limited for key sk-business-a-embedding-LEAK", true));
     await expect(handleIndexKnowledgeEntry(businessA.ctx, { businessId: businessA.businessId, entryId: entry.id })).rejects.toThrow();
@@ -619,13 +620,20 @@ describe("observability", () => {
     const retryLog = warn.mock.calls.find(([message]) => String(message).includes("index-knowledge-entry"));
     const failLog = error.mock.calls.find(([message]) => String(message).includes("index-knowledge-entry"));
     expect(retryLog?.[1]).toMatchObject({ businessId: businessA.businessId, knowledgeEntryId: entry.id, provider: "fake-concept", outcome: "retrying", code: "rate_limit" });
-    expect(failLog?.[1]).toMatchObject({ businessId: businessA.businessId, knowledgeEntryId: entry.id, provider: "fake-concept", outcome: "failed", code: "auth" });
+    // logger.error(message, error?, context?) — structured fields are the third argument.
+    expect(failLog?.[2]).toMatchObject({ businessId: businessA.businessId, knowledgeEntryId: entry.id, provider: "fake-concept", outcome: "failed", code: "auth" });
 
-    const logged = JSON.stringify([...warn.mock.calls, ...error.mock.calls]);
+    // What actually reaches the log line carries the fields (not "[object Object]").
+    const printed = consoleError.mock.calls.map((c) => String(c[0])).find((line) => line.includes("embedding failed permanently"));
+    expect(printed).toContain(`"knowledgeEntryId":"${entry.id}"`);
+    expect(printed).toContain('"outcome":"failed"');
+
+    const logged = JSON.stringify([...warn.mock.calls, ...error.mock.calls, ...consoleError.mock.calls]);
     expect(logged).not.toContain("sk-business-a-embedding");
     expect(logged).not.toContain("abc****wxyz");
     expect(logged).not.toContain("CONFIDENTIAL-KNOWLEDGE-BODY");
     warn.mockRestore();
     error.mockRestore();
+    consoleError.mockRestore();
   });
 });

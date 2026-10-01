@@ -50,7 +50,7 @@ export async function handleIndexKnowledgeEntry(ctx: TenantContext, payload: Ind
         });
         throw new Error(`[index-knowledge-entry] retryable embedding failure (${outcome.code})`);
       }
-      logger.error("[index-knowledge-entry] embedding failed permanently; entry stays keyword-retrievable", {
+      logger.error("[index-knowledge-entry] embedding failed permanently; entry stays keyword-retrievable", undefined, {
         ...fields,
         outcome: "failed",
         code: outcome.code,

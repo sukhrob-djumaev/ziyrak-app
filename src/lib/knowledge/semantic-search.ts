@@ -123,7 +123,7 @@ export async function searchKnowledgeBase(
     if (cached) queryEmbedding = parseCachedQueryEmbedding(cached);
     if (!queryEmbedding) {
       const embedded = await embeddingProvider.embed(query).catch((error) => {
-        logger.error("Failed to generate query embedding, falling back to keyword search", {
+        logger.error("Failed to generate query embedding, falling back to keyword search", undefined, {
           businessId: ctx.businessId,
           provider: embeddingProvider.name,
           error: redactProviderMessage(error instanceof Error ? error.message : String(error)),

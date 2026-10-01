@@ -272,7 +272,7 @@ export async function enqueueKnowledgeIndexing(ctx: TenantContext, entryId: stri
     await jobQueue.enqueue<IndexKnowledgeEntryPayload>(INDEX_KNOWLEDGE_ENTRY_JOB, { businessId: ctx.businessId, entryId });
     return true;
   } catch (error) {
-    logger.error("[knowledge-indexing] failed to enqueue indexing job; entry stays keyword-retrievable", {
+    logger.error("[knowledge-indexing] failed to enqueue indexing job; entry stays keyword-retrievable", undefined, {
       businessId: ctx.businessId,
       knowledgeEntryId: entryId,
       error: error instanceof Error ? error.message : String(error),

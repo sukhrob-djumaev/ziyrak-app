@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
     const embeddingConfigTouched = Boolean(aiApiKey || embeddingApiKey || rest.aiProvider || rest.embeddingProvider);
     if (embeddingConfigTouched) {
       await reindexAllEntries(ctx).catch((error) =>
-        logger.error("Failed to enqueue knowledge reindex after AI settings change", {
+        logger.error("Failed to enqueue knowledge reindex after AI settings change", undefined, {
           businessId: ctx.businessId,
           error: error instanceof Error ? error.message : String(error),
         })

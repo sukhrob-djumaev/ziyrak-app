@@ -184,14 +184,20 @@ function WhatsAppCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "connect" }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.qr) setQrCode(data.qr);
-        if (data.status === "error") {
-          setQrError(data.message || "Failed to connect to WhatsApp");
-          setConnecting(false);
-          return;
-        }
+      if (!res.ok) {
+        // e.g. 501/404 — this business may not use the shared dev/demo session
+        // (PLAN.md §20.2); show why instead of polling a status it can't read.
+        const data = await res.json().catch(() => null);
+        setQrError(data?.error?.message || "Failed to connect to WhatsApp");
+        setConnecting(false);
+        return;
+      }
+      const data = await res.json();
+      if (data.qr) setQrCode(data.qr);
+      if (data.status === "error") {
+        setQrError(data.message || "Failed to connect to WhatsApp");
+        setConnecting(false);
+        return;
       }
       // Start polling for QR code / status updates
       if (pollRef.current) clearInterval(pollRef.current);

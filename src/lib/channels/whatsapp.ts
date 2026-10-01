@@ -3,6 +3,7 @@ import * as qrcode from "qrcode";
 import { logger } from "@/lib/observability/logger";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
+import { AppError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { buildMessageReceivedEvent } from "@/lib/events/types";
 import { registerInboundEvent } from "@/lib/events/inbound-receipt";
@@ -43,6 +44,39 @@ export function getWhatsAppStatus() {
     qr: currentQR,
     message: statusMessage,
   };
+}
+
+const WHATSAPP_WEB_FEATURE = "WhatsApp Web (internal dev/demo channel)";
+
+/**
+ * PLAN.md §20.2/§46.7 — the deployment-level switch for this dev/demo-only
+ * adapter (the runbook's "leave `NEXT_PUBLIC_ENABLE_WHATSAPP_WEB` unset in
+ * production"). The same flag that shows the dashboard card, read here too so
+ * the server — not only the browser — refuses the feature when it is off.
+ */
+export function isWhatsAppWebEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB === "true";
+}
+
+/**
+ * PLAN.md §20.2 — every entry point into the shared session (status/QR,
+ * connect, disconnect) requires both: the feature enabled on this deployment,
+ * and the caller being the designated dev/demo business
+ * (`assertDefaultBusinessOnly`). The status/QR is not harmless read-only
+ * data: scanning the QR links the scanner's WhatsApp account into the session
+ * the designated business owns.
+ */
+async function assertWhatsAppWebAccess(ctx: TenantContext): Promise<void> {
+  if (!isWhatsAppWebEnabled()) {
+    throw new AppError(404, "NOT_FOUND", "WhatsApp Web is not enabled on this deployment.");
+  }
+  await assertDefaultBusinessOnly(ctx, WHATSAPP_WEB_FEATURE);
+}
+
+/** The shared session's status (including its QR code), for the designated dev/demo business only. */
+export async function getWhatsAppWebStatus(ctx: TenantContext) {
+  await assertWhatsAppWebAccess(ctx);
+  return getWhatsAppStatus();
 }
 
 async function updateConnectionStatus(owner: { ctx: TenantContext; connectionId: string }, isActive: boolean, status: string) {
@@ -255,18 +289,24 @@ export class WhatsAppWebAdapter implements ChannelAdapter<Message> {
     return { kind: "new", ctx, connectionId, event, receiptId: registration.receiptId };
   }
 
-  async sendMessage(_ctx: TenantContext, _connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+  async sendMessage(ctx: TenantContext, _connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+    // Only the business that (gated) connected the shared session may send
+    // through it — an ordinary business's own "whatsapp" connection row must
+    // never borrow the designated dev/demo business's WhatsApp number.
+    if (!isWhatsAppWebEnabled() || sessionOwner?.ctx.businessId !== ctx.businessId) {
+      return { success: false, error: "WhatsApp Web is not available for this business" };
+    }
     const sent = await sendWhatsAppMessage(to, content.text);
     return sent ? { success: true } : { success: false, error: "WhatsApp Web client is not connected" };
   }
 
-  async getStatus(): Promise<ChannelStatus> {
-    const status = getWhatsAppStatus();
+  async getStatus(ctx: TenantContext): Promise<ChannelStatus> {
+    const status = await getWhatsAppWebStatus(ctx);
     return { connected: status.status === "connected", detail: status.message };
   }
 
   async connect(ctx: TenantContext, connectionId: string): Promise<void> {
-    await assertDefaultBusinessOnly(ctx, "WhatsApp Web (internal dev/demo channel)");
+    await assertWhatsAppWebAccess(ctx);
     await initWhatsApp(ctx, connectionId);
   }
 
@@ -274,7 +314,7 @@ export class WhatsAppWebAdapter implements ChannelAdapter<Message> {
     // Same gate as connect() — without it, any authenticated business could
     // tear down the shared session another business's inbound WhatsApp
     // messages depend on (the exact Phase 2 finding this guard exists for).
-    await assertDefaultBusinessOnly(ctx, "WhatsApp Web (internal dev/demo channel)");
+    await assertWhatsAppWebAccess(ctx);
     await disconnectWhatsApp();
   }
 }

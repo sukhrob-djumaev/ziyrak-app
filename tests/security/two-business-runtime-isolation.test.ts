@@ -41,8 +41,13 @@ vi.mock("@/lib/channels/whatsapp", async () => {
   const { assertDefaultBusinessOnly } = await import("@/lib/tenancy/default-business");
   const initWhatsApp = vi.fn().mockResolvedValue(undefined);
   const disconnectWhatsApp = vi.fn().mockResolvedValue(undefined);
+  const getWhatsAppStatus = vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" });
   return {
-    getWhatsAppStatus: vi.fn().mockReturnValue({ status: "disconnected", qr: null, message: "" }),
+    getWhatsAppStatus,
+    getWhatsAppWebStatus: vi.fn(async (ctx: { businessId: string }) => {
+      await assertDefaultBusinessOnly(ctx, "WhatsApp Web (internal dev/demo channel)");
+      return getWhatsAppStatus();
+    }),
     initWhatsApp,
     disconnectWhatsApp,
     whatsAppWebAdapter: {
@@ -319,6 +324,7 @@ describe("Phase 2 runtime-isolation audit: /api/channels/whatsapp connect/discon
   it("Business B: rejected (501) and never touches the shared WhatsApp session another business depends on", async () => {
     (whatsappLib.initWhatsApp as ReturnType<typeof vi.fn>).mockClear();
     (whatsappLib.disconnectWhatsApp as ReturnType<typeof vi.fn>).mockClear();
+    (whatsappLib.getWhatsAppStatus as ReturnType<typeof vi.fn>).mockClear();
 
     const { POST, GET } = await import("@/app/api/channels/whatsapp/route");
 
@@ -332,11 +338,13 @@ describe("Phase 2 runtime-isolation audit: /api/channels/whatsapp connect/discon
     expect(disconnectResponse.status).toBe(501);
     expect(whatsappLib.disconnectWhatsApp).not.toHaveBeenCalled();
 
-    // Read-only status is intentionally left ungated (no tenant data, no
-    // control-plane write) — confirms that's a deliberate choice, not an
-    // oversight, by checking it succeeds where the mutating actions don't.
+    // The shared session's status/QR is gated exactly like connect/disconnect
+    // (PLAN.md §20.2): scanning its QR would link B's own WhatsApp account
+    // into the session the Default Business owns. Full coverage, against the
+    // real module: tests/security/whatsapp-web-demo-isolation.test.ts.
     const statusResponse = await GET(asB("/api/channels/whatsapp"));
-    expect(statusResponse.status).toBe(200);
+    expect(statusResponse.status).toBe(501);
+    expect(whatsappLib.getWhatsAppStatus).not.toHaveBeenCalled();
   });
 });
 

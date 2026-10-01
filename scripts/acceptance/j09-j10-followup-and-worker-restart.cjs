@@ -22,9 +22,9 @@ const widgetLog = (p) => p.$$eval("#ziyrak-log > div", (ds) => ds.map((d) => d.t
   out.j10.pgboss_pending = sql(`select state||' | start_after='||start_after from pgboss.job where name='send-followup' and state<>'completed' order by created_on desc limit 1`);
   mark(`J10 pending job before stop: ${out.j10.pgboss_pending}`);
   const stopT = Date.now();
-  sh(`pkill -TERM -f "src/worker.ts" || true`); await L.sleep(3000);
+  sh(`pkill -TERM -f "src/[w]orker.ts" || true`); await L.sleep(3000);
   const wlog = sh(`tail -4 ${L.SP}/worker.log`); out.j10.workerLogOnStop = wlog.split("\n").slice(-2);
-  mark(`J10 worker stopped; processes left: ${sh(`pgrep -f "src/worker.ts" | wc -l`)}`);
+  mark(`J10 worker stopped; processes left: ${sh(`pgrep -f "src/[w]orker.ts" | wc -l`)}`);
   // web must stay up
   out.j10.webWhileWorkerDown = { health: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api/health`), loginPage: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/login`), widgetJs: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/widget.js`) };
   mark(`J10 web while worker down: ${JSON.stringify(out.j10.webWhileWorkerDown)}`);

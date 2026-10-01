@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWhatsAppStatus, getWhatsAppWebStatus, whatsAppWebAdapter } from "@/lib/channels/whatsapp";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getOrCreateWhatsAppWebConnection } from "@/lib/channels/connections-service";
 import { toErrorResponse } from "@/lib/observability/errors";
 
 export async function GET(request: NextRequest) {
@@ -27,17 +27,11 @@ export async function POST(request: NextRequest) {
 
   try {
     // PLAN.md §7.7/§20.2 — resolve (or create) this business's own
-    // "whatsapp" ChannelConnection row rather than the old, connectionless
-    // `initWhatsApp()` call. `WhatsAppWebAdapter.connect()` itself is what
-    // now enforces the Default-Business-only allowlist (§20.2) — this
-    // route no longer needs its own separate guard.
-    const db = getScopedPrisma(ctx);
-    let connection = await db.channelConnection.findFirst({ where: { type: "whatsapp" } });
-    if (!connection) {
-      connection = await db.channelConnection.create({
-        data: { businessId: ctx.businessId, type: "whatsapp", name: "WhatsApp Web", isActive: false, config: {} },
-      });
-    }
+    // "whatsapp" ChannelConnection row. The dev/demo eligibility check runs
+    // inside, before the row is read or created, so a refused business
+    // (404 feature off / 501 not the designated business) persists nothing;
+    // `WhatsAppWebAdapter` re-checks the same rule at its own boundary.
+    const connection = await getOrCreateWhatsAppWebConnection(ctx);
 
     if (action === "connect") {
       await whatsAppWebAdapter.connect(ctx, connection.id);

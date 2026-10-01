@@ -313,6 +313,19 @@ describe("Phase 2 runtime-isolation audit: /api/knowledge/test", () => {
 });
 
 describe("Phase 2 runtime-isolation audit: /api/channels/whatsapp connect/disconnect", () => {
+  // The route now checks dev/demo eligibility itself (feature flag + the
+  // designated business) before persisting the connection row, so this
+  // suite runs with the deployment flag on — what it asserts is the
+  // per-business gate. Flag-off coverage: whatsapp-web-demo-isolation.test.ts.
+  const originalFlag = process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB;
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB = "true";
+  });
+  afterAll(() => {
+    if (originalFlag === undefined) delete process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB;
+    else process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB = originalFlag;
+  });
+
   it("Default Business: can connect/disconnect the shared WhatsApp session", async () => {
     const { POST } = await import("@/app/api/channels/whatsapp/route");
 

@@ -6,6 +6,7 @@ import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth
 import { AppError } from "@/lib/observability/errors";
 import { prepareMetaCloudConnection } from "./meta-whatsapp-setup";
 import { logActivity } from "@/lib/observability/activity";
+import { WHATSAPP_WEB_CHANNEL_TYPE, assertWhatsAppWebEligible } from "./whatsapp-web-eligibility";
 
 /**
  * PLAN.md §7.7/§16.2 — tenant-scoped `ChannelConnection` access for the
@@ -71,7 +72,18 @@ async function resolveCredentialRef(type: string, credential: ChannelCredential 
   return encryptChannelCredential(validated);
 }
 
+/**
+ * PLAN.md §20.2 — a "whatsapp" connection selects the dev/demo-only
+ * `WhatsAppWebAdapter`, so only the designated business, on a deployment
+ * with the feature enabled, may create or configure one. Checked before any
+ * read or write, so a refused caller persists nothing.
+ */
+async function assertTypeConfigurable(ctx: TenantContext, type: string): Promise<void> {
+  if (type === WHATSAPP_WEB_CHANNEL_TYPE) await assertWhatsAppWebEligible(ctx);
+}
+
 export async function upsertByType(ctx: TenantContext, type: string, rawInput: UpsertConnectionInput) {
+  await assertTypeConfigurable(ctx, type);
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
 
@@ -111,7 +123,23 @@ export async function upsertByType(ctx: TenantContext, type: string, rawInput: U
   return saved;
 }
 
+/**
+ * The caller's own WhatsApp Web connection row, created on first use — only
+ * after the eligibility check, so `POST /api/channels/whatsapp` can never
+ * leave an inactive row behind for a business the adapter would refuse.
+ */
+export async function getOrCreateWhatsAppWebConnection(ctx: TenantContext) {
+  await assertTypeConfigurable(ctx, WHATSAPP_WEB_CHANNEL_TYPE);
+  const db = getScopedPrisma(ctx);
+  const existing = await db.channelConnection.findFirst({ where: { type: WHATSAPP_WEB_CHANNEL_TYPE } });
+  if (existing) return existing;
+  return db.channelConnection.create({
+    data: { businessId: ctx.businessId, type: WHATSAPP_WEB_CHANNEL_TYPE, name: "WhatsApp Web", isActive: false, config: {} },
+  });
+}
+
 export async function performAction(ctx: TenantContext, type: string, action: "connect" | "disconnect" | "test") {
+  await assertTypeConfigurable(ctx, type);
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
 

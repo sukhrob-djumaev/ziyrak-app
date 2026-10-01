@@ -2,8 +2,7 @@ import { Client, LocalAuth, Message } from "whatsapp-web.js";
 import * as qrcode from "qrcode";
 import { logger } from "@/lib/observability/logger";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { assertDefaultBusinessOnly } from "@/lib/tenancy/default-business";
-import { AppError } from "@/lib/observability/errors";
+import { assertWhatsAppWebEligible, isWhatsAppWebEnabled } from "./whatsapp-web-eligibility";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { buildMessageReceivedEvent } from "@/lib/events/types";
 import { registerInboundEvent } from "@/lib/events/inbound-receipt";
@@ -18,8 +17,11 @@ import { registerChannelAdapter } from "./registry";
  * Phase 7). This adapter is gated to one internal dev/demo business (the
  * Default Business stands in for that role — the platform simply never
  * offers this adapter as a selectable option to a real tenant, matching
- * §20.2's own wording) via `assertDefaultBusinessOnly()`, the same
- * fail-closed guard Phase 2 already established for exactly this reason.
+ * §20.2's own wording) via `assertWhatsAppWebEligible()` — the deployment
+ * feature flag plus `assertDefaultBusinessOnly()`, the same fail-closed
+ * guard Phase 2 already established for exactly this reason. The generic
+ * channel-configuration service enforces that same check, so no other
+ * business can even create a "whatsapp" connection.
  *
  * `sessionOwner` replaces the old, implicit `getDefaultBusinessContext()`
  * call inside the message handler: the business/connection that actually
@@ -46,36 +48,9 @@ export function getWhatsAppStatus() {
   };
 }
 
-const WHATSAPP_WEB_FEATURE = "WhatsApp Web (internal dev/demo channel)";
-
-/**
- * PLAN.md §20.2/§46.7 — the deployment-level switch for this dev/demo-only
- * adapter (the runbook's "leave `NEXT_PUBLIC_ENABLE_WHATSAPP_WEB` unset in
- * production"). The same flag that shows the dashboard card, read here too so
- * the server — not only the browser — refuses the feature when it is off.
- */
-export function isWhatsAppWebEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB === "true";
-}
-
-/**
- * PLAN.md §20.2 — every entry point into the shared session (status/QR,
- * connect, disconnect) requires both: the feature enabled on this deployment,
- * and the caller being the designated dev/demo business
- * (`assertDefaultBusinessOnly`). The status/QR is not harmless read-only
- * data: scanning the QR links the scanner's WhatsApp account into the session
- * the designated business owns.
- */
-async function assertWhatsAppWebAccess(ctx: TenantContext): Promise<void> {
-  if (!isWhatsAppWebEnabled()) {
-    throw new AppError(404, "NOT_FOUND", "WhatsApp Web is not enabled on this deployment.");
-  }
-  await assertDefaultBusinessOnly(ctx, WHATSAPP_WEB_FEATURE);
-}
-
 /** The shared session's status (including its QR code), for the designated dev/demo business only. */
 export async function getWhatsAppWebStatus(ctx: TenantContext) {
-  await assertWhatsAppWebAccess(ctx);
+  await assertWhatsAppWebEligible(ctx);
   return getWhatsAppStatus();
 }
 
@@ -306,7 +281,7 @@ export class WhatsAppWebAdapter implements ChannelAdapter<Message> {
   }
 
   async connect(ctx: TenantContext, connectionId: string): Promise<void> {
-    await assertWhatsAppWebAccess(ctx);
+    await assertWhatsAppWebEligible(ctx);
     await initWhatsApp(ctx, connectionId);
   }
 
@@ -314,7 +289,7 @@ export class WhatsAppWebAdapter implements ChannelAdapter<Message> {
     // Same gate as connect() — without it, any authenticated business could
     // tear down the shared session another business's inbound WhatsApp
     // messages depend on (the exact Phase 2 finding this guard exists for).
-    await assertWhatsAppWebAccess(ctx);
+    await assertWhatsAppWebEligible(ctx);
     await disconnectWhatsApp();
   }
 }

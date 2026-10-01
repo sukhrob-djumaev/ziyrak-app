@@ -128,6 +128,96 @@ describe("WhatsApp Web (dev/demo) — feature disabled fails closed", () => {
   });
 });
 
+/**
+ * Follow-up to the status/QR gate: the same §20.2 invariant applies to
+ * *configuration*, not only to the live session. Before this, an ordinary
+ * business could save a "whatsapp" ChannelConnection through the generic
+ * channel API, and `POST /api/channels/whatsapp` persisted an inactive
+ * "whatsapp" row before the adapter refused the caller — safe at runtime,
+ * but invalid dev-only state the product let a normal tenant create.
+ */
+describe("WhatsApp Web (dev/demo) — configuration is structurally gated", () => {
+  type Attempt = { name: string; call: () => Promise<Response> };
+
+  /** Every server path that could create/configure/select a "whatsapp" connection, as `token`'s business. */
+  async function configurationAttempts(token: string): Promise<Attempt[]> {
+    const as = (path: string, options: Parameters<typeof createRequest>[1] = {}) =>
+      createRequest(path, { ...options, cookies: { "owly-token": token } });
+    const channels = await import("@/app/api/channels/route");
+    const typed = await import("@/app/api/channels/[type]/route");
+    const web = await import("@/app/api/channels/whatsapp/route");
+    const params = { params: Promise.resolve({ type: "whatsapp" }) };
+    return [
+      { name: "POST /api/channels", call: () => channels.POST(as("/api/channels", { method: "POST", body: { type: "whatsapp", isActive: true, config: { mode: "web" } } })) },
+      { name: "PUT /api/channels/[type]", call: () => typed.PUT(as("/api/channels/whatsapp", { method: "PUT", body: { isActive: true, config: { mode: "web" } } }), params) },
+      ...(["connect", "disconnect", "test"] as const).map((action) => ({
+        name: `POST /api/channels/[type] ${action}`,
+        call: () => typed.POST(as("/api/channels/whatsapp", { method: "POST", body: { action } }), params),
+      })),
+      ...(["connect", "disconnect"] as const).map((action) => ({
+        name: `POST /api/channels/whatsapp ${action}`,
+        call: () => web.POST(as("/api/channels/whatsapp", { method: "POST", body: { action } })),
+      })),
+    ];
+  }
+
+  const whatsappRowCount = (businessId: string) => prisma.channelConnection.count({ where: { businessId, type: "whatsapp" } });
+
+  beforeAll(async () => {
+    // Stale rows from earlier runs against this shared database would make
+    // the "nothing persisted" assertions below vacuous.
+    await prisma.channelConnection.deleteMany({ where: { businessId: { in: [bizDefault.businessId, bizB.businessId] }, type: "whatsapp" } });
+  });
+
+  it.each([
+    [true, 501, "NOT_YET_SUPPORTED"],
+    [false, 404, "NOT_FOUND"],
+  ])("an ordinary business (feature enabled: %s) is refused on every path and no \"whatsapp\" row is ever persisted", async (flagEnabled, status, code) => {
+    enableDemoFeature(flagEnabled);
+
+    for (const attempt of await configurationAttempts(tokenB)) {
+      const response = await attempt.call();
+      const body = await parseJsonResponse(response);
+      expect({ attempt: attempt.name, status: response.status, code: body?.error?.code }).toEqual({ attempt: attempt.name, status, code });
+    }
+
+    expect(await whatsappRowCount(bizB.businessId)).toBe(0);
+    expect(clientConstructed).not.toHaveBeenCalled();
+  });
+
+  it("the designated Default Business is refused, and persists nothing, while the feature is disabled", async () => {
+    enableDemoFeature(false);
+
+    for (const attempt of await configurationAttempts(tokenDefault)) {
+      const response = await attempt.call();
+      expect({ attempt: attempt.name, status: response.status }).toEqual({ attempt: attempt.name, status: 404 });
+    }
+
+    // The Default Business is one shared row, and two-business-runtime-
+    // isolation.test.ts (running in parallel, flag on) legitimately creates
+    // its "WhatsApp Web" row through the route. So count only rows the
+    // generic service would have created (named after the type); the route's
+    // refuse-before-persist path is the same flag check the ordinary-business
+    // case above already proves leaves nothing behind.
+    expect(await prisma.channelConnection.count({ where: { businessId: bizDefault.businessId, type: "whatsapp", name: "whatsapp" } })).toBe(0);
+    expect(clientConstructed).not.toHaveBeenCalled();
+  });
+
+  it("the designated Default Business can still configure WhatsApp Web through the generic API while the feature is enabled", async () => {
+    enableDemoFeature(true);
+    const { POST } = await import("@/app/api/channels/route");
+
+    const response = await POST(asDefault("/api/channels", { method: "POST", body: { type: "whatsapp", isActive: false, config: { mode: "web" } } }));
+    const body = await parseJsonResponse(response);
+
+    expect(response.status).toBe(200);
+    expect(body.type).toBe("whatsapp");
+    expect(body.businessId).toBe(bizDefault.businessId);
+    const saved = await prisma.channelConnection.findUnique({ where: { id: body.id } });
+    expect(saved).toMatchObject({ businessId: bizDefault.businessId, type: "whatsapp", config: { mode: "web" } });
+  });
+});
+
 describe("WhatsApp Web (dev/demo) — feature enabled", () => {
   it("the designated Default Business can connect and read the shared session's status and QR", async () => {
     enableDemoFeature(true);
@@ -168,10 +258,11 @@ describe("WhatsApp Web (dev/demo) — feature enabled", () => {
 
     await expect(whatsAppWebAdapter.getStatus(bizB.ctx, "any-connection")).rejects.toMatchObject({ statusCode: 501, code: "NOT_YET_SUPPORTED" });
 
-    // An ordinary business can save a "whatsapp" ChannelConnection row through
-    // the generic /api/channels API; outbound callers (agent reply, campaign,
-    // follow-up) resolve the adapter by that type. The shared session must
-    // never send on that business's behalf.
+    // The channel API no longer lets an ordinary business create a "whatsapp"
+    // row (above), but one may still exist from before that gate (written
+    // directly here). Outbound callers (agent reply, campaign, follow-up)
+    // resolve the adapter by that type; the shared session must never send
+    // on that business's behalf.
     const dbB = getScopedPrisma(bizB.ctx);
     const bConnection = await dbB.channelConnection.create({
       data: { businessId: bizB.businessId, type: "whatsapp", name: "whatsapp", isActive: true, config: {} },
@@ -236,5 +327,18 @@ describe("Meta Cloud WhatsApp (production path) is unaffected by the dev/demo ga
     const body = await parseJsonResponse(response);
     expect(response.status).toBe(200);
     expect(body.id).toBe(connection.id);
+  });
+
+  it.each([false, true])("with the WhatsApp Web feature %s, an ordinary business can still save its whatsapp_cloud connection through the generic API", async (flagEnabled) => {
+    enableDemoFeature(flagEnabled);
+    const { POST } = await import("@/app/api/channels/route");
+
+    const response = await POST(asB("/api/channels", { method: "POST", body: { type: "whatsapp_cloud", isActive: true, config: { label: `support-${flagEnabled}` } } }));
+    const body = await parseJsonResponse(response);
+
+    expect(response.status).toBe(200);
+    expect(body.type).toBe("whatsapp_cloud");
+    // Unchanged Meta behavior: a config-only save keeps the verified routing key.
+    expect(body.config).toEqual({ label: `support-${flagEnabled}`, phoneNumberId: `pn-demo-gate-${bizB.businessId}` });
   });
 });

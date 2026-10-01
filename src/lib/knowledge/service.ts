@@ -2,6 +2,11 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { assertSameTenant } from "@/lib/tenancy/assert-same-tenant";
 import { NotFoundError } from "@/lib/observability/errors";
+import { enqueueKnowledgeIndexing, enqueueBusinessKnowledgeReindex, withoutEmbeddingVector } from "./indexing";
+// Registers the `index-knowledge-entry` handler in this process too, so the
+// in-process FakeJobQueue (tests) can dispatch what this module enqueues;
+// the real worker registers it via jobs/bootstrap.ts.
+import "@/lib/jobs/handlers/index-knowledge-entry";
 
 /** PLAN.md §16.2 — application-service layer for "knowledge" (categories + entries). */
 
@@ -102,7 +107,7 @@ export async function listEntries(ctx: TenantContext, params: ListEntriesParams)
     db.knowledgeEntry.count({ where }),
   ]);
 
-  return { entries, total };
+  return { entries: entries.map(withoutEmbeddingVector), total };
 }
 
 export interface CreateEntryInput {
@@ -116,7 +121,7 @@ export async function createEntry(ctx: TenantContext, input: CreateEntryInput) {
   const db = getScopedPrisma(ctx);
   await assertSameTenant(db, "category", input.categoryId, "Category");
 
-  return db.knowledgeEntry.create({
+  const entry = await db.knowledgeEntry.create({
     data: {
       businessId: ctx.businessId,
       categoryId: input.categoryId,
@@ -126,6 +131,11 @@ export async function createEntry(ctx: TenantContext, input: CreateEntryInput) {
     },
     include: { category: { select: { id: true, name: true, color: true, icon: true } } },
   });
+
+  // §25.2 — durable, non-blocking indexing; the entry is retrievable by
+  // keyword immediately and by embedding once the worker has run.
+  if (entry.isActive) await enqueueKnowledgeIndexing(ctx, entry.id);
+  return withoutEmbeddingVector(entry);
 }
 
 export interface UpdateEntryInput {
@@ -143,7 +153,7 @@ export async function updateEntry(ctx: TenantContext, id: string, input: UpdateE
 
   if (input.categoryId !== undefined) await assertSameTenant(db, "category", input.categoryId, "Category");
 
-  return db.knowledgeEntry.update({
+  const updated = await db.knowledgeEntry.update({
     where: { id },
     data: {
       ...(input.title !== undefined && { title: input.title.trim() }),
@@ -155,6 +165,25 @@ export async function updateEntry(ctx: TenantContext, id: string, input: UpdateE
     },
     include: { category: { select: { id: true, name: true, color: true, icon: true } } },
   });
+
+  // Reindex only when the embedded text (title + content) changed, or the
+  // entry was just reactivated (it may never have been indexed, or been
+  // edited while inactive). The job itself skips anything already current,
+  // so a reactivation with a valid embedding costs no provider call.
+  // Priority/category-only edits don't touch the embedded text.
+  const textChanged = updated.title !== existing.title || updated.content !== existing.content;
+  const reactivated = updated.isActive && !existing.isActive;
+  if (updated.isActive && (textChanged || reactivated)) await enqueueKnowledgeIndexing(ctx, updated.id);
+  return withoutEmbeddingVector(updated);
+}
+
+/**
+ * Re-enqueues indexing for every active entry — called when the business's
+ * embedding provider/credential changes, since every stored vector was
+ * produced under the previous configuration.
+ */
+export async function reindexAllEntries(ctx: TenantContext): Promise<number> {
+  return enqueueBusinessKnowledgeReindex(ctx);
 }
 
 export async function removeEntry(ctx: TenantContext, id: string): Promise<void> {

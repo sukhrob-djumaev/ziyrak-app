@@ -15,6 +15,8 @@ export {
   type SendFollowupPayload,
   EXECUTE_CAMPAIGN_JOB,
   type ExecuteCampaignPayload,
+  INDEX_KNOWLEDGE_ENTRY_JOB,
+  type IndexKnowledgeEntryPayload,
 } from "./job-types";
 
 /**

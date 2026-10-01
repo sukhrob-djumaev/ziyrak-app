@@ -6,6 +6,7 @@ import { validateBody, updateAISettingsSchema } from "@/lib/validations";
 import { encryptAIProviderCredential, encryptEmbeddingProviderCredential } from "@/lib/ai/config";
 import { PLATFORM_AI_DEFAULTS } from "@/lib/platform/defaults";
 import { logger } from "@/lib/observability/logger";
+import { reindexAllEntries } from "@/lib/knowledge/service";
 
 /**
  * PLAN.md §46.4/§10.4 — the real, tenant-scoped AI provider/embedding
@@ -115,6 +116,20 @@ export async function PUT(request: NextRequest) {
       where: { businessId: ctx.businessId },
       data,
     });
+
+    // The embedding provider/credential may have changed (an embedding key,
+    // or a generation key/provider that embeddings fall back to — §22.2):
+    // stored entry vectors no longer match, so reindex. Jobs skip entries
+    // that are already current; a failure here never fails the save.
+    const embeddingConfigTouched = Boolean(aiApiKey || embeddingApiKey || rest.aiProvider || rest.embeddingProvider);
+    if (embeddingConfigTouched) {
+      await reindexAllEntries(ctx).catch((error) =>
+        logger.error("Failed to enqueue knowledge reindex after AI settings change", {
+          businessId: ctx.businessId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
 
     return NextResponse.json(toView(updated));
   } catch (error) {

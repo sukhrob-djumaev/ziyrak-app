@@ -1,4 +1,4 @@
-import { PROCESS_INBOUND_MESSAGE_JOB, DELIVER_WEBHOOK_JOB } from "./job-types";
+import { PROCESS_INBOUND_MESSAGE_JOB, DELIVER_WEBHOOK_JOB, INDEX_KNOWLEDGE_ENTRY_JOB } from "./job-types";
 
 export interface JobQueueConfig {
   policy?: "standard" | "key_strict_fifo";
@@ -29,6 +29,15 @@ export interface JobQueueConfig {
 /** Total attempts (1 initial + retries) for a `deliver-webhook` job — matches the pre-Phase-6 `MAX_ATTEMPTS`. */
 export const DELIVER_WEBHOOK_MAX_ATTEMPTS = 3;
 
+/**
+ * `index-knowledge-entry` retries a *retryable* provider failure (rate
+ * limit, timeout, 5xx — the handler rethrows only those) with growing
+ * delay, so a short embedding-provider outage self-heals; until then the
+ * entry stays retrievable by keyword. Non-retryable failures (bad key,
+ * unsupported provider) complete the job instead of burning retries.
+ */
+export const INDEX_KNOWLEDGE_ENTRY_MAX_ATTEMPTS = 5;
+
 export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
   [PROCESS_INBOUND_MESSAGE_JOB]: { policy: "key_strict_fifo" },
   [DELIVER_WEBHOOK_JOB]: {
@@ -36,6 +45,12 @@ export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
     retryBackoff: true,
     retryDelay: 5,
     expireInSeconds: 30,
+  },
+  [INDEX_KNOWLEDGE_ENTRY_JOB]: {
+    retryLimit: INDEX_KNOWLEDGE_ENTRY_MAX_ATTEMPTS - 1,
+    retryBackoff: true,
+    retryDelay: 5,
+    expireInSeconds: 120,
   },
 };
 

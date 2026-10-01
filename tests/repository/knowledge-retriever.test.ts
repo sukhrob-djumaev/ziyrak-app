@@ -114,6 +114,13 @@ describe("knowledgeRetriever.retrieve() (§46.4/§33) — cross-tenant isolation
     });
 
     mockOpenAIEmbedFn.mockResolvedValue({ data: [{ embedding: [1, 0, 0] }], usage: { total_tokens: 3 } });
+    const { knowledgeContentHash } = await import("@/lib/knowledge/indexing");
+    // OpenAIEmbeddingProvider reports 1536 dimensions; this fixture uses a 3-d vector, so pin dimensions to match.
+    const { embeddingProviderRegistry } = await import("@/lib/ai/providers/embedding-registry");
+    const { OpenAIEmbeddingProvider } = await import("@/lib/ai/providers/openai-embedding");
+    const registrySpy = vi.spyOn(embeddingProviderRegistry, "get").mockImplementation((_name, credential) =>
+      Object.assign(new OpenAIEmbeddingProvider(credential.apiKey), { dimensions: 3 })
+    );
 
     const catA = await dbA.category.create({ data: { name: "embedding-cross-tenant-a" } });
     await dbA.knowledgeEntry.create({
@@ -122,12 +129,23 @@ describe("knowledgeRetriever.retrieve() (§46.4/§33) — cross-tenant isolation
         title: "embedding entry",
         content: "content scored via embeddings",
         isActive: true,
-        metadata: { embedding: [1, 0, 0] },
+        // Provenance as written by the index-knowledge-entry job; a bare vector is not trusted.
+        metadata: {
+          embedding: [1, 0, 0],
+          embeddingIndex: {
+            provider: "openai",
+            model: "text-embedding-3-small",
+            dimensions: 3,
+            contentHash: knowledgeContentHash({ title: "embedding entry", content: "content scored via embeddings" }),
+            indexedAt: new Date().toISOString(),
+          },
+        },
       },
     });
 
     const results = await knowledgeRetriever.retrieve(businessA.ctx, "anything", { limit: 5 });
     expect(mockOpenAIEmbedFn).toHaveBeenCalled();
     expect(results.some((r) => r.title === "embedding entry")).toBe(true);
+    registrySpy.mockRestore();
   });
 });

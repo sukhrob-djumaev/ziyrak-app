@@ -35,3 +35,4 @@ import "@/lib/jobs/handlers/sweep-sla-breaches";
 import "@/lib/jobs/handlers/sweep-retention";
 import "@/lib/jobs/handlers/send-followup";
 import "@/lib/jobs/handlers/execute-campaign";
+import "@/lib/jobs/handlers/index-knowledge-entry";

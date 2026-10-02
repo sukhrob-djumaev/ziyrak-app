@@ -4,7 +4,9 @@ import { createTicketTool } from "@/lib/tools/builtin/create-ticket";
 import { assignToPersonTool } from "@/lib/tools/builtin/assign-to-person";
 import { sendInternalEmailTool } from "@/lib/tools/builtin/send-internal-email";
 import { getCustomerHistoryTool } from "@/lib/tools/builtin/get-customer-history";
+import { scheduleFollowupTool } from "@/lib/tools/builtin/schedule-followup";
 import { triggerWebhookTool } from "@/lib/tools/builtin/trigger-webhook";
+import { toProviderToolDefinition } from "@/lib/tools/schema-json";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 // The SSRF-hardened dispatcher itself has its own dedicated suite
@@ -234,6 +236,15 @@ describe("Built-in tools (tools/builtin/*)", () => {
       expect(result.success).toBe(false);
       expect(result.status).toBe("failed");
       expect(result.message).toContain("Refusing to dispatch");
+    });
+  });
+
+  describe("schedule_followup", () => {
+    it("tells the provider how to express a minute-scale delay without rounding it to zero", () => {
+      const definition = toProviderToolDefinition(scheduleFollowupTool);
+      const properties = definition.function.parameters.properties as Record<string, { description?: string }>;
+
+      expect(properties.delayHours.description).toContain("0.0167");
     });
   });
 });

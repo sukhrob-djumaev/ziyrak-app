@@ -11,14 +11,33 @@ const L = require("./lib.cjs"); const creds = require("./creds.json");
   // Owner A in the dashboard (separate browser profile)
   const ob = await L.launch(creds.A.profile); const op = await ob.newPage(); await op.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.3.11" }); const ev = L.watch(op, "ownerA");
   await op.goto(L.BASE + "/conversations", { waitUntil: "networkidle0" }); await L.sleep(800);
-  // filter to Escalated via the real status filter
-  const filtered = await op.evaluate(() => { const sel = [...document.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.text.trim() === "Escalated")); if (!sel) return false; sel.value = [...sel.options].find((o) => o.text.trim() === "Escalated").value; sel.dispatchEvent(new Event("change", { bubbles: true })); return true; });
-  out.usedStatusFilter = filtered; await L.sleep(1500);
-  await L.shot(op, "j11-A-escalated-list");
-  out.escalatedRows = (await L.text(op)).replace(/\n+/g, " | ").split("Search conversations...").pop().slice(0, 260);
-  // open the first escalated conversation
-  out.rowCount = await op.evaluate(() => [...document.querySelectorAll("*")].filter((e) => e.children.length === 0 && (e.innerText || "").trim() === "Website Visitor").length);
-  await op.evaluate(() => { const el = [...document.querySelectorAll("*")].find((e) => e.children.length === 0 && (e.innerText || "").trim() === "Website Visitor"); el.click(); }); await L.sleep(1500);
+  // Bind the human action to the visitor's own current conversation, rather
+  // than the first generic "Website Visitor" row (which could be a prior run).
+  const replyMarker = (out.visitorReply || "").slice(0, 48);
+  out.openedCurrentConversation = await op.evaluate((marker) => {
+    const row = [...document.querySelectorAll("button")].find((button) => button.innerText.includes(marker));
+    if (!row) return false;
+    row.click();
+    return true;
+  }, replyMarker);
+  await L.sleep(1500);
+  // Current Phase 7 behavior escalates only when the product's confidence
+  // rule does. If this real response did not cross that rule, use the
+  // existing dashboard status control to create the handoff explicitly.
+  const initial = await op.evaluate(async (id) => (await (await fetch("/api/conversations/" + id)).json()).status, convId);
+  out.escalationDecision = initial === "escalated" ? "product_confidence_after_real_model_response" : "explicit_dashboard_status_change";
+  if (initial !== "escalated") {
+    const statusChange = op.waitForResponse((res) => res.url().includes(`/api/conversations/${convId}`) && res.request().method() === "PUT", { timeout: 10000 });
+    out.usedExplicitEscalationControl = await op.evaluate(() => {
+      const select = [...document.querySelectorAll("select")].find((element) => element.value === "active" && [...element.options].some((option) => option.value === "escalated"));
+      if (!select) return false;
+      select.value = "escalated";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    out.explicitEscalationStatus = (await statusChange).status();
+    await L.sleep(800);
+  }
   await L.shot(op, "j11-A-conversation-open");
   const opened = (await L.text(op)).replace(/\n+/g, " | ");
   out.openedShows = { manager: opened.includes("speak to a manager"), aiTeamMember: /team member/.test(opened) };
@@ -43,9 +62,12 @@ const L = require("./lib.cjs"); const creds = require("./creds.json");
   out.B_openA = await bp.evaluate(async (id) => (await fetch("/api/conversations/" + id)).status, convId);
   await bb.close();
 
-  L.assert(out.usedStatusFilter === true, `owner's Escalated status filter control was found and used`);
+  L.assert(out.openedCurrentConversation === true, `owner opens the current visitor's conversation, not a prior generic visitor row`);
+  L.assert(["product_confidence_after_real_model_response", "explicit_dashboard_status_change"].includes(out.escalationDecision), `the escalation decision is recorded, got ${out.escalationDecision}`);
+  L.assert(out.escalationDecision !== "explicit_dashboard_status_change" || (out.usedExplicitEscalationControl === true && out.explicitEscalationStatus === 200), `the explicit dashboard escalation succeeds when needed, got ${JSON.stringify({ used: out.usedExplicitEscalationControl, status: out.explicitEscalationStatus })}`);
   L.assert(out.openedShows.manager === true, `the opened conversation shows the customer's original message`);
   L.assert(out.agentSendApi && out.agentSendApi.status === 201, `the agent's reply is sent (201), got ${out.agentSendApi && out.agentSendApi.status}`);
+  L.assert(out.agentSendApi && out.agentSendApi.body.includes(convId), `the agent reply belongs to the current visitor conversation`);
   L.assert(out.customerSawHumanReply === true, `the customer receives the human agent's reply in the widget`);
   L.assert(out.afterRefresh.status === "escalated", `the conversation is still escalated after refresh, got ${out.afterRefresh.status}`);
   L.assert(out.afterRefresh.msgs.length >= 2, `the conversation history persists across refresh, got ${JSON.stringify(out.afterRefresh.msgs)}`);

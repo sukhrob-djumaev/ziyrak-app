@@ -26,7 +26,11 @@ async function askTicket(text) { const b = await L.launch("visitor-j13"); const 
   // owner approves (authenticated production API; no UI exists for this step)
   const ap = await call(op, "POST", `/api/actions/${id1}/approve`, {}); out.ownerApprove = ap.s;
   await L.sleep(500);
-  out.afterApprove = { status: sql(`select status from "ActionExecution" where id='${id1}';`), tickets: tickets(), ticketLinked: sql(`select count(*) from "Ticket" where "businessId"=${BIZB} and title like '%scooter battery%';`) };
+  // The real model supplies a valid but not fixture-specific title. Bind the
+  // side effect to the approved action's durable result rather than matching
+  // stand-in wording from its generated arguments.
+  const approvedTicketId = sql(`select result->'data'->>'ticketId' from "ActionExecution" where id='${id1}';`);
+  out.afterApprove = { status: sql(`select status from "ActionExecution" where id='${id1}';`), tickets: tickets(), ticketId: approvedTicketId, ticketLinked: sql(`select count(*) from "Ticket" where id='${approvedTicketId}' and "businessId"=${BIZB};`) };
   out.approveAgain = (await call(op, "POST", `/api/actions/${id1}/approve`, {})).s; out.ticketsAfterSecondApprove = tickets();
   // rejection path
   out.aiReply2 = await askTicket("Something is broken: the scooter brakes are failing. Open a ticket please.");

@@ -16,10 +16,12 @@ async function askTicket(text) { const b = await L.launch("visitor-j13"); const 
   // owner (browser session) sees it in the API list
   const ob = await L.launch(creds.B.profile); const op = await ob.newPage(); await op.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.7.11" }); await op.goto(L.BASE + "/tickets", { waitUntil: "networkidle0" });
   out.ownerSeesPending = (await call(op, "GET", "/api/actions?status=pending_approval")).j.data.map((a) => `${a.tool}:${a.status}`);
-  // a viewer (created by the owner) logs in through the real UI and tries to approve -> denied
-  out.createViewer = (await call(op, "POST", "/api/admin/users", { username: "viewer_b", password: "Viewer-Pass-2026!", name: "Vera Viewer", role: "viewer" })).s;
-  const vb = await L.launch("viewer-b"); const vp = await vb.newPage(); await vp.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.7.31" });
-  await vp.goto(L.BASE + "/login", { waitUntil: "networkidle0" }); await vp.type("input#username,input[name=username]", "viewer_b"); await vp.type("input[type=password]", "Viewer-Pass-2026!"); await L.clickFirst(vp, "button", "Sign In"); await vp.waitForFunction(() => !location.pathname.startsWith("/login"), { timeout: 10000 }).catch(() => {}); await L.sleep(800);
+  // A fresh, action-scoped viewer/profile makes this denial path repeatable:
+  // a retry must not inherit an old authenticated browser session or account.
+  const viewerUsername = `viewer_b_${id1.slice(0, 8)}`;
+  out.createViewer = (await call(op, "POST", "/api/admin/users", { username: viewerUsername, password: "Viewer-Pass-2026!", name: "Vera Viewer", role: "viewer" })).s;
+  const vb = await L.launch(`viewer-b-${id1}`); const vp = await vb.newPage(); await vp.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.7.31" });
+  await vp.goto(L.BASE + "/login", { waitUntil: "networkidle0" }); await vp.type("input#username,input[name=username]", viewerUsername); await vp.type("input[type=password]", "Viewer-Pass-2026!"); await L.clickFirst(vp, "button", "Sign In"); await vp.waitForFunction(() => !location.pathname.startsWith("/login"), { timeout: 10000 }).catch(() => {}); await L.sleep(800);
   out.viewerLoggedInAs = (await call(vp, "GET", "/api/auth")).j.user?.username;
   out.viewerApprove = (await call(vp, "POST", `/api/actions/${id1}/approve`, {})).s; out.viewerReject = (await call(vp, "POST", `/api/actions/${id1}/reject`, {})).s;
   out.stillPendingAfterViewer = sql(`select status from "ActionExecution" where id='${id1}';`); await vb.close();
@@ -45,7 +47,7 @@ async function askTicket(text) { const b = await L.launch("visitor-j13"); const 
   L.assert(out.ticketsWhilePending.match(/^(\d+) -> \1 /), `no ticket is created while the action is pending, got ${out.ticketsWhilePending}`);
   L.assert(out.ownerSeesPending.some((a) => a.startsWith("create_ticket:pending_approval")), `the owner sees the pending action, got ${JSON.stringify(out.ownerSeesPending)}`);
   L.assert(out.createViewer === 201, `the viewer account is created, got ${out.createViewer}`);
-  L.assert(out.viewerLoggedInAs === "viewer_b", `the viewer logs in through the real UI, got ${out.viewerLoggedInAs}`);
+  L.assert(out.viewerLoggedInAs === viewerUsername, `the viewer logs in through the real UI, got ${out.viewerLoggedInAs}`);
   L.assert(out.viewerApprove === 403, `a viewer cannot approve, got ${out.viewerApprove}`);
   L.assert(out.viewerReject === 403, `a viewer cannot reject, got ${out.viewerReject}`);
   L.assert(out.stillPendingAfterViewer === "pending_approval", `the action is still pending after the viewer's denied attempts, got ${out.stillPendingAfterViewer}`);

@@ -35,6 +35,33 @@ export async function GET(request: NextRequest) {
  * verification requires the exact bytes Meta signed.
  */
 export async function POST(request: NextRequest) {
+  const receivedAt = performance.now();
+  const acknowledge = (
+    outcome: "new" | "duplicate" | "ignored" | "error",
+    status: number,
+    context?: { businessId?: string; connectionId?: string }
+  ) => {
+    // This is handler completion time, measured from entry to constructing the
+    // HTTP response. It deliberately excludes async AI/worker/reply work.
+    logger.info("[MetaWhatsApp] Webhook acknowledged", {
+      outcome,
+      status,
+      ackMs: Math.round((performance.now() - receivedAt) * 100) / 100,
+      ...context,
+    });
+    return NextResponse.json(
+      {
+        status:
+          outcome === "new" || outcome === "duplicate"
+            ? "EVENT_RECEIVED"
+            : outcome === "error"
+              ? "error"
+              : "ignored",
+      },
+      { status }
+    );
+  };
+
   try {
     const rawBody = await request.text();
     const headers: Record<string, string> = {};
@@ -53,16 +80,17 @@ export async function POST(request: NextRequest) {
       // "uninteresting update" case, so Meta never retries a payload that
       // was never going to succeed differently the second time.
       const status = result.reason === "Invalid X-Hub-Signature-256" ? 403 : 200;
-      return NextResponse.json({ status: "ignored" }, { status });
+      return acknowledge("ignored", status);
     }
 
     if (result.kind === "new") {
       await enqueueInboundProcessing(result.ctx, result.receiptId, result.event);
+      return acknowledge("new", 200, { businessId: result.ctx.businessId, connectionId: result.connectionId });
     }
 
-    return NextResponse.json({ status: "EVENT_RECEIVED" });
+    return acknowledge("duplicate", 200);
   } catch (error) {
     logger.error("[MetaWhatsApp] Webhook error:", error);
-    return NextResponse.json({ status: "error" }, { status: 200 });
+    return acknowledge("error", 200);
   }
 }

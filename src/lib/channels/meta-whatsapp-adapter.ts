@@ -177,12 +177,31 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => "");
-        logger.error("[MetaCloudWhatsAppAdapter] Send failed", { status: response.status, businessId: ctx.businessId, connectionId });
+        logger.error("[MetaCloudWhatsAppAdapter] Send failed", undefined, {
+          status: response.status,
+          businessId: ctx.businessId,
+          connectionId,
+        });
         return { success: false, error: `Meta Cloud API returned ${response.status}: ${errorBody.slice(0, 500)}` };
       }
+
+      // A Graph 2xx means Meta accepted the request, not that the recipient
+      // has seen it. Keep the provider message id for acceptance evidence,
+      // but never log credential/header/recipient/content data.
+      const responseBody = (await response.json().catch(() => null)) as { messages?: { id?: string }[] } | null;
+      logger.info("[MetaCloudWhatsAppAdapter] Send accepted", {
+        status: response.status,
+        metaMessageId: responseBody?.messages?.[0]?.id ?? null,
+        sentAt: new Date().toISOString(),
+        businessId: ctx.businessId,
+        connectionId,
+      });
       return { success: true };
     } catch (error) {
-      logger.error("[MetaCloudWhatsAppAdapter] Failed to send message:", error);
+      logger.error("[MetaCloudWhatsAppAdapter] Failed to send message:", error, {
+        businessId: ctx.businessId,
+        connectionId,
+      });
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   }

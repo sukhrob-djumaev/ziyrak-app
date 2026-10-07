@@ -8,8 +8,9 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import * as connectionsService from "@/lib/channels/connections-service";
-import { findConnectionByConfigField, encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { findConnectionByConfigField, encryptChannelCredential, resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
+import { MetaWhatsAppCredentialSchema } from "@/lib/secrets";
 
 /**
  * PLAN.md §7.7/§20.2/§46.7 — a Meta `phone_number_id` is what routes inbound
@@ -24,9 +25,10 @@ let businessA: SeededBusiness;
 let businessB: SeededBusiness;
 const realFetch = global.fetch;
 let graphResponses: Map<string, boolean>;
+const CONNECTION_APP_SECRET = "setup-test-app-secret";
 
-function credential(phoneNumberId: string, accessToken = "token") {
-  return { type: "whatsapp_cloud" as const, phoneNumberId, accessToken, businessAccountId: "waba-1" };
+function credential(phoneNumberId: string, accessToken = "token", appSecret: string | undefined = CONNECTION_APP_SECRET) {
+  return { type: "whatsapp_cloud" as const, phoneNumberId, accessToken, businessAccountId: "waba-1", ...(appSecret && { appSecret }) };
 }
 
 beforeAll(async () => {
@@ -69,6 +71,57 @@ describe("Meta Cloud connection setup (§46.7)", () => {
     expect((saved.config as { phoneNumberId: string }).phoneNumberId).toBe(phoneNumberId);
     const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId);
     expect(resolved?.businessId).toBe(businessA.businessId);
+  });
+
+  it("requires an App Secret when creating a new WhatsApp Cloud connection", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-new-${crypto.randomUUID()}`);
+    try {
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("encrypts a per-connection App Secret without placing it in config or returning it in the saved connection", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    const appSecret = `app-secret-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+
+    const saved = await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "good-token", appSecret),
+    });
+
+    expect(JSON.stringify(saved.config)).not.toContain(appSecret);
+    expect(saved.credentialRef).not.toContain(appSecret);
+    const stored = await resolveChannelCredential(saved.id, MetaWhatsAppCredentialSchema);
+    expect(stored?.appSecret).toBe(appSecret);
+  });
+
+  it("preserves an existing encrypted App Secret when the business replaces only its access token", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    const appSecret = `app-secret-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|old-token`, true);
+    graphResponses.set(`${phoneNumberId}|new-token`, true);
+
+    const saved = await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "old-token", appSecret),
+    });
+    await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "new-token", ""),
+    });
+
+    const stored = await resolveChannelCredential(saved.id, MetaWhatsAppCredentialSchema);
+    expect(stored).toMatchObject({ phoneNumberId, accessToken: "new-token", appSecret });
   });
 
   it("rejects a credential whose token cannot read that phone number (no proof of ownership), storing nothing for the caller", async () => {

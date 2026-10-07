@@ -56,8 +56,12 @@ const PHONE_NUMBER_ID = process.env.META_TEST_PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.META_TEST_ACCESS_TOKEN;
 const RECIPIENT = process.env.META_TEST_RECIPIENT;
 const BUSINESS_ACCOUNT_ID = process.env.META_TEST_BUSINESS_ACCOUNT_ID || "smoke-test-waba";
+// The production App A secret is the legacy default for existing local smoke
+// setup. A second independent app can provide its own test-only value without
+// ever changing META_APP_SECRET or a tenant's saved production credential.
+const APP_SECRET = process.env.META_TEST_APP_SECRET || process.env.META_APP_SECRET;
 
-describe.skipIf(!PHONE_NUMBER_ID || !ACCESS_TOKEN || !RECIPIENT)("LIVE smoke test: MetaCloudWhatsAppAdapter -> real Meta Graph API (§46.7)", () => {
+describe.skipIf(!PHONE_NUMBER_ID || !ACCESS_TOKEN || !RECIPIENT || !APP_SECRET)("LIVE smoke test: MetaCloudWhatsAppAdapter -> real Meta Graph API (§46.7)", () => {
   let businessId: string;
   let ctx: TenantContext;
   let connectionId: string;
@@ -80,14 +84,14 @@ describe.skipIf(!PHONE_NUMBER_ID || !ACCESS_TOKEN || !RECIPIENT)("LIVE smoke tes
     await expect(
       connectionsService.upsertByType(ctx, "whatsapp_cloud", {
         isActive: true,
-        credential: { type: "whatsapp_cloud", phoneNumberId: PHONE_NUMBER_ID!, accessToken: "definitely-not-a-valid-token", businessAccountId: BUSINESS_ACCOUNT_ID },
+        credential: { type: "whatsapp_cloud", phoneNumberId: PHONE_NUMBER_ID!, accessToken: "definitely-not-a-valid-token", businessAccountId: BUSINESS_ACCOUNT_ID, appSecret: APP_SECRET! },
       })
     ).rejects.toMatchObject({ statusCode: 400 });
 
     const saved = await connectionsService.upsertByType(ctx, "whatsapp_cloud", {
       isActive: true,
       status: "connected",
-      credential: { type: "whatsapp_cloud", phoneNumberId: PHONE_NUMBER_ID!, accessToken: ACCESS_TOKEN!, businessAccountId: BUSINESS_ACCOUNT_ID },
+      credential: { type: "whatsapp_cloud", phoneNumberId: PHONE_NUMBER_ID!, accessToken: ACCESS_TOKEN!, businessAccountId: BUSINESS_ACCOUNT_ID, appSecret: APP_SECRET! },
     });
     connectionId = saved.id;
     expect((saved.config as { phoneNumberId: string }).phoneNumberId).toBe(PHONE_NUMBER_ID);

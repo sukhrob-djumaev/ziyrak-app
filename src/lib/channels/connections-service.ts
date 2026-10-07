@@ -1,8 +1,8 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { ChannelCredentialSchema, type ChannelCredential } from "@/lib/secrets";
-import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { ChannelCredentialSchema, MetaWhatsAppCredentialSchema, type ChannelCredential } from "@/lib/secrets";
+import { encryptChannelCredential, resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { AppError } from "@/lib/observability/errors";
 import { prepareMetaCloudConnection } from "./meta-whatsapp-setup";
 import { logActivity } from "@/lib/observability/activity";
@@ -93,6 +93,20 @@ export async function upsertByType(ctx: TenantContext, type: string, rawInput: U
   if (type === "whatsapp_cloud") {
     const prepared = await prepareMetaCloudConnection(ctx, rawInput, (existing?.config ?? undefined) as Record<string, unknown> | undefined);
     input = { ...rawInput, config: prepared.config };
+
+    // The App Secret is write-only. When an existing multi-app connection is
+    // re-saved to rotate its access token, an omitted field means "keep the
+    // encrypted secret", never silently downgrade it to the global fallback.
+    if (input.credential) {
+      const incoming = MetaWhatsAppCredentialSchema.parse(input.credential);
+      if (!incoming.appSecret && !existing) {
+        throw new AppError(400, "VALIDATION_ERROR", "Meta App Secret is required when creating a WhatsApp Cloud connection.");
+      }
+      if (!incoming.appSecret && existing) {
+        const stored = await resolveChannelCredential(existing.id, MetaWhatsAppCredentialSchema);
+        if (stored?.appSecret) input = { ...input, credential: { ...incoming, appSecret: stored.appSecret } };
+      }
+    }
   }
 
   const credentialRef = await resolveCredentialRef(type, input.credential);

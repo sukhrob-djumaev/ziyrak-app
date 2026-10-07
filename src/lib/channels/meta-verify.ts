@@ -8,14 +8,13 @@ import crypto from "crypto";
  * signature over exactly what it sent on the wire, and re-serializing JSON
  * is not guaranteed to reproduce byte-identical output (key order, spacing).
  */
-export function validateMetaSignature(appSecret: string, signatureHeader: string, rawBody: string): boolean {
+export function validateMetaSignature(appSecret: string, signatureHeader: string, rawBody: crypto.BinaryLike): boolean {
   if (!appSecret || !signatureHeader) return false;
 
-  const prefix = "sha256=";
-  if (!signatureHeader.startsWith(prefix)) return false;
-  const presented = signatureHeader.slice(prefix.length);
+  if (!/^sha256=[0-9a-f]{64}$/i.test(signatureHeader)) return false;
+  const presented = signatureHeader.slice("sha256=".length);
 
-  const computed = crypto.createHmac("sha256", appSecret).update(rawBody, "utf-8").digest("hex");
+  const computed = crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
 
   const computedBuf = Buffer.from(computed, "hex");
   const presentedBuf = Buffer.from(presented, "hex");

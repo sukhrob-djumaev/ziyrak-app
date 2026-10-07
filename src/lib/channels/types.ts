@@ -64,7 +64,12 @@ export interface NormalizedInboundRequest {
 export type ValidateInboundResult =
   | { kind: "new"; ctx: TenantContext; connectionId: string; event: ZiyrakEvent<MessageReceivedPayload>; receiptId: string }
   | { kind: "duplicate" }
-  | { kind: "rejected"; reason: string };
+  | {
+      kind: "rejected";
+      reason: string;
+      /** `false` means no provider signature was verified; routes must not ACK it as an authenticated provider callback. */
+      authenticated?: boolean;
+    };
 
 export interface ChannelAdapter<TInboundRequest = NormalizedInboundRequest> {
   readonly type: string;

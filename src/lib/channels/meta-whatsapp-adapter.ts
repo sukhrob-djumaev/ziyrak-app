@@ -33,7 +33,56 @@ interface MetaWebhookPayload {
 /** Everything `validateInbound` needs — deliberately not `NormalizedInboundRequest` (§19.1's own per-adapter customization allowance): signature verification needs the exact raw body bytes, which a pre-parsed `json` field cannot reconstruct byte-for-byte. */
 export interface MetaWebhookRequest {
   headers: Record<string, string>;
-  rawBody: string;
+  /** Original wire bytes. String remains accepted for direct adapter callers/tests. */
+  rawBody: Buffer | string;
+}
+
+export type MetaPhoneNumberIdExtraction =
+  | { kind: "one"; phoneNumberId: string }
+  | { kind: "none" }
+  | { kind: "multiple" }
+  | { kind: "malformed" };
+
+function rawBodyBuffer(rawBody: Buffer | string): Buffer {
+  return Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, "utf8");
+}
+
+/**
+ * Reads only the provider routing identifiers needed to choose one HMAC key.
+ * This parses untrusted JSON but performs no tenant construction, credential
+ * mutation, receipt write, enqueue, AI invocation, or outbound send.
+ */
+export function extractMetaPhoneNumberIds(rawBody: Buffer | string): MetaPhoneNumberIdExtraction {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBodyBuffer(rawBody).toString("utf8"));
+  } catch {
+    return { kind: "malformed" };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { kind: "malformed" };
+  const entries = (parsed as { entry?: unknown }).entry;
+  if (!Array.isArray(entries)) return { kind: "malformed" };
+
+  const phoneNumberIds = new Set<string>();
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return { kind: "malformed" };
+    const changes = (entry as { changes?: unknown }).changes;
+    if (!Array.isArray(changes)) return { kind: "malformed" };
+    for (const change of changes) {
+      if (!change || typeof change !== "object" || Array.isArray(change)) return { kind: "malformed" };
+      const value = (change as { value?: unknown }).value;
+      if (!value || typeof value !== "object" || Array.isArray(value)) return { kind: "malformed" };
+      const metadata = (value as { metadata?: unknown }).metadata;
+      if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) continue;
+      const phoneNumberId = (metadata as { phone_number_id?: unknown }).phone_number_id;
+      if (typeof phoneNumberId === "string" && phoneNumberId.length > 0) phoneNumberIds.add(phoneNumberId);
+    }
+  }
+
+  if (phoneNumberIds.size === 0) return { kind: "none" };
+  if (phoneNumberIds.size !== 1) return { kind: "multiple" };
+  return { kind: "one", phoneNumberId: phoneNumberIds.values().next().value! };
 }
 
 function extractFirstInboundMessage(payload: MetaWebhookPayload): { value: MetaWebhookValue; message: NonNullable<MetaWebhookValue["messages"]>[number] } | null {
@@ -54,12 +103,11 @@ function extractFirstInboundMessage(payload: MetaWebhookPayload): { value: MetaW
  * other adapter in this codebase, the thing that identifies "which
  * business" is not itself the request's own credential (there is no
  * per-connection secret in the inbound request at all) — Meta's webhook is
- * authenticated once, platform-wide, via `X-Hub-Signature-256` keyed by one
- * shared Ziyrak-owned Meta App Secret (env-configured, never a
- * `ChannelConnection` credential), and only *after* that passes does the
- * payload's own `phone_number_id` resolve to a specific `ChannelConnection`/
- * business (§7.7) — the reverse order from SMS/Telegram, where the
- * connection's own credential *is* the signature key. No Puppeteer, no
+ * authentication begins with an untrusted-but-side-effect-free extraction of
+ * `phone_number_id`, which selects one active `ChannelConnection` and exactly
+ * one HMAC key. The connection's encrypted `appSecret` wins; legacy
+ * connections fall back to platform `META_APP_SECRET`. Only a successful
+ * verification authorizes tenant context construction or any persistence. No Puppeteer, no
  * browser session, no QR code: every method is stateless and this adapter
  * never gates on `assertDefaultBusinessOnly()` (§20.1's whole point).
  *
@@ -78,21 +126,39 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
   };
 
   async validateInbound(request: MetaWebhookRequest): Promise<ValidateInboundResult> {
-    const appSecret = getMetaAppSecret();
-    if (!appSecret) {
-      return { kind: "rejected", reason: "META_APP_SECRET is not configured on this deployment" };
+    const rawBody = rawBodyBuffer(request.rawBody);
+    const candidate = extractMetaPhoneNumberIds(rawBody);
+    if (candidate.kind === "malformed") return { kind: "rejected", reason: "Malformed JSON body", authenticated: false };
+    if (candidate.kind === "none") return { kind: "rejected", reason: "Missing phone_number_id in webhook payload", authenticated: false };
+    if (candidate.kind === "multiple") return { kind: "rejected", reason: "Multiple phone_number_id values in webhook payload", authenticated: false };
+
+    const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", candidate.phoneNumberId);
+    if (!resolved) {
+      return { kind: "rejected", reason: "No active ChannelConnection matches this phone_number_id", authenticated: false };
     }
 
+    const credential = await resolveChannelCredential(resolved.connectionId, MetaWhatsAppCredentialSchema);
+    if (!credential) {
+      return { kind: "rejected", reason: "Connection has no valid Meta WhatsApp credential", authenticated: false };
+    }
+
+    // Do not try a pool of secrets: this candidate connection determines the
+    // only permitted secret. Global fallback exists solely for legacy rows.
+    const appSecret = credential.appSecret ?? getMetaAppSecret();
+    if (!appSecret) return { kind: "rejected", reason: "No Meta App Secret is configured for this connection", authenticated: false };
+
     const signature = request.headers["x-hub-signature-256"] || "";
-    if (!validateMetaSignature(appSecret, signature, request.rawBody)) {
-      return { kind: "rejected", reason: "Invalid X-Hub-Signature-256" };
+    if (!validateMetaSignature(appSecret, signature, rawBody)) {
+      return { kind: "rejected", reason: "Invalid X-Hub-Signature-256", authenticated: false };
     }
 
     let payload: MetaWebhookPayload;
     try {
-      payload = JSON.parse(request.rawBody) as MetaWebhookPayload;
+      payload = JSON.parse(rawBody.toString("utf8")) as MetaWebhookPayload;
     } catch {
-      return { kind: "rejected", reason: "Malformed JSON body" };
+      // The extraction above successfully parsed the same bytes, but keep a
+      // defensive fail-closed guard should parsing ever change.
+      return { kind: "rejected", reason: "Malformed JSON body", authenticated: false };
     }
 
     const found = extractFirstInboundMessage(payload);
@@ -102,20 +168,10 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
       // delivery-receipt processing is not a named acceptance criterion).
       // Acknowledged as "rejected" so the webhook route still ACKs 200
       // without enqueuing anything, exactly like Telegram's non-text case.
-      return { kind: "rejected", reason: "No inbound text message in payload" };
+      return { kind: "rejected", reason: "No inbound text message in payload", authenticated: true };
     }
 
     const { value, message } = found;
-    const phoneNumberId = value.metadata?.phone_number_id;
-    if (!phoneNumberId) {
-      return { kind: "rejected", reason: "Missing phone_number_id in webhook payload" };
-    }
-
-    const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId);
-    if (!resolved) {
-      return { kind: "rejected", reason: "No active ChannelConnection matches this phone_number_id" };
-    }
-
     const ctx = await buildChannelCredentialContext(resolved);
     const contactProfile = value.contacts?.find((c) => c.wa_id === message.from);
     const customerName = contactProfile?.profile?.name || "WhatsApp User";

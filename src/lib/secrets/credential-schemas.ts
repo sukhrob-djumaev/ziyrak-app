@@ -18,16 +18,17 @@ import { z } from "zod";
 // so retyping its literal is a non-breaking correction of a scaffolded-but-
 // unwired type, not a migration. `phoneNumberId`/`accessToken`/
 // `businessAccountId` are per-ChannelConnection (a business's own system-user
-// token, scoped to its own WABA/phone number) — the App Secret used for
-// `X-Hub-Signature-256` verification and the webhook verify token are
-// platform-level (one Ziyrak-owned Meta App shared by every tenant, §20.2's
-// "one shared Ziyrak-owned webhook URL"), so they are read from env vars
-// (`META_APP_SECRET`/`META_WEBHOOK_VERIFY_TOKEN`) rather than stored here.
+// token, scoped to its own WABA/phone number). `appSecret` is optional only
+// for backward compatibility with connections created before Ziyrak supported
+// separate Meta Developer Apps: absent means use legacy `META_APP_SECRET`.
+// When supplied, it is encrypted in this credential and selects the sole key
+// used for this connection's inbound HMAC verification.
 export const MetaWhatsAppCredentialSchema = z.object({
   type: z.literal("whatsapp_cloud"),
   phoneNumberId: z.string().min(1),
   accessToken: z.string().min(1),
   businessAccountId: z.string().min(1),
+  appSecret: z.string().min(1).optional(),
 });
 
 export const TwilioCredentialSchema = z.object({

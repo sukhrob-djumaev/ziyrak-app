@@ -63,7 +63,10 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const rawBody = await request.text();
+    // Preserve the exact wire bytes for Meta's HMAC. JSON parsing happens in
+    // the adapter only to select a candidate connection; it never replaces
+    // these bytes for signature verification.
+    const rawBody = Buffer.from(await request.arrayBuffer());
     const headers: Record<string, string> = {};
     request.headers.forEach((value, key) => {
       headers[key.toLowerCase()] = value;
@@ -73,13 +76,10 @@ export async function POST(request: NextRequest) {
 
     if (result.kind === "rejected") {
       logger.warn("[MetaWhatsApp] Inbound webhook rejected", { reason: result.reason });
-      // An invalid signature is the one failure this route reports loudly
-      // (§46.7's own "invalid signature rejected before persistence" test) —
-      // every other rejection reason (no message, unknown phone_number_id,
-      // a status callback) ACKs 200 exactly like every other channel's
-      // "uninteresting update" case, so Meta never retries a payload that
-      // was never going to succeed differently the second time.
-      const status = result.reason === "Invalid X-Hub-Signature-256" ? 403 : 200;
+      // Only a callback whose signature was verified may be safely ignored
+      // (for example, a status/non-text event). Every pre-verification
+      // failure is fail-closed, including an unknown or ambiguous routing id.
+      const status = result.authenticated === false ? 403 : 200;
       return acknowledge("ignored", status);
     }
 
@@ -91,6 +91,6 @@ export async function POST(request: NextRequest) {
     return acknowledge("duplicate", 200);
   } catch (error) {
     logger.error("[MetaWhatsApp] Webhook error:", error);
-    return acknowledge("error", 200);
+    return acknowledge("error", 500);
   }
 }

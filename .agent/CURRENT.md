@@ -1,28 +1,31 @@
 # Current task
 
-Updated: 2026-10-09 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
+Updated: 2026-10-10 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
 
 - **Phase:** 7 — Production Channels and MVP Hardening (§46.7); still incomplete. Tags exist through `phase-6-complete`; `phase-7-complete` is absent.
 - **Objective:** Finish the remaining real Meta J16 acceptance for Business B / a second independent `phone_number_id`, preserving Business A's completed evidence and configuration.
-- **Status:** External acceptance pending; the second-number setup and live environment need rechecking. This workflow-only session did not inspect credentials, provider accounts, DB contents, or running services.
-- **Branch / code baseline:** `claude/phase7-openai-acceptance` at `5e5b60770d1c353910a1547edb5edd70bd8cd7dc` before the workflow documentation commit. Worktree was clean at intake. Recheck Git at every resume.
+- **Branch / code baseline:** `claude/phase7-openai-acceptance`; no application code changed this session. Recheck Git at every resume.
 
-## Completed evidence (historical, not rerun this session)
+## Status (2026-10-10)
 
-- `PLAN.md` §46.7, **Real OpenAI acceptance run (2026-10-01, second)** and **Real OpenAI closure pass (2026-10-02)**: real Web Chat grounding/isolation, embeddings, tools, and closure journeys are recorded. Web Chat latency targets were decided and passed.
-- §46.7, **Real Meta J16 — Business A single-number closure (2026-10-06)**, and **MVP Browser Acceptance Suite / J16**: real inbound/signature/routing/worker/knowledge/OpenAI reply, duplicate replay with unchanged counts, and eight successful Graph sends. ACK p95 was 103.81 ms. Recipient-visible delivery passed by manual confirmation at approximately 1–2 s; this is not an instrumented numeric end-to-end p95.
-- Latest application commits: `b5177be` adds per-connection webhook signature verification; `5e5b607` adds encrypted App Secret configuration/preservation. These postdate the recorded Business A run. Their presence and source were checked; current-runtime acceptance and test results for that newer code were not established here.
+- **Business B inbound path: PASS (live, not yet recorded in `PLAN.md`).** Business B ("Test company B", connection `0db5d7d6…`, number `+1 555-639-1554`, own Meta app "Ziyrak Test C") received real WhatsApp messages: signature verified, routed to B only, receipt `processed`, customer/conversation created, B's knowledge entry (`ZIYRAK-META-B-284` → `cobalt-river-284`) retrieved, real OpenAI answer produced, Graph send accepted (HTTP 200).
+- **Root cause of earlier silence:** the app was not subscribed to B's WABA (`subscribed_apps` only listed Meta's 1P app). Fixed on 2026-10-10 with one authorized `POST …/subscribed_apps` (via B's stored token). Also the free `trycloudflare` quick tunnel dies every few hours; restarted twice (ours only, launchd job `com.ziyrak.meta.tunnel`, metrics port 20251; the user's other app's tunnel to :7700 untouched). Current webhook URL changes on every tunnel restart and must be re-saved in Meta.
+- **Recipient-visible delivery for B: BLOCKED by Meta.** Every outbound send is accepted then fails asynchronously with status `failed`, error **131031 "Business Account locked"** (user-pasted status webhooks). Read-only Health Status (B and the `.env` test account, apparently A's, app `ziyrak_test`): `can_send_message=BLOCKED` for both WABAs/portfolios because of (a) incomplete business profile 131000 (Legal Name, Country, Website), (b) business not verified 141010, (c) WABA payment-method error 141006. Phone numbers and apps are `AVAILABLE`. Business A sent fine on 2026-10-06, so Meta enforcement evidently changed since. The app discards status webhooks, so this reason is invisible in logs.
+- **Not done:** A/B cross-tenant isolation over WhatsApp (A's stored credential still has the expired 2026-10-06 token; `.env` was updated but the product connection was not), duplicate-replay check for B, instrumented/visible reply for B, automated Meta security tests re-run, independent security review of `b5177be`/`5e5b607`, and the §46.7 design-drift question (per-connection App Secret vs plan's platform secret) — surface under protocol rule 11, unresolved.
 
-## Immediate continuation
+## Next actions
 
-1. Read §46.7's latest records, J16, the execution/Git protocols, and `.agent/HANDOFF.md`; reconcile them with current Git. Review the two newer Meta commits and their security tests before relying on earlier acceptance for this build.
-2. Address the recorded documentation discrepancy: §46.7's opening implementation record describes one platform App Secret and verification before connection resolution; current code selects one candidate connection's encrypted App Secret (legacy global fallback) before HMAC verification, then constructs tenant context. Check recorded authorization before further security-design changes; surface unresolved architectural disagreement under protocol rule 11. This handoff does not approve or reverse that design.
-3. Recheck the existing acceptance environment without exposing secrets: production web + separate worker + correct Postgres, provider-reachable HTTPS callback, subscription, and existing tenant connections/knowledge. Reuse Business A. Determine whether Business B's independent number/account is already configured before requesting manual setup.
-4. Prepare/run the applicable automated checks on an isolated test DB, independent security review of the newer changes, and the browser/live verification required by the plan. Read `tests/integration/meta-whatsapp-live.test.ts` before the smoke: it creates a temporary tenant and sends a real message, so use an isolated DB and an authorized test recipient; do not collide with existing acceptance connections.
-5. When external prerequisites and authorization are satisfied, exercise both real tenant routes and cross-tenant knowledge/data/credential isolation for J16, preserving A's evidence. Record fresh outcomes in the plan, then re-evaluate all phase-completion gates. Do not infer a pass from outbound Graph acceptance or a skipped test.
+1. **User (Meta):** in both portfolios complete Business Info (Legal Name, Country, Website), add a WhatsApp payment method, check Business Support Home / Account Overview (Request Review if offered), start Business Verification if needed. Then ask the lead to re-run the read-only Health Status check (`GET /{phone_number_id}?fields=health_status`) for B and A.
+2. **User (product):** save a fresh access token in Business A's WhatsApp channel setting (credentials only through the product UI/API, never in chat).
+3. **Lead, once sending is `AVAILABLE`:** have the user message B's and A's numbers; verify visible replies, B-only knowledge on B / no A phrase on B and vice versa, duplicate replay with unchanged counts; run the Meta unit/security tests on an isolated DB; obtain independent security review; record fresh outcomes in `PLAN.md` §46.7/J16; re-evaluate phase-completion gates.
+4. If the lock persists >1 day, consider a fresh WABA/real number; that needs new credentials via the product and a new `subscribed_apps` call.
+5. Optional hardening (needs user approval, small code change): log/store Meta status-webhook errors so delivery failures are visible.
 
-## Blockers / user actions / boundary
+## Environment notes
 
-- **Recorded release blocker:** Business B / second independent Meta `phone_number_id` isolation. Current availability of that resource is unknown, not proven absent.
-- **If absent:** the user must provision/authorize the independent Meta number/app resources and enter credentials through the secure local/product setup; after callback/subscription readiness, an authorized human sender must send real WhatsApp messages to the test numbers. Ask for the exact missing step only, never raw secrets in chat.
-- **Prohibited:** starting Phase 8, tagging Phase 7 complete on present evidence, changing product architecture as part of the workflow setup, overwriting A's connection, or pushing/releasing/deploying without explicit authorization.
+- Docker had stopped; `owly-db-1` restarted. Live DB is `owly` (two active `whatsapp_cloud` connections). Web on :3100 and the worker have run since 2026-10-07 under launchd (`com.ziyrak.meta.web`, `.worker`). Quick-tunnel logs: `/private/tmp/ziyrak-meta-cloudflared.log`.
+- Mac sleep can break runs; prefer short foreground sessions.
+
+## Prohibited
+
+Starting Phase 8, tagging Phase 7 complete on present evidence, changing product architecture, overwriting A's connection, simulating Meta traffic as acceptance, or pushing/releasing/deploying without explicit authorization.

@@ -3,7 +3,7 @@
 Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
 
 - **Phase:** 8 — Scalability and Shared Infrastructure (§46.8), authorized by the owner on 2026-10-11 ("lets proceed"). Phase 7 closed earlier (`phase-7-complete`, local only).
-- **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Implemented and verified; pending the phase-completion decision (see Next actions).
+- **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Complete; `phase-8-complete` tagged locally on the owner's delegation (not pushed).
 - **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), plus the record/review commit. Recheck Git at every resume.
 
 ## Status
@@ -14,7 +14,7 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Next actions
 
-1. Owner decides whether Phase 8 is complete and should be tagged `phase-8-complete` (nothing tagged yet), and whether to push/merge anything (nothing pushed).
+1. Owner decides whether to push/merge (nothing pushed).
 2. Optional: decide on bounding the stall when a worker dies without draining (heartbeat / shorter `expireInSeconds`) — changes retry semantics, so not done.
 3. Phase 9 only with explicit authorization.
 
@@ -25,4 +25,4 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Prohibited
 
-Starting Phase 9, tagging `phase-8-complete` or pushing/merging/deploying without the owner's say-so, changing product architecture without the rule 11 decision, touching Business A's or B's Meta connections.
+Starting Phase 9, pushing/merging/deploying without the owner's say-so, changing product architecture without the rule 11 decision, touching Business A's or B's Meta connections.

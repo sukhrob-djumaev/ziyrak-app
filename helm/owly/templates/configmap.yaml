@@ -10,6 +10,7 @@ data:
   NEXT_PUBLIC_APP_URL: {{ .Values.config.appUrl | quote }}
   NEXT_TELEMETRY_DISABLED: "1"
   PORT: "3000"
+  TRUSTED_PROXY_HOPS: {{ .Values.config.trustedProxyHops | quote }}
   DATABASE_POOL_MAX: {{ .Values.config.databasePoolMax | quote }}
   {{- if .Values.config.corsOrigin }}
   CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}

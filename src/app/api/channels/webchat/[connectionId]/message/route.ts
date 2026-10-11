@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { webChatAdapter } from "@/lib/channels/webchat-adapter";
 import { normalizeJsonRequest } from "@/lib/channels/http-request";
 import { enqueueInboundProcessing } from "@/lib/events/dispatch";
+import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/observability/logger";
 
@@ -19,14 +20,6 @@ type RouteContext = { params: Promise<{ connectionId: string }> };
 // per-connection `rateLimitPerMinute` override is still unbuilt.
 const WEBCHAT_IP_RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 };
 const WEBCHAT_TOKEN_RATE_LIMIT = { maxRequests: 120, windowMs: 60_000 };
-
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
 
 /**
  * CORS preflight for the embedded widget (PLAN.md §20.4/§46.7): the widget's

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyToken } from "@/lib/identity/auth";
 import { isPublicApiPath } from "@/lib/identity/public-api-paths";
@@ -53,14 +54,6 @@ function addHeaders(
   }
 
   return response;
-}
-
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
 }
 
 export async function proxy(request: NextRequest) {

@@ -170,6 +170,10 @@ pgbouncer:
 
 # -- Application config (non-sensitive)
 config:
+  # Number of proxies in front of the app that append to x-forwarded-for (1 = a
+  # single ingress). Rate limiting keys on the client address this yields; 0 =
+  # legacy first-entry behavior (only safe if the edge overwrites the header).
+  trustedProxyHops: 1
   # Per-process connection pool size (DATABASE_POOL_MAX). With PgBouncer this
   # is client connections to the pooler; without it, to PostgreSQL itself:
   # then size it as (postgres_max_connections / total_replicas) minus headroom.

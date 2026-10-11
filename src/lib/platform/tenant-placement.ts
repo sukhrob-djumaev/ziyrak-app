@@ -1,5 +1,6 @@
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { cacheDel, cacheGet, cacheSet, isCacheDistributed } from "@/lib/cache";
 
 /**
  * PLAN.md §7.5/§28.2 — control-plane resolution seam. Every business always
@@ -19,7 +20,29 @@ export interface ResolvedPlacement {
   dataConnection: string;
 }
 
+/**
+ * PLAN.md §28.4/§46.8 — short-TTL shared cache in front of the control-plane
+ * lookup, which every request and job on every replica performs. Only
+ * consulted when the cache is genuinely shared (Redis): an in-process cache
+ * would let a placement change (Phase 9) go unseen by other replicas for
+ * the TTL *and* offers no saving a database primary-key read doesn't. Only
+ * a successful, supported placement is cached — a missing row or an
+ * unsupported profile is re-read every time and keeps throwing.
+ */
+const PLACEMENT_CACHE_TTL_SECONDS = 30;
+
+const placementCacheKey = (businessId: string) => `placement:${businessId}`;
+
+export async function invalidateTenantPlacement(businessId: string): Promise<void> {
+  await cacheDel(placementCacheKey(businessId));
+}
+
 export async function resolveTenantPlacement(businessId: string): Promise<ResolvedPlacement> {
+  const shared = await isCacheDistributed();
+  if (shared && (await cacheGet(placementCacheKey(businessId))) === "shared-default") {
+    return { dataConnection: "shared-default" };
+  }
+
   const placement = await rawClient.tenantPlacement.findUnique({ where: { businessId } });
   if (!placement) {
     throw new Error(
@@ -33,6 +56,7 @@ export async function resolveTenantPlacement(businessId: string): Promise<Resolv
     );
   }
 
+  if (shared) await cacheSet(placementCacheKey(businessId), "shared-default", PLACEMENT_CACHE_TTL_SECONDS);
   return { dataConnection: "shared-default" };
 }
 

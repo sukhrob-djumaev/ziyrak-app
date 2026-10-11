@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { vi } from "vitest";
 
 // Set test environment variables
@@ -11,6 +12,11 @@ process.env.JWT_SECRET = "test-secret-key-for-testing-only";
 // configured environment isn't overridden.
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
 process.env.NODE_ENV = "test";
+// PLAN.md §46.8 — when the suite runs with `REDIS_URL` set (Redis-backed
+// adapters selected), every test file gets its own key namespace: files run
+// in parallel against one Redis, and a rate-limit/cache reset in one must
+// never reach another's counters. Unused (and harmless) without Redis.
+process.env.REDIS_KEY_PREFIX = `owly-test:${randomUUID()}:`;
 // §46.4 — resolveAIConfig()/the new /api/settings/ai route round-trip real
 // SecretResolver.encrypt()/decrypt() calls (via the process-wide default
 // resolver, getSecretResolver()) rather than mocking the encryption layer

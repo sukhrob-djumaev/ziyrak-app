@@ -63,7 +63,7 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = request.headers.get("x-request-id") || generateRequestId();
 
@@ -118,7 +118,7 @@ export function proxy(request: NextRequest) {
   // 5/min brute-force budget made ordinary navigation 429.
   if (pathname.startsWith("/api/auth") && request.method === "POST") {
     const ip = getClientIp(request);
-    const rateResult = checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
+    const rateResult = await checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(
@@ -144,7 +144,7 @@ export function proxy(request: NextRequest) {
   let apiRateInfo: { limit: number; remaining: number; resetAt: number } | undefined;
   if (pathname.startsWith("/api/")) {
     const ip = getClientIp(request);
-    const rateResult = checkRateLimit(`api:${ip}`, RATE_LIMITS.api);
+    const rateResult = await checkRateLimit(`api:${ip}`, RATE_LIMITS.api);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(

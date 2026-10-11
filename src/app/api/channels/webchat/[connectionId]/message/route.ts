@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const ip = getClientIp(request);
-    if (!checkRateLimit(`webchat-msg-ip:${connectionId}:${ip}`, WEBCHAT_IP_RATE_LIMIT).allowed) {
+    if (!(await checkRateLimit(`webchat-msg-ip:${connectionId}:${ip}`, WEBCHAT_IP_RATE_LIMIT)).allowed) {
       return respond({ error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many messages — please slow down." } }, 429);
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const presentedToken = (normalized.json as { token?: unknown } | undefined)?.token;
     if (typeof presentedToken === "string" && presentedToken) {
       const tokenKey = crypto.createHash("sha256").update(presentedToken).digest("hex").slice(0, 32);
-      if (!checkRateLimit(`webchat-msg-token:${connectionId}:${tokenKey}`, WEBCHAT_TOKEN_RATE_LIMIT).allowed) {
+      if (!(await checkRateLimit(`webchat-msg-token:${connectionId}:${tokenKey}`, WEBCHAT_TOKEN_RATE_LIMIT)).allowed) {
         return respond({ error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many messages — please slow down." } }, 429);
       }
     }

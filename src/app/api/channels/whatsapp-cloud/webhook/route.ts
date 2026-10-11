@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     // the adapter only to select a candidate connection; it never replaces
     // these bytes for signature verification.
     const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (!checkRateLimit(`meta-webhook:${clientIp}`, RATE_LIMITS.metaWebhook).allowed) {
+    if (!(await checkRateLimit(`meta-webhook:${clientIp}`, RATE_LIMITS.metaWebhook)).allowed) {
       return NextResponse.json({ status: "rate_limited" }, { status: 429 });
     }
     const declaredLength = Number(request.headers.get("content-length"));

@@ -1,30 +1,10 @@
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
+import { logger } from "@/lib/observability/logger";
+import { getSharedRedis, redisKeyPrefix } from "@/lib/redis/client";
+import { InMemoryRateLimiter } from "@/lib/rate-limiters/in-memory";
+import { RedisRateLimiter } from "@/lib/rate-limiters/redis";
+import type { RateLimitConfig, RateLimitResult } from "@/lib/rate-limiters/types";
 
-const store = new Map<string, RateLimitEntry>();
-
-// Cleanup old entries every 5 minutes
-const CLEANUP_INTERVAL = 5 * 60 * 1000;
-let lastCleanup = Date.now();
-
-function cleanup() {
-  const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL) return;
-  lastCleanup = now;
-
-  for (const [key, entry] of store) {
-    if (now > entry.resetAt) {
-      store.delete(key);
-    }
-  }
-}
-
-export interface RateLimitConfig {
-  maxRequests: number;
-  windowMs: number;
-}
+export type { RateLimitConfig, RateLimitResult };
 
 export const RATE_LIMITS = {
   auth: { maxRequests: 5, windowMs: 60 * 1000 } as RateLimitConfig,
@@ -34,51 +14,45 @@ export const RATE_LIMITS = {
   metaWebhook: { maxRequests: 1200, windowMs: 60 * 1000 } as RateLimitConfig,
 } as const;
 
-export interface RateLimitResult {
-  allowed: boolean;
-  remaining: number;
-  resetAt: number;
-}
+const memory = new InMemoryRateLimiter();
+let warnedAt = 0;
 
-export function checkRateLimit(
-  key: string,
-  config: RateLimitConfig
-): RateLimitResult {
-  cleanup();
-
-  const now = Date.now();
-  const entry = store.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    store.set(key, { count: 1, resetAt: now + config.windowMs });
-    return {
-      allowed: true,
-      remaining: config.maxRequests - 1,
-      resetAt: now + config.windowMs,
-    };
+/**
+ * PLAN.md §29/§46.8 — fixed-window limiter. With `REDIS_URL` set the window
+ * is shared by every replica, so the limit is enforced in aggregate rather
+ * than multiplied by the replica count. Without Redis (the local default) or
+ * while Redis is unreachable it degrades to a per-process window — never an
+ * error, and never a request let through unlimited.
+ */
+export async function checkRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+  const client = await getSharedRedis();
+  if (client) {
+    try {
+      return await new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).check(key, config);
+    } catch (error) {
+      if (Date.now() - warnedAt > 30_000) {
+        warnedAt = Date.now();
+        logger.warn("[RateLimit] Redis check failed, using per-process fallback", { error: String(error) });
+      }
+    }
   }
+  return memory.check(key, config);
+}
 
-  entry.count++;
+export async function resetRateLimit(key: string): Promise<void> {
+  await memory.reset(key);
+  const client = await getSharedRedis();
+  if (client) await new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).reset(key);
+}
 
-  if (entry.count > config.maxRequests) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: entry.resetAt,
-    };
+/** Test-only: drop every counter, in memory and (when selected) in Redis under this process's key prefix. */
+export async function resetRateLimitsForTesting(): Promise<void> {
+  memory.clear();
+  const client = await getSharedRedis();
+  if (!client) return;
+  const keys: string[] = [];
+  for await (const batch of client.scanIterator({ MATCH: `${redisKeyPrefix()}rl:*`, COUNT: 200 })) {
+    keys.push(...(Array.isArray(batch) ? batch : [batch]));
   }
-
-  return {
-    allowed: true,
-    remaining: config.maxRequests - entry.count,
-    resetAt: entry.resetAt,
-  };
-}
-
-export function resetRateLimit(key: string): void {
-  store.delete(key);
-}
-
-export function _getStoreForTesting() {
-  return store;
+  if (keys.length) await client.del(keys);
 }

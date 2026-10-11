@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
   // Polled every few seconds by an open widget — ~20/min is normal.
-  if (!checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, { maxRequests: 90, windowMs: 60_000 }).allowed) {
+  if (!(await checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, { maxRequests: 90, windowMs: 60_000 })).allowed) {
     return reply("Too Many Requests", 429);
   }
 

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // single IP can trigger one (long-lived streams themselves are cheap; the
   // repeated auth attempts are what an attacker would hammer).
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
-  if (!checkRateLimit(`webchat-stream-ip:${connectionId}:${ip}`, { maxRequests: 30, windowMs: 60_000 }).allowed) {
+  if (!(await checkRateLimit(`webchat-stream-ip:${connectionId}:${ip}`, { maxRequests: 30, windowMs: 60_000 })).allowed) {
     return new Response("Too Many Requests", { status: 429 });
   }
 

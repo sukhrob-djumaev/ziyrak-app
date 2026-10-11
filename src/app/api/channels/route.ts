@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await connectionsService.listAll(ctx);
-    return NextResponse.json(result);
+    return NextResponse.json(result.map(connectionsService.toPublicConnection));
   } catch (error) {
     logger.error("Failed to fetch channels:", error);
     return toErrorResponse(error);
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, credential });
 
-    return NextResponse.json(channel, { status: 200 });
+    return NextResponse.json(connectionsService.toPublicConnection(channel), { status: 200 });
   } catch (error) {
     logger.error("Failed to save channel:", error);
     return toErrorResponse(error);

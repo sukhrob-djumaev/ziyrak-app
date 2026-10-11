@@ -335,6 +335,19 @@ describe("MetaCloudWhatsAppAdapter webhook route (§17.6/§20.2/§46.7)", () => 
     expect(response.status).toBe(403);
   });
 
+  it("POST rejects an oversized body with 413 before any parsing or database work", async () => {
+    const oversized = JSON.stringify({ object: "whatsapp_business_account", pad: "x".repeat(4 * 1024 * 1024) });
+    const rawRequest = new Request("https://example.com/api/channels/whatsapp-cloud/webhook", {
+      method: "POST",
+      headers: { "x-hub-signature-256": sign(oversized), "Content-Type": "application/json" },
+      body: oversized,
+    });
+    const { POST } = await import("@/app/api/channels/whatsapp-cloud/webhook/route");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((await POST(rawRequest as any)).status).toBe(413);
+  });
+
   it("POST rejects a missing signature with 403", async () => {
     const conn = await createMetaConnection(businessA.businessId, "route-missing-signature");
     const rawBody = buildPayload(conn.phoneNumberId, "15550005556", "hi", `wamid.${crypto.randomUUID()}`);

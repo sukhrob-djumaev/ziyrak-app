@@ -55,6 +55,15 @@ export async function getByType(ctx: TenantContext, type: string) {
   return connection ?? emptyConnection(type);
 }
 
+/**
+ * The shape returned over HTTP: the encrypted `credentialRef` blob never
+ * leaves the server (PLAN.md §10.3); clients only learn whether one is set.
+ */
+export function toPublicConnection<T extends object>(connection: T) {
+  const { credentialRef, ...rest } = connection as T & { credentialRef?: string | null };
+  return { ...rest, credentialConfigured: Boolean(credentialRef) };
+}
+
 export interface UpsertConnectionInput {
   isActive?: boolean;
   config?: Record<string, unknown>;
@@ -99,12 +108,18 @@ export async function upsertByType(ctx: TenantContext, type: string, rawInput: U
     // encrypted secret", never silently downgrade it to the global fallback.
     if (input.credential) {
       const incoming = MetaWhatsAppCredentialSchema.parse(input.credential);
-      if (!incoming.appSecret && !existing) {
-        throw new AppError(400, "VALIDATION_ERROR", "Meta App Secret is required when creating a WhatsApp Cloud connection.");
-      }
-      if (!incoming.appSecret && existing) {
+      if (!incoming.appSecret) {
+        // A row without a stored credential (new, or left behind by a
+        // disconnect) gets no free pass: it would otherwise verify against the
+        // global fallback secret without anyone having chosen that.
+        if (!existing?.credentialRef) {
+          throw new AppError(400, "VALIDATION_ERROR", "Meta App Secret is required when creating a WhatsApp Cloud connection.");
+        }
         const stored = await resolveChannelCredential(existing.id, MetaWhatsAppCredentialSchema);
-        if (stored?.appSecret) input = { ...input, credential: { ...incoming, appSecret: stored.appSecret } };
+        if (!stored) {
+          throw new AppError(400, "VALIDATION_ERROR", "The stored Meta credential could not be read; enter the App Secret again to re-save this connection.");
+        }
+        if (stored.appSecret) input = { ...input, credential: { ...incoming, appSecret: stored.appSecret } };
       }
     }
   }

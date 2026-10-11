@@ -105,6 +105,65 @@ describe("Meta Cloud connection setup (§46.7)", () => {
     expect(stored?.appSecret).toBe(appSecret);
   });
 
+  it("refuses to re-save without an App Secret when the stored credential cannot be read, instead of silently falling back to the global secret", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-unreadable-${crypto.randomUUID()}`);
+    try {
+      const saved = await connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+        isActive: true,
+        credential: credential(phoneNumberId, "good-token"),
+      });
+      await prisma.channelConnection.update({ where: { id: saved.id }, data: { credentialRef: "not-decryptable" } });
+
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("still requires an App Secret after a disconnect left an empty connection row behind", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-disconnect-${crypto.randomUUID()}`);
+    try {
+      await connectionsService.performAction(fresh.ctx, "whatsapp_cloud", "disconnect");
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("never serializes the encrypted credential blob in channel API responses", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-public-${crypto.randomUUID()}`);
+    try {
+      await connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+        isActive: true,
+        credential: credential(phoneNumberId, "good-token"),
+      });
+      const [listed] = (await connectionsService.listAll(fresh.ctx)).filter((c) => c.type === "whatsapp_cloud");
+      const byType = await connectionsService.getByType(fresh.ctx, "whatsapp_cloud");
+      for (const row of [connectionsService.toPublicConnection(listed), connectionsService.toPublicConnection(byType)]) {
+        expect(row).not.toHaveProperty("credentialRef");
+        expect(row).toMatchObject({ credentialConfigured: true });
+      }
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
   it("preserves an existing encrypted App Secret when the business replaces only its access token", async () => {
     const phoneNumberId = `pn-${crypto.randomUUID()}`;
     const appSecret = `app-secret-${crypto.randomUUID()}`;

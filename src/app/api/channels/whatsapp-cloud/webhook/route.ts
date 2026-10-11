@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
  * Reads the body as raw text first (never `request.json()`) since signature
  * verification requires the exact bytes Meta signed.
  */
+/** Meta documents payloads of up to 3 MB; anything larger is rejected unread. */
+const MAX_WEBHOOK_BODY_BYTES = 3 * 1024 * 1024;
+
 export async function POST(request: NextRequest) {
   const receivedAt = performance.now();
   const acknowledge = (
@@ -66,7 +69,14 @@ export async function POST(request: NextRequest) {
     // Preserve the exact wire bytes for Meta's HMAC. JSON parsing happens in
     // the adapter only to select a candidate connection; it never replaces
     // these bytes for signature verification.
+    const declaredLength = Number(request.headers.get("content-length"));
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
+      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+    }
     const rawBody = Buffer.from(await request.arrayBuffer());
+    if (rawBody.byteLength > MAX_WEBHOOK_BODY_BYTES) {
+      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+    }
     const headers: Record<string, string> = {};
     request.headers.forEach((value, key) => {
       headers[key.toLowerCase()] = value;

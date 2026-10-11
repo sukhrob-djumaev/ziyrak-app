@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const channel = await connectionsService.getByType(ctx, type);
-    return NextResponse.json(channel);
+    return NextResponse.json(connectionsService.toPublicConnection(channel));
   } catch (error) {
     logger.error("Failed to fetch channel:", error);
     return toErrorResponse(error);
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const channel = await connectionsService.upsertByType(ctx, type, { isActive, config, status, credential });
 
-    return NextResponse.json(channel);
+    return NextResponse.json(connectionsService.toPublicConnection(channel));
   } catch (error) {
     logger.error("Failed to update channel:", error);
     return toErrorResponse(error);
@@ -88,11 +88,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({
         success: true,
         message: `${type} connection test initiated`,
-        channel: result.connection,
+        channel: result.connection && connectionsService.toPublicConnection(result.connection),
       });
     }
 
-    return NextResponse.json({ ...result, message: `${type} channel ${action}ed` });
+    return NextResponse.json({ ...connectionsService.toPublicConnection(result), message: `${type} channel ${action}ed` });
   } catch (error) {
     logger.error("Failed to perform channel action:", error);
     return toErrorResponse(error);

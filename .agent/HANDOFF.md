@@ -1,20 +1,19 @@
 # Latest session handoff
 
-Session: 2026-10-09/10 (Asia/Kuala_Lumpur) — live Meta J16 Business B bring-up. No application code or `PLAN.md` changes.
+Session: 2026-10-10/11 (Asia/Kuala_Lumpur) — live Meta J16 two-number acceptance and security hardening.
 
 ## Changes and findings
 
-- Restarted Docker/`owly-db-1`; restarted only our Cloudflare quick tunnel twice (dies every few hours; URL changes). Other app's tunnel not touched.
-- Meta-side change (user-approved): `POST /{B WABA}/subscribed_apps` with B's stored token, subscribing "Ziyrak Test C". Before this, no webhook reached the app at all.
-- After that, live B inbound passed end to end up to Graph send (see `CURRENT.md`). Fresh evidence is in the database/logs only; not yet written into `PLAN.md`.
-- Outbound delivery fails asynchronously with 131031 "Business Account locked". Health Status shows both test accounts blocked for incomplete profile (131000), unverified business (141010) and payment method (141006). Web research (n8n thread, vendor guides, Meta docs) is consistent but has no verified fix.
-- `.env` access token was updated by the user for A, but A's stored product credential still has the expired token.
+- Fixed delivery of live traffic: subscribed each Meta app to its WABA, re-pointed callbacks to the quick tunnel, corrected the B token/app mix-up (B uses "Ziyrak Test C"; A uses `ziyrak_test`).
+- Live evidence (recorded in `PLAN.md` §46.7, 2026-10-11): A/B isolation passed both ways, replay and bad-signature probes held. Recipient-visible delivery is blocked by Meta error 131031 (Health Status: profile 131000, verification 141010, payment 141006).
+- Independent read-only security review found no bypass or cross-tenant injection. Code fixes (`cf6eec7`, tests first): 3 MiB webhook body cap (413), no silent fallback to the global secret for unreadable/empty stored credentials, `credentialRef` removed from channel API responses (`credentialConfigured` boolean instead). Unchanged and open: App Secret design deviation (rule 11), pre-verification lookup/rate limit, unique index for `phoneNumberId`, batched messages.
+- Web rebuilt and restarted (only that launchd job); worker and the user's other tunnel untouched.
 
 ## Verification
 
-- Read-only Graph calls only (phone/WABA info, `subscribed_apps`, `health_status`) using stored/`.env` credentials without printing secrets; temporary scripts deleted. DB queries by id/hash only.
-- No automated tests, build, security review, or isolation journey run this session.
+- `npx vitest run`: 95 files / 967 tests passed; `npx tsc --noEmit`, `npm run lint -- --max-warnings 0`, `npm run build` passed (isolated `owly_test`). Live probes after restart: oversized 413, signed replay 200 with unchanged counts, bad signature 403. `npm run test:smoke:meta` and the browser journey suite were not run.
+- Read-only Graph calls and temporary scripts only (deleted); no secrets printed or stored. The `PLAN.md` file has pre-existing Prettier warnings.
 
 ## Continuation point
 
-Follow `CURRENT.md` Next actions: user fixes Meta business profile/payment/verification and refreshes A's token in the product; lead re-runs health check, then drives A/B isolation, replay, tests, independent security review, and records evidence in `PLAN.md`. Phase 7 stays open; stop before Phase 8.
+Follow `.agent/CURRENT.md`: the user clears the Meta account blockers and decides the App Secret design; the lead then re-runs Health Status, gets a visible-reply run for A and B, optionally the Meta smoke, and re-evaluates Phase 7's gates. Phase 7 stays open; stop before Phase 8.

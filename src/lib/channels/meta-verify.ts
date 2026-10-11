@@ -24,17 +24,10 @@ export function validateMetaSignature(appSecret: string, signatureHeader: string
 }
 
 /**
- * The Meta App's own platform-level secrets (§20.2 — one Ziyrak-owned Meta
- * App/webhook subscription shared by every tenant's phone numbers, distinct
- * from each business's own per-`ChannelConnection` `phoneNumberId`/
- * `accessToken`). Read lazily (not at module load) so importing this module
- * in a test/dev environment without either var set doesn't throw until the
- * webhook route actually needs one.
+ * The platform-level webhook verify token. App Secrets are not platform-level:
+ * each connection verifies with its own encrypted one. Read lazily so importing
+ * this module without the variable set doesn't throw until the route needs it.
  */
-export function getMetaAppSecret(): string | undefined {
-  return process.env.META_APP_SECRET || undefined;
-}
-
 export function getMetaWebhookVerifyToken(): string | undefined {
   return process.env.META_WEBHOOK_VERIFY_TOKEN || undefined;
 }

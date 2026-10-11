@@ -68,7 +68,7 @@ interface MetaConnectionSetup {
   accessToken: string;
 }
 
-async function createMetaConnection(businessId: string, label: string, appSecret?: string): Promise<MetaConnectionSetup> {
+async function createMetaConnection(businessId: string, label: string, appSecret: string | null = APP_A_SECRET): Promise<MetaConnectionSetup> {
   const phoneNumberId = `phone-number-${label}-${crypto.randomUUID()}`;
   const accessToken = `access-token-${label}-${crypto.randomUUID()}`;
   const credentialRef = await encryptChannelCredential({
@@ -148,7 +148,16 @@ describe("MetaCloudWhatsAppAdapter webhook security (§20.2/§46.7)", () => {
     expect(await prisma.inboundEventReceipt.count({ where: { businessId: businessB.businessId, source: "whatsapp_cloud", externalEventId: wamid } })).toBe(0);
   });
 
-  it("rejects a legacy Business A webhook signed with Business B's App Secret", async () => {
+  it("rejects a connection that has no App Secret of its own, even when the request is signed with the deployment's legacy META_APP_SECRET", async () => {
+    const legacy = await createMetaConnection(businessA.businessId, "no-own-secret", null);
+    const rawBody = buildPayload(legacy.phoneNumberId, "15550008888", "hi", `wamid.${crypto.randomUUID()}`);
+
+    const result = await metaCloudWhatsAppAdapter.validateInbound(buildRequest(rawBody, sign(rawBody, process.env.META_APP_SECRET)));
+
+    expect(result).toMatchObject({ kind: "rejected", authenticated: false });
+  });
+
+  it("rejects a Business A webhook signed with Business B's App Secret", async () => {
     const connA = await createMetaConnection(businessA.businessId, "app-a-wrong-b");
     const rawBody = buildPayload(connA.phoneNumberId, "15550001114", "wrong secret", `wamid.${crypto.randomUUID()}`);
 

@@ -18,11 +18,11 @@ import { z } from "zod";
 // so retyping its literal is a non-breaking correction of a scaffolded-but-
 // unwired type, not a migration. `phoneNumberId`/`accessToken`/
 // `businessAccountId` are per-ChannelConnection (a business's own system-user
-// token, scoped to its own WABA/phone number). `appSecret` is optional only
-// for backward compatibility with connections created before Ziyrak supported
-// separate Meta Developer Apps: absent means use legacy `META_APP_SECRET`.
-// When supplied, it is encrypted in this credential and selects the sole key
-// used for this connection's inbound HMAC verification.
+// token, scoped to its own WABA/phone number). `appSecret` is the
+// connection's own Meta App Secret, encrypted in this credential; it is the sole
+// key used for this connection's inbound HMAC verification. It stays optional in
+// the schema only so an old stored credential still parses; a connection without
+// one is rejected at the webhook (there is no platform-wide fallback secret).
 export const MetaWhatsAppCredentialSchema = z.object({
   type: z.literal("whatsapp_cloud"),
   phoneNumberId: z.string().min(1),

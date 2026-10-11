@@ -6,7 +6,7 @@ import type { ChannelAdapter, ChannelStatus, OutboundContent, SendResult, Valida
 import { registerChannelAdapter } from "./registry";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { validateMetaSignature, getMetaAppSecret } from "./meta-verify";
+import { validateMetaSignature } from "./meta-verify";
 import { logger } from "@/lib/observability/logger";
 
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
@@ -103,8 +103,8 @@ function extractFirstInboundMessage(payload: MetaWebhookPayload): { value: MetaW
  * per-connection secret in the inbound request at all) — Meta's webhook is
  * authentication begins with an untrusted-but-side-effect-free extraction of
  * `phone_number_id`, which selects one active `ChannelConnection` and exactly
- * one HMAC key. The connection's encrypted `appSecret` wins; legacy
- * connections fall back to platform `META_APP_SECRET`. Only a successful
+ * one HMAC key: the connection's own encrypted `appSecret` (a connection
+ * without one is rejected). Only a successful
  * verification authorizes tenant context construction or any persistence. No Puppeteer, no
  * browser session, no QR code: every method is stateless and this adapter
  * never gates on `assertDefaultBusinessOnly()` (§20.1's whole point).
@@ -140,9 +140,10 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
       return { kind: "rejected", reason: "Connection has no valid Meta WhatsApp credential", authenticated: false };
     }
 
-    // Do not try a pool of secrets: this candidate connection determines the
-    // only permitted secret. Global fallback exists solely for legacy rows.
-    const appSecret = credential.appSecret ?? getMetaAppSecret();
+    // Do not try a pool of secrets: this candidate connection's own encrypted
+    // App Secret is the only permitted key. There is no platform-wide fallback,
+    // so no single shared secret can forge events for several tenants.
+    const appSecret = credential.appSecret;
     if (!appSecret) return { kind: "rejected", reason: "No Meta App Secret is configured for this connection", authenticated: false };
 
     const signature = request.headers["x-hub-signature-256"] || "";

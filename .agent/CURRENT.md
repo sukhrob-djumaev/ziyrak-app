@@ -4,7 +4,7 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 - **Phase:** 8 — Scalability and Shared Infrastructure (§46.8), authorized by the owner on 2026-10-11 ("lets proceed"). Phase 7 closed earlier (`phase-7-complete`, local only).
 - **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Complete; `phase-8-complete` tagged locally on the owner's delegation (not pushed).
-- **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), plus the record/review commit. Recheck Git at every resume.
+- **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), `fa564b9` (review fixes + record), `c209a80` (trusted-proxy client IP). Pushed to `origin/claude/phase8-redis-scalability` on 2026-10-11 (no PR opened yet: no `gh`; use the compare URL). Recheck Git at every resume.
 
 ## Status
 
@@ -14,13 +14,13 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Next actions
 
-1. Owner decides whether to push/merge (nothing pushed).
+1. Owner opens/merges the PR (branch pushed; tags are local only).
 2. Optional: decide on bounding the stall when a worker dies without draining (heartbeat / shorter `expireInSeconds`) — changes retry semantics, so not done.
 3. Phase 9 only with explicit authorization.
 
 ## Environment notes
 
-- Live Meta stack unchanged this session: web :3100 / worker / tunnel run under launchd from the earlier build (`.next` was NOT rebuilt locally; Phase 8 was built only inside Docker). Restarting or rebuilding it picks up the Redis-aware code; with `REDIS_URL` unset behavior is unchanged.
+- Live Meta stack restarted on the Phase 8 build on 2026-10-11 (host `npm run build` passed). `com.ziyrak.meta.web` and `.worker` now run as `ProcessType=Interactive` launchd services (plists in the session scratchpad, bootstrapped; not persistent across reboot) running `node` directly; plain `launchctl submit` + `npx`/`npm` jobs took 40s+ to start and hung under this Mac's memory thrash. Tunnel untouched. `REDIS_URL` unset, so behavior is the in-memory default.
 - Test Redis container `owly-redis-test` on :6390 (`REDIS_TEST_URL`/`REDIS_URL=redis://localhost:6390`); remove with `docker rm -f owly-redis-test` when done. Live Postgres `owly-db-1` untouched; the load test uses its own compose project `owlyload` (torn down).
 
 ## Prohibited

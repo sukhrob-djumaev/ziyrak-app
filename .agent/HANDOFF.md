@@ -19,6 +19,10 @@ Session: 2026-10-11 (Asia/Kuala_Lumpur) — Phase 8 (Scalability and Shared Infr
 - `scripts/loadtest/run.sh both`: 8/8 in Redis-on and Redis-off control runs on the final image; Redis-outage probe passed (before the breaker change; the breaker only shortens it).
 - Not run: a real Kubernetes cluster (HPA objects rendered only), `npm run build` on the host (the live `.next` was deliberately not rebuilt), Meta smoke suites.
 
+## Later in session
+
+- `c209a80` trusted-proxy client IP (`TRUSTED_PROXY_HOPS`; Helm default 1). Branch pushed. Live web/worker rebuilt and restarted; health 200 locally and through the tunnel; pg-boss sweeps completing. No real inbound Meta message was sent after the restart.
+
 ## Continuation point
 
-`phase-8-complete` tagged locally (owner delegated the call). Owner decides: push/merge (nothing pushed), the worker-dies-without-draining stall (heartbeat/expiry decision), trusted-proxy hops for client IP. Phase 9 needs explicit authorization. Remove test Redis with `docker rm -f owly-redis-test`.
+`phase-8-complete` tagged locally (owner delegated the call). Owner decides: PR/merge, the worker-dies-without-draining stall (heartbeat/expiry decision). Phase 9 needs explicit authorization. Remove test Redis with `docker rm -f owly-redis-test`.

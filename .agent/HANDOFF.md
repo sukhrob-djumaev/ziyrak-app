@@ -17,3 +17,7 @@ Session: 2026-10-10/11 (Asia/Kuala_Lumpur) — live Meta J16 two-number acceptan
 ## Continuation point
 
 Follow `.agent/CURRENT.md`: the user clears the Meta account blockers and decides the App Secret design; the lead then re-runs Health Status, gets a visible-reply run for A and B, optionally the Meta smoke, and re-evaluates Phase 7's gates. Phase 7 stays open; stop before Phase 8.
+
+## Addendum (same session)
+
+- Owner decision recorded in `PLAN.md`: visible delivery on the second number is waived for this run (Meta test accounts blocked for A and B alike; A's visible delivery observed 2026-10-06). Remaining Phase 7 gate: the live `test:smoke:meta` run (needs a third number; see `CURRENT.md`). Tag only after every gate passes and the owner authorizes.

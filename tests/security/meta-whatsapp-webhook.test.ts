@@ -275,6 +275,78 @@ describe("MetaCloudWhatsAppAdapter webhook security (§20.2/§46.7)", () => {
   });
 });
 
+describe("MetaCloudWhatsAppAdapter payload handling (§46.7 hardening)", () => {
+  it("processes the first text message of a batch even when an earlier message in the same change is not text", async () => {
+    const conn = await createMetaConnection(businessA.businessId, "batched", APP_A_SECRET);
+    const wamid = `wamid.${crypto.randomUUID()}`;
+    const rawBody = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [
+        {
+          id: "waba-entry",
+          changes: [
+            {
+              field: "messages",
+              value: {
+                metadata: { phone_number_id: conn.phoneNumberId },
+                contacts: [{ profile: { name: "Batch" }, wa_id: "15550007777" }],
+                messages: [
+                  { from: "15550007777", id: `wamid.${crypto.randomUUID()}`, timestamp: "1700000000", type: "image" },
+                  { from: "15550007777", id: wamid, timestamp: "1700000001", type: "text", text: { body: "second in batch" } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await metaCloudWhatsAppAdapter.validateInbound(buildRequest(rawBody, sign(rawBody)));
+    expect(result.kind).toBe("new");
+  });
+
+  it("logs a failed delivery status's error code without recipient or message content", async () => {
+    const conn = await createMetaConnection(businessA.businessId, "status-failed", APP_A_SECRET);
+    const rawBody = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [
+        {
+          id: "waba-entry",
+          changes: [
+            {
+              field: "messages",
+              value: {
+                metadata: { phone_number_id: conn.phoneNumberId },
+                statuses: [
+                  {
+                    id: "wamid.failed-status",
+                    status: "failed",
+                    recipient_id: "15550001234",
+                    errors: [{ code: 131031, title: "Business Account locked", message: "Business Account locked" }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const { logger } = await import("@/lib/observability/logger");
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    try {
+      const result = await metaCloudWhatsAppAdapter.validateInbound(buildRequest(rawBody, sign(rawBody)));
+      expect(result).toMatchObject({ kind: "rejected", authenticated: true });
+      const call = warn.mock.calls.find(([message]) => String(message).includes("delivery failed"));
+      expect(call).toBeDefined();
+      const serialized = JSON.stringify(call);
+      expect(serialized).toContain("131031");
+      expect(serialized).not.toContain("15550001234");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
 describe("MetaCloudWhatsAppAdapter.sendMessage tenant check (§46.7)", () => {
   it("refuses to send through another business's connection, never decrypting its access token", async () => {
     const connA = await createMetaConnection(businessA.businessId, "cross-send-a");
@@ -346,6 +418,23 @@ describe("MetaCloudWhatsAppAdapter webhook route (§17.6/§20.2/§46.7)", () => 
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((await POST(rawRequest as any)).status).toBe(413);
+  });
+
+  it("POST answers 429 once a client exceeds the unauthenticated-request budget, before any parsing or database work", async () => {
+    const { RATE_LIMITS } = await import("@/lib/rate-limit");
+    const { POST } = await import("@/app/api/channels/whatsapp-cloud/webhook/route");
+    const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+    let lastStatus = 0;
+    for (let i = 0; i <= RATE_LIMITS.metaWebhook.maxRequests; i++) {
+      const request = new Request("https://example.com/api/channels/whatsapp-cloud/webhook", {
+        method: "POST",
+        headers: { "x-forwarded-for": ip, "Content-Type": "application/json" },
+        body: "{}",
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      lastStatus = (await POST(request as any)).status;
+    }
+    expect(lastStatus).toBe(429);
   });
 
   it("POST rejects a missing signature with 403", async () => {

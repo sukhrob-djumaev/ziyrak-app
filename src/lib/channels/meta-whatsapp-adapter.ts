@@ -22,7 +22,7 @@ interface MetaWebhookValue {
     type: string;
     text?: { body: string };
   }[];
-  statuses?: unknown[];
+  statuses?: { id?: string; status?: string; errors?: { code?: number; title?: string }[] }[];
 }
 
 interface MetaWebhookPayload {
@@ -88,10 +88,8 @@ export function extractMetaPhoneNumberIds(rawBody: Buffer | string): MetaPhoneNu
 function extractFirstInboundMessage(payload: MetaWebhookPayload): { value: MetaWebhookValue; message: NonNullable<MetaWebhookValue["messages"]>[number] } | null {
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
-      const message = change.value.messages?.[0];
-      if (message && message.type === "text" && message.text?.body) {
-        return { value: change.value, message };
-      }
+      const message = change.value.messages?.find((m) => m.type === "text" && m.text?.body);
+      if (message) return { value: change.value, message };
     }
   }
   return null;
@@ -163,6 +161,22 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
 
     const found = extractFirstInboundMessage(payload);
     if (!found) {
+      // A failed delivery status is the only place Meta says why a reply
+      // never reached the sender (e.g. 131031 account locked). Log the code
+      // and title only — never the recipient or any message content.
+      for (const entry of payload.entry ?? []) {
+        for (const change of entry.changes ?? []) {
+          for (const status of change.value.statuses ?? []) {
+            if (status.status !== "failed") continue;
+            logger.warn("[MetaWhatsApp] Outbound delivery failed", {
+              connectionId: resolved.connectionId,
+              businessId: resolved.businessId,
+              errorCodes: (status.errors ?? []).map((e) => e.code),
+              errorTitle: status.errors?.[0]?.title,
+            });
+          }
+        }
+      }
       // Status callbacks (delivered/read) and non-text message types land
       // here — not this phase's scope (§46.7 task 1 names text messages;
       // delivery-receipt processing is not a named acceptance criterion).

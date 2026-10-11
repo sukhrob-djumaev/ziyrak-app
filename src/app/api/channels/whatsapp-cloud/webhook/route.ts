@@ -3,6 +3,7 @@ import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
 import { getMetaWebhookVerifyToken } from "@/lib/channels/meta-verify";
 import { enqueueInboundProcessing } from "@/lib/events/dispatch";
 import { logger } from "@/lib/observability/logger";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * PLAN.md §20.2/§46.7 — one shared, Ziyrak-owned webhook URL registered once
@@ -69,6 +70,10 @@ export async function POST(request: NextRequest) {
     // Preserve the exact wire bytes for Meta's HMAC. JSON parsing happens in
     // the adapter only to select a candidate connection; it never replaces
     // these bytes for signature verification.
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(`meta-webhook:${clientIp}`, RATE_LIMITS.metaWebhook).allowed) {
+      return NextResponse.json({ status: "rate_limited" }, { status: 429 });
+    }
     const declaredLength = Number(request.headers.get("content-length"));
     if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
       return NextResponse.json({ status: "payload_too_large" }, { status: 413 });

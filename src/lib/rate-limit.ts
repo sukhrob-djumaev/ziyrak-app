@@ -29,6 +29,9 @@ export interface RateLimitConfig {
 export const RATE_LIMITS = {
   auth: { maxRequests: 5, windowMs: 60 * 1000 } as RateLimitConfig,
   api: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
+  // Public provider webhook: generous for Meta's real bursts, but bounds the
+  // pre-verification lookup/decrypt work an unauthenticated client can force.
+  metaWebhook: { maxRequests: 1200, windowMs: 60 * 1000 } as RateLimitConfig,
 } as const;
 
 export interface RateLimitResult {

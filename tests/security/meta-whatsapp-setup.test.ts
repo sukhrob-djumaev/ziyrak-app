@@ -9,7 +9,6 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import * as connectionsService from "@/lib/channels/connections-service";
 import { findConnectionByConfigField, encryptChannelCredential, resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
-import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
 import { MetaWhatsAppCredentialSchema } from "@/lib/secrets";
 
 /**
@@ -246,33 +245,22 @@ describe("Meta Cloud connection setup (§46.7)", () => {
   });
 });
 
-describe("ambiguous routing fails closed (§7.7/§46.7)", () => {
-  it("if two active connections ever share a phone_number_id, inbound resolves to neither business", async () => {
+describe("a phone_number_id cannot be claimed by two active connections (§7.7/§46.7)", () => {
+  it("the database itself refuses a second active connection with the same phone_number_id, closing the check-then-write race", async () => {
     const phoneNumberId = `pn-dup-${crypto.randomUUID()}`;
     const credentialRef = await encryptChannelCredential({ type: "whatsapp_cloud", phoneNumberId, accessToken: "t", businessAccountId: "w" });
-    for (const b of [businessA, businessB]) {
-      await prisma.channelConnection.create({
-        data: { businessId: b.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
-      });
-    }
+    await prisma.channelConnection.create({
+      data: { businessId: businessA.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
+    });
 
-    expect(await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId)).toBeNull();
+    await expect(
+      prisma.channelConnection.create({
+        data: { businessId: businessB.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
+      })
+    ).rejects.toThrow();
 
-    const previous = process.env.META_APP_SECRET;
-    process.env.META_APP_SECRET = "ambiguity-secret";
-    try {
-      const rawBody = JSON.stringify({
-        object: "whatsapp_business_account",
-        entry: [{ id: "w", changes: [{ field: "messages", value: {
-          metadata: { phone_number_id: phoneNumberId },
-          messages: [{ from: "15550009999", id: `wamid.${crypto.randomUUID()}`, timestamp: "1700000000", type: "text", text: { body: "hi" } }],
-        } }] }],
-      });
-      const signature = `sha256=${crypto.createHmac("sha256", "ambiguity-secret").update(rawBody).digest("hex")}`;
-      const result = await metaCloudWhatsAppAdapter.validateInbound({ headers: { "x-hub-signature-256": signature }, rawBody });
-      expect(result.kind).toBe("rejected");
-    } finally {
-      process.env.META_APP_SECRET = previous;
-    }
+    const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId);
+    expect(resolved?.businessId).toBe(businessA.businessId);
+    await prisma.channelConnection.deleteMany({ where: { businessId: businessA.businessId, name: "dup" } });
   });
 });

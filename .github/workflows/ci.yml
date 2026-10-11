@@ -29,6 +29,18 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      # PLAN.md §46.8 — the Redis adapters' contract tests need a real Redis,
+      # and the suite is run a second time with Redis selected.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
         env:
@@ -59,6 +71,15 @@ jobs:
 
       - name: Test
         run: npm run test
+        env:
+          REDIS_TEST_URL: redis://localhost:6379
+
+      # The same suite, unchanged, with the Redis-backed rate limiter, cache,
+      # realtime bus and placement cache selected (PLAN.md §46.8 acceptance).
+      - name: Test (Redis-backed adapters selected)
+        run: npm run test
+        env:
+          REDIS_URL: redis://localhost:6379
 
       - name: Build
         run: npm run build

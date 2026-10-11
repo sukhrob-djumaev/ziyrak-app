@@ -150,6 +150,9 @@ export class PgBossJobQueue implements JobQueue {
    * resolving a placement that doesn't exist.
    */
   private async runJob(jobType: string, job: Job<{ businessId?: string }>, handler: Handler): Promise<void> {
+    // PLAN.md §46.8 — opt-in (JOB_TRACE=1) per-job line so a multi-replica
+    // load test can attribute each job to the worker process that ran it.
+    if (process.env.JOB_TRACE === "1") logger.info("[PgBossJobQueue] job", { jobType, jobId: job.id });
     if (!job.data.businessId) {
       const platformCtx: TenantContext = {
         businessId: "",

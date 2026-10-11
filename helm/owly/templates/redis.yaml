@@ -1,0 +1,58 @@
+{{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
+# PLAN.md §29/§46.8 — in-cluster Redis for the shared rate limit, cache and
+# realtime bus. Not a source of truth: no persistence, bounded memory, evicts
+# only keys that carry a TTL. Prefer a managed/HA Redis in production
+# (redis.external.url).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "owly.fullname" . }}-redis
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "owly.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "owly.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          args: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "owly.fullname" . }}-redis
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: redis
+      name: redis
+  selector:
+    {{- include "owly.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+{{- end }}

@@ -1,0 +1,32 @@
+{{- if .Values.worker.autoscaling.enabled }}
+# PLAN.md §42/§46.8 — the worker tier scales independently of the web tier.
+# CPU-based: handlers are CPU/IO bound AI calls. Replicas are safe to add and
+# remove at any time — pg-boss hands each job to exactly one worker, same-
+# conversation jobs stay ordered across workers (key_strict_fifo), and a
+# stopping worker drains its in-flight jobs (SIGTERM, src/worker.ts).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "owly.fullname" . }}-worker
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "owly.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      # Give in-flight jobs time to finish; avoid flapping on bursty traffic.
+      stabilizationWindowSeconds: 300
+{{- end }}

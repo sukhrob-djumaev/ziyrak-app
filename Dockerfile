@@ -79,4 +79,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+# `exec` + `node` directly (not `npm start`): npm as PID 1 does not forward
+# SIGTERM, so a scale-down or rolling deploy would hard-kill the server instead
+# of letting it drain (PLAN.md §46.8 — found by the multi-replica load test).
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node node_modules/next/dist/bin/next start"]

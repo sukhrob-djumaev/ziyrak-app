@@ -484,7 +484,7 @@ helm install owly helm/owly \
   --set ingress.hosts[0].host=support.yourdomain.com
 ```
 
-The Helm chart includes startup/liveness/readiness probes, horizontal pod autoscaling, Ingress with TLS, PersistentVolumeClaim for WhatsApp sessions, and init container for database migrations. See [`helm/owly/values.yaml`](helm/owly/values.yaml) for all options.
+The Helm chart includes startup/liveness/readiness probes, horizontal pod autoscaling (app and worker), in-cluster Redis (or an external one) and PgBouncer, Ingress with TLS, an optional PersistentVolumeClaim for WhatsApp Web sessions (off by default; single-replica demo only), and init container for database migrations. Running more than one replica requires Redis (shared rate limit, cache and realtime bus); the chart refuses to render without it. Verify a topology with `scripts/loadtest/run.sh`. See [`helm/owly/values.yaml`](helm/owly/values.yaml) for all options.
 
 ---
 

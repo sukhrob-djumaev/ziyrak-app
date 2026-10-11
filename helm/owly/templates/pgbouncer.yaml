@@ -1,0 +1,93 @@
+{{- if and .Values.pgbouncer.enabled (not .Values.database.url) }}
+# PLAN.md §28.4/§46.8 — PgBouncer in transaction-pooling mode in front of
+# PostgreSQL. Runtime traffic (DATABASE_URL) goes through it; migrations and
+# the job queue use DIRECT_DATABASE_URL.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "owly.fullname" . }}-pgbouncer
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+type: Opaque
+stringData:
+  DB_PASSWORD: {{ .Values.database.password | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "owly.fullname" . }}-pgbouncer
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "owly.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgbouncer
+  template:
+    metadata:
+      labels:
+        {{- include "owly.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: "{{ .Values.pgbouncer.image.repository }}:{{ .Values.pgbouncer.image.tag }}"
+          env:
+            - name: DB_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "owly.fullname" . }}-pgbouncer
+                  key: DB_PASSWORD
+            - name: AUTH_TYPE
+              value: scram-sha-256
+            - name: POOL_MODE
+              value: transaction
+            - name: MAX_CLIENT_CONN
+              value: {{ .Values.pgbouncer.maxClientConn | quote }}
+            - name: DEFAULT_POOL_SIZE
+              value: {{ .Values.pgbouncer.defaultPoolSize | quote }}
+            - name: RESERVE_POOL_SIZE
+              value: {{ .Values.pgbouncer.reservePoolSize | quote }}
+            - name: SERVER_RESET_QUERY
+              value: DISCARD ALL
+            - name: IGNORE_STARTUP_PARAMETERS
+              value: extra_float_digits
+          ports:
+            - name: pg
+              containerPort: 5432
+          readinessProbe:
+            tcpSocket:
+              port: pg
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: pg
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.pgbouncer.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "owly.fullname" . }}-pgbouncer
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  ports:
+    - port: 5432
+      targetPort: pg
+      name: pg
+  selector:
+    {{- include "owly.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+{{- end }}

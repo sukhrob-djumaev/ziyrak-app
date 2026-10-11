@@ -14,10 +14,9 @@ type RouteContext = { params: Promise<{ connectionId: string }> };
 // tight per-IP one (one visitor can't flood), and a looser per-token one (a
 // leaked/abused token can't be used to flood a business from many IPs — the
 // key uses a hash of the presented token, so a forged token just burns its
-// own bucket). A per-connection `rateLimitPerMinute` override and
-// cross-replica enforcement are Phase 8's Redis-backed limiter (§46.5's own
-// deferral, re-confirmed by §46.7's prompt) — these in-memory, per-process
-// defaults are what's available now.
+// own bucket). Both buckets live in the shared limiter (§46.8): with Redis
+// configured the limit holds across replicas; without it, per process. A
+// per-connection `rateLimitPerMinute` override is still unbuilt.
 const WEBCHAT_IP_RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 };
 const WEBCHAT_TOKEN_RATE_LIMIT = { maxRequests: 120, windowMs: 60_000 };
 

@@ -63,10 +63,17 @@ resources:
     cpu: "1"
     memory: 1Gi
 
-# -- Autoscaling
+# -- Autoscaling (PLAN.md §46.8)
+# Safe to enable because the rate limiter, cache and realtime bus are shared
+# through Redis and runtime DB connections go through PgBouncer; the
+# multi-replica load test (scripts/loadtest/run.sh) is the evidence. The chart
+# refuses to render with more than one replica (or autoscaling) and no Redis —
+# without it each replica would keep its own rate-limit window and miss the
+# other replicas' realtime events, silently. The worker scales on CPU; a
+# queue-depth policy needs a custom-metrics adapter (pg-boss exposes depth).
 autoscaling:
-  enabled: false
-  minReplicas: 1
+  enabled: true
+  minReplicas: 2
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
@@ -75,9 +82,12 @@ autoscaling:
 # `npm run worker` (src/worker.ts) against the same image, so it can be
 # scaled independently of the web app's replicaCount above.
 worker:
-  replicaCount: 1
+  replicaCount: 2
   autoscaling:
-    enabled: false
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
   resources:
     requests:
       cpu: 100m
@@ -113,15 +123,63 @@ database:
   password: "postgres"
   sslMode: "prefer"
 
+# -- Redis (PLAN.md §29/§46.8): shared rate limit, cache and realtime bus. Never a
+# source of truth — an outage degrades to per-process behavior, it does not
+# lose data. In production prefer a managed/HA Redis: set `external.url` (a
+# redis:// or rediss:// URL) and the in-cluster instance below is not created.
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+  external:
+    url: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 300Mi
+
+# -- PgBouncer (PLAN.md §28.4/§46.8): transaction pooling between every
+# app/worker replica and PostgreSQL. Runtime traffic uses it (DATABASE_URL);
+# migrations and the job queue use the direct URL (DIRECT_DATABASE_URL) because
+# they need session-level advisory locks. Size: defaultPoolSize bounds the
+# connections opened to PostgreSQL regardless of replica count; keep
+# defaultPoolSize <= postgres max_connections minus headroom for the direct
+# connections (migrations + each worker's job queue).
+pgbouncer:
+  enabled: true
+  image:
+    repository: edoburu/pgbouncer
+    tag: v1.25.1-p0
+  maxClientConn: 500
+  defaultPoolSize: 20
+  reservePoolSize: 5
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
 # -- Application config (non-sensitive)
 config:
+  # Per-process connection pool size (DATABASE_POOL_MAX). With PgBouncer this
+  # is client connections to the pooler; without it, to PostgreSQL itself:
+  # then size it as (postgres_max_connections / total_replicas) minus headroom.
+  databasePoolMax: 10
   nodeEnv: "production"
   appUrl: "http://localhost:3000"
   corsOrigin: ""
 
 # -- Secrets (sensitive)
 secrets:
-  # Use existingSecret to reference a pre-created K8s Secret
+  # Use existingSecret to reference a pre-created K8s Secret. It must then also
+  # provide DATABASE_URL, DIRECT_DATABASE_URL (when pgbouncer is enabled) and
+  # REDIS_URL.
   existingSecret: ""
   # Only used when existingSecret is empty:
   jwtSecret: ""
@@ -136,9 +194,12 @@ secrets:
 migration:
   enabled: true
 
-# -- Persistent storage for WhatsApp sessions
+# -- Persistent storage for WhatsApp Web sessions (dev/demo adapter only, PLAN.md
+# §20.1/§27.2). Off by default: a ReadWriteOnce volume cannot be mounted by
+# autoscaled app replicas on different nodes, and that adapter is single-
+# instance by design. Enable it only for a one-replica demo deployment.
 persistence:
-  enabled: true
+  enabled: false
   size: 1Gi
   storageClass: ""
   accessModes:

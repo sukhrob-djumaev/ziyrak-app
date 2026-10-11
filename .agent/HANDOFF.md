@@ -21,3 +21,4 @@ Follow `.agent/CURRENT.md`: the user clears the Meta account blockers and decide
 ## Addendum (same session)
 
 - Owner decision recorded in `PLAN.md`: visible delivery on the second number is waived for this run (Meta test accounts blocked for A and B alike; A's visible delivery observed 2026-10-06). Remaining Phase 7 gate: the live `test:smoke:meta` run (needs a third number; see `CURRENT.md`). Tag only after every gate passes and the owner authorizes.
+- Closure: live `test:smoke:meta` 3/3 (run on isolated `owly_test` with A's stored credential via process env; recipient must be on the test number's allowed list) and the full browser suite 16/16 (acceptance build needs `NEXT_PUBLIC_APP_URL=http://localhost:3100`; clean DB/profiles) passed and are recorded in `PLAN.md`. `phase-7-complete` tagged locally; nothing pushed. Live web restored on its normal build; acceptance DB dropped.

@@ -2,8 +2,8 @@
 
 Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
 
-- **Phase:** 7 — Production Channels and MVP Hardening (§46.7); still incomplete. Tags exist through `phase-6-complete`; `phase-7-complete` is absent.
-- **Objective:** Close J16's remaining visible-delivery criterion for the two-number run and the open review decisions; preserve A's and B's evidence and configuration.
+- **Phase:** 7 — Production Channels and MVP Hardening (§46.7); complete with the recorded owner decision on second-number visible delivery. Tags through `phase-7-complete` (local only).
+- **Objective:** Phase 7 closed; next phase needs explicit authorization. Preserve A's and B's connections and evidence.
 - **Branch / code baseline:** `claude/phase7-openai-acceptance`; hardening fix `cf6eec7` on top of `6823456`. Recheck Git at every resume.
 
 ## Status (2026-10-11)
@@ -15,7 +15,7 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Next actions
 
-1. **Remaining Phase 7 gate: rerun the full MVP Browser Acceptance Suite** (`scripts/acceptance/run-all.sh`; PLAN requires it before a milestone tag and after channel/worker changes). `test:smoke:meta` PASSED 3/3 on 2026-10-11 (recorded). The suite uses port 3100, so the live web job must be stopped for the run and restored after; use a throwaway DB, short foreground batches (Mac sleep note).
+1. **Phase 7 gates are met** under the owner's decision: browser suite 16/16 and `test:smoke:meta` 3/3 (both 2026-10-11, recorded), two-number isolation, 971-test default suite. `phase-7-complete` was tagged locally; it is not pushed. Do not start Phase 8 without explicit authorization.
 2. Optional later: decide whether to extend `ChannelAdapter` for multi-message batches.
 3. **Lead, once sending is `AVAILABLE`:** have the sender message A and B; confirm the replies are visible and record instrumented/observed latency; optionally run `npm run test:smoke:meta` (creates a temporary tenant and sends a real message: isolated DB, authorized recipient). Then re-evaluate all Phase 7 gates; tag only if every gate passes.
 4. Consider storing/logging Meta status-webhook errors so delivery failures are visible (needs approval).

@@ -15,7 +15,7 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Next actions
 
-1. **Remaining Phase 7 gate: `npm run test:smoke:meta`** (live Graph smoke, never run with real credentials). It provisions a temporary tenant and saves `META_TEST_PHONE_NUMBER_ID`; A and B already hold their numbers (claim check and unique index refuse reuse), so it needs a third test number (fresh `META_TEST_*` in `.env`, token expires ~24 h, recipient on the allowed list) or an owner-approved alternative. Use isolated `owly_test`; do not touch A's or B's connection.
+1. **Remaining Phase 7 gate: rerun the full MVP Browser Acceptance Suite** (`scripts/acceptance/run-all.sh`; PLAN requires it before a milestone tag and after channel/worker changes). `test:smoke:meta` PASSED 3/3 on 2026-10-11 (recorded). The suite uses port 3100, so the live web job must be stopped for the run and restored after; use a throwaway DB, short foreground batches (Mac sleep note).
 2. Optional later: decide whether to extend `ChannelAdapter` for multi-message batches.
 3. **Lead, once sending is `AVAILABLE`:** have the sender message A and B; confirm the replies are visible and record instrumented/observed latency; optionally run `npm run test:smoke:meta` (creates a temporary tenant and sends a real message: isolated DB, authorized recipient). Then re-evaluate all Phase 7 gates; tag only if every gate passes.
 4. Consider storing/logging Meta status-webhook errors so delivery failures are visible (needs approval).

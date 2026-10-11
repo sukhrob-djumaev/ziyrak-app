@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@/lib/observability/logger";
-import { getSharedRedis, redisKeyPrefix } from "@/lib/redis/client";
+import { getSharedRedis, redisCall, redisKeyPrefix } from "@/lib/redis/client";
 
 interface CacheEntry {
   value: string;
@@ -41,7 +41,7 @@ export async function cacheGet(key: string): Promise<string | null> {
 
   if (redis) {
     try {
-      return await redis.get(redisKey(key));
+      return await redisCall(() => redis.get(redisKey(key)));
     } catch (error) {
       warnFallback(error);
     }
@@ -70,9 +70,9 @@ export async function cacheSet(
   if (redis) {
     try {
       if (ttlSeconds) {
-        await redis.set(redisKey(key), value, { EX: ttlSeconds });
+        await redisCall(() => redis.set(redisKey(key), value, { EX: ttlSeconds }));
       } else {
-        await redis.set(redisKey(key), value);
+        await redisCall(() => redis.set(redisKey(key), value));
       }
       return;
     } catch (error) {
@@ -95,7 +95,7 @@ export async function cacheDel(key: string): Promise<void> {
 
   if (redis) {
     try {
-      await redis.del(redisKey(key));
+      await redisCall(() => redis.del(redisKey(key)));
     } catch (error) {
       warnFallback(error);
     }

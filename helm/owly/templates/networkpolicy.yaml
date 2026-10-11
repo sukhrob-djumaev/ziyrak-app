@@ -1,0 +1,37 @@
+{{- if or .Values.redis.enabled .Values.pgbouncer.enabled }}
+# PLAN.md §46.8 (security review) — Redis and PgBouncer carry every tenant's
+# realtime events / queries: only this release's web and worker pods may reach
+# them. (Enforced when the cluster's CNI supports NetworkPolicy.)
+{{- range $component, $port := dict "redis" 6379 "pgbouncer" 5432 }}
+{{- if or (and (eq $component "redis") $.Values.redis.enabled (not $.Values.redis.external.url)) (and (eq $component "pgbouncer") $.Values.pgbouncer.enabled (not $.Values.database.url)) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "owly.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "owly.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "owly.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [{{ include "owly.name" $ | quote }}]
+              - key: app.kubernetes.io/instance
+                operator: In
+                values: [{{ $.Release.Name | quote }}]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["web", "worker"]
+      ports:
+        - port: {{ $port }}
+{{- end }}
+{{- end }}
+{{- end }}

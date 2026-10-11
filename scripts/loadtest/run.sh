@@ -78,10 +78,10 @@ pgbouncer_report() {
 
 status=0
 case "$mode" in
-  up) up_stack "redis://redis:6379"; echo "Replicas on :3201/:3202; seed: $(tail -1 "$work/seed.json"); tear down with: $0 down" ;;
-  redis) run_mode 1 "redis://redis:6379" || status=1 ;;
+  up) up_stack "redis://:owly-local-redis@redis:6379"; echo "Replicas on :3201/:3202; seed: $(tail -1 "$work/seed.json"); tear down with: $0 down" ;;
+  redis) run_mode 1 "redis://:owly-local-redis@redis:6379" || status=1 ;;
   no-redis) run_mode 0 "" || status=1 ;;
-  both) run_mode 1 "redis://redis:6379" || status=1; run_mode 0 "" || status=1 ;;
+  both) run_mode 1 "redis://:owly-local-redis@redis:6379" || status=1; run_mode 0 "" || status=1 ;;
   *) echo "usage: $0 [redis|no-redis|both]"; exit 2 ;;
 esac
 exit $status

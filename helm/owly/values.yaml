@@ -134,6 +134,9 @@ redis:
     tag: 7-alpine
   external:
     url: ""
+  # In-cluster Redis is always password-protected. Empty = generated on first
+  # install and kept across upgrades. Use rediss:// (TLS) for an external Redis.
+  password: ""
   resources:
     requests:
       cpu: 50m

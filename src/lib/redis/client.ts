@@ -29,6 +29,9 @@ export function createRedisClient(url: string) {
   const client = createClient({
     url,
     disableOfflineQueue: true,
+    // pingInterval tears down a connection that went silent (partition, hung
+    // Redis) instead of waiting minutes for OS keepalive to notice.
+    pingInterval: 5_000,
     socket: { reconnectStrategy: (retries) => Math.min(retries * 200, 5_000) },
   });
   // An unhandled 'error' event would crash the process; connection loss is
@@ -44,6 +47,25 @@ let connecting: Promise<RedisClient | null> | null = null;
 let lastFailureAt = 0;
 const RETRY_AFTER_FAILURE_MS = 5_000;
 export const CONNECT_TIMEOUT_MS = 1_000;
+/** Budget for one cache/rate-limit command: Redis must never sit on the request's critical path. */
+export const COMMAND_TIMEOUT_MS = 250;
+const BREAKER_OPEN_MS = 5_000;
+let breakerOpenUntil = 0;
+
+/** Report a failed/timed-out command: callers fall back to in-memory for a short window instead of paying the timeout on every request. */
+export function markRedisFailure(): void {
+  breakerOpenUntil = Date.now() + BREAKER_OPEN_MS;
+}
+
+/** Run one Redis command with a short budget; a timeout opens the circuit breaker. */
+export async function redisCall<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await withTimeout(run(), COMMAND_TIMEOUT_MS);
+  } catch (error) {
+    markRedisFailure();
+    throw error;
+  }
+}
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout;
@@ -61,6 +83,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function getSharedRedis(): Promise<RedisClient | null> {
   const url = redisUrl();
   if (!url) return null;
+  if (Date.now() < breakerOpenUntil) return null;
   if (shared?.isReady) return shared;
   if (connecting) return connecting;
   if (Date.now() - lastFailureAt < RETRY_AFTER_FAILURE_MS && !shared) return null;

@@ -68,6 +68,16 @@ spec:
                 name: {{ include "owly.fullname" . }}
             - secretRef:
                 name: {{ include "owly.secretName" . }}
+          env:
+            {{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "owly.fullname" . }}-redis
+                  key: password
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
+            {{- end }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           securityContext:

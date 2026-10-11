@@ -32,8 +32,13 @@ spec:
         {{- include "owly.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: pgbouncer
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: pgbouncer
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: "{{ .Values.pgbouncer.image.repository }}:{{ .Values.pgbouncer.image.tag }}"
           env:
             - name: DB_HOST
@@ -47,6 +52,9 @@ spec:
                 secretKeyRef:
                   name: {{ include "owly.fullname" . }}-pgbouncer
                   key: DB_PASSWORD
+            # PgBouncer -> PostgreSQL TLS follows database.sslMode.
+            - name: SERVER_TLS_SSLMODE
+              value: {{ .Values.database.sslMode | quote }}
             - name: AUTH_TYPE
               value: scram-sha-256
             - name: POOL_MODE

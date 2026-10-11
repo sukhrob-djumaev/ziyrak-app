@@ -3,6 +3,19 @@
 # realtime bus. Not a source of truth: no persistence, bounded memory, evicts
 # only keys that carry a TTL. Prefer a managed/HA Redis in production
 # (redis.external.url).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "owly.fullname" . }}-redis
+  labels:
+    {{- include "owly.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+type: Opaque
+stringData:
+  # Kept across upgrades (looked up); generated on first install.
+  {{- $existing := lookup "v1" "Secret" .Release.Namespace (printf "%s-redis" (include "owly.fullname" .)) }}
+  password: {{ if .Values.redis.password }}{{ .Values.redis.password | quote }}{{ else if $existing }}{{ index $existing.data "password" | b64dec | quote }}{{ else }}{{ randAlphaNum 32 | quote }}{{ end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,20 +35,33 @@ spec:
         {{- include "owly.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
-          args: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+          # noeviction: when full, writes fail and callers fall back per
+          # process, instead of silently dropping other clients' counters.
+          args: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction", "--requirepass", "$(REDIS_PASSWORD)"]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "owly.fullname" . }}-redis
+                  key: password
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: redis
               containerPort: 6379
           readinessProbe:
             exec:
-              command: ["redis-cli", "ping"]
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
             periodSeconds: 5
           livenessProbe:
             exec:
-              command: ["redis-cli", "ping"]
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
             periodSeconds: 15
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}

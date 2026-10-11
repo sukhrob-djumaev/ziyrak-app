@@ -1,5 +1,5 @@
 import { logger } from "@/lib/observability/logger";
-import { getSharedRedis, redisKeyPrefix } from "@/lib/redis/client";
+import { getSharedRedis, redisCall, redisKeyPrefix } from "@/lib/redis/client";
 import { InMemoryRateLimiter } from "@/lib/rate-limiters/in-memory";
 import { RedisRateLimiter } from "@/lib/rate-limiters/redis";
 import type { RateLimitConfig, RateLimitResult } from "@/lib/rate-limiters/types";
@@ -28,7 +28,7 @@ export async function checkRateLimit(key: string, config: RateLimitConfig): Prom
   const client = await getSharedRedis();
   if (client) {
     try {
-      return await new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).check(key, config);
+      return await redisCall(() => new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).check(key, config));
     } catch (error) {
       if (Date.now() - warnedAt > 30_000) {
         warnedAt = Date.now();
@@ -42,7 +42,7 @@ export async function checkRateLimit(key: string, config: RateLimitConfig): Prom
 export async function resetRateLimit(key: string): Promise<void> {
   await memory.reset(key);
   const client = await getSharedRedis();
-  if (client) await new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).reset(key);
+  if (client) await redisCall(() => new RedisRateLimiter(client, `${redisKeyPrefix()}rl:`).reset(key)).catch(() => {});
 }
 
 /** Test-only: drop every counter, in memory and (when selected) in Redis under this process's key prefix. */

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { RedisClient } from "@/lib/redis/client";
 import type { RateLimitConfig, RateLimitResult, RateLimiter } from "./types";
 
@@ -17,6 +18,9 @@ end
 return { count, ttl }
 `;
 
+/** Keys embed client-supplied text (forwarded IPs, connection ids): hash them so a request cannot choose the size of a Redis key. */
+const redisKey = (prefix: string, key: string) => `${prefix}${createHash("sha256").update(key).digest("hex").slice(0, 32)}`;
+
 export class RedisRateLimiter implements RateLimiter {
   constructor(
     private readonly client: Pick<RedisClient, "eval" | "del">,
@@ -25,7 +29,7 @@ export class RedisRateLimiter implements RateLimiter {
 
   async check(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const reply = (await this.client.eval(CHECK_SCRIPT, {
-      keys: [`${this.prefix}${key}`],
+      keys: [redisKey(this.prefix, key)],
       arguments: [String(config.windowMs)],
     })) as [number, number];
     const [count, ttl] = reply;
@@ -35,6 +39,6 @@ export class RedisRateLimiter implements RateLimiter {
   }
 
   async reset(key: string): Promise<void> {
-    await this.client.del(`${this.prefix}${key}`);
+    await this.client.del(redisKey(this.prefix, key));
   }
 }

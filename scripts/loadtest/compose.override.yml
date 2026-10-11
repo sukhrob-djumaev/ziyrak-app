@@ -7,7 +7,7 @@ x-loadtest-env: &loadtest-env
   DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly_load?schema=public
   DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly_load?schema=public
   # Empty = Redis off (the control run that shows limit × replicas).
-  REDIS_URL: ${LOADTEST_REDIS_URL-redis://redis:6379}
+  REDIS_URL: ${LOADTEST_REDIS_URL-redis://:owly-local-redis@redis:6379}
   JOB_TRACE: "1"
   SECRET_KEY_V1: loadtest-secret-key-v1-not-a-real-secret
   JWT_SECRET: loadtest-jwt-secret-not-a-real-secret

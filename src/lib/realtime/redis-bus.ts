@@ -76,8 +76,10 @@ export class RedisRealtimeBus<T = unknown> implements RealtimeBus<T> {
 
   /** Resolves once connected and every subscribe/unsubscribe so far is in effect. */
   async settled(): Promise<void> {
-    await withTimeout(this.connected.then(() => this.ops), SETTLE_TIMEOUT_MS);
-    // a 'ready'-triggered reconcile may have been queued while waiting
+    await withTimeout(this.connected, SETTLE_TIMEOUT_MS);
+    // `connect()` can resolve before the 'ready' event queues its reconcile:
+    // reconcile explicitly so a subscribe() made before connecting is in effect.
+    this.enqueue(() => this.reconcile());
     await this.ops;
   }
 

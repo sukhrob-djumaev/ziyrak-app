@@ -141,8 +141,16 @@ export async function proxy(request: NextRequest) {
   // General API rate limiting
   let apiRateInfo: { limit: number; remaining: number; resetAt: number } | undefined;
   if (pathname.startsWith("/api/")) {
-    const ip = getClientIp(request);
-    const rateResult = await checkRateLimit(`api:${ip}`, RATE_LIMITS.api);
+    // A request with a validly signed session token is limited per user; everything else (anonymous, API key,
+    // forged or expired token) per client address. Only the signature is checked here — requireAuth() still
+    // decides whether the session is actually allowed to do anything.
+    const sessionToken = request.cookies.get("owly-token")?.value;
+    const session = sessionToken ? verifyToken(sessionToken) : null;
+    const isStream = pathname === "/api/realtime";
+    const bucket = session
+      ? { key: `${isStream ? "stream" : "apiuser"}:${session.userId}`, config: isStream ? RATE_LIMITS.stream : RATE_LIMITS.apiUser }
+      : { key: `api:${getClientIp(request)}`, config: RATE_LIMITS.api };
+    const rateResult = await checkRateLimit(bucket.key, bucket.config);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(
@@ -150,11 +158,11 @@ export async function proxy(request: NextRequest) {
         { status: 429 }
       );
       response.headers.set("Retry-After", String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)));
-      return addHeaders(response, requestId, { limit: RATE_LIMITS.api.maxRequests, remaining: 0, resetAt: rateResult.resetAt });
+      return addHeaders(response, requestId, { limit: bucket.config.maxRequests, remaining: 0, resetAt: rateResult.resetAt });
     }
 
     apiRateInfo = {
-      limit: RATE_LIMITS.api.maxRequests,
+      limit: bucket.config.maxRequests,
       remaining: rateResult.remaining,
       resetAt: rateResult.resetAt,
     };

@@ -48,14 +48,19 @@ afterEach(async () => {
 describe("PgBossJobQueue — per-conversation ordering (§25.5/§33.4 item 2)", () => {
   it("strictly orders jobs sharing a conversation's singletonKey, while a different conversation processes concurrently", async () => {
     const events: string[] = [];
+    const t0 = performance.now();
+    const timeline = () => events.map((e, i) => `${i}:${e}`).join(" ");
 
     queue = new PgBossJobQueue(TEST_DATABASE_URL);
     queue.registerHandler<{ businessId: string; marker: string }>(PROCESS_INBOUND_MESSAGE_JOB, async (_ctx, payload) => {
-      events.push(`start:${payload.marker}`);
+      events.push(`start:${payload.marker}@${Math.round(performance.now() - t0)}ms`);
       if (payload.marker.startsWith("A")) {
-        await new Promise((resolve) => setTimeout(resolve, 500)); // deliberately slow
+        // Deliberately slow — and longer than pg-boss's 2 s polling interval, so
+        // B1 is picked up by some poll while A1 is still running no matter where
+        // the polls fall relative to the enqueues (500 ms made this CI-load flaky).
+        await new Promise((resolve) => setTimeout(resolve, 3500));
       }
-      events.push(`end:${payload.marker}`);
+      events.push(`end:${payload.marker}@${Math.round(performance.now() - t0)}ms`);
     });
     await queue.start();
 
@@ -68,18 +73,19 @@ describe("PgBossJobQueue — per-conversation ordering (§25.5/§33.4 item 2)", 
 
     await waitUntil(() => events.filter((e) => e.startsWith("end:")).length === 3, 15000);
 
-    const a1Start = events.indexOf("start:A1");
-    const a1End = events.indexOf("end:A1");
-    const a2Start = events.indexOf("start:A2");
-    const b1Start = events.indexOf("start:B1");
+    const at = (prefix: string) => events.findIndex((e) => e.startsWith(prefix));
+    const a1Start = at("start:A1");
+    const a1End = at("end:A1");
+    const a2Start = at("start:A2");
+    const b1Start = at("start:B1");
 
     expect(a1Start).toBeGreaterThanOrEqual(0);
     // Strict same-key ordering: A2 never starts until A1 has fully finished.
     expect(a1End).toBeLessThan(a2Start);
     // Cross-key concurrency: B1 starts while A1's slow handler is still running,
     // proving conversation B was never blocked behind conversation A.
-    expect(b1Start).toBeLessThan(a1End);
-  }, 20000);
+    expect(b1Start, `B1 must start while A1 runs; timeline: ${timeline()}`).toBeLessThan(a1End);
+  }, 30000);
 });
 
 describe("PgBossJobQueue — retry executes the side effect exactly once (§31.2/§33.4 item 6)", () => {

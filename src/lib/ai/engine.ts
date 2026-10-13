@@ -12,6 +12,7 @@ import {
   enforceResponseLength,
 } from "./guardrails";
 import { knowledgeRetriever } from "@/lib/knowledge/retriever";
+import { redactProviderMessage } from "@/lib/knowledge/indexing";
 import { resolveAIConfig, type ResolvedAIConfig } from "./config";
 import { aiProviderRegistry } from "./providers/registry";
 import { AIProviderError, type AIProvider, type CompletionRequest, type CompletionResult } from "./providers/types";
@@ -279,7 +280,7 @@ async function callAI(
       provider: config.provider,
       model: config.model,
       code: error instanceof AIProviderError ? error.code : "unknown",
-      reason: error instanceof Error ? error.message : String(error),
+      reason: redactProviderMessage(error instanceof Error ? error.message : String(error)),
     });
     return { text: FALLBACK_PROVIDER_ERROR, hasToolCalls: usedToolInThisTurn };
   }

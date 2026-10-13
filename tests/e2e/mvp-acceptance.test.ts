@@ -245,7 +245,7 @@ const metaDriver: Driver = {
     const saved = await call("@/app/api/channels/[type]/route", "PUT", biz.ownerToken, "/api/channels/whatsapp_cloud", {
       isActive: true,
       status: "connected",
-      credential: { type: "whatsapp_cloud", phoneNumberId, accessToken, businessAccountId: `waba-${uniq()}` },
+      credential: { type: "whatsapp_cloud", phoneNumberId, accessToken, businessAccountId: `waba-${uniq()}`, appSecret: APP_SECRET },
     }, { type: "whatsapp_cloud" });
     expect(saved.status).toBe(200);
     const row = await parseJsonResponse(saved);

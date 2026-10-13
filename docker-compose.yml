@@ -1,3 +1,15 @@
+# PLAN.md §46.8 — shared infrastructure. Redis backs the cross-replica rate
+# limit, cache and realtime bus (never a source of truth); PgBouncer
+# (transaction pooling) sits between every app/worker replica and Postgres.
+# Runtime DB traffic goes through PgBouncer (DATABASE_URL); migrations and
+# pg-boss, which need session features (advisory locks), use the direct URL.
+x-owly-env: &owly-env
+  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
+  DATABASE_POOL_MAX: "10"
+  REDIS_URL: redis://:${REDIS_PASSWORD:-owly-local-redis}@redis:6379
+  NODE_ENV: production
+
 services:
   db:
     image: postgres:16-alpine
@@ -20,19 +32,78 @@ services:
         limits:
           memory: 512M
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Not a source of truth: no persistence, bounded memory, evict only keys
+    # that carry a TTL (rate-limit windows, cache entries).
+    # `noeviction`: when full, writes fail (callers fall back per process)
+    # rather than silently dropping other clients' rate-limit counters.
+    # Authenticated (set REDIS_PASSWORD in .env) and bound to loopback.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:-owly-local-redis}"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-owly-local-redis}
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  # PLAN.md §28.4 — transaction pooling. Sizing: Postgres allows 100
+  # connections by default; DEFAULT_POOL_SIZE caps what PgBouncer opens to
+  # Postgres no matter how many app/worker replicas connect to it.
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.25.1-p0
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "500"
+      DEFAULT_POOL_SIZE: "20"
+      RESERVE_POOL_SIZE: "5"
+      SERVER_RESET_QUERY: DISCARD ALL
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    ports:
+      - "127.0.0.1:6432:5432"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
   app:
     build: .
+    image: owly:local
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
+      <<: *owly-env
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NODE_ENV: production
     env_file:
       - .env
     depends_on:
       db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
@@ -52,21 +123,62 @@ services:
   # workers independently of web replicas" is only a deployment-config
   # change (a replica count), never an architectural one.
   worker:
-    build: .
+    image: owly:local
     restart: unless-stopped
-    command: ["sh", "-c", "npx prisma migrate deploy && npm run worker"]
+    # `exec node --import tsx` (not `npm run worker`): npm as PID 1 swallows
+    # SIGTERM, so the worker could not drain in-flight jobs on stop/scale-down.
+    command: ["sh", "-c", "npx prisma migrate deploy && exec node --import tsx src/worker.ts"]
+    stop_grace_period: 45s
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
-      NODE_ENV: production
+      <<: *owly-env
     env_file:
       - .env
     depends_on:
+      app:
+        condition: service_started
       db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 512M
+
+  # PLAN.md §46.8 — a second app and worker replica for the multi-replica
+  # check (`docker compose --profile scale up`; scripts/loadtest/run.sh
+  # drives it). Explicit services on distinct host ports rather than
+  # `--scale`, so the harness can address each replica directly.
+  app-2:
+    image: owly:local
+    profiles: ["scale"]
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      <<: *owly-env
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    env_file:
+      - .env
+    depends_on:
+      app:
+        condition: service_healthy
+
+  worker-2:
+    image: owly:local
+    profiles: ["scale"]
+    restart: unless-stopped
+    command: ["node", "--import", "tsx", "src/worker.ts"]
+    stop_grace_period: 45s
+    environment:
+      <<: *owly-env
+    env_file:
+      - .env
+    depends_on:
+      worker:
+        condition: service_started
 
 volumes:
   postgres_data:

@@ -1,0 +1,51 @@
+# PLAN.md §46.8 — isolates the multi-replica load test from any other stack on
+# this machine: its own compose project (owlyload), its own Postgres volume,
+# no fixed host ports except the replicas and one Postgres port for the harness.
+# Used only by scripts/loadtest/run.sh:
+#   docker compose -p owlyload -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale ...
+x-loadtest-env: &loadtest-env
+  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly_load?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly_load?schema=public
+  # Empty = Redis off (the control run that shows limit × replicas).
+  REDIS_URL: ${LOADTEST_REDIS_URL-redis://:owly-local-redis@redis:6379}
+  JOB_TRACE: "1"
+  SECRET_KEY_V1: loadtest-secret-key-v1-not-a-real-secret
+  JWT_SECRET: loadtest-jwt-secret-not-a-real-secret
+  OPENAI_BASE_URL: http://host.docker.internal:4010/v1
+  OPENAI_API_KEY: sk-loadtest-standin
+  NEXT_PUBLIC_APP_URL: http://localhost:3201
+
+services:
+  db:
+    environment:
+      POSTGRES_DB: owly_load
+    ports: !override
+      - "55432:5432"
+  redis:
+    ports: !reset []
+  pgbouncer:
+    ports: !reset []
+  app:
+    env_file: !reset []
+    environment: *loadtest-env
+    ports: !override
+      - "3201:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  app-2:
+    env_file: !reset []
+    environment: *loadtest-env
+    ports: !override
+      - "3202:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    env_file: !reset []
+    environment: *loadtest-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker-2:
+    env_file: !reset []
+    environment: *loadtest-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

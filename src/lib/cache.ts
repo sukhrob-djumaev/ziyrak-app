@@ -1,13 +1,18 @@
 /**
  * Cache Abstraction Layer
  *
- * In-memory cache with optional Redis backend.
- * If REDIS_URL is set, uses Redis. Otherwise falls back to in-memory Map.
+ * In-memory cache with optional Redis backend (PLAN.md §29/§46.8).
+ * If REDIS_URL is set and reachable, uses Redis — shared by every replica.
+ * Otherwise (local default, or Redis down) falls back to an in-memory Map.
  * This allows single-instance deployments to work without Redis,
  * while multi-instance deployments can use Redis for shared state.
+ *
+ * A cache is never the source of truth, so a Redis failure is a cache miss
+ * (or a dropped write), never an error for the caller.
  */
 
 import { logger } from "@/lib/observability/logger";
+import { getSharedRedis, redisCall, redisKeyPrefix } from "@/lib/redis/client";
 
 interface CacheEntry {
   value: string;
@@ -16,45 +21,30 @@ interface CacheEntry {
 
 // In-memory fallback store
 const memoryStore = new Map<string, CacheEntry>();
+let warnedAt = 0;
 
-let redisClient: {
-  get: (key: string) => Promise<string | null>;
-  set: (key: string, value: string, options?: { EX?: number }) => Promise<unknown>;
-  del: (key: string) => Promise<unknown>;
-  keys: (pattern: string) => Promise<string[]>;
-} | null = null;
+function redisKey(key: string): string {
+  return `${redisKeyPrefix()}cache:${key}`;
+}
 
-let redisInitialized = false;
-
-async function getRedisClient() {
-  if (redisInitialized) return redisClient;
-  redisInitialized = true;
-
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) return null;
-
-  try {
-    // Dynamic import - only loads if Redis URL is configured
-    const { createClient } = await import("redis" as string);
-    const client = createClient({ url: redisUrl });
-    await client.connect();
-    redisClient = client;
-    logger.info("Redis connected");
-    return client;
-  } catch (error) {
-    logger.warn("Redis connection failed, using in-memory cache", { error: String(error) });
-    return null;
-  }
+function warnFallback(error: unknown): void {
+  if (Date.now() - warnedAt < 30_000) return;
+  warnedAt = Date.now();
+  logger.warn("[Cache] Redis operation failed, using in-memory fallback", { error: String(error) });
 }
 
 /**
  * Get a cached value.
  */
 export async function cacheGet(key: string): Promise<string | null> {
-  const redis = await getRedisClient();
+  const redis = await getSharedRedis();
 
   if (redis) {
-    return redis.get(`owly:${key}`);
+    try {
+      return await redisCall(() => redis.get(redisKey(key)));
+    } catch (error) {
+      warnFallback(error);
+    }
   }
 
   // In-memory fallback
@@ -75,15 +65,19 @@ export async function cacheSet(
   value: string,
   ttlSeconds?: number
 ): Promise<void> {
-  const redis = await getRedisClient();
+  const redis = await getSharedRedis();
 
   if (redis) {
-    if (ttlSeconds) {
-      await redis.set(`owly:${key}`, value, { EX: ttlSeconds });
-    } else {
-      await redis.set(`owly:${key}`, value);
+    try {
+      if (ttlSeconds) {
+        await redisCall(() => redis.set(redisKey(key), value, { EX: ttlSeconds }));
+      } else {
+        await redisCall(() => redis.set(redisKey(key), value));
+      }
+      return;
+    } catch (error) {
+      warnFallback(error);
     }
-    return;
   }
 
   // In-memory fallback
@@ -97,11 +91,14 @@ export async function cacheSet(
  * Delete a cached value.
  */
 export async function cacheDel(key: string): Promise<void> {
-  const redis = await getRedisClient();
+  const redis = await getSharedRedis();
 
   if (redis) {
-    await redis.del(`owly:${key}`);
-    return;
+    try {
+      await redisCall(() => redis.del(redisKey(key)));
+    } catch (error) {
+      warnFallback(error);
+    }
   }
 
   memoryStore.delete(key);
@@ -111,6 +108,6 @@ export async function cacheDel(key: string): Promise<void> {
  * Check if Redis is available.
  */
 export async function isCacheDistributed(): Promise<boolean> {
-  const redis = await getRedisClient();
+  const redis = await getSharedRedis();
   return redis !== null;
 }

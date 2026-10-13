@@ -88,6 +88,9 @@ function toolCompletion(model, name, args) {
 http
   .createServer(async (req, res) => {
     const raw = await readBody(req);
+    // Optional fixed latency (the multi-replica load test needs jobs that take
+    // long enough to overlap); unset = no delay, as for the browser suite.
+    if (Number(process.env.LLM_DELAY_MS) > 0) await new Promise((r) => setTimeout(r, Number(process.env.LLM_DELAY_MS)));
     let body = {};
     try {
       body = JSON.parse(raw || "{}");

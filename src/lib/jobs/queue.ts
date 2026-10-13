@@ -32,4 +32,4 @@ export {
  * using this singleton, exactly because they need the real thing.
  */
 export const jobQueue: JobQueue =
-  process.env.NODE_ENV === "test" ? new FakeJobQueue() : new PgBossJobQueue(process.env.DATABASE_URL!);
+  process.env.NODE_ENV === "test" ? new FakeJobQueue() : new PgBossJobQueue((process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL)!);

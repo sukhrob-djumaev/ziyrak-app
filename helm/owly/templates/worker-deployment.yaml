@@ -27,6 +27,9 @@ spec:
         {{- include "owly.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: worker
     spec:
+      # PLAN.md §46.8 — longer than the worker's own 30 s drain (src/worker.ts),
+      # so a scale-down lets in-flight jobs finish instead of killing them.
+      terminationGracePeriodSeconds: 45
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -59,12 +62,22 @@ spec:
         - name: {{ .Chart.Name }}-worker
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["npm", "run", "worker"]
+          command: ["node", "--import", "tsx", "src/worker.ts"]
           envFrom:
             - configMapRef:
                 name: {{ include "owly.fullname" . }}
             - secretRef:
                 name: {{ include "owly.secretName" . }}
+          env:
+            {{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "owly.fullname" . }}-redis
+                  key: password
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
+            {{- end }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           securityContext:

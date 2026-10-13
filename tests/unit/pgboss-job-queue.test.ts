@@ -131,3 +131,79 @@ describe("PgBossJobQueue — work queued before a worker exists is not lost, and
     expect(processed).toBe(1);
   }, 25000);
 });
+
+// PLAN.md §46.8 — more concurrent conversations than one worker's local
+// concurrency (10), so a single worker cannot take everything and the second
+// one must compete.
+const MULTI_WORKER_CONVERSATIONS = 14;
+const MULTI_WORKER_MESSAGES = 4;
+
+/**
+ * PLAN.md §25.5/§46.8 — ordering and exactly-once pickup with TWO competing
+ * worker instances (each its own PgBossJobQueue, pool and pollers) on one real
+ * Postgres: the in-process counterpart of the multi-process harness in
+ * scripts/loadtest/. Lives in this file so it runs sequentially with the
+ * other suites that share the default pg-boss queues.
+ */
+interface Run {
+  worker: string;
+  marker: string;
+  start: number;
+  end: number;
+}
+
+describe("PgBossJobQueue — two competing workers (§25.5 at multi-replica scale)", () => {
+  it("runs every job exactly once, strictly in order per conversation, while conversations overlap across workers", async () => {
+    const runs: Run[] = [];
+    const queues = ["worker-1", "worker-2"].map((worker) => {
+      const queue = new PgBossJobQueue(TEST_DATABASE_URL);
+      queue.registerHandler<{ businessId: string; marker: string }>(PROCESS_INBOUND_MESSAGE_JOB, async (_ctx, payload) => {
+        const start = performance.now();
+        await new Promise((resolve) => setTimeout(resolve, 150 + Math.random() * 100));
+        runs.push({ worker, marker: payload.marker, start, end: performance.now() });
+      });
+      return queue;
+    });
+    // A third instance that only enqueues, like the web tier.
+    const producer = new PgBossJobQueue(TEST_DATABASE_URL);
+
+    try {
+      await Promise.all(queues.map((q) => q.start()));
+
+      // Interleave conversations (c0m0, c1m0, ..., c0m1, ...) so same-key jobs
+      // are separated by other keys' jobs, as real traffic would be.
+      for (let m = 0; m < MULTI_WORKER_MESSAGES; m++) {
+        for (let c = 0; c < MULTI_WORKER_CONVERSATIONS; c++) {
+          const marker = `c${c}m${m}`;
+          await producer.enqueue(
+            PROCESS_INBOUND_MESSAGE_JOB,
+            { businessId: business.businessId, marker },
+            { singletonKey: `${business.businessId}:conv-${c}` }
+          );
+        }
+      }
+
+      const total = MULTI_WORKER_CONVERSATIONS * MULTI_WORKER_MESSAGES;
+      await waitUntil(() => runs.length >= total, 45000);
+      await new Promise((resolve) => setTimeout(resolve, 1500)); // a duplicate pickup would show up here
+
+      // Exactly once.
+      expect(runs).toHaveLength(total);
+      expect(new Set(runs.map((r) => r.marker)).size).toBe(total);
+
+      // Per conversation: in enqueue order, never overlapping.
+      for (let c = 0; c < MULTI_WORKER_CONVERSATIONS; c++) {
+        const mine = runs.filter((r) => r.marker.split("m")[0] === `c${c}`).sort((a, b) => a.start - b.start);
+        expect(mine.map((r) => r.marker)).toEqual(Array.from({ length: MULTI_WORKER_MESSAGES }, (_, m) => `c${c}m${m}`));
+        for (let i = 1; i < mine.length; i++) expect(mine[i].start).toBeGreaterThanOrEqual(mine[i - 1].end);
+      }
+
+      // Both workers really competed, and different conversations really ran in parallel.
+      expect(new Set(runs.map((r) => r.worker)).size).toBe(2);
+      const overlapping = runs.some((a) => runs.some((b) => a !== b && a.marker.split("m")[0] !== b.marker.split("m")[0] && a.start < b.end && b.start < a.end));
+      expect(overlapping).toBe(true);
+    } finally {
+      await Promise.all([...queues, producer].map((q) => q.stop()));
+    }
+  }, 90000);
+});

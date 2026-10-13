@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma/raw-client";
+import { extractMetaPhoneNumberIds } from "@/lib/channels/meta-whatsapp-adapter";
 
 const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -18,6 +19,24 @@ beforeEach(() => {
     }
   }
   process.env.META_APP_SECRET = "unit-test-app-secret";
+});
+
+describe("extractMetaPhoneNumberIds", () => {
+  it("returns explicit malformed, none, one, and multiple outcomes without any database access", () => {
+    expect(extractMetaPhoneNumberIds("{not json")).toEqual({ kind: "malformed" });
+    expect(extractMetaPhoneNumberIds(JSON.stringify({ object: "whatsapp_business_account", entry: [] }))).toEqual({ kind: "none" });
+    expect(
+      extractMetaPhoneNumberIds(
+        Buffer.from(JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: "phone-a" } } }] }] }))
+      )
+    ).toEqual({ kind: "one", phoneNumberId: "phone-a" });
+    expect(
+      extractMetaPhoneNumberIds(
+        JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: "phone-a" } } }, { value: { metadata: { phone_number_id: "phone-b" } } }] }] })
+      )
+    ).toEqual({ kind: "multiple" });
+    expect(mockPrisma.channelConnection.findMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("MetaCloudWhatsAppAdapter.validateInbound (§20.2/§46.7)", () => {

@@ -14,7 +14,9 @@ const schema = z.object({
   // conversation.
   conversationId: z.string().optional().describe("Leave empty. The current conversation is used automatically."),
   message: z.string().describe("The follow-up message to send"),
-  delayHours: z.number().describe("Hours to wait before sending the follow-up"),
+  delayHours: z
+    .number()
+    .describe("Hours to wait before sending the follow-up. Decimal values are allowed: 1 minute is 0.0167 hours."),
 });
 
 /**

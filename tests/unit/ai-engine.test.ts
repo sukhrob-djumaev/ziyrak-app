@@ -387,6 +387,32 @@ describe("AI Engine", () => {
       expect(mockOpenAICreateFn).toHaveBeenCalledTimes(1);
     });
 
+    it("never logs any part of the credential a provider echoes back in its error text", async () => {
+      // OpenAI's 401 text contains a masked copy of the submitted key (first 8 and last 4 characters). Found by
+      // the 2026-10-01 real-OpenAI acceptance run: this log line passed the provider's message through unredacted.
+      const { AuthenticationError } = await import("openai");
+      mockOpenAICreateFn.mockRejectedValue(
+        new AuthenticationError(
+          401,
+          { message: "Incorrect API key provided: sk-proj-abc***************wxyz. You can find your API key at https://platform.openai.com/account/api-keys." },
+          undefined,
+          new Headers()
+        )
+      );
+      const { logger } = await import("@/lib/observability/logger");
+      const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+      const { chat } = await import("@/lib/ai/engine");
+      await chat(ctx, "conv-1", "Hello");
+
+      const call = warn.mock.calls.find((c) => String(c[0]).includes("AI provider call failed"));
+      expect(call).toBeDefined();
+      expect(call![1]).toMatchObject({ code: "auth", provider: "openai" });
+      const logged = JSON.stringify(call);
+      expect(logged).not.toContain("sk-proj-abc");
+      expect(logged).not.toContain("wxyz");
+    });
+
     it("falls back to the existing user-facing message if the retry also fails", async () => {
       const { RateLimitError } = await import("openai");
       mockOpenAICreateFn.mockRejectedValue(new RateLimitError(429, {}, "Rate limited", new Headers()));

@@ -1,8 +1,8 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { ChannelCredentialSchema, type ChannelCredential } from "@/lib/secrets";
-import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { ChannelCredentialSchema, MetaWhatsAppCredentialSchema, type ChannelCredential } from "@/lib/secrets";
+import { encryptChannelCredential, resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { AppError } from "@/lib/observability/errors";
 import { prepareMetaCloudConnection } from "./meta-whatsapp-setup";
 import { logActivity } from "@/lib/observability/activity";
@@ -55,6 +55,15 @@ export async function getByType(ctx: TenantContext, type: string) {
   return connection ?? emptyConnection(type);
 }
 
+/**
+ * The shape returned over HTTP: the encrypted `credentialRef` blob never
+ * leaves the server (PLAN.md §10.3); clients only learn whether one is set.
+ */
+export function toPublicConnection<T extends object>(connection: T) {
+  const { credentialRef, ...rest } = connection as T & { credentialRef?: string | null };
+  return { ...rest, credentialConfigured: Boolean(credentialRef) };
+}
+
 export interface UpsertConnectionInput {
   isActive?: boolean;
   config?: Record<string, unknown>;
@@ -93,6 +102,26 @@ export async function upsertByType(ctx: TenantContext, type: string, rawInput: U
   if (type === "whatsapp_cloud") {
     const prepared = await prepareMetaCloudConnection(ctx, rawInput, (existing?.config ?? undefined) as Record<string, unknown> | undefined);
     input = { ...rawInput, config: prepared.config };
+
+    // The App Secret is write-only. When an existing multi-app connection is
+    // re-saved to rotate its access token, an omitted field means "keep the
+    // encrypted secret", never silently downgrade it to the global fallback.
+    if (input.credential) {
+      const incoming = MetaWhatsAppCredentialSchema.parse(input.credential);
+      if (!incoming.appSecret) {
+        // A row without a stored credential (new, or left behind by a
+        // disconnect) gets no free pass: it would otherwise verify against the
+        // global fallback secret without anyone having chosen that.
+        if (!existing?.credentialRef) {
+          throw new AppError(400, "VALIDATION_ERROR", "Meta App Secret is required when creating a WhatsApp Cloud connection.");
+        }
+        const stored = await resolveChannelCredential(existing.id, MetaWhatsAppCredentialSchema);
+        if (!stored) {
+          throw new AppError(400, "VALIDATION_ERROR", "The stored Meta credential could not be read; enter the App Secret again to re-save this connection.");
+        }
+        if (stored.appSecret) input = { ...input, credential: { ...incoming, appSecret: stored.appSecret } };
+      }
+    }
   }
 
   const credentialRef = await resolveCredentialRef(type, input.credential);

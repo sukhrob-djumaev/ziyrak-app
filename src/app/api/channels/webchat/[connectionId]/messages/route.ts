@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { webChatAdapter } from "@/lib/channels/webchat-adapter";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +31,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const cors = await webChatAdapter.corsHeadersFor(connectionId, origin).catch(() => ({}));
   const reply = (body: string, status: number) => new NextResponse(body, { status, headers: cors });
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  const ip = getClientIp(request);
   // Polled every few seconds by an open widget — ~20/min is normal.
-  if (!checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, { maxRequests: 90, windowMs: 60_000 }).allowed) {
+  if (!(await checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, { maxRequests: 90, windowMs: 60_000 })).allowed) {
     return reply("Too Many Requests", 429);
   }
 

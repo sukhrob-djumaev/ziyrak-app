@@ -14,6 +14,10 @@
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 work="${ACC_WORK_DIR:-$here/.work}"; mkdir -p "$work"
+# host-sites.cjs reads ACC_WORK_DIR itself to serve the snippets written by
+# J05. Export the resolved default as well as a caller-supplied directory so
+# the customer sites and the browser journeys always use the same snippets.
+export ACC_WORK_DIR="$work"
 : "${ACC_DB:?set ACC_DB to the throwaway acceptance database URL}"
 cd "$here/../.."
 what="${1:-all}"

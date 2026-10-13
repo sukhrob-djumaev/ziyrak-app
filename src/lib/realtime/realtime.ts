@@ -6,7 +6,9 @@
  * and doesn't require socket.io dependency.
  */
 
-import { logger } from "@/lib/observability/logger";
+import { redisKeyPrefix, redisUrl } from "@/lib/redis/client";
+import { InMemoryRealtimeBus } from "./in-memory-bus";
+import { RedisRealtimeBus } from "./redis-bus";
 
 export type EventType =
   | "message:new"
@@ -31,8 +33,23 @@ interface EventPayload {
 
 type EventCallback = (event: EventPayload) => void;
 
-// In-memory subscriber registry
-const subscribers = new Map<string, Set<EventCallback>>();
+let bus: InMemoryRealtimeBus<EventPayload> | RedisRealtimeBus<EventPayload> | null = null;
+
+/**
+ * PLAN.md §26.1/§46.8 — the selected `RealtimeBus`: Redis Pub/Sub when
+ * `REDIS_URL` is set (so every replica's dashboard clients see every
+ * replica's events), the in-memory bus otherwise (single replica, local
+ * default). Mirrors `cache.ts`'s selection pattern.
+ */
+function getBus() {
+  if (!bus) {
+    const url = redisUrl();
+    bus = url
+      ? new RedisRealtimeBus<EventPayload>({ url, prefix: `${redisKeyPrefix()}rt:` })
+      : new InMemoryRealtimeBus<EventPayload>();
+  }
+  return bus;
+}
 
 /**
  * Subscribe to real-time events.
@@ -42,30 +59,11 @@ export function subscribe(
   channel: string,
   callback: EventCallback
 ): () => void {
-  if (!subscribers.has(channel)) {
-    subscribers.set(channel, new Set());
-  }
-  subscribers.get(channel)!.add(callback);
-
-  return () => {
-    const subs = subscribers.get(channel);
-    if (subs) {
-      subs.delete(callback);
-      if (subs.size === 0) subscribers.delete(channel);
-    }
-  };
+  return getBus().subscribe(channel, callback);
 }
 
 function deliverTo(channel: string, payload: EventPayload): void {
-  const subs = subscribers.get(channel);
-  if (!subs) return;
-  for (const callback of subs) {
-    try {
-      callback(payload);
-    } catch (error) {
-      logger.error(`SSE subscriber callback error (channel: ${channel})`, error);
-    }
-  }
+  void getBus().publish(channel, payload);
 }
 
 const TENANT_CHANNEL_PREFIX = /^(tenant:[^:]+:)(.+)$/;
@@ -166,12 +164,8 @@ export function emitConversationUpdate(
 }
 
 /**
- * Get subscriber count for monitoring.
+ * Get subscriber count for monitoring (this process's subscribers).
  */
 export function getSubscriberCount(): number {
-  let count = 0;
-  for (const subs of subscribers.values()) {
-    count += subs.size;
-  }
-  return count;
+  return getBus().subscriberCount();
 }

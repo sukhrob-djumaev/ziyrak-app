@@ -13,3 +13,6 @@ spec:
       name: http
   selector:
     {{- include "owly.selectorLabels" . | nindent 4 }}
+    # Only the web pods: worker/redis/pgbouncer pods share the name/instance
+    # labels and must never become endpoints (PLAN.md §46.8 review).
+    app.kubernetes.io/component: web

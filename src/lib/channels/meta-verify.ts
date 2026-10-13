@@ -8,14 +8,13 @@ import crypto from "crypto";
  * signature over exactly what it sent on the wire, and re-serializing JSON
  * is not guaranteed to reproduce byte-identical output (key order, spacing).
  */
-export function validateMetaSignature(appSecret: string, signatureHeader: string, rawBody: string): boolean {
+export function validateMetaSignature(appSecret: string, signatureHeader: string, rawBody: crypto.BinaryLike): boolean {
   if (!appSecret || !signatureHeader) return false;
 
-  const prefix = "sha256=";
-  if (!signatureHeader.startsWith(prefix)) return false;
-  const presented = signatureHeader.slice(prefix.length);
+  if (!/^sha256=[0-9a-f]{64}$/i.test(signatureHeader)) return false;
+  const presented = signatureHeader.slice("sha256=".length);
 
-  const computed = crypto.createHmac("sha256", appSecret).update(rawBody, "utf-8").digest("hex");
+  const computed = crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
 
   const computedBuf = Buffer.from(computed, "hex");
   const presentedBuf = Buffer.from(presented, "hex");
@@ -25,17 +24,10 @@ export function validateMetaSignature(appSecret: string, signatureHeader: string
 }
 
 /**
- * The Meta App's own platform-level secrets (§20.2 — one Ziyrak-owned Meta
- * App/webhook subscription shared by every tenant's phone numbers, distinct
- * from each business's own per-`ChannelConnection` `phoneNumberId`/
- * `accessToken`). Read lazily (not at module load) so importing this module
- * in a test/dev environment without either var set doesn't throw until the
- * webhook route actually needs one.
+ * The platform-level webhook verify token. App Secrets are not platform-level:
+ * each connection verifies with its own encrypted one. Read lazily so importing
+ * this module without the variable set doesn't throw until the route needs it.
  */
-export function getMetaAppSecret(): string | undefined {
-  return process.env.META_APP_SECRET || undefined;
-}
-
 export function getMetaWebhookVerifyToken(): string | undefined {
   return process.env.META_WEBHOOK_VERIFY_TOKEN || undefined;
 }

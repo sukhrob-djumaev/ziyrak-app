@@ -77,6 +77,43 @@ describe("OpenAIProvider (§46.4/§21.2) satisfies the AIProvider contract", () 
     );
   });
 
+  it("echoes a prior assistant tool call back in OpenAI's wire shape (type: \"function\" + nested function)", async () => {
+    // Found by the 2026-10-01 real-OpenAI acceptance run: the follow-up completion after a tool call was
+    // rejected with `400 Missing required parameter: 'messages[2].tool_calls[0].type'`, because the
+    // provider-agnostic flat `{id, name, arguments}` was cast, not translated, into OpenAI's message params.
+    mockCreateFn.mockResolvedValue({
+      choices: [{ finish_reason: "stop", message: { content: "Your ticket is open." } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    await new OpenAIProvider("sk-test").complete({
+      messages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "please open a ticket" },
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [{ id: "call-1", name: "create_ticket", arguments: '{"title":"t"}' }],
+          providerContent: { provider: "anthropic", content: [{ type: "thinking" }] },
+        },
+        { role: "tool", content: '{"success":true}', tool_call_id: "call-1" },
+      ],
+      maxTokens: 100,
+      temperature: 0.3,
+      model: "gpt-4o-mini",
+    });
+
+    const sent = mockCreateFn.mock.calls[0][0].messages;
+    expect(sent[2]).toEqual({
+      role: "assistant",
+      content: null,
+      tool_calls: [{ id: "call-1", type: "function", function: { name: "create_ticket", arguments: '{"title":"t"}' } }],
+    });
+    expect(sent[3]).toEqual({ role: "tool", content: '{"success":true}', tool_call_id: "call-1" });
+    expect(sent[0]).toEqual({ role: "system", content: "sys" });
+    expect(sent[1]).toEqual({ role: "user", content: "please open a ticket" });
+  });
+
   it("maps a 401 to a non-retryable auth AIProviderError", async () => {
     mockCreateFn.mockRejectedValue(new APIError(401, {}, "Invalid API key", new Headers()));
 

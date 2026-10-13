@@ -3,6 +3,8 @@ import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
 import { getMetaWebhookVerifyToken } from "@/lib/channels/meta-verify";
 import { enqueueInboundProcessing } from "@/lib/events/dispatch";
 import { logger } from "@/lib/observability/logger";
+import { getClientIp } from "@/lib/client-ip";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 /**
  * PLAN.md §20.2/§46.7 — one shared, Ziyrak-owned webhook URL registered once
@@ -34,9 +36,53 @@ export async function GET(request: NextRequest) {
  * Reads the body as raw text first (never `request.json()`) since signature
  * verification requires the exact bytes Meta signed.
  */
+/** Meta documents payloads of up to 3 MB; anything larger is rejected unread. */
+const MAX_WEBHOOK_BODY_BYTES = 3 * 1024 * 1024;
+
 export async function POST(request: NextRequest) {
+  const receivedAt = performance.now();
+  const acknowledge = (
+    outcome: "new" | "duplicate" | "ignored" | "error",
+    status: number,
+    context?: { businessId?: string; connectionId?: string }
+  ) => {
+    // This is handler completion time, measured from entry to constructing the
+    // HTTP response. It deliberately excludes async AI/worker/reply work.
+    logger.info("[MetaWhatsApp] Webhook acknowledged", {
+      outcome,
+      status,
+      ackMs: Math.round((performance.now() - receivedAt) * 100) / 100,
+      ...context,
+    });
+    return NextResponse.json(
+      {
+        status:
+          outcome === "new" || outcome === "duplicate"
+            ? "EVENT_RECEIVED"
+            : outcome === "error"
+              ? "error"
+              : "ignored",
+      },
+      { status }
+    );
+  };
+
   try {
-    const rawBody = await request.text();
+    // Preserve the exact wire bytes for Meta's HMAC. JSON parsing happens in
+    // the adapter only to select a candidate connection; it never replaces
+    // these bytes for signature verification.
+    const clientIp = getClientIp(request);
+    if (!(await checkRateLimit(`meta-webhook:${clientIp}`, RATE_LIMITS.metaWebhook)).allowed) {
+      return NextResponse.json({ status: "rate_limited" }, { status: 429 });
+    }
+    const declaredLength = Number(request.headers.get("content-length"));
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
+      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+    }
+    const rawBody = Buffer.from(await request.arrayBuffer());
+    if (rawBody.byteLength > MAX_WEBHOOK_BODY_BYTES) {
+      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+    }
     const headers: Record<string, string> = {};
     request.headers.forEach((value, key) => {
       headers[key.toLowerCase()] = value;
@@ -46,23 +92,21 @@ export async function POST(request: NextRequest) {
 
     if (result.kind === "rejected") {
       logger.warn("[MetaWhatsApp] Inbound webhook rejected", { reason: result.reason });
-      // An invalid signature is the one failure this route reports loudly
-      // (§46.7's own "invalid signature rejected before persistence" test) —
-      // every other rejection reason (no message, unknown phone_number_id,
-      // a status callback) ACKs 200 exactly like every other channel's
-      // "uninteresting update" case, so Meta never retries a payload that
-      // was never going to succeed differently the second time.
-      const status = result.reason === "Invalid X-Hub-Signature-256" ? 403 : 200;
-      return NextResponse.json({ status: "ignored" }, { status });
+      // Only a callback whose signature was verified may be safely ignored
+      // (for example, a status/non-text event). Every pre-verification
+      // failure is fail-closed, including an unknown or ambiguous routing id.
+      const status = result.authenticated === false ? 403 : 200;
+      return acknowledge("ignored", status);
     }
 
     if (result.kind === "new") {
       await enqueueInboundProcessing(result.ctx, result.receiptId, result.event);
+      return acknowledge("new", 200, { businessId: result.ctx.businessId, connectionId: result.connectionId });
     }
 
-    return NextResponse.json({ status: "EVENT_RECEIVED" });
+    return acknowledge("duplicate", 200);
   } catch (error) {
     logger.error("[MetaWhatsApp] Webhook error:", error);
-    return NextResponse.json({ status: "error" }, { status: 200 });
+    return acknowledge("error", 500);
   }
 }

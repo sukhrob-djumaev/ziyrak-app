@@ -8,8 +8,8 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import * as connectionsService from "@/lib/channels/connections-service";
-import { findConnectionByConfigField, encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
-import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
+import { findConnectionByConfigField, encryptChannelCredential, resolveChannelCredential } from "@/lib/identity/channel-credential-auth";
+import { MetaWhatsAppCredentialSchema } from "@/lib/secrets";
 
 /**
  * PLAN.md §7.7/§20.2/§46.7 — a Meta `phone_number_id` is what routes inbound
@@ -24,9 +24,10 @@ let businessA: SeededBusiness;
 let businessB: SeededBusiness;
 const realFetch = global.fetch;
 let graphResponses: Map<string, boolean>;
+const CONNECTION_APP_SECRET = "setup-test-app-secret";
 
-function credential(phoneNumberId: string, accessToken = "token") {
-  return { type: "whatsapp_cloud" as const, phoneNumberId, accessToken, businessAccountId: "waba-1" };
+function credential(phoneNumberId: string, accessToken = "token", appSecret: string | undefined = CONNECTION_APP_SECRET) {
+  return { type: "whatsapp_cloud" as const, phoneNumberId, accessToken, businessAccountId: "waba-1", ...(appSecret && { appSecret }) };
 }
 
 beforeAll(async () => {
@@ -69,6 +70,116 @@ describe("Meta Cloud connection setup (§46.7)", () => {
     expect((saved.config as { phoneNumberId: string }).phoneNumberId).toBe(phoneNumberId);
     const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId);
     expect(resolved?.businessId).toBe(businessA.businessId);
+  });
+
+  it("requires an App Secret when creating a new WhatsApp Cloud connection", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-new-${crypto.randomUUID()}`);
+    try {
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("encrypts a per-connection App Secret without placing it in config or returning it in the saved connection", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    const appSecret = `app-secret-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+
+    const saved = await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "good-token", appSecret),
+    });
+
+    expect(JSON.stringify(saved.config)).not.toContain(appSecret);
+    expect(saved.credentialRef).not.toContain(appSecret);
+    const stored = await resolveChannelCredential(saved.id, MetaWhatsAppCredentialSchema);
+    expect(stored?.appSecret).toBe(appSecret);
+  });
+
+  it("refuses to re-save without an App Secret when the stored credential cannot be read, instead of silently falling back to the global secret", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-unreadable-${crypto.randomUUID()}`);
+    try {
+      const saved = await connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+        isActive: true,
+        credential: credential(phoneNumberId, "good-token"),
+      });
+      await prisma.channelConnection.update({ where: { id: saved.id }, data: { credentialRef: "not-decryptable" } });
+
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("still requires an App Secret after a disconnect left an empty connection row behind", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-disconnect-${crypto.randomUUID()}`);
+    try {
+      await connectionsService.performAction(fresh.ctx, "whatsapp_cloud", "disconnect");
+      await expect(
+        connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+          isActive: true,
+          credential: credential(phoneNumberId, "good-token", ""),
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("never serializes the encrypted credential blob in channel API responses", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|good-token`, true);
+    const fresh = await seedBusiness(`meta-setup-public-${crypto.randomUUID()}`);
+    try {
+      await connectionsService.upsertByType(fresh.ctx, "whatsapp_cloud", {
+        isActive: true,
+        credential: credential(phoneNumberId, "good-token"),
+      });
+      const [listed] = (await connectionsService.listAll(fresh.ctx)).filter((c) => c.type === "whatsapp_cloud");
+      const byType = await connectionsService.getByType(fresh.ctx, "whatsapp_cloud");
+      for (const row of [connectionsService.toPublicConnection(listed), connectionsService.toPublicConnection(byType)]) {
+        expect(row).not.toHaveProperty("credentialRef");
+        expect(row).toMatchObject({ credentialConfigured: true });
+      }
+    } finally {
+      await cleanupBusiness(fresh.businessId);
+    }
+  });
+
+  it("preserves an existing encrypted App Secret when the business replaces only its access token", async () => {
+    const phoneNumberId = `pn-${crypto.randomUUID()}`;
+    const appSecret = `app-secret-${crypto.randomUUID()}`;
+    graphResponses.set(`${phoneNumberId}|old-token`, true);
+    graphResponses.set(`${phoneNumberId}|new-token`, true);
+
+    const saved = await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "old-token", appSecret),
+    });
+    await connectionsService.upsertByType(businessB.ctx, "whatsapp_cloud", {
+      isActive: true,
+      credential: credential(phoneNumberId, "new-token", ""),
+    });
+
+    const stored = await resolveChannelCredential(saved.id, MetaWhatsAppCredentialSchema);
+    expect(stored).toMatchObject({ phoneNumberId, accessToken: "new-token", appSecret });
   });
 
   it("rejects a credential whose token cannot read that phone number (no proof of ownership), storing nothing for the caller", async () => {
@@ -134,33 +245,22 @@ describe("Meta Cloud connection setup (§46.7)", () => {
   });
 });
 
-describe("ambiguous routing fails closed (§7.7/§46.7)", () => {
-  it("if two active connections ever share a phone_number_id, inbound resolves to neither business", async () => {
+describe("a phone_number_id cannot be claimed by two active connections (§7.7/§46.7)", () => {
+  it("the database itself refuses a second active connection with the same phone_number_id, closing the check-then-write race", async () => {
     const phoneNumberId = `pn-dup-${crypto.randomUUID()}`;
     const credentialRef = await encryptChannelCredential({ type: "whatsapp_cloud", phoneNumberId, accessToken: "t", businessAccountId: "w" });
-    for (const b of [businessA, businessB]) {
-      await prisma.channelConnection.create({
-        data: { businessId: b.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
-      });
-    }
+    await prisma.channelConnection.create({
+      data: { businessId: businessA.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
+    });
 
-    expect(await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId)).toBeNull();
+    await expect(
+      prisma.channelConnection.create({
+        data: { businessId: businessB.businessId, type: "whatsapp_cloud", name: "dup", isActive: true, config: { phoneNumberId }, credentialRef },
+      })
+    ).rejects.toThrow();
 
-    const previous = process.env.META_APP_SECRET;
-    process.env.META_APP_SECRET = "ambiguity-secret";
-    try {
-      const rawBody = JSON.stringify({
-        object: "whatsapp_business_account",
-        entry: [{ id: "w", changes: [{ field: "messages", value: {
-          metadata: { phone_number_id: phoneNumberId },
-          messages: [{ from: "15550009999", id: `wamid.${crypto.randomUUID()}`, timestamp: "1700000000", type: "text", text: { body: "hi" } }],
-        } }] }],
-      });
-      const signature = `sha256=${crypto.createHmac("sha256", "ambiguity-secret").update(rawBody).digest("hex")}`;
-      const result = await metaCloudWhatsAppAdapter.validateInbound({ headers: { "x-hub-signature-256": signature }, rawBody });
-      expect(result.kind).toBe("rejected");
-    } finally {
-      process.env.META_APP_SECRET = previous;
-    }
+    const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", phoneNumberId);
+    expect(resolved?.businessId).toBe(businessA.businessId);
+    await prisma.channelConnection.deleteMany({ where: { businessId: businessA.businessId, name: "dup" } });
   });
 });

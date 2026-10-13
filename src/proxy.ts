@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyToken } from "@/lib/identity/auth";
 import { isPublicApiPath } from "@/lib/identity/public-api-paths";
@@ -55,15 +56,7 @@ function addHeaders(
   return response;
 }
 
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = request.headers.get("x-request-id") || generateRequestId();
 
@@ -118,7 +111,7 @@ export function proxy(request: NextRequest) {
   // 5/min brute-force budget made ordinary navigation 429.
   if (pathname.startsWith("/api/auth") && request.method === "POST") {
     const ip = getClientIp(request);
-    const rateResult = checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
+    const rateResult = await checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(
@@ -144,7 +137,7 @@ export function proxy(request: NextRequest) {
   let apiRateInfo: { limit: number; remaining: number; resetAt: number } | undefined;
   if (pathname.startsWith("/api/")) {
     const ip = getClientIp(request);
-    const rateResult = checkRateLimit(`api:${ip}`, RATE_LIMITS.api);
+    const rateResult = await checkRateLimit(`api:${ip}`, RATE_LIMITS.api);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(

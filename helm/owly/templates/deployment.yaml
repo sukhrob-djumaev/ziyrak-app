@@ -11,6 +11,7 @@ spec:
   selector:
     matchLabels:
       {{- include "owly.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
   template:
     metadata:
       annotations:
@@ -23,6 +24,7 @@ spec:
         {{- end }}
       labels:
         {{- include "owly.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -49,7 +51,7 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["npm", "start"]
+          command: ["node", "node_modules/next/dist/bin/next", "start"]
           ports:
             - name: http
               containerPort: 3000
@@ -59,6 +61,16 @@ spec:
                 name: {{ include "owly.fullname" . }}
             - secretRef:
                 name: {{ include "owly.secretName" . }}
+          env:
+            {{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "owly.fullname" . }}-redis
+                  key: password
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
+            {{- end }}
           {{- if .Values.probes.startup.enabled }}
           startupProbe:
             httpGet:

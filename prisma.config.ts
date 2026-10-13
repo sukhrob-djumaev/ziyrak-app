@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // PLAN.md §28.4 — migrations take session-level advisory locks, which a
+    // transaction-pooling PgBouncer cannot honor: go straight to Postgres
+    // when a direct URL is configured.
+    url: process.env["DIRECT_DATABASE_URL"] || process.env["DATABASE_URL"],
   },
 });

@@ -26,6 +26,7 @@ export function MetaWhatsAppCard() {
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [businessAccountId, setBusinessAccountId] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [appSecret, setAppSecret] = useState("");
 
   const webhookUrl = typeof window !== "undefined" ? `${window.location.origin}/api/channels/whatsapp-cloud/webhook` : "";
 
@@ -48,8 +49,8 @@ export function MetaWhatsAppCard() {
   }, [load]);
 
   async function handleSave() {
-    if (!phoneNumberId.trim() || !accessToken.trim() || !businessAccountId.trim()) {
-      setError("Phone number ID, business account ID, and access token are all required.");
+    if (!phoneNumberId.trim() || !accessToken.trim() || !businessAccountId.trim() || (!channel?.id && !appSecret.trim())) {
+      setError("Phone number ID, business account ID, and access token are required. App Secret is required for a new connection.");
       return;
     }
     setBusy(true);
@@ -67,6 +68,7 @@ export function MetaWhatsAppCard() {
             phoneNumberId: phoneNumberId.trim(),
             accessToken: accessToken.trim(),
             businessAccountId: businessAccountId.trim(),
+            ...(appSecret.trim() && { appSecret: appSecret.trim() }),
           },
         }),
       });
@@ -76,6 +78,7 @@ export function MetaWhatsAppCard() {
         return;
       }
       setAccessToken("");
+      setAppSecret("");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       await load();
@@ -133,6 +136,21 @@ export function MetaWhatsAppCard() {
                 placeholder={channel?.id ? "Enter a new token to replace the saved one" : ""}
                 className={inputClass}
               />
+            </div>
+            <div>
+              <label htmlFor="wa-app-secret" className="block text-xs font-medium text-owly-text-light mb-1">
+                Meta App Secret
+              </label>
+              <input
+                id="wa-app-secret"
+                type="password"
+                autoComplete="off"
+                value={appSecret}
+                onChange={(e) => setAppSecret(e.target.value)}
+                placeholder={channel?.id ? "Leave blank to keep the configured secret" : "Required for a new connection"}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-owly-text-light">Stored encrypted and never shown again after saving.</p>
             </div>
             <p className="text-xs text-owly-text-light">
               In your Meta App&apos;s WhatsApp settings, set the webhook callback URL to{" "}

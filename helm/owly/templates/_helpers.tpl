@@ -80,3 +80,52 @@ Secret name - use existing or generate
 {{- include "owly.fullname" . }}
 {{- end }}
 {{- end }}
+
+{{/*
+Direct (non-pooled) database URL — migrations and the job queue.
+*/}}
+{{- define "owly.directDatabaseUrl" -}}
+{{- include "owly.databaseUrl" . }}
+{{- end }}
+
+{{/*
+Runtime database URL: through PgBouncer when enabled, else direct.
+*/}}
+{{- define "owly.runtimeDatabaseUrl" -}}
+{{- if and .Values.pgbouncer.enabled (not .Values.database.url) }}
+{{- printf "postgresql://%s:%s@%s-pgbouncer:5432/%s?schema=public" .Values.database.user .Values.database.password (include "owly.fullname" .) .Values.database.name }}
+{{- else }}
+{{- include "owly.databaseUrl" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Redis URL: external if given, else the in-cluster instance, else empty.
+*/}}
+{{- define "owly.redisUrl" -}}
+{{- if .Values.redis.external.url }}
+{{- .Values.redis.external.url }}
+{{- else if .Values.redis.enabled }}
+{{- printf "redis://%s-redis:6379" (include "owly.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+PLAN.md §46.8 guard: more than one app replica (or any autoscaling) without
+shared state would silently break rate limiting and realtime delivery.
+*/}}
+{{- define "owly.validate" -}}
+{{- $multi := or .Values.autoscaling.enabled .Values.worker.autoscaling.enabled (gt (int .Values.replicaCount) 1) -}}
+{{- if and $multi (not (include "owly.redisUrl" .)) -}}
+{{- fail "Multiple app replicas or autoscaling need Redis (redis.enabled=true or redis.external.url): without it every replica keeps its own rate-limit window and misses other replicas' realtime events. See PLAN.md §46.8." -}}
+{{- end -}}
+{{- if and .Values.pgbouncer.enabled .Values.secrets.existingSecret -}}
+{{- fail "pgbouncer.enabled cannot be combined with secrets.existingSecret: the in-chart PgBouncer takes the database password from values. Disable it and point DATABASE_URL (in your secret) at your own pooler." -}}
+{{- end -}}
+{{- if and .Values.pgbouncer.enabled (has .Values.database.sslMode (list "verify-ca" "verify-full")) -}}
+{{- fail "database.sslMode verify-ca/verify-full needs a CA file mounted into PgBouncer, which this chart does not provide: use sslMode=require, or run your own pooler (pgbouncer.enabled=false)." -}}
+{{- end -}}
+{{- if and .Values.pgbouncer.enabled .Values.database.url (not .Values.secrets.existingSecret) -}}
+{{- fail "pgbouncer.enabled with database.url: the in-chart PgBouncer is configured from database.host/user/password/name. Set those, point database.url at your own pooler and disable pgbouncer, or supply DATABASE_URL/DIRECT_DATABASE_URL in secrets.existingSecret." -}}
+{{- end -}}
+{{- end }}

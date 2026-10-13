@@ -22,10 +22,11 @@ import {
   Shield,
   FileCode,
   Webhook,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface NavSection {
   title?: string;
@@ -55,6 +56,7 @@ const sections: NavSection[] = [
     items: [
       { name: "Team", href: "/team", icon: Users },
       { name: "SLA Rules", href: "/sla", icon: Timer },
+      { name: "Approvals", href: "/approvals", icon: ShieldCheck },
     ],
   },
   {
@@ -81,9 +83,49 @@ const sections: NavSection[] = [
   },
 ];
 
+const APPROVALS_HREF = "/approvals";
+const APPROVALS_POLL_MS = 30_000;
+
+/**
+ * How many AI actions are waiting for a human decision, for the sidebar badge.
+ * `null` means the caller may not review approvals (403) or the count is
+ * unavailable, in which case the Approvals link is hidden / shows no badge.
+ */
+function usePendingApprovals(): number | null {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const res = await fetch("/api/actions?status=pending_approval&limit=1");
+        if (cancelled) return;
+        if (!res.ok) {
+          setCount(null);
+          return;
+        }
+        const body = await res.json();
+        setCount(typeof body?.pagination?.total === "number" ? body.pagination.total : null);
+      } catch {
+        // Transient failure: keep the last known count.
+      }
+    }
+    refresh();
+    const timer = setInterval(refresh, APPROVALS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return count;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const pendingApprovals = usePendingApprovals();
 
   return (
     <aside
@@ -120,7 +162,10 @@ export function Sidebar() {
               <div className="mx-3 mb-2 border-t border-white/10" />
             )}
             <div className="space-y-0.5">
-              {section.items.map((item) => {
+              {section.items
+                // Only roles allowed to review approvals get the link (the count request 403s for others).
+                .filter((item) => item.href !== APPROVALS_HREF || pendingApprovals !== null)
+                .map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/" && pathname.startsWith(item.href));
@@ -130,7 +175,7 @@ export function Sidebar() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
+                      "relative flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
                       isActive
                         ? "bg-owly-sidebar-active text-white"
                         : "text-white/65 hover:bg-owly-sidebar-hover hover:text-white"
@@ -139,6 +184,17 @@ export function Sidebar() {
                   >
                     <item.icon className="h-4 w-4 flex-shrink-0" />
                     {!collapsed && <span>{item.name}</span>}
+                    {item.href === APPROVALS_HREF && pendingApprovals ? (
+                      <span
+                        data-testid="approvals-badge"
+                        className={cn(
+                          "ml-auto rounded-full bg-owly-warning px-1.5 text-[10px] font-semibold leading-4 text-white",
+                          collapsed && "absolute -top-1 -right-1 ml-0"
+                        )}
+                      >
+                        {pendingApprovals > 99 ? "99+" : pendingApprovals}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

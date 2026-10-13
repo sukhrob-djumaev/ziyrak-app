@@ -87,6 +87,12 @@ const statuses = [
 export default function ConversationsPage() {
   const [conversations, setConversations] = useState<ConversationData[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Deep link (e.g. from the Approvals page): /conversations?id=<conversationId>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (id) setSelectedId(id);
+  }, []);
   const [selectedConversation, setSelectedConversation] =
     useState<ConversationData | null>(null);
   const [loading, setLoading] = useState(true);

@@ -4,6 +4,7 @@ import { Bell, Search, Sun, Moon, LogOut, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "@/lib/hooks/use-theme";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
 
 interface HeaderProps {
   title: string;
@@ -16,6 +17,7 @@ export function Header({ title, description, actions }: HeaderProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const { toast } = useToast();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,11 +31,24 @@ export function Header({ title, description, actions }: HeaderProps) {
   }, []);
 
   const handleLogout = async () => {
-    await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout" }),
-    });
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+      // The browser is signed out either way; if the server could not end the session, say so.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast({
+          type: "warning",
+          title: res.status === 429 ? "Signed out here, try again shortly" : "Signed out of this browser only",
+          description: body?.error?.message ?? body?.error ?? "The session could not be ended on the server. Please sign out again.",
+        });
+      }
+    } catch {
+      toast({ type: "warning", title: "Signed out of this browser only", description: "Could not reach the server to end the session." });
+    }
     router.push("/login");
   };
 

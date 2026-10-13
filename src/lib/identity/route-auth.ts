@@ -216,3 +216,12 @@ export async function resolveActorDisplayName(ctx: TenantContext): Promise<strin
       return "System";
   }
 }
+
+/**
+ * Who a signed-in human is, for display (header avatar/menu). Never includes
+ * the password hash or any credential; `null` for a non-human actor.
+ */
+export async function resolveActorProfile(ctx: TenantContext): Promise<{ id: string; name: string; username: string } | null> {
+  if (ctx.actor.kind !== "user") return null;
+  return prisma.user.findUnique({ where: { id: ctx.actor.userId }, select: { id: true, name: true, username: true } });
+}

@@ -117,6 +117,7 @@ function createMockPrismaClient() {
     "membership",
     "user",
     "tenantPlacement",
+    "infrastructurePolicy",
     "databaseProfile",
     "storageProfile",
     "businessConfig",

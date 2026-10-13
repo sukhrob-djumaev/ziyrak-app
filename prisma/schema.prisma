@@ -20,42 +20,43 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships        Membership[]
-  config             BusinessConfig?
-  channelConnections ChannelConnection[]
-  apiKeys            ApiKey[]
-  placement          TenantPlacement?
+  memberships          Membership[]
+  config               BusinessConfig?
+  channelConnections   ChannelConnection[]
+  apiKeys              ApiKey[]
+  placement            TenantPlacement?
+  infrastructurePolicy InfrastructurePolicy?
 
   // Every tenant-owned model gains a businessId relation back to Business
   // (§7.1, §12), contracted in the same migration that makes each model's
   // businessId required.
-  categories        Category[]
-  knowledgeEntries  KnowledgeEntry[]
-  departments       Department[]
-  teamMembers       TeamMember[]
-  customers         Customer[]
-  customerNotes     CustomerNote[]
-  conversations     Conversation[]
-  messages          Message[]
-  tickets           Ticket[]
-  tags              Tag[]
-  conversationTags  ConversationTag[]
-  internalNotes     InternalNote[]
-  callLogs          CallLog[]
-  schedules         Schedule[]
-  webhooks          Webhook[]
-  webhookDeliveries WebhookDelivery[]
-  activityLogs      ActivityLog[]
-  slaRules          SLARule[]
-  cannedResponses   CannedResponse[]
-  automationRules   AutomationRule[]
-  campaigns         Campaign[]
-  flows             Flow[]
-  businessHours     BusinessHours[]
-  aiInteractionLogs AIInteractionLog[]
+  categories           Category[]
+  knowledgeEntries     KnowledgeEntry[]
+  departments          Department[]
+  teamMembers          TeamMember[]
+  customers            Customer[]
+  customerNotes        CustomerNote[]
+  conversations        Conversation[]
+  messages             Message[]
+  tickets              Ticket[]
+  tags                 Tag[]
+  conversationTags     ConversationTag[]
+  internalNotes        InternalNote[]
+  callLogs             CallLog[]
+  schedules            Schedule[]
+  webhooks             Webhook[]
+  webhookDeliveries    WebhookDelivery[]
+  activityLogs         ActivityLog[]
+  slaRules             SLARule[]
+  cannedResponses      CannedResponse[]
+  automationRules      AutomationRule[]
+  campaigns            Campaign[]
+  flows                Flow[]
+  businessHours        BusinessHours[]
+  aiInteractionLogs    AIInteractionLog[]
   inboundEventReceipts InboundEventReceipt[]
-  toolPolicies      ToolPolicy[]
-  actionExecutions  ActionExecution[]
+  toolPolicies         ToolPolicy[]
+  actionExecutions     ActionExecution[]
 }
 
 model Membership {
@@ -97,6 +98,20 @@ model TenantPlacement {
   updatedAt         DateTime @updatedAt
 }
 
+// PLAN.md §11/§46.9 — per-business infrastructure overrides. Control-plane
+// only (like TenantPlacement): one row exists only for a business that needs
+// an override, and no application/domain module reads it directly. Empty
+// provider lists mean "no restriction" for that capability.
+model InfrastructurePolicy {
+  businessId                  String   @id
+  business                    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dataRegion                  String?
+  permittedAiProviders        String[] @default([])
+  permittedEmbeddingProviders String[] @default([])
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
 model DatabaseProfile {
   id                  String   @id // e.g. "shared-default", "dedicated-eu-42"
   connectionSecretRef String // opaque reference into the SecretResolver boundary (§10.3) — never the DSN itself
@@ -118,33 +133,33 @@ model StorageProfile {
 // platform default" (§10.2); everything else mirrors Settings' own defaults.
 
 model BusinessConfig {
-  businessId              String   @id
-  business                Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  businessName            String   @default("My Business")
-  businessDesc            String   @default("")
-  welcomeMessage          String   @default("Hello! How can I help you today?")
-  tone                    String   @default("friendly")
-  language                String   @default("auto")
-  aiProvider              String?
-  aiModel                 String?
-  embeddingProvider       String?
-  maxTokens               Int?
-  temperature             Float?
+  businessId             String   @id
+  business               Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessName           String   @default("My Business")
+  businessDesc           String   @default("")
+  welcomeMessage         String   @default("Hello! How can I help you today?")
+  tone                   String   @default("friendly")
+  language               String   @default("auto")
+  aiProvider             String?
+  aiModel                String?
+  embeddingProvider      String?
+  maxTokens              Int?
+  temperature            Float?
   // PLAN.md §46.4/§10.3 — opaque SecretResolver references, never a raw key
   // in this row, mirroring ChannelConnection.credentialRef (§7.7). Each
   // resolves (via getSecretResolver().decrypt()) to a JSON-encoded payload
   // validated against ai/providers/credentials.ts's typed schema for the
   // provider named in aiProvider/embeddingProvider at read time.
-  aiCredentialRef         String?
-  embeddingCredentialRef  String?
+  aiCredentialRef        String?
+  embeddingCredentialRef String?
   // PLAN.md §25.2/§46.6 — sweep-retention's own per-business setting
   // ("reading each business's retention setting from BusinessConfig").
   // Null means no retention policy configured — the sweep skips the
   // business entirely rather than guessing a default and deleting data a
   // business never asked to have purged.
-  retentionDays           Int?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  retentionDays          Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 // ==================== AI USAGE ATTRIBUTION (PLAN.md §46.4/§39.1) ====================
@@ -160,7 +175,7 @@ model AIInteractionLog {
   conversationId   String?
   // §8.4 composite FK — a log row can never reference another business's Conversation.
   conversation     Conversation? @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: SetNull)
-  kind             String        // "generation" | "embedding"
+  kind             String // "generation" | "embedding"
   provider         String
   model            String
   promptTokens     Int?
@@ -356,27 +371,27 @@ model TeamMember {
 // ==================== CONVERSATIONS ====================
 
 model Conversation {
-  id              String            @id @default(uuid())
-  businessId      String
-  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  channel         String
-  customerName    String            @default("Unknown")
-  customerContact String            @default("")
-  customerId      String?
+  id                String             @id @default(uuid())
+  businessId        String
+  business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  channel           String
+  customerName      String             @default("Unknown")
+  customerContact   String             @default("")
+  customerId        String?
   // §8.4 composite FK — a Conversation can never reference another business's Customer.
-  customer        Customer?         @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: SetNull)
-  status          String            @default("active")
-  satisfaction    Int?
-  summary         String            @default("")
-  metadata        Json              @default("{}")
-  messages        Message[]
-  tickets         Ticket[]
-  tags            ConversationTag[]
-  notes           InternalNote[]
-  callLogs        CallLog[]
+  customer          Customer?          @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: SetNull)
+  status            String             @default("active")
+  satisfaction      Int?
+  summary           String             @default("")
+  metadata          Json               @default("{}")
+  messages          Message[]
+  tickets           Ticket[]
+  tags              ConversationTag[]
+  notes             InternalNote[]
+  callLogs          CallLog[]
   aiInteractionLogs AIInteractionLog[]
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog/AIInteractionLog.conversationId
   @@index([channel])
@@ -674,13 +689,13 @@ model CustomerNote {
 // ==================== AUTOMATION RULES ====================
 
 model AutomationRule {
-  id           String   @id @default(uuid())
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name         String
-  description  String   @default("")
-  type         String // auto_route, auto_tag, auto_reply, keyword_alert
-  isActive     Boolean  @default(true)
+  id                     String   @id @default(uuid())
+  businessId             String
+  business               Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name                   String
+  description            String   @default("")
+  type                   String // auto_route, auto_tag, auto_reply, keyword_alert
+  isActive               Boolean  @default(true)
   // PLAN.md §46.6 task 6 — this rule had zero runtime effect before Phase 6
   // reconnected evaluateRules() into processInboundMessage(). A pre-existing
   // isActive:true row must not suddenly start firing just because the
@@ -691,13 +706,13 @@ model AutomationRule {
   // is the "explicit re-confirmation" the plan requires. New rules created
   // after this phase default to false (an admin creating a rule today
   // already knows automation is live).
-  requiresReconfirmation Boolean @default(false)
-  conditions   Json     @default("[]") // [{field, operator, value}]
-  actions      Json     @default("[]") // [{type, target, value}]
-  priority     Int      @default(0)
-  triggerCount Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  requiresReconfirmation Boolean  @default(false)
+  conditions             Json     @default("[]") // [{field, operator, value}]
+  actions                Json     @default("[]") // [{type, target, value}]
+  priority               Int      @default(0)
+  triggerCount           Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([businessId])
 }

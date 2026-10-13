@@ -25,7 +25,7 @@ Session: 2026-10-11 (Asia/Kuala_Lumpur) — Phase 8 (Scalability and Shared Infr
 
 ## Continuation point
 
-`phase-8-complete` tagged locally (owner delegated the call). Owner decides: PR/merge, the worker-dies-without-draining stall (heartbeat/expiry decision). Phase 9 needs explicit authorization. Remove test Redis with `docker rm -f owly-redis-test`.
+`phase-8-complete` tagged and pushed. Owner decides: the worker-dies-without-draining stall (heartbeat/expiry decision). Phase 9 needs explicit authorization. Remove test Redis with `docker rm -f owly-redis-test`.
 
 ## Update 2026-10-13
 

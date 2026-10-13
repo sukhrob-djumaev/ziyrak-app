@@ -6,6 +6,25 @@ import { useTheme } from "@/lib/hooks/use-theme";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 
+interface Me {
+  user: { id: string; name: string; username: string };
+  role: string | null;
+  business: { id: string; name: string };
+}
+
+// Fetched on every header mount, never cached across mounts: a different person
+// signing in on the same tab must not briefly see the previous identity.
+function loadMe(): Promise<Me | null> {
+  return fetch("/api/me")
+    .then((res) => (res.ok ? (res.json() as Promise<Me>) : null))
+    .catch(() => null);
+}
+
+function initialOf(me: Me | null): string {
+  const source = me?.user.name?.trim() || me?.user.username || "";
+  return source ? source.charAt(0).toUpperCase() : "";
+}
+
 interface HeaderProps {
   title: string;
   description?: string;
@@ -18,6 +37,7 @@ export function Header({ title, description, actions }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const { toast } = useToast();
+  const [me, setMe] = useState<Me | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +48,16 @@ export function Header({ title, description, actions }: HeaderProps) {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadMe().then((value) => {
+      if (!cancelled) setMe(value);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -101,13 +131,23 @@ export function Header({ title, description, actions }: HeaderProps) {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-label={me ? `Account menu for ${me.user.name || me.user.username}` : "Account menu"}
+            title={me ? `${me.user.name || me.user.username} · ${me.business.name}` : undefined}
             className="flex items-center justify-center w-8 h-8 rounded-full bg-owly-primary text-white text-sm font-medium hover:bg-owly-primary-dark transition-colors"
           >
-            A
+            {initialOf(me) || <User className="h-4 w-4" />}
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-owly-surface border border-owly-border rounded-lg shadow-lg py-1 z-50 animate-scale-in transition-theme">
+            <div className="absolute right-0 mt-2 w-56 bg-owly-surface border border-owly-border rounded-lg shadow-lg py-1 z-50 animate-scale-in transition-theme">
+              {me && (
+                <div className="px-4 py-2 border-b border-owly-border" data-testid="account-summary">
+                  <p className="text-sm font-medium text-owly-text truncate">{me.user.name || me.user.username}</p>
+                  <p className="text-xs text-owly-text-light truncate">
+                    <span className="capitalize">{me.role ?? "member"}</span> · {me.business.name}
+                  </p>
+                </div>
+              )}
               <button
                 onClick={() => {
                   setUserMenuOpen(false);

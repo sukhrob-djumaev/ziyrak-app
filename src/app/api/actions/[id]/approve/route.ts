@@ -3,6 +3,8 @@ import { logger } from "@/lib/observability/logger";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { toErrorResponse } from "@/lib/observability/errors";
 import { toolRegistry } from "@/lib/tools/registry";
+// Approving runs the tool, so its definition must be registered in this module graph's registry.
+import "@/lib/tools/builtin";
 
 /**
  * PLAN.md §23.4/§9.5/§46.6 — the human side of the approval-gated

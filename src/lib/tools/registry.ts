@@ -7,6 +7,7 @@ import { resolveEffectiveToolPolicy } from "./policy";
 import { computeIdempotencyKey } from "./idempotency";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logActivity } from "@/lib/observability/activity";
+import { emitNotification } from "@/lib/realtime/realtime";
 
 const TERMINAL_STATUSES: ReadonlySet<ActionStatus> = new Set(["succeeded", "failed", "cancelled"]);
 
@@ -153,6 +154,7 @@ export class ToolRegistry {
         },
       });
       await logActivity(ctx, "action.pending_approval", "action", null, `${requestedBy === "ai" ? "AI" : "A user"} requested "${name}", which needs human approval`, undefined, { tool: name, conversationId: runtimeCtx.conversationId ?? null });
+      emitNotification(ctx.businessId, "action.pending_approval", { tool: name });
       return {
         success: true,
         message: `This action ("${name}") requires human approval before it will run. It has been forwarded for review.`,

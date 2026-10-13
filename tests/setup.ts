@@ -73,6 +73,8 @@ vi.mock("@/lib/tenancy/default-business", () => ({
 vi.mock("@/lib/realtime/realtime", () => ({
   emitNewMessage: vi.fn(),
   emitConversationUpdate: vi.fn(),
+  emitNewConversation: vi.fn(),
+  emitNotification: vi.fn(),
   emitTyping: vi.fn(),
   publish: vi.fn(),
   subscribe: vi.fn().mockReturnValue(vi.fn()),

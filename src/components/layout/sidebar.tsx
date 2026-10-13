@@ -26,7 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 
 interface NavSection {
   title?: string;
@@ -94,30 +95,24 @@ const APPROVALS_POLL_MS = 30_000;
 function usePendingApprovals(): number | null {
   const [count, setCount] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function refresh() {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const res = await fetch("/api/actions?status=pending_approval&limit=1");
-        if (cancelled) return;
-        if (!res.ok) {
-          setCount(null);
-          return;
-        }
-        const body = await res.json();
-        setCount(typeof body?.pagination?.total === "number" ? body.pagination.total : null);
-      } catch {
-        // Transient failure: keep the last known count.
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/actions?status=pending_approval&limit=1");
+      if (!res.ok) {
+        setCount(null);
+        return;
       }
+      const body = await res.json();
+      setCount(typeof body?.pagination?.total === "number" ? body.pagination.total : null);
+    } catch {
+      // Transient failure: keep the last known count.
     }
-    refresh();
-    const timer = setInterval(refresh, APPROVALS_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
   }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+  useLiveRefresh(refresh, { intervalMs: APPROVALS_POLL_MS });
 
   return count;
 }

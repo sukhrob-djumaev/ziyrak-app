@@ -1,6 +1,7 @@
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { logActivity } from "@/lib/observability/activity";
+import { emitNewConversation } from "@/lib/realtime/realtime";
 
 /**
  * PLAN.md §6 (`conversations/` owns "Conversation lifecycle") /§46.5 —
@@ -37,5 +38,6 @@ export async function createNewConversation(
     },
   });
   await logActivity(ctx, "conversation.created", "conversation", conversation.id, `New ${channel} conversation started by ${customerName}`, undefined, { channel });
+  emitNewConversation(ctx.businessId, conversation.id, { channel });
   return conversation;
 }

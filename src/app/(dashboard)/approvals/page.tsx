@@ -9,6 +9,7 @@ import { PoliciesPanel } from "@/components/approvals/policies-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { requesterLabel, statusPresentation, summarizeInput, timeAgo, toolLabel } from "@/lib/approvals/present";
 import { cn } from "@/lib/utils";
 
@@ -66,11 +67,10 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") load();
-    }, POLL_MS);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // A new approval request or a decision by someone else shows up without a manual refresh.
+  useLiveRefresh(load, { intervalMs: POLL_MS });
 
   const decide = async () => {
     if (!decision) return;

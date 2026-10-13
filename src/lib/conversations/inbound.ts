@@ -10,6 +10,7 @@ import { jobQueue, PROCESS_INBOUND_MESSAGE_JOB, type ProcessInboundMessagePayloa
 import { getChannelAdapter } from "@/lib/channels/registry";
 import { logger } from "@/lib/observability/logger";
 import { logActivity } from "@/lib/observability/activity";
+import { emitNewConversation } from "@/lib/realtime/realtime";
 
 export interface OutboundResult {
   conversationId: string;
@@ -104,6 +105,7 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
       },
     });
     await logActivity(ctx, "conversation.created", "conversation", created.id, `New webchat conversation started by ${event.payload.customerName}`, undefined, { channel: "webchat" });
+    emitNewConversation(ctx.businessId, created.id, { channel: "webchat" });
     return created;
   }
 

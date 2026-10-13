@@ -15,7 +15,7 @@ Updated: 2026-10-13 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 ## Next actions
 
 1. Done: PR #5 merged. `phase-8-complete` pushed to origin on 2026-10-13. `gh` is installed and authenticated as `sukhrob-djumaev`.
-2. Optional: decide on bounding the stall when a worker dies without draining (heartbeat / shorter `expireInSeconds`) — changes retry semantics, so not done.
+2. Worker-dies stall: fixed on branch `claude/worker-heartbeat` (30 s heartbeat on `process-inbound-message`); PR/merge and a live-stack restart are the owner's call.
 3. Phase 9 only with explicit authorization.
 
 ## Environment notes

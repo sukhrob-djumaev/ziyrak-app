@@ -30,3 +30,7 @@ Session: 2026-10-11 (Asia/Kuala_Lumpur) — Phase 8 (Scalability and Shared Infr
 ## Update 2026-10-13
 
 PR #5 (`claude/phase8-redis-scalability`) merged into `main` (`944f911`). `gh` installed and logged in. `phase-8-complete` pushed. Remaining owner decisions: the worker-stall decision, Phase 9 authorization.
+
+## Update 2026-10-13 (worker heartbeat)
+
+Branch `claude/worker-heartbeat` (from `main` @ `20db24d`): `heartbeatSeconds: 30` for `process-inbound-message`, `updateQueue` in `ensureQueue`, SIGKILL child-worker test (`tests/helpers/hanging-worker.ts`). Verified against `owly_test` (never the live `owly` DB; `.env` DATABASE_URL points at `owly`, so export the test URL): red without fix, green with; `tsc`, lint clean; `npm run test` 1004 passed / 23 skipped. Test data note: I cleared `process-inbound-message` rows in `pgboss.job_common` of `owly_test` to reset state. Not done: push/PR, live stack restart (running web/worker still on the old queue config; the queue picks up the heartbeat on next worker start), Docker test Redis `owly-redis-test` exists but is stopped.

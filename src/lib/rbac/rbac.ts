@@ -130,6 +130,12 @@ export const PERMISSIONS = {
   // whatever RBAC permission the underlying tool itself requires.
   "actions:read": SUPERVISOR_ROLES,
   "actions:approve": SUPERVISOR_ROLES,
+
+  // Tool policies (§23.4) — which AI tools are on, who may run them and whether
+  // they need human approval. Changing one widens or narrows what the AI may do
+  // on its own, so it is an admin decision; supervisors may look.
+  "tools:read": SUPERVISOR_ROLES,
+  "tools:update": ADMIN_ROLES,
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

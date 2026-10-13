@@ -1,0 +1,159 @@
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+
+/**
+ * Tool policy management: the dashboard needs a way for a business to decide
+ * which AI tools are on, which roles may run them, and which need a human to
+ * approve first — before this, only a database row could do that, so the
+ * approvals queue could never fill. Real Postgres + real auth; the end-to-end
+ * case proves a policy change actually gates the AI (not just a row).
+ */
+vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
+vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal());
+
+import { generateToken } from "@/lib/identity/auth";
+import { createRequest, parseJsonResponse } from "../helpers/request";
+import { seedBusiness, cleanupBusiness, addMember, type SeededBusiness } from "../helpers/tenant-fixtures";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { toolRegistry } from "@/lib/tools/registry";
+import "@/lib/tools/builtin";
+import type { TenantContext } from "@/lib/tenancy/context";
+
+let a: SeededBusiness;
+let b: SeededBusiness;
+let ownerToken: string;
+let supervisorToken: string;
+let agentToken: string;
+
+beforeAll(async () => {
+  a = await seedBusiness("tool-policy-a");
+  b = await seedBusiness("tool-policy-b");
+  ownerToken = generateToken(a.ownerUserId);
+  supervisorToken = generateToken((await addMember(a.businessId, "supervisor", "tp-supervisor")).userId);
+  agentToken = generateToken((await addMember(a.businessId, "agent", "tp-agent")).userId);
+});
+
+afterAll(async () => {
+  await cleanupBusiness(a.businessId);
+  await cleanupBusiness(b.businessId);
+});
+
+const authed = (path: string, token: string, options: Parameters<typeof createRequest>[1] = {}) =>
+  createRequest(path, { ...options, cookies: { "owly-token": token } });
+
+async function list(token: string) {
+  const { GET } = await import("@/app/api/tool-policies/route");
+  return GET(authed("/api/tool-policies", token));
+}
+async function put(token: string, tool: string, body: Record<string, unknown>) {
+  const { PUT } = await import("@/app/api/tool-policies/[tool]/route");
+  return PUT(authed(`/api/tool-policies/${tool}`, token, { method: "PUT", body }), { params: Promise.resolve({ tool }) });
+}
+async function reset(token: string, tool: string) {
+  const { DELETE } = await import("@/app/api/tool-policies/[tool]/route");
+  return DELETE(authed(`/api/tool-policies/${tool}`, token, { method: "DELETE" }), { params: Promise.resolve({ tool }) });
+}
+
+describe("GET /api/tool-policies", () => {
+  it("lists every business-visible tool with its effective policy and whether it is customised", async () => {
+    const response = await list(ownerToken);
+    expect(response.status).toBe(200);
+    const { data } = await parseJsonResponse(response);
+    const names = data.map((t: { tool: string }) => t.tool);
+    expect(names).toEqual(expect.arrayContaining(["create_ticket", "send_internal_email", "trigger_webhook", "schedule_followup"]));
+    expect(names).not.toContain("noop_test_action"); // internal test tool is not a business setting
+    const ticket = data.find((t: { tool: string }) => t.tool === "create_ticket");
+    expect(ticket).toMatchObject({
+      customized: false,
+      description: expect.any(String),
+      policy: { enabledForTenant: true, allowedForAI: true, requiresHumanApproval: false },
+    });
+  });
+
+  it("is allowed for supervisors (read-only) and refused for agents", async () => {
+    const supervisor = await list(supervisorToken);
+    expect(supervisor.status).toBe(200);
+    expect((await parseJsonResponse(supervisor)).canEdit).toBe(false);
+    expect((await parseJsonResponse(await list(ownerToken))).canEdit).toBe(true);
+    expect((await list(agentToken)).status).toBe(403);
+  });
+});
+
+describe("PUT /api/tool-policies/[tool]", () => {
+  it("lets an owner require approval, keeping every other field at its effective value", async () => {
+    const response = await put(ownerToken, "send_internal_email", { requiresHumanApproval: true });
+    expect(response.status).toBe(200);
+    const body = await parseJsonResponse(response);
+    expect(body).toMatchObject({
+      tool: "send_internal_email",
+      customized: true,
+      policy: { requiresHumanApproval: true, allowedForAI: true, enabledForTenant: true },
+    });
+    expect(body.policy.allowedForHumanRoles).toEqual(["agent", "supervisor", "admin", "owner"]);
+  });
+
+  it("is business-scoped: another business keeps the default", async () => {
+    const { data } = await parseJsonResponse(await list(generateToken(b.ownerUserId)));
+    const mine = data.find((t: { tool: string }) => t.tool === "send_internal_email");
+    expect(mine.customized).toBe(false);
+    expect(mine.policy.requiresHumanApproval).toBe(false);
+  });
+
+  it("refuses supervisors and agents (admin and owner only)", async () => {
+    expect((await put(supervisorToken, "create_ticket", { enabledForTenant: false })).status).toBe(403);
+    expect((await put(agentToken, "create_ticket", { enabledForTenant: false })).status).toBe(403);
+    const { data } = await parseJsonResponse(await list(ownerToken));
+    expect(data.find((t: { tool: string }) => t.tool === "create_ticket").customized).toBe(false);
+  });
+
+  it("rejects unknown tools, the internal test tool, unknown roles and non-boolean flags", async () => {
+    expect((await put(ownerToken, "does_not_exist", { enabledForTenant: false })).status).toBe(404);
+    expect((await put(ownerToken, "noop_test_action", { enabledForTenant: false })).status).toBe(404);
+    expect((await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["agent", "superuser"] })).status).toBe(400);
+    expect((await put(ownerToken, "create_ticket", { requiresHumanApproval: "yes" })).status).toBe(400);
+    expect((await put(ownerToken, "create_ticket", {})).status).toBe(400); // nothing to change
+  });
+
+  it("records who changed what in the activity log", async () => {
+    await put(ownerToken, "trigger_webhook", { allowedForAI: false });
+    const entry = await getScopedPrisma(a.ctx).activityLog.findFirst({
+      where: { action: "tool_policy.updated", entityId: "trigger_webhook" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(entry).not.toBeNull();
+    expect(entry!.description).toMatch(/trigger_webhook/);
+    expect(entry!.userId).toBe(a.ownerUserId);
+  });
+});
+
+describe("a saved policy actually gates the AI", () => {
+  const aiCtx = (): TenantContext => ({
+    businessId: a.businessId,
+    role: null,
+    actor: { kind: "ai_agent", conversationId: `conv-${a.businessId}`, model: "test-model" },
+    dataConnection: "shared-default",
+  });
+
+  it("send_internal_email now waits for approval when the policy says so", async () => {
+    await put(ownerToken, "send_internal_email", { requiresHumanApproval: true });
+    const result = await toolRegistry.execute(aiCtx(), "send_internal_email", { to: "team@example.com", subject: "s", body: "b" }, { toolCallId: `tc-${Math.random()}` });
+    expect(result.status).toBe("pending_approval");
+  });
+
+  it("a disabled tool is not available to the AI at all", async () => {
+    await put(ownerToken, "assign_to_person", { enabledForTenant: false });
+    const result = await toolRegistry.execute(aiCtx(), "assign_to_person", { ticketId: "t-1" }, { toolCallId: `tc-${Math.random()}` });
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/not available/);
+  });
+});
+
+describe("DELETE /api/tool-policies/[tool]", () => {
+  it("resets a customised tool to its default and is harmless when already default", async () => {
+    await put(ownerToken, "schedule_followup", { allowedForAI: false });
+    const response = await reset(ownerToken, "schedule_followup");
+    expect(response.status).toBe(200);
+    expect(await parseJsonResponse(response)).toMatchObject({ tool: "schedule_followup", customized: false, policy: { allowedForAI: true } });
+    expect((await reset(ownerToken, "schedule_followup")).status).toBe(200);
+    expect((await reset(supervisorToken, "schedule_followup")).status).toBe(403);
+  });
+});

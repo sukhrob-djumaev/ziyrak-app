@@ -56,6 +56,18 @@ export interface OutboundResult {
  * of it would be precisely the duplicated orchestration §46.5's acceptance
  * criteria forbid outside this one path.
  */
+/**
+ * A Web Chat widget supplies its own conversation id; this id already belongs to
+ * another business. Permanent (retrying cannot help) and deliberately free of any
+ * detail about whose it is.
+ */
+export class ConversationIdUnavailableError extends Error {
+  constructor() {
+    super("The supplied conversation id is not available.");
+    this.name = "ConversationIdUnavailableError";
+  }
+}
+
 export async function resolveOrCreateConversation(ctx: TenantContext, event: ZiyrakEvent<MessageReceivedPayload>) {
   const db = getScopedPrisma(ctx);
 
@@ -93,17 +105,24 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     // widget/connection cannot subscribe to another connection's
     // conversation even within the same business (§20.4's own isolation
     // requirement, tighter than plain businessId scoping).
-    const created = await db.conversation.create({
-      data: {
-        id: event.conversationId,
-        businessId: ctx.businessId,
-        channel: event.source.channel,
-        customerName: event.payload.customerName,
-        customerContact: event.payload.customerContact,
-        ...(customerId && { customerId }),
-        metadata: { channelConnectionId: event.source.connectionId },
-      },
-    });
+    // This business has no such conversation (the lookup above is tenant-scoped), so a
+    // primary-key collision here means the id belongs to another business.
+    const created = await db
+      .conversation.create({
+        data: {
+          id: event.conversationId,
+          businessId: ctx.businessId,
+          channel: event.source.channel,
+          customerName: event.payload.customerName,
+          customerContact: event.payload.customerContact,
+          ...(customerId && { customerId }),
+          metadata: { channelConnectionId: event.source.connectionId },
+        },
+      })
+      .catch((error: unknown) => {
+        if ((error as { code?: string } | null)?.code === "P2002") throw new ConversationIdUnavailableError();
+        throw error;
+      });
     await logActivity(ctx, "conversation.created", "conversation", created.id, `New webchat conversation started by ${event.payload.customerName}`, undefined, { channel: "webchat" });
     emitNewConversation(ctx.businessId, created.id, { channel: "webchat" });
     return created;
@@ -187,14 +206,21 @@ export async function processInboundMessage(
   return { conversationId: conversation.id, response };
 }
 
-jobQueue.registerHandler<ProcessInboundMessagePayload>(PROCESS_INBOUND_MESSAGE_JOB, async (ctx, payload) => {
+export async function handleProcessInboundMessage(ctx: TenantContext, payload: ProcessInboundMessagePayload): Promise<void> {
   const event = await loadReceiptEvent(ctx, payload.receiptId);
   try {
     await processInboundMessage(ctx, event as ZiyrakEvent<MessageReceivedPayload>);
     await markReceiptProcessed(ctx, payload.receiptId, "processed");
   } catch (error) {
     await markReceiptProcessed(ctx, payload.receiptId, "failed");
+    if (error instanceof ConversationIdUnavailableError) {
+      // Permanent: retrying cannot succeed. Record it and finish the job instead of burning retries.
+      logger.warn("[processInboundMessage] dropped a message whose conversation id is not available", { businessId: payload.businessId, receiptId: payload.receiptId });
+      return;
+    }
     logger.error("[processInboundMessage] job failed", { businessId: payload.businessId, receiptId: payload.receiptId, error });
     throw error;
   }
-});
+}
+
+jobQueue.registerHandler<ProcessInboundMessagePayload>(PROCESS_INBOUND_MESSAGE_JOB, handleProcessInboundMessage);

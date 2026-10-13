@@ -13,6 +13,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import {
   cn,
   formatRelativeTime,
@@ -106,9 +107,10 @@ export default function ConversationsPage() {
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchConversations = useCallback(async () => {
+  // `silent` = a background refresh: no error banner, no spinner, failures ignored until the next one.
+  const fetchConversations = useCallback(async (silent = false) => {
     try {
-      setFetchError(null);
+      if (!silent) setFetchError(null);
       const params = new URLSearchParams();
       if (channelFilter !== "all") params.set("channel", channelFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
@@ -119,15 +121,17 @@ export default function ConversationsPage() {
       const data = await res.json();
       setConversations(data.data);
     } catch (error) {
-      console.error("Failed to fetch conversations:", error);
-      setFetchError("Failed to load conversations. Please try refreshing the page.");
+      if (!silent) {
+        console.error("Failed to fetch conversations:", error);
+        setFetchError("Failed to load conversations. Please try refreshing the page.");
+      }
     } finally {
       setLoading(false);
     }
   }, [channelFilter, statusFilter, searchQuery]);
 
-  const fetchConversationDetail = useCallback(async (id: string) => {
-    setDetailLoading(true);
+  const fetchConversationDetail = useCallback(async (id: string, silent = false) => {
+    if (!silent) setDetailLoading(true);
     try {
       const res = await fetch(`/api/conversations/${id}`);
       if (res.ok) {
@@ -135,9 +139,9 @@ export default function ConversationsPage() {
         setSelectedConversation(data);
       }
     } catch (error) {
-      console.error("Failed to fetch conversation detail:", error);
+      if (!silent) console.error("Failed to fetch conversation detail:", error);
     } finally {
-      setDetailLoading(false);
+      if (!silent) setDetailLoading(false);
     }
   }, []);
 
@@ -151,9 +155,15 @@ export default function ConversationsPage() {
     }
   }, [selectedId, fetchConversationDetail]);
 
+  // New messages and status changes appear without a manual refresh.
+  useLiveRefresh(() => {
+    fetchConversations(true);
+    if (selectedId) fetchConversationDetail(selectedId, true);
+  });
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selectedConversation?.messages]);
+  }, [selectedConversation?.messages?.length]);
 
   const handleSelectConversation = (id: string) => {
     setSelectedId(id);

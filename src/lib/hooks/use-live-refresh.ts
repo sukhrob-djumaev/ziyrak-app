@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { LiveEventHub, shouldRefreshOn, type SourceLike } from "@/lib/live/hub";
 
 let hub: LiveEventHub | null = null;
+/** Set by whichever mounted hook last registered: the router the hub should use when the server ends the session. */
+let endSession: (() => void) | null = null;
+
 function getHub(): LiveEventHub {
   hub ??= new LiveEventHub(
     () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
-    () => window.location.assign("/login")
+    () => endSession?.()
   );
   return hub;
 }
@@ -26,12 +30,14 @@ interface Options {
  * background reload (no spinners).
  */
 export function useLiveRefresh(refresh: () => void, { intervalMs = 20_000, debounceMs = 800 }: Options = {}): void {
+  const router = useRouter();
   const latest = useRef(refresh);
   useEffect(() => {
     latest.current = refresh;
   });
 
   useEffect(() => {
+    endSession = () => router.replace("/login");
     let timer: ReturnType<typeof setTimeout> | null = null;
     let missedWhileHidden = false;
 
@@ -63,5 +69,5 @@ export function useLiveRefresh(refresh: () => void, { intervalMs = 20_000, debou
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [intervalMs, debounceMs]);
+  }, [intervalMs, debounceMs, router]);
 }

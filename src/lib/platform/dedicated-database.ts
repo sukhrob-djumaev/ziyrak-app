@@ -1,10 +1,12 @@
+import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
-import type { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { getSecretResolver } from "@/lib/secrets";
-import { ensureDedicatedClient, getDataPlaneClient, invalidateTenantPlacement } from "./tenant-placement";
+import { closeDedicatedClient, ensureDedicatedClient, getDataPlaneClient, invalidateTenantPlacement } from "./tenant-placement";
 
 const execFileAsync = promisify(execFile);
 
@@ -253,4 +255,78 @@ async function removeDedicatedCopy(dedicated: PrismaClient, tables: string[], bu
   } catch {
     // Leaving a partial copy is safe (placement still points at shared) but blocks a retry until an operator clears it.
   }
+}
+
+const TENANT_ROLE_PREFIX = "tenant_";
+const BUSINESS_ID_PATTERN = /^[A-Za-z0-9_-]{1,50}$/;
+
+/**
+ * PLAN.md §46.9 task 6 / §8.8 — Postgres RLS as an extra layer for a
+ * dedicated database. Run by an operator with the database's *admin*
+ * connection string, which is used for this call only and never stored.
+ *
+ * Creates the login role `tenant_<businessId>` (no superuser, no BYPASSRLS)
+ * and policies that compare every data-plane row's `businessId` to the role's
+ * own name via `current_user` — an identity a session cannot change, unlike a
+ * `SET app.tenant_id` setting (which any session could simply override). The
+ * role gets DML on the data-plane tables and nothing else: no control-plane
+ * tables, no DDL. The profile's stored secret is then replaced with the
+ * restricted role's DSN, so the application never holds admin credentials.
+ *
+ * Deviation from the plan's wording ("SET LOCAL app.tenant_id inside the
+ * dedicated connection's transactions"): that would need a transaction around
+ * every query and protects only against forgotten scoping, not against a
+ * session that sets its own setting. Binding to the role costs nothing per
+ * query, works under transaction pooling, and cannot be forgotten. The cost:
+ * an RLS-enabled profile serves exactly one business.
+ *
+ * Superusers bypass RLS in Postgres, so the dedicated runtime connection must
+ * never be a superuser — hence the role swap. Re-running rotates the password.
+ */
+export async function enableRowLevelSecurity(input: { profileId: string; businessId: string; adminConnectionString: string }): Promise<void> {
+  const { profileId, businessId, adminConnectionString } = input;
+  if (!BUSINESS_ID_PATTERN.test(businessId)) throw new Error(`Business id "${businessId}" cannot be used in a database role name.`);
+  if (!(await rawClient.databaseProfile.findUnique({ where: { id: profileId } }))) throw new Error(`DatabaseProfile "${profileId}" does not exist.`);
+
+  const role = `${TENANT_ROLE_PREFIX}${businessId}`;
+  const password = crypto.randomBytes(24).toString("hex");
+  const admin = new PrismaClient({ adapter: new PrismaPg({ connectionString: adminConnectionString, max: 2 }) });
+  try {
+    const [{ rolsuper }] = await admin.$queryRawUnsafe<{ rolsuper: boolean }[]>(`select rolsuper from pg_roles where rolname = current_user`);
+    if (!rolsuper) throw new Error("enableRowLevelSecurity needs an administrative connection (superuser) to create roles and force policies.");
+
+    const tables = await discoverDataPlaneTables(admin);
+    const exists = (await admin.$queryRawUnsafe<unknown[]>(`select 1 from pg_roles where rolname = $1`, role)).length > 0;
+    await admin.$executeRawUnsafe(
+      `${exists ? "ALTER" : "CREATE"} ROLE ${q(role)} LOGIN PASSWORD '${password}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`
+    );
+    const [{ db }] = await admin.$queryRawUnsafe<{ db: string }[]>(`select current_database() as db`);
+    await admin.$executeRawUnsafe(`GRANT CONNECT ON DATABASE ${q(db)} TO ${q(role)}`);
+    await admin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO ${q(role)}`);
+    await admin.$executeRawUnsafe(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${q(role)}`);
+
+    const policy = (column: string) => `${q(column)} = substr(current_user, ${TENANT_ROLE_PREFIX.length + 1})`;
+    for (const table of tables) {
+      await admin.$executeRawUnsafe(`ALTER TABLE ${q(table)} ENABLE ROW LEVEL SECURITY`);
+      await admin.$executeRawUnsafe(`ALTER TABLE ${q(table)} FORCE ROW LEVEL SECURITY`);
+      await admin.$executeRawUnsafe(`DROP POLICY IF EXISTS tenant_isolation ON ${q(table)}`);
+      await admin.$executeRawUnsafe(`CREATE POLICY tenant_isolation ON ${q(table)} FOR ALL USING (${policy("businessId")}) WITH CHECK (${policy("businessId")})`);
+      await admin.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${q(table)} TO ${q(role)}`);
+    }
+    // The tenant's own Business row is the foreign-key anchor and is readable, never writable.
+    await admin.$executeRawUnsafe(`ALTER TABLE "Business" ENABLE ROW LEVEL SECURITY`);
+    await admin.$executeRawUnsafe(`ALTER TABLE "Business" FORCE ROW LEVEL SECURITY`);
+    await admin.$executeRawUnsafe(`DROP POLICY IF EXISTS tenant_isolation ON "Business"`);
+    await admin.$executeRawUnsafe(`CREATE POLICY tenant_isolation ON "Business" FOR SELECT USING (${policy("id")})`);
+    await admin.$executeRawUnsafe(`GRANT SELECT ON "Business" TO ${q(role)}`);
+  } finally {
+    await admin.$disconnect();
+  }
+
+  const runtimeUrl = new URL(adminConnectionString);
+  runtimeUrl.username = role;
+  runtimeUrl.password = password;
+  const encrypted = await getSecretResolver().encrypt(runtimeUrl.toString());
+  await rawClient.databaseProfile.update({ where: { id: profileId }, data: { connectionSecretRef: JSON.stringify(encrypted) } });
+  await closeDedicatedClient(profileId);
 }

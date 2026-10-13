@@ -88,6 +88,14 @@ export async function ensureDedicatedClient(profileId: string): Promise<string> 
   return key;
 }
 
+/** Disconnects and forgets one dedicated profile's client (e.g. after its secret changed), so the next resolve reconnects. */
+export async function closeDedicatedClient(profileId: string): Promise<void> {
+  const key = `${DEDICATED_PREFIX}${profileId}`;
+  const client = dataPlaneClients.get(key);
+  dataPlaneClients.delete(key);
+  await client?.$disconnect();
+}
+
 /** Disconnects every dedicated client (shutdown, tests, secret rotation). */
 export async function closeDedicatedClients(): Promise<void> {
   const clients = Array.from(dataPlaneClients.values());

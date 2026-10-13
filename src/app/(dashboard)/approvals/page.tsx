@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, Loader2, MessageSquare, ShieldCheck, XCircle } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
+import { PoliciesPanel } from "@/components/approvals/policies-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
@@ -24,7 +25,7 @@ interface ActionRow {
   completedAt: string | null;
 }
 
-type Tab = "pending" | "history";
+type Tab = "pending" | "history" | "policies";
 type Decision = { action: ActionRow; kind: "approve" | "reject" } | null;
 
 const POLL_MS = 15_000;
@@ -112,7 +113,7 @@ export default function ApprovalsPage() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <div className="flex items-center gap-2" role="tablist">
-          {(["pending", "history"] as const).map((key) => (
+          {(["pending", "history", "policies"] as const).map((key) => (
             <button
               key={key}
               role="tab"
@@ -123,12 +124,14 @@ export default function ApprovalsPage() {
                 tab === key ? "bg-owly-primary text-white" : "bg-owly-surface border border-owly-border text-owly-text-light hover:text-owly-text"
               )}
             >
-              {key === "pending" ? `Waiting (${pending.length})` : "History"}
+              {key === "pending" ? `Waiting (${pending.length})` : key === "history" ? "History" : "Policies"}
             </button>
           ))}
         </div>
 
-        {loading ? (
+        {tab === "policies" ? (
+          <PoliciesPanel />
+        ) : loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-owly-primary" />
           </div>

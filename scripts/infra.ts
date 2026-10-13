@@ -16,6 +16,8 @@
 import "dotenv/config";
 import { prisma } from "@/lib/prisma/raw-client";
 import { getInfrastructurePolicy } from "@/lib/platform/infrastructure-policy";
+import { aiProviderRegistry } from "@/lib/ai/providers/registry";
+import { embeddingProviderRegistry } from "@/lib/ai/providers/embedding-registry";
 import { provisionDedicatedDatabase, migrateBusinessToDedicated, enableRowLevelSecurity } from "@/lib/platform/dedicated-database";
 
 function flag(args: string[], name: string): string | undefined {
@@ -53,6 +55,12 @@ async function main(): Promise<void> {
         permittedAiProviders: list(flag(args, "ai")),
         permittedEmbeddingProviders: list(flag(args, "embedding")),
       };
+      // A typo would silently block every provider (or, via "-", lift the restriction); reject unknown names.
+      for (const name of data.permittedAiProviders ?? []) if (!aiProviderRegistry.has(name)) throw new Error(`Unknown AI provider "${name}".`);
+      for (const name of data.permittedEmbeddingProviders ?? []) if (!embeddingProviderRegistry.has(name)) throw new Error(`Unknown embedding provider "${name}".`);
+      if (data.permittedAiProviders?.length === 0 || data.permittedEmbeddingProviders?.length === 0) {
+        console.warn("Note: an empty allowlist means NO restriction for that capability.");
+      }
       const policy = await prisma.infrastructurePolicy.upsert({ where: { businessId }, update: data, create: { businessId, ...data } });
       console.log(JSON.stringify(policy, null, 2));
       return;
@@ -71,6 +79,9 @@ async function main(): Promise<void> {
       if (!args.includes("--confirm-quiesced")) throw new Error("Refusing to migrate without --confirm-quiesced (no traffic or active jobs for this business).");
       const report = await migrateBusinessToDedicated({ businessId: need(args[0], "<businessId>"), profileId: need(args[1], "<profileId>") });
       console.log(JSON.stringify(report, null, 2));
+      console.warn(
+        "Cutover committed. Requests already holding a context built before it (and, with Redis, a cached placement for up to 30 s) can still write to the shared database: keep the business quiesced for at least a minute."
+      );
       return;
     }
     case "enable-rls": {

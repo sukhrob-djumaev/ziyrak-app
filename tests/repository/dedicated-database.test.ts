@@ -11,10 +11,11 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma } from "@/lib/prisma/raw-client";
-import { getScopedPrisma, TENANT_SCOPED_MODELS } from "@/lib/tenancy/scoped-prisma";
+import { getScopedPrisma, TENANT_SCOPED_MODELS, CONTROL_PLANE_RESIDENT_MODELS } from "@/lib/tenancy/scoped-prisma";
 import { resolveTenantPlacement, getDataPlaneClient, closeDedicatedClients } from "@/lib/platform/tenant-placement";
 import { provisionDedicatedDatabase, migrateBusinessToDedicated, discoverDataPlaneTables } from "@/lib/platform/dedicated-database";
 import * as adminUsers from "@/lib/platform/admin-users/service";
+import { getSecretResolver } from "@/lib/secrets";
 import { PgBossJobQueue } from "@/lib/jobs/pgboss-job-queue";
 import { PROCESS_INBOUND_MESSAGE_JOB } from "@/lib/jobs/job-types";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
@@ -23,6 +24,7 @@ const SHARED_URL = process.env.DATABASE_URL!;
 const DEDICATED_DB = `owly_dedicated_${Date.now()}_${process.pid}`;
 const dedicatedUrl = SHARED_URL.replace(/\/[^/?]+(\?|$)/, `/${DEDICATED_DB}$1`);
 const PROFILE_ID = `dedicated-test-${Date.now()}`;
+const JOB_SCHEMA = `pgboss_dedicated_${process.pid}_${Date.now()}`;
 
 let moved: SeededBusiness;
 let stayer: SeededBusiness;
@@ -52,6 +54,8 @@ beforeAll(async () => {
   await prisma.$executeRawUnsafe(`CREATE DATABASE "${DEDICATED_DB}"`);
   moved = await seedBusiness("dedicated-moved");
   stayer = await seedBusiness("dedicated-stayer");
+  await prisma.channelConnection.create({ data: { businessId: moved.businessId, type: "webchat", name: "pre-migration widget" } });
+  await prisma.apiKey.create({ data: { businessId: moved.businessId, name: "pre-migration key", keyPrefix: `zy_pre_${Date.now()}`, keyHash: "hash" } });
   await seedData(moved);
   await seedData(stayer);
 }, 60000);
@@ -62,6 +66,7 @@ afterAll(async () => {
   await cleanupBusiness(stayer.businessId);
   await prisma.databaseProfile.deleteMany({ where: { id: PROFILE_ID } });
   await prisma.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${DEDICATED_DB}" WITH (FORCE)`);
+  await prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${JOB_SCHEMA}" CASCADE`);
 });
 
 describe("provisioning a dedicated database (§46.9 task 2)", () => {
@@ -123,6 +128,29 @@ describe("migrating a business to dedicated infrastructure (§46.9 task 4)", () 
     expect(await getScopedPrisma(stayer.ctx).customer.count()).toBe(counts.customers);
   });
 
+  it("leaves ingress tables (API keys, channel connections, memberships) on the control plane, readable by the raw-client ingress paths", async () => {
+    expect(await sharedCount("ChannelConnection", moved.businessId)).toBe(1);
+    expect(await sharedCount("ApiKey", moved.businessId)).toBe(1);
+    const dedicatedClient = getDataPlaneClient(`dedicated:${PROFILE_ID}`);
+    for (const table of ["ChannelConnection", "ApiKey", "Membership"]) {
+      const rows = await dedicatedClient.$queryRawUnsafe<unknown[]>(`select 1 from ${JSON.stringify(table)} where "businessId" = $1`, moved.businessId);
+      expect(rows).toHaveLength(0);
+    }
+  });
+
+  it("routes scoped reads and writes of control-plane-resident models to the shared connection for a dedicated business", async () => {
+    const db = getScopedPrisma({ ...moved.ctx, dataConnection: `dedicated:${PROFILE_ID}` });
+    const created = await db.channelConnection.create({ data: { type: "webchat", name: "post-cutover widget", businessId: moved.businessId } });
+    // What webhook/widget ingress reads (raw shared client) sees it...
+    expect(await prisma.channelConnection.findUnique({ where: { id: created.id } })).not.toBeNull();
+    // ...and the scoped client reads the same row back, still tenant-scoped.
+    expect(await db.channelConnection.count()).toBe(2);
+    expect(await getScopedPrisma(stayer.ctx).channelConnection.findUnique({ where: { id: created.id } })).toBeNull();
+    const key = await db.apiKey.create({ data: { name: "post-cutover key", keyPrefix: `zy_post_${Date.now()}`, keyHash: "hash", businessId: moved.businessId } });
+    expect(await prisma.apiKey.findUnique({ where: { id: key.id } })).not.toBeNull();
+    expect(await sharedCount("ChannelConnection", moved.businessId)).toBe(2);
+  });
+
   it("refuses to migrate onto a profile that already holds this business's data", async () => {
     await expect(migrateBusinessToDedicated({ businessId: moved.businessId, profileId: PROFILE_ID })).rejects.toThrow(/already/i);
   });
@@ -139,10 +167,38 @@ describe("migrating a business to dedicated infrastructure (§46.9 task 4)", () 
   });
 });
 
+describe("provisioning failures and secret rotation (security review)", () => {
+  it("does not echo the connection string or its password when provisioning fails", async () => {
+    // A wrong password fails for real (a missing database would simply be created by `migrate deploy`).
+    const bogus = dedicatedUrl.replace(/\/\/([^:]+):[^@]+@/, "//$1:wrong-password-xyz@");
+    const error = await provisionDedicatedDatabase({ profileId: `${PROFILE_ID}-bogus`, connectionString: bogus }).then(
+      () => null,
+      (e: Error) => e
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect(error!.message).not.toContain(bogus);
+    expect(error!.message).not.toContain("wrong-password-xyz");
+    expect(await prisma.databaseProfile.findUnique({ where: { id: `${PROFILE_ID}-bogus` } })).toBeNull();
+  }, 120000);
+
+  it("picks up a changed profile secret without a process restart", async () => {
+    await resolveTenantPlacement(moved.businessId);
+    const before = getDataPlaneClient(`dedicated:${PROFILE_ID}`);
+    const resolver = getSecretResolver();
+    const dsn = await resolver.decrypt(JSON.parse((await prisma.databaseProfile.findUniqueOrThrow({ where: { id: PROFILE_ID } })).connectionSecretRef));
+    await prisma.databaseProfile.update({ where: { id: PROFILE_ID }, data: { connectionSecretRef: JSON.stringify(await resolver.encrypt(dsn)) } });
+
+    await resolveTenantPlacement(moved.businessId);
+    const after = getDataPlaneClient(`dedicated:${PROFILE_ID}`);
+    expect(after).not.toBe(before);
+    expect(await getScopedPrisma({ ...moved.ctx, dataConnection: `dedicated:${PROFILE_ID}` }).customer.count()).toBeGreaterThan(0);
+  });
+});
+
 describe("migration safety", () => {
-  it("discovers exactly the tenant-scoped data-plane tables (membership stays on the control plane)", async () => {
+  it("discovers exactly the tenant-scoped data-plane tables (control-plane-resident models stay on the shared connection)", async () => {
     const discovered = (await discoverDataPlaneTables(prisma)).map((t) => t.charAt(0).toLowerCase() + t.slice(1));
-    const expected = TENANT_SCOPED_MODELS.filter((m) => m !== "membership");
+    const expected = TENANT_SCOPED_MODELS.filter((m) => !(CONTROL_PLANE_RESIDENT_MODELS as readonly string[]).includes(m));
     expect([...discovered].sort()).toEqual([...expected].sort());
   });
 
@@ -174,7 +230,8 @@ describe("migration safety", () => {
 describe("the job queue routes a dedicated tenant's jobs with no per-tenant configuration (§25.6)", () => {
   it("runs a handler against the dedicated database, resolved from the payload's businessId alone", async () => {
     const seen: { dataConnection: string; customers: number }[] = [];
-    const queue = new PgBossJobQueue(SHARED_URL);
+    // Own pg-boss schema: this suite runs in parallel with the real-worker suites, which share the default queue.
+    const queue = new PgBossJobQueue(SHARED_URL, { schema: JOB_SCHEMA });
     queue.registerHandler<{ businessId: string }>(PROCESS_INBOUND_MESSAGE_JOB, async (ctx) => {
       seen.push({ dataConnection: ctx.dataConnection, customers: await getScopedPrisma(ctx).customer.count() });
     });

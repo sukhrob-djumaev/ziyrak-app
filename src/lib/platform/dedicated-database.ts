@@ -6,6 +6,7 @@ import { prisma as rawClient } from "@/lib/prisma/raw-client";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { getSecretResolver } from "@/lib/secrets";
+import { CONTROL_PLANE_RESIDENT_MODELS } from "@/lib/tenancy/scoped-prisma";
 import { closeDedicatedClient, ensureDedicatedClient, getDataPlaneClient, invalidateTenantPlacement } from "./tenant-placement";
 
 const execFileAsync = promisify(execFile);
@@ -30,7 +31,8 @@ const execFileAsync = promisify(execFile);
 const CONTROL_PLANE_TABLES: ReadonlySet<string> = new Set([
   "Business",
   "User",
-  "Membership",
+  // Tenant-scoped models served from the shared connection (see CONTROL_PLANE_RESIDENT_MODELS).
+  ...CONTROL_PLANE_RESIDENT_MODELS.map((m) => m.charAt(0).toUpperCase() + m.slice(1)),
   "TenantPlacement",
   "InfrastructurePolicy",
   "DatabaseProfile",
@@ -67,11 +69,17 @@ export async function provisionDedicatedDatabase(input: ProvisionDedicatedDataba
   // migration history the shared database has; prisma.config.ts reads the URL
   // from these variables (and dotenv never overrides variables already set).
   const prismaCli = path.join(process.cwd(), "node_modules", "prisma", "build", "index.js");
-  await execFileAsync(process.execPath, [prismaCli, "migrate", "deploy"], {
-    cwd: process.cwd(),
-    env: { ...process.env, DATABASE_URL: input.connectionString, DIRECT_DATABASE_URL: input.connectionString },
-    timeout: 5 * 60_000,
-  });
+  try {
+    await execFileAsync(process.execPath, [prismaCli, "migrate", "deploy"], {
+      cwd: process.cwd(),
+      env: { ...process.env, DATABASE_URL: input.connectionString, DIRECT_DATABASE_URL: input.connectionString },
+      timeout: 5 * 60_000,
+    });
+  } catch (error) {
+    // The child's message embeds its command line and may echo the DSN; surface only a redacted tail.
+    const detail = String((error as { stderr?: string }).stderr ?? (error as Error).message ?? "");
+    throw new Error(`Applying migrations to the dedicated database failed: ${redactConnectionString(detail, input.connectionString).trim().slice(-600)}`);
+  }
 
   const encrypted = await getSecretResolver().encrypt(input.connectionString);
   await rawClient.databaseProfile.create({
@@ -90,6 +98,16 @@ export interface MigrationReport {
   profileId: string;
   verified: boolean;
   tables: MigrationTableReport[];
+}
+
+/** Removes a DSN, its password and its userinfo from text bound for an error message or log. */
+function redactConnectionString(text: string, connectionString: string): string {
+  const url = new URL(connectionString);
+  let out = text.split(connectionString).join("<dsn>");
+  for (const secret of [url.password, decodeURIComponent(url.password)]) {
+    if (secret) out = out.split(secret).join("***");
+  }
+  return out;
 }
 
 const q = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
@@ -212,6 +230,19 @@ export async function migrateBusinessToDedicated(
     // 3. Cutover + decommission, atomically on the shared database, re-verifying inside the transaction.
     await rawClient.$transaction(
       async (tx) => {
+        // Quiesce *this business's* data from here to commit, without touching other
+        // tenants: a child insert takes a shared lock on its Business row for the
+        // foreign-key check, so FOR UPDATE on that row makes new inserts (and any
+        // in flight) settle first; FOR UPDATE on the business's existing rows blocks
+        // concurrent updates and deletes. Without this, a row committed between a
+        // table's re-verification and the delete below would be deleted from shared
+        // having never been copied. Statements after the locks see everything
+        // committed before them (READ COMMITTED).
+        await tx.$executeRawUnsafe(`SET LOCAL lock_timeout = '30s'`);
+        await tx.$queryRawUnsafe(`select 1 from "Business" where id = $1 for update`, businessId);
+        for (const table of tables) {
+          await tx.$queryRawUnsafe(`select 1 from ${q(table)} where "businessId" = $1 for update`, businessId);
+        }
         for (const table of tables) {
           const [a, b] = await Promise.all([
             tx.$queryRawUnsafe<{ n: bigint; h: string | null }[]>(
@@ -286,7 +317,18 @@ const BUSINESS_ID_PATTERN = /^[A-Za-z0-9_-]{1,50}$/;
 export async function enableRowLevelSecurity(input: { profileId: string; businessId: string; adminConnectionString: string }): Promise<void> {
   const { profileId, businessId, adminConnectionString } = input;
   if (!BUSINESS_ID_PATTERN.test(businessId)) throw new Error(`Business id "${businessId}" cannot be used in a database role name.`);
-  if (!(await rawClient.databaseProfile.findUnique({ where: { id: profileId } }))) throw new Error(`DatabaseProfile "${profileId}" does not exist.`);
+  const profile = await rawClient.databaseProfile.findUnique({ where: { id: profileId } });
+  if (!profile) throw new Error(`DatabaseProfile "${profileId}" does not exist.`);
+
+  // Bind business, profile and database together before changing anything: a wrong
+  // pairing would swap this profile's secret for a role that sees none of its data.
+  const placement = await rawClient.tenantPlacement.findUnique({ where: { businessId } });
+  if (placement?.databaseProfileId !== profileId) throw new Error(`Business ${businessId} is not placed on profile "${profileId}"; migrate it there first.`);
+  const stored = new URL(await getSecretResolver().decrypt(JSON.parse(profile.connectionSecretRef)));
+  const supplied = new URL(adminConnectionString);
+  if (stored.hostname !== supplied.hostname || (stored.port || "5432") !== (supplied.port || "5432") || stored.pathname !== supplied.pathname) {
+    throw new Error(`The administrative connection does not match profile "${profileId}" (different host, port or database).`);
+  }
 
   const role = `${TENANT_ROLE_PREFIX}${businessId}`;
   const password = crypto.randomBytes(24).toString("hex");
@@ -294,6 +336,13 @@ export async function enableRowLevelSecurity(input: { profileId: string; busines
   try {
     const [{ rolsuper }] = await admin.$queryRawUnsafe<{ rolsuper: boolean }[]>(`select rolsuper from pg_roles where rolname = current_user`);
     if (!rolsuper) throw new Error("enableRowLevelSecurity needs an administrative connection (superuser) to create roles and force policies.");
+
+    const businesses = await admin.$queryRawUnsafe<{ id: string }[]>(`select id from "Business"`);
+    if (businesses.length !== 1 || businesses[0].id !== businessId) {
+      throw new Error(
+        `Profile "${profileId}" must hold exactly one business (${businessId}) before row-level security is enabled; found ${businesses.length}. An RLS profile serves a single business.`
+      );
+    }
 
     const tables = await discoverDataPlaneTables(admin);
     const exists = (await admin.$queryRawUnsafe<unknown[]>(`select 1 from pg_roles where rolname = $1`, role)).length > 0;
@@ -303,6 +352,9 @@ export async function enableRowLevelSecurity(input: { profileId: string; busines
     const [{ db }] = await admin.$queryRawUnsafe<{ db: string }[]>(`select current_database() as db`);
     await admin.$executeRawUnsafe(`GRANT CONNECT ON DATABASE ${q(db)} TO ${q(role)}`);
     await admin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO ${q(role)}`);
+    // Older Postgres (< 15) lets PUBLIC create objects in `public`.
+    await admin.$executeRawUnsafe(`REVOKE CREATE ON SCHEMA public FROM PUBLIC`);
+    await admin.$executeRawUnsafe(`REVOKE CREATE ON SCHEMA public FROM ${q(role)}`);
     await admin.$executeRawUnsafe(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${q(role)}`);
 
     const policy = (column: string) => `${q(column)} = substr(current_user, ${TENANT_ROLE_PREFIX.length + 1})`;

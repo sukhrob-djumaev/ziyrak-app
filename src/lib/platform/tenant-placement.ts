@@ -65,40 +65,53 @@ export async function resolveTenantPlacement(businessId: string): Promise<Resolv
   return { dataConnection: "shared-default" };
 }
 
-const dataPlaneClients = new Map<string, PrismaClient>();
+interface DataPlaneEntry {
+  client: PrismaClient;
+  /** The profile's `connectionSecretRef` this client was built from; a different value means the secret changed. */
+  secretRef: string | null;
+}
+
+const dataPlaneClients = new Map<string, DataPlaneEntry>();
 
 const DEDICATED_PREFIX = "dedicated:";
 const DEDICATED_POOL_MAX = 5;
 
+/** In-flight queries on a replaced client get this long to finish before it is disconnected. */
+const REPLACED_CLIENT_GRACE_MS = 60_000;
+
 /**
- * Opens (once per process) the Prisma client for a dedicated `DatabaseProfile`
- * and registers it under `dedicated:<profileId>`. Known limit: a client stays
- * cached for the life of the process, so changing a profile's secret needs a
- * restart of the web/worker processes (or `closeDedicatedClients()`).
+ * Returns the `dedicated:<profileId>` key for a profile, building its Prisma
+ * client on first use and **rebuilding it whenever the profile's secret has
+ * changed** (the profile is re-read on every resolve — one primary-key read —
+ * so a rotation, or the swap to the restricted RLS role, reaches every
+ * process within its next request instead of waiting for a restart).
  */
 export async function ensureDedicatedClient(profileId: string): Promise<string> {
   const key = `${DEDICATED_PREFIX}${profileId}`;
-  if (dataPlaneClients.has(key)) return key;
-
   const profile = await rawClient.databaseProfile.findUnique({ where: { id: profileId } });
   if (!profile) throw new Error(`DatabaseProfile "${profileId}" does not exist.`);
+
+  const cached = dataPlaneClients.get(key);
+  if (cached && cached.secretRef === profile.connectionSecretRef) return key;
+
   const connectionString = await getSecretResolver().decrypt(JSON.parse(profile.connectionSecretRef) as EncryptedSecret);
   const adapter = new PrismaPg({ connectionString, max: DEDICATED_POOL_MAX });
-  dataPlaneClients.set(key, new PrismaClient({ adapter }));
+  dataPlaneClients.set(key, { client: new PrismaClient({ adapter }), secretRef: profile.connectionSecretRef });
+  if (cached) setTimeout(() => void cached.client.$disconnect().catch(() => {}), REPLACED_CLIENT_GRACE_MS).unref();
   return key;
 }
 
 /** Disconnects and forgets one dedicated profile's client (e.g. after its secret changed), so the next resolve reconnects. */
 export async function closeDedicatedClient(profileId: string): Promise<void> {
   const key = `${DEDICATED_PREFIX}${profileId}`;
-  const client = dataPlaneClients.get(key);
+  const entry = dataPlaneClients.get(key);
   dataPlaneClients.delete(key);
-  await client?.$disconnect();
+  await entry?.client.$disconnect();
 }
 
 /** Disconnects every dedicated client (shutdown, tests, secret rotation). */
 export async function closeDedicatedClients(): Promise<void> {
-  const clients = Array.from(dataPlaneClients.values());
+  const clients = Array.from(dataPlaneClients.values()).map((entry) => entry.client);
   dataPlaneClients.clear();
   await Promise.all(clients.map((client) => client.$disconnect()));
 }
@@ -112,7 +125,7 @@ export function getDataPlaneClient(dataConnection: string): PrismaClient {
   if (dataConnection === "shared-default") return rawClient;
 
   const cached = dataPlaneClients.get(dataConnection);
-  if (cached) return cached;
+  if (cached) return cached.client;
 
   throw new Error(
     `No data-plane client registered for connection "${dataConnection}" — resolve the business's placement (resolveTenantPlacement) before using its data connection.`

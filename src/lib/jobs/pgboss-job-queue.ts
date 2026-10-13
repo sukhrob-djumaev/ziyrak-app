@@ -41,8 +41,13 @@ export class PgBossJobQueue implements JobQueue {
   private readonly ensuredQueues = new Set<string>();
   private started = false;
 
-  constructor(connectionString: string) {
-    this.boss = new PgBoss({ connectionString });
+  /**
+   * `schema` places pg-boss's own tables in a separate schema (default `pgboss`).
+   * Production never sets it; tests that run real workers in parallel with other
+   * suites use their own so workers cannot take each other's jobs.
+   */
+  constructor(connectionString: string, options?: { schema?: string }) {
+    this.boss = new PgBoss(options?.schema ? { connectionString, schema: options.schema } : { connectionString });
     this.boss.on("error", (error) => logger.error("[PgBossJobQueue] error", error));
   }
 

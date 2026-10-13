@@ -27,6 +27,7 @@ const PROFILE_ID = `rls-test-${Date.now()}`;
 
 let owner: SeededBusiness;
 let neighbour: SeededBusiness;
+let outsider: SeededBusiness;
 let admin: PrismaClient;
 let runtime: PrismaClient;
 
@@ -41,14 +42,21 @@ beforeAll(async () => {
   neighbour = await seedBusiness("rls-neighbour");
   await seed(owner, 3);
   await seed(neighbour, 2);
+  outsider = await seedBusiness("rls-outsider");
 
   await provisionDedicatedDatabase({ profileId: PROFILE_ID, connectionString: adminUrl });
-  // Two businesses end up in one dedicated database (the situation RLS must survive).
   await migrateBusinessToDedicated({ businessId: owner.businessId, profileId: PROFILE_ID });
-  await migrateBusinessToDedicated({ businessId: neighbour.businessId, profileId: PROFILE_ID });
 
   admin = new PrismaClient({ adapter: new PrismaPg({ connectionString: adminUrl, max: 2 }) });
   await enableRowLevelSecurity({ profileId: PROFILE_ID, businessId: owner.businessId, adminConnectionString: adminUrl });
+
+  // The failure RLS exists for: another business's rows end up in this database
+  // (a misrouted write, a bad restore). Planted with the admin connection after
+  // RLS is on, since the application role itself could never write them.
+  const [anchor] = await prisma.$queryRawUnsafe<{ j: string }[]>(`select to_jsonb(b)::text as j from "Business" b where id = $1`, neighbour.businessId);
+  await admin.$executeRawUnsafe(`insert into "Business" select * from jsonb_populate_record(null::"Business", $1::jsonb)`, anchor.j);
+  const strays = await prisma.$queryRawUnsafe<{ j: string }[]>(`select to_jsonb(c)::text as j from "Customer" c where "businessId" = $1`, neighbour.businessId);
+  await admin.$executeRawUnsafe(`insert into "Customer" select * from jsonb_populate_recordset(null::"Customer", $1::jsonb)`, `[${strays.map((r) => r.j).join(",")}]`);
 
   const placement = await resolveTenantPlacement(owner.businessId);
   runtime = getDataPlaneClient(placement.dataConnection);
@@ -59,6 +67,7 @@ afterAll(async () => {
   await admin?.$disconnect();
   await cleanupBusiness(owner.businessId);
   await cleanupBusiness(neighbour.businessId);
+  await cleanupBusiness(outsider.businessId);
   await prisma.databaseProfile.deleteMany({ where: { id: PROFILE_ID } });
   await prisma.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${DEDICATED_DB}" WITH (FORCE)`);
   await prisma.$executeRawUnsafe(`DROP ROLE IF EXISTS "tenant_${owner.businessId}"`).catch(() => {});
@@ -114,5 +123,30 @@ describe("RLS on a dedicated database (§46.9 task 6)", () => {
   it("gives the application role no access to control-plane tables", async () => {
     await expect(runtime.$queryRawUnsafe(`select * from "User"`)).rejects.toThrow(/permission denied/i);
     await expect(runtime.$queryRawUnsafe(`select * from "DatabaseProfile"`)).rejects.toThrow(/permission denied/i);
+  });
+});
+
+describe("enableRowLevelSecurity refuses a mismatched target (security review)", () => {
+  it("refuses a business that is not placed on the profile", async () => {
+    await expect(
+      enableRowLevelSecurity({ profileId: PROFILE_ID, businessId: outsider.businessId, adminConnectionString: adminUrl })
+    ).rejects.toThrow(/not placed on/i);
+  });
+
+  it("refuses an administrative connection to a different database than the profile's", async () => {
+    await expect(
+      enableRowLevelSecurity({ profileId: PROFILE_ID, businessId: owner.businessId, adminConnectionString: SHARED_URL })
+    ).rejects.toThrow(/does not match/i);
+  });
+
+  it("refuses a database that holds more than this one business (it would lock the others out)", async () => {
+    // The neighbour's stray Business row is in this database (planted in beforeAll).
+    await expect(
+      enableRowLevelSecurity({ profileId: PROFILE_ID, businessId: owner.businessId, adminConnectionString: adminUrl })
+    ).rejects.toThrow(/exactly one/i);
+  });
+
+  it("gives the application role no way to create objects", async () => {
+    await expect(runtime.$executeRawUnsafe(`create table rls_probe (i int)`)).rejects.toThrow(/permission denied/i);
   });
 });

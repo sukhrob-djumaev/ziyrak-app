@@ -5,6 +5,8 @@ import { AppError, toErrorResponse } from "@/lib/observability/errors";
 import * as knowledgeService from "@/lib/knowledge/service";
 import { resolveAIConfig } from "@/lib/ai/config";
 import { aiProviderRegistry } from "@/lib/ai/providers/registry";
+import { AIProviderError } from "@/lib/ai/providers/types";
+import { assertAiProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { recordAIInteraction } from "@/lib/ai/usage";
 
 export async function POST(request: NextRequest) {
@@ -68,6 +70,13 @@ Your answer here...
 ---SOURCES---
 [1, 3, 5]`;
 
+    // PLAN.md §46.9 — the business's infrastructure policy may forbid its configured provider.
+    try {
+      await assertAiProviderPermitted(ctx.businessId, aiConfig.provider);
+    } catch (policyError) {
+      if (policyError instanceof AIProviderError) return NextResponse.json({ error: policyError.message }, { status: 403 });
+      throw policyError;
+    }
     const provider = aiProviderRegistry.get(aiConfig.provider, { apiKey: aiConfig.apiKey });
     const completion = await provider.complete({
       messages: [

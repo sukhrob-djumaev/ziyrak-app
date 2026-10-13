@@ -1,6 +1,7 @@
 import type { TenantContext } from "./context";
 import { getBackstopTenantContext } from "./context";
 import { getDataPlaneClient } from "@/lib/platform/tenant-placement";
+import { prisma as sharedClient } from "@/lib/prisma/raw-client";
 
 /**
  * PLAN.md §8.3/§12 — every tenant-owned model that currently exists in the
@@ -53,7 +54,22 @@ export const TENANT_SCOPED_MODELS = [
 
 export type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number];
 
+/**
+ * PLAN.md §7.4 — tenant-scoped models that nevertheless live on the control
+ * plane, because a process reads them *before* it knows which business (and
+ * so which data-plane database) a request belongs to: authentication reads
+ * `Membership` and `ApiKey`, and webhook/widget ingress resolves a business
+ * from `ChannelConnection`, all through the shared connection. Administering
+ * them through a dedicated database's copy would silently diverge from what
+ * ingress reads (a removed member or revoked key would still authenticate; a
+ * new connection would never receive traffic), so for a business on a
+ * dedicated database these models always go to the shared connection — still
+ * tenant-scoped, only the connection is pinned. They never migrate (§46.9).
+ */
+export const CONTROL_PLANE_RESIDENT_MODELS = ["membership", "apiKey", "channelConnection"] as const;
+
 const SCOPED_SET: ReadonlySet<string> = new Set(TENANT_SCOPED_MODELS);
+const CONTROL_PLANE_RESIDENT_SET: ReadonlySet<string> = new Set(CONTROL_PLANE_RESIDENT_MODELS);
 
 function uncapitalizeModel(model: string): string {
   return model.charAt(0).toLowerCase() + model.slice(1);
@@ -146,8 +162,21 @@ export function getScopedPrisma(ctx: TenantContext | undefined) {
       "getScopedPrisma() was called with no TenantContext, and none is available from the AsyncLocalStorage backstop either. Refusing to run any query unscoped (PLAN.md §8.2/§8.3 fail-closed rule)."
     );
   }
-  const { businessId } = resolved;
   const client = getDataPlaneClient(resolved.dataConnection);
+  const scoped = buildScopedClient(client, resolved.businessId);
+  if (client === sharedClient) return scoped;
+
+  // Dedicated database: control-plane-resident models are served by the shared connection.
+  const controlPlane = buildScopedClient(sharedClient, resolved.businessId);
+  return new Proxy(scoped, {
+    get(target, prop, receiver) {
+      if (typeof prop === "string" && CONTROL_PLANE_RESIDENT_SET.has(prop)) return Reflect.get(controlPlane, prop);
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as typeof scoped;
+}
+
+function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, businessId: string) {
 
   const whereScoped = async ({ model, args, query }: { model: string; args: WhereArgs; query: (args: WhereArgs) => Promise<unknown> }) => {
     if (!isTenantScopedModel(model)) return query(args);

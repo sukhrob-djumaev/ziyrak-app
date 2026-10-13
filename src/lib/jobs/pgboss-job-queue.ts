@@ -53,13 +53,18 @@ export class PgBossJobQueue implements JobQueue {
     // in its source, attorney.js) — a key present with value `undefined`
     // still fails validation, so unset options must be omitted entirely,
     // never passed through as `undefined`.
-    const { policy, retryLimit, retryBackoff, retryDelay, expireInSeconds } = resolveQueueConfig(jobType);
+    const { policy, retryLimit, retryBackoff, retryDelay, expireInSeconds, heartbeatSeconds } = resolveQueueConfig(jobType);
     const options: Parameters<PgBoss["createQueue"]>[1] = { policy };
     if (retryLimit !== undefined) options.retryLimit = retryLimit;
     if (retryBackoff !== undefined) options.retryBackoff = retryBackoff;
     if (retryDelay !== undefined) options.retryDelay = retryDelay;
     if (expireInSeconds !== undefined) options.expireInSeconds = expireInSeconds;
+    if (heartbeatSeconds !== undefined) options.heartbeatSeconds = heartbeatSeconds;
     await this.boss.createQueue(jobType, options);
+    // createQueue is ON CONFLICT DO NOTHING, so a queue created before the
+    // heartbeat existed (every deployed one) keeps its old settings; apply it
+    // explicitly. Jobs already `active` keep the value they were sent with.
+    if (heartbeatSeconds !== undefined) await this.boss.updateQueue(jobType, { heartbeatSeconds });
     this.ensuredQueues.add(jobType);
   }
 

@@ -6,6 +6,8 @@ export interface JobQueueConfig {
   retryBackoff?: boolean;
   retryDelay?: number;
   expireInSeconds?: number;
+  /** pg-boss heartbeat (>= 10 s): the worker refreshes it while a job runs, so a job whose worker died is failed/retried after this long instead of after `expireInSeconds`. */
+  heartbeatSeconds?: number;
 }
 
 /**
@@ -43,8 +45,20 @@ export const DELIVER_WEBHOOK_MAX_ATTEMPTS = 3;
  */
 export const INDEX_KNOWLEDGE_ENTRY_MAX_ATTEMPTS = 5;
 
+/**
+ * PLAN.md §46.8 known limit — a worker killed without draining (SIGKILL, OOM,
+ * node loss) leaves its `process-inbound-message` job `active`, and
+ * `key_strict_fifo` then holds that conversation until pg-boss's default
+ * 15-minute expiry. With a heartbeat the live worker refreshes it every
+ * half-interval for as long as the handler runs (so slow AI calls are never
+ * cut short, unlike a short `expireInSeconds`), and a dead worker's job is
+ * failed — and retried under the queue's existing retry settings — after this
+ * long. Must be >= 10 (pg-boss).
+ */
+export const PROCESS_INBOUND_HEARTBEAT_SECONDS = 30;
+
 export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
-  [PROCESS_INBOUND_MESSAGE_JOB]: { policy: "key_strict_fifo" },
+  [PROCESS_INBOUND_MESSAGE_JOB]: { policy: "key_strict_fifo", heartbeatSeconds: PROCESS_INBOUND_HEARTBEAT_SECONDS },
   [DELIVER_WEBHOOK_JOB]: {
     retryLimit: DELIVER_WEBHOOK_MAX_ATTEMPTS - 1,
     retryBackoff: true,

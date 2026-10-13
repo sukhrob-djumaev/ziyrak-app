@@ -1,10 +1,10 @@
 # Current task
 
-Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
+Updated: 2026-10-13 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
 
 - **Phase:** 8 — Scalability and Shared Infrastructure (§46.8), authorized by the owner on 2026-10-11 ("lets proceed"). Phase 7 closed earlier (`phase-7-complete`, local only).
-- **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Complete; `phase-8-complete` tagged locally on the owner's delegation (not pushed).
-- **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), `fa564b9` (review fixes + record), `c209a80` (trusted-proxy client IP). Pushed to `origin/claude/phase8-redis-scalability` on 2026-10-11 (no PR opened yet: no `gh`; use the compare URL). Recheck Git at every resume.
+- **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Complete; `phase-8-complete` tagged on the owner's delegation and pushed 2026-10-13.
+- **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), `fa564b9` (review fixes + record), `c209a80` (trusted-proxy client IP). Pushed to `origin/claude/phase8-redis-scalability` on 2026-10-11 ; PR #5 merged into `main` on 2026-10-13 (merge commit `944f911`). Recheck Git at every resume.
 
 ## Status
 
@@ -14,7 +14,7 @@ Updated: 2026-10-11 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs
 
 ## Next actions
 
-1. Owner opens/merges the PR (branch pushed; tags are local only).
+1. Done: PR #5 merged. `phase-8-complete` pushed to origin on 2026-10-13. `gh` is installed and authenticated as `sukhrob-djumaev`.
 2. Optional: decide on bounding the stall when a worker dies without draining (heartbeat / shorter `expireInSeconds`) — changes retry semantics, so not done.
 3. Phase 9 only with explicit authorization.
 

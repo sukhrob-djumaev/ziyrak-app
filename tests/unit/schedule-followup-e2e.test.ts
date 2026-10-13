@@ -84,6 +84,14 @@ async function seedConversation(marker: string) {
   });
 }
 
+/**
+ * A real (short) delay, not 0: the fake queue's timer is a real `setTimeout`, so with a 0 delay
+ * the job could run — and flip the row to "succeeded" — between scheduling and the assertion
+ * that it is still "scheduled" (a timing flake seen under load in CI). `__drainForTests()` waits
+ * the delay out, so the test still observes both states deterministically.
+ */
+const DELAY_HOURS = 0.0006; // ~2.2 s
+
 describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)", () => {
   it("is now exposed to the AI (enabledForTenant defaults to true as of PR3)", async () => {
     const available = await toolRegistry.getAvailableTools(aiCtx("conv-availability"));
@@ -99,7 +107,7 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     const requested = await toolRegistry.execute(
       aiCtx(conversation.id),
       "schedule_followup",
-      { conversationId: conversation.id, message: "Just checking in!", delayHours: 0 },
+      { conversationId: conversation.id, message: "Just checking in!", delayHours: DELAY_HOURS },
       { toolCallId: "tc-followup-happy" }
     );
 
@@ -134,7 +142,7 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     const requested = await toolRegistry.execute(
       aiCtx(conversation.id),
       "schedule_followup",
-      { message: "Following up as promised", delayHours: 0 },
+      { message: "Following up as promised", delayHours: DELAY_HOURS },
       { toolCallId: "tc-followup-runtime-conv", conversationId: conversation.id }
     );
 
@@ -154,7 +162,7 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     const requested = await toolRegistry.execute(
       aiCtx(conversation.id),
       "schedule_followup",
-      { conversationId: other.id, message: "Following up as promised", delayHours: 0 },
+      { conversationId: other.id, message: "Following up as promised", delayHours: DELAY_HOURS },
       { toolCallId: "tc-followup-guessed-id", conversationId: conversation.id }
     );
 

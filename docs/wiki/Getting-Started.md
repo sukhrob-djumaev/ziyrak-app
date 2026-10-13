@@ -56,18 +56,20 @@ Open the `.env` file in your text editor and set the following values:
 # Required: Your PostgreSQL connection string
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/owly?schema=public"
 
-# Required: A random secret for JWT authentication (change this!)
-JWT_SECRET="your-random-secret-here"
-NEXTAUTH_SECRET="your-random-secret-here"
+# Required: a random secret for login tokens (generate one with: openssl rand -hex 32)
+JWT_SECRET="paste-a-random-value-here"
 
-# Required: OpenAI API key for AI responses
-OPENAI_API_KEY="sk-your-openai-api-key"
+# Required: encryption key for stored credentials — a DIFFERENT random value; back it up
+SECRET_KEY_V1="paste-another-random-value-here"
 
-# Application URL
+# Recommended: signs the webhooks Owly sends — a third random value
+WEBHOOK_SECRET="paste-a-third-random-value-here"
+
+# Application URL (built into the app: rebuild after changing it)
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-> **Important:** You must change `JWT_SECRET` and `NEXTAUTH_SECRET` to random, unique values. Never use the default values in production.
+> **Important:** Use random, unique values for `JWT_SECRET`, `SECRET_KEY_V1` and `WEBHOOK_SECRET`, and never commit your `.env`. You add your AI provider key later, in **Settings** (or the Setup Wizard) — it is stored encrypted per business, not in `.env`.
 
 **Step 4: Run database migrations**
 

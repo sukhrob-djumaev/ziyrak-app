@@ -47,9 +47,12 @@ Open `.env` in your editor and configure the required variables. See the [Enviro
 At minimum, you need to set:
 
 ```bash
-JWT_SECRET="a-random-secret-string-at-least-32-chars"
-NEXTAUTH_SECRET="another-random-secret-string"
+JWT_SECRET="<output of: openssl rand -hex 32>"
+SECRET_KEY_V1="<a different output of: openssl rand -hex 32>"
+WEBHOOK_SECRET="<a third output of: openssl rand -hex 32>"
 ```
+
+`SECRET_KEY_V1` encrypts the channel credentials you store in Owly (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Owly sends; without it they go out unsigned.
 
 The `DATABASE_URL` is already configured for Docker Compose in `docker-compose.yml` and does not need to be changed.
 
@@ -118,9 +121,12 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/owly?schema=public"
 Also set your secret keys:
 
 ```bash
-JWT_SECRET="a-random-secret-string-at-least-32-chars"
-NEXTAUTH_SECRET="another-random-secret-string"
+JWT_SECRET="<output of: openssl rand -hex 32>"
+SECRET_KEY_V1="<a different output of: openssl rand -hex 32>"
+WEBHOOK_SECRET="<a third output of: openssl rand -hex 32>"
 ```
+
+`SECRET_KEY_V1` encrypts the channel credentials you store in Owly (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Owly sends; without it they go out unsigned.
 
 ### Step 4: Create the Database
 
@@ -176,20 +182,21 @@ The following table describes all environment variables in `.env.example`:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string. Format: `postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public` |
-| `JWT_SECRET` | Yes | Secret key for signing JWT authentication tokens. Use a random string of at least 32 characters. |
-| `NEXTAUTH_SECRET` | Yes | Secret for NextAuth session encryption. Use a different random string from `JWT_SECRET`. |
-| `NEXT_PUBLIC_APP_URL` | No | Public URL of your Owly instance. Defaults to `http://localhost:3000`. Set this to your domain in production. |
-| `OPENAI_API_KEY` | No | OpenAI API key. Can also be configured later through the Setup Wizard or Settings page. |
-| `ELEVENLABS_API_KEY` | No | ElevenLabs API key for phone channel voice synthesis (text-to-speech). |
-| `TWILIO_ACCOUNT_SID` | No | Twilio Account SID for the phone channel. |
-| `TWILIO_AUTH_TOKEN` | No | Twilio Auth Token for the phone channel. |
-| `TWILIO_PHONE_NUMBER` | No | Your Twilio phone number in E.164 format (e.g., `+1234567890`). |
+| `JWT_SECRET` | Yes | Secret key for signing login tokens. A random string of at least 32 characters (`openssl rand -hex 32`). Owly will not start without it. |
+| `SECRET_KEY_V1` | Yes | Encryption key for stored channel credentials and infrastructure secrets. Random, 32+ characters, different from `JWT_SECRET`. Keys are versioned: to rotate, add `SECRET_KEY_V2`; never delete `SECRET_KEY_V1` while anything is still encrypted under it. |
+| `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your Owly instance (e.g. `https://support.example.com`). It is built into the app, so **rebuild after changing it**; use the real public `https://` URL before serving customers or WhatsApp webhooks. |
+| `WEBHOOK_SECRET` | Recommended | HMAC key for the `X-Owly-Signature` header on outgoing webhooks. If empty, outgoing webhooks are sent unsigned. |
+| `META_WEBHOOK_VERIFY_TOKEN` | For WhatsApp Cloud API | Any random string; enter the same value when registering your webhook with Meta. |
+| `REDIS_URL` | No | Shares rate limits, caching and live updates across several app replicas. Not needed for a single instance. |
+| `TRUSTED_PROXY_HOPS` | Behind a proxy | How many proxies in front of Owly add to `X-Forwarded-For` (so rate limiting sees real client addresses). Use `1` behind a single tunnel or load balancer. |
+| `CORS_ORIGIN` | No | Allow one cross-origin frontend to call the API. |
+
+`.env.example` documents these and the optional scaling and test variables.
 
 **Notes:**
 
-- The AI API key (`OPENAI_API_KEY`) can be set here or through the web UI at Settings. The web UI setting takes precedence.
-- Twilio and ElevenLabs keys are only required if you plan to use the Phone channel.
-- For production, always use strong, unique values for `JWT_SECRET` and `NEXTAUTH_SECRET`.
+- Each business enters its own AI provider key in **Settings** and its channel credentials (WhatsApp, email, phone) under **Channels**; they are stored encrypted with `SECRET_KEY_V1`. The app does not read `OPENAI_API_KEY`, `TWILIO_*`, `ELEVENLABS_API_KEY` or `NEXTAUTH_SECRET` from the environment, so you do not need to set them (older guides listed them).
+- For production, always use strong, unique values for `JWT_SECRET`, `SECRET_KEY_V1` and `WEBHOOK_SECRET`, and never commit your `.env` file.
 
 ---
 

@@ -24,8 +24,8 @@ cp .env.example .env
 Edit `.env` and set your secret keys:
 
 ```bash
-JWT_SECRET="your-random-secret-at-least-32-characters"
-NEXTAUTH_SECRET="another-random-secret-string"
+JWT_SECRET="a-random-value-from: openssl rand -hex 32"
+SECRET_KEY_V1="a-different-random-value"
 ```
 
 Then start the application:

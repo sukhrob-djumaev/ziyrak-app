@@ -50,6 +50,8 @@ Owly gives small businesses and solo operators the same multi-channel AI support
 |------|-------------|
 | [Automation Rules](Automation-Rules) | Auto-routing, auto-tagging, auto-replies, and keyword alerts |
 | [Business Hours and SLA](Business-Hours-and-SLA) | Weekly schedules, timezone support, offline messages, and response time targets |
+| [AI Tool System](AI-Tool-System) | The actions the AI can take during a conversation |
+| [Approvals and Tool Policies](Approvals-and-Tool-Policies) | Review AI actions before they run, and control which tools the AI may use |
 
 ### Administration
 

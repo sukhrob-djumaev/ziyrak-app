@@ -1,5 +1,7 @@
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
-import type { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { getSecretResolver, type EncryptedSecret } from "@/lib/secrets";
 import { cacheDel, cacheGet, cacheSet, isCacheDistributed } from "@/lib/cache";
 
 /**
@@ -12,9 +14,11 @@ import { cacheDel, cacheGet, cacheSet, isCacheDistributed } from "@/lib/cache";
  * control-plane/data-plane split while still giving Phase 9 a real,
  * already-proven resolution path.
  *
- * Only `"shared-default"` is implemented — a `TenantPlacement` pointing at
- * any other profile means a dedicated-infrastructure business, which is
- * Phase 9 scope (§46.9) and deliberately not supported yet.
+ * A `TenantPlacement` pointing at any other profile is a dedicated-database
+ * business (§46.9): the profile's `connectionSecretRef` is decrypted through
+ * the `SecretResolver`, a Prisma client is opened for it once per process,
+ * and the business resolves to `dedicated:<profileId>`. The DSN never leaves
+ * this module — callers only ever see the opaque `dataConnection` key.
  */
 export interface ResolvedPlacement {
   dataConnection: string;
@@ -51,30 +55,79 @@ export async function resolveTenantPlacement(businessId: string): Promise<Resolv
   }
 
   if (placement.databaseProfileId !== "shared-default") {
-    throw new Error(
-      `Business ${businessId} is placed on database profile "${placement.databaseProfileId}", but dedicated data-plane connections are Phase 9 scope (§46.9) and are not yet supported.`
-    );
+    // Dedicated placements are not cached across replicas: the primary-key
+    // read is cheap, and a cutover/rollback must be seen immediately.
+    const dataConnection = await ensureDedicatedClient(placement.databaseProfileId);
+    return { dataConnection };
   }
 
   if (shared) await cacheSet(placementCacheKey(businessId), "shared-default", PLACEMENT_CACHE_TTL_SECONDS);
   return { dataConnection: "shared-default" };
 }
 
-const dataPlaneClients = new Map<string, PrismaClient>();
+interface DataPlaneEntry {
+  client: PrismaClient;
+  /** The profile's `connectionSecretRef` this client was built from; a different value means the secret changed. */
+  secretRef: string | null;
+}
+
+const dataPlaneClients = new Map<string, DataPlaneEntry>();
+
+const DEDICATED_PREFIX = "dedicated:";
+const DEDICATED_POOL_MAX = 5;
+
+/** In-flight queries on a replaced client get this long to finish before it is disconnected. */
+const REPLACED_CLIENT_GRACE_MS = 60_000;
+
+/**
+ * Returns the `dedicated:<profileId>` key for a profile, building its Prisma
+ * client on first use and **rebuilding it whenever the profile's secret has
+ * changed** (the profile is re-read on every resolve — one primary-key read —
+ * so a rotation, or the swap to the restricted RLS role, reaches every
+ * process within its next request instead of waiting for a restart).
+ */
+export async function ensureDedicatedClient(profileId: string): Promise<string> {
+  const key = `${DEDICATED_PREFIX}${profileId}`;
+  const profile = await rawClient.databaseProfile.findUnique({ where: { id: profileId } });
+  if (!profile) throw new Error(`DatabaseProfile "${profileId}" does not exist.`);
+
+  const cached = dataPlaneClients.get(key);
+  if (cached && cached.secretRef === profile.connectionSecretRef) return key;
+
+  const connectionString = await getSecretResolver().decrypt(JSON.parse(profile.connectionSecretRef) as EncryptedSecret);
+  const adapter = new PrismaPg({ connectionString, max: DEDICATED_POOL_MAX });
+  dataPlaneClients.set(key, { client: new PrismaClient({ adapter }), secretRef: profile.connectionSecretRef });
+  if (cached) setTimeout(() => void cached.client.$disconnect().catch(() => {}), REPLACED_CLIENT_GRACE_MS).unref();
+  return key;
+}
+
+/** Disconnects and forgets one dedicated profile's client (e.g. after its secret changed), so the next resolve reconnects. */
+export async function closeDedicatedClient(profileId: string): Promise<void> {
+  const key = `${DEDICATED_PREFIX}${profileId}`;
+  const entry = dataPlaneClients.get(key);
+  dataPlaneClients.delete(key);
+  await entry?.client.$disconnect();
+}
+
+/** Disconnects every dedicated client (shutdown, tests, secret rotation). */
+export async function closeDedicatedClients(): Promise<void> {
+  const clients = Array.from(dataPlaneClients.values()).map((entry) => entry.client);
+  dataPlaneClients.clear();
+  await Promise.all(clients.map((client) => client.$disconnect()));
+}
 
 /**
  * Resolves an opaque `dataConnection` key (from `ResolvedPlacement`) to an
- * actual Prisma client. Until Phase 9, this is always the same control-plane
- * client — the cache exists so the seam is real (a future dedicated
- * connection would be cached here too) without costing anything today.
+ * actual Prisma client: the control-plane client for `shared-default`, or the
+ * client `resolveTenantPlacement()` registered for a dedicated profile.
  */
 export function getDataPlaneClient(dataConnection: string): PrismaClient {
   if (dataConnection === "shared-default") return rawClient;
 
   const cached = dataPlaneClients.get(dataConnection);
-  if (cached) return cached;
+  if (cached) return cached.client;
 
   throw new Error(
-    `No data-plane client registered for connection "${dataConnection}" — dedicated connections are Phase 9 scope (§46.9).`
+    `No data-plane client registered for connection "${dataConnection}" — resolve the business's placement (resolveTenantPlacement) before using its data connection.`
   );
 }

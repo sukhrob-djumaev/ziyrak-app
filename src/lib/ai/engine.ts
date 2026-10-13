@@ -15,6 +15,7 @@ import { knowledgeRetriever } from "@/lib/knowledge/retriever";
 import { redactProviderMessage } from "@/lib/knowledge/indexing";
 import { resolveAIConfig, type ResolvedAIConfig } from "./config";
 import { aiProviderRegistry } from "./providers/registry";
+import { assertAiProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { AIProviderError, type AIProvider, type CompletionRequest, type CompletionResult } from "./providers/types";
 import { recordAIInteraction } from "./usage";
 import {
@@ -248,6 +249,7 @@ async function callAI(
     return { text: FALLBACK_DEPTH_EXCEEDED, hasToolCalls: usedToolInThisTurn };
   }
 
+  await assertAiProviderPermitted(ctx.businessId, config.provider);
   const provider = aiProviderRegistry.get(config.provider, { apiKey: config.apiKey! });
 
   // PLAN.md §9.5 — the AI's own `ExecutionPrincipal`, distinct from

@@ -30,10 +30,10 @@ describe("resolveTenantPlacement", () => {
     expect(findUnique()).toHaveBeenCalledTimes(2);
   });
 
-  it("throws for an unsupported dedicated profile, and never caches it", async () => {
+  it("throws when the dedicated profile does not exist, and never caches the placement", async () => {
     findUnique().mockResolvedValue({ businessId: "biz-1", databaseProfileId: "dedicated-1" });
-    await expect(resolveTenantPlacement("biz-1")).rejects.toThrow(/Phase 9/);
-    await expect(resolveTenantPlacement("biz-1")).rejects.toThrow(/Phase 9/);
+    await expect(resolveTenantPlacement("biz-1")).rejects.toThrow(/DatabaseProfile "dedicated-1" does not exist/);
+    await expect(resolveTenantPlacement("biz-1")).rejects.toThrow(/DatabaseProfile "dedicated-1" does not exist/);
     expect(findUnique()).toHaveBeenCalledTimes(2);
   });
 

@@ -5,6 +5,7 @@ import { resolveEmbeddingConfig } from "@/lib/ai/config";
 import { embeddingProviderRegistry } from "@/lib/ai/providers/embedding-registry";
 import { AIProviderError, type EmbeddingProvider } from "@/lib/ai/providers/types";
 import { recordAIInteraction } from "@/lib/ai/usage";
+import { assertEmbeddingProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { jobQueue } from "@/lib/jobs/queue";
 import { INDEX_KNOWLEDGE_ENTRY_JOB, type IndexKnowledgeEntryPayload } from "@/lib/jobs/job-types";
 import { logger } from "@/lib/observability/logger";
@@ -160,7 +161,8 @@ export function redactProviderMessage(message: string): string {
 export type ResolvedEmbeddingProvider =
   | { status: "available"; provider: EmbeddingProvider }
   | { status: "not_configured"; providerName: string }
-  | { status: "unsupported"; providerName: string };
+  | { status: "unsupported"; providerName: string }
+  | { status: "not_permitted"; providerName: string };
 
 /**
  * Resolves the business's own `EmbeddingProvider` (§21.5) — through
@@ -175,13 +177,20 @@ export async function resolveTenantEmbeddingProvider(ctx: TenantContext): Promis
   const config = await resolveEmbeddingConfig(ctx);
   if (!config.apiKey) return { status: "not_configured", providerName: config.provider };
   if (!embeddingProviderRegistry.has(config.provider)) return { status: "unsupported", providerName: config.provider };
+  // PLAN.md §46.9 — a restricted business's allowlist is a hard stop, like a missing key.
+  try {
+    await assertEmbeddingProviderPermitted(ctx.businessId, config.provider);
+  } catch (error) {
+    if (error instanceof AIProviderError) return { status: "not_permitted", providerName: config.provider };
+    throw error;
+  }
   return { status: "available", provider: embeddingProviderRegistry.get(config.provider, { apiKey: config.apiKey }) };
 }
 
 export type KnowledgeIndexOutcome =
   | { status: "indexed"; provider: string; model: string }
   | { status: "already_current"; provider: string }
-  | { status: "skipped"; reason: "not_found" | "inactive" | "no_embedding_provider" | "unsupported_embedding_provider"; provider?: string }
+  | { status: "skipped"; reason: "not_found" | "inactive" | "no_embedding_provider" | "unsupported_embedding_provider" | "embedding_provider_not_permitted"; provider?: string }
   | { status: "stale"; provider: string }
   | { status: "failed"; provider: string; code: string; retryable: boolean; message: string };
 
@@ -204,6 +213,9 @@ export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): 
   }
   if (resolved.status === "unsupported") {
     return { status: "skipped", reason: "unsupported_embedding_provider", provider: resolved.providerName };
+  }
+  if (resolved.status === "not_permitted") {
+    return { status: "skipped", reason: "embedding_provider_not_permitted", provider: resolved.providerName };
   }
   const provider = resolved.provider;
 
@@ -309,7 +321,7 @@ export function knowledgeIndexJobKey(businessId: string, entryId: string): strin
 
 export interface KnowledgeReindexResult {
   /** Whether this business currently has an embedding provider the platform can use. */
-  provider: { status: "available"; name: string; model?: string } | { status: "not_configured" | "unsupported"; name: string };
+  provider: { status: "available"; name: string; model?: string } | { status: "not_configured" | "unsupported" | "not_permitted"; name: string };
   /** Active entries evaluated. */
   examined: number;
   /** Active entries whose stored embedding is already current — not queued. */

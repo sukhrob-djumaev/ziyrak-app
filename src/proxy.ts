@@ -111,7 +111,12 @@ export async function proxy(request: NextRequest) {
   // 5/min brute-force budget made ordinary navigation 429.
   if (pathname.startsWith("/api/auth") && request.method === "POST") {
     const ip = getClientIp(request);
-    const rateResult = await checkRateLimit(`auth:${ip}`, RATE_LIMITS.auth);
+    // Sign-out has its own, larger budget: counting it against the 5/min login
+    // brute-force limit let a shared address block people from signing out.
+    const action = await request.clone().json().then((b: { action?: unknown } | null) => b?.action, () => undefined);
+    const isLogout = action === "logout";
+    const limits = isLogout ? RATE_LIMITS.logout : RATE_LIMITS.auth;
+    const rateResult = await checkRateLimit(`${isLogout ? "logout" : "auth"}:${ip}`, limits);
 
     if (!rateResult.allowed) {
       const response = NextResponse.json(
@@ -119,11 +124,11 @@ export async function proxy(request: NextRequest) {
         { status: 429 }
       );
       response.headers.set("Retry-After", String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)));
-      return addHeaders(response, requestId, { limit: RATE_LIMITS.auth.maxRequests, remaining: 0, resetAt: rateResult.resetAt });
+      return addHeaders(response, requestId, { limit: limits.maxRequests, remaining: 0, resetAt: rateResult.resetAt });
     }
 
     return addHeaders(NextResponse.next(), requestId, {
-      limit: RATE_LIMITS.auth.maxRequests,
+      limit: limits.maxRequests,
       remaining: rateResult.remaining,
       resetAt: rateResult.resetAt,
     });

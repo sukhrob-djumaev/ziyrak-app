@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { subscribe, tenantGlobalChannel, tenantConversationChannel } from "@/lib/realtime/realtime";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
+import { verifyActiveToken } from "@/lib/identity/auth";
+import { logger } from "@/lib/observability/logger";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,12 @@ export async function GET(request: NextRequest) {
     channel = tenantConversationChannel(ctx.businessId, conversationId);
   }
 
+  // The session this stream was opened under. requireAuth() ran once, at connect;
+  // the heartbeat below re-checks the session so a signed-out (or expired) token
+  // stops receiving the tenant's live events instead of streaming until the
+  // client disconnects. API-key callers have no session token to re-check.
+  const sessionToken = request.cookies.get("owly-token")?.value;
+
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
@@ -67,13 +75,33 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      // Heartbeat every 30 seconds
-      const heartbeat = setInterval(() => {
+      const endStream = () => {
+        clearInterval(heartbeat);
+        unsubscribe();
         try {
-          controller.enqueue(encoder.encode(": heartbeat\n\n"));
+          controller.close();
         } catch {
-          clearInterval(heartbeat);
-          unsubscribe();
+          // Already closed
+        }
+      };
+
+      // Heartbeat every 30 seconds, which is also how soon a signed-out session is cut off.
+      const heartbeat = setInterval(async () => {
+        try {
+          if (sessionToken && !(await verifyActiveToken(sessionToken))) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "session_ended" })}\n\n`));
+            endStream();
+            return;
+          }
+          controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        } catch (error) {
+          if (error instanceof TypeError) {
+            // enqueue on a closed controller: the client is gone.
+            endStream();
+          } else {
+            // A failed session lookup (transient database error) must not drop live streams; the next beat retries.
+            logger.error("[realtime] session re-check failed", error);
+          }
         }
       }, 30000);
 

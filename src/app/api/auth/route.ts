@@ -103,10 +103,24 @@ export async function POST(request: NextRequest) {
   if (action === "logout") {
     // End the session server-side, not just in the browser: a copied token must stop working too.
     const presented = request.cookies.get("owly-token")?.value;
-    if (presented) await revokeToken(presented).catch((error) => logger.error("Failed to revoke token on logout:", error));
-    const cookie = clearAuthCookie();
-    const response = NextResponse.json({ success: true });
-    response.cookies.set(cookie);
+    let revocationFailed = false;
+    if (presented) {
+      try {
+        await revokeToken(presented);
+      } catch (error) {
+        logger.error("Failed to revoke token on logout:", error);
+        revocationFailed = true;
+      }
+    }
+    // The browser is signed out either way. If the server could not record it, say so
+    // (the token stays valid until it expires) instead of reporting success.
+    const response = revocationFailed
+      ? NextResponse.json(
+          { error: "Signed out of this browser, but the session could not be ended on the server. Please sign out again." },
+          { status: 500 }
+        )
+      : NextResponse.json({ success: true });
+    response.cookies.set(clearAuthCookie());
     return response;
   }
 

@@ -21,6 +21,7 @@ import { generateToken, verifyToken, purgeExpiredRevokedTokens } from "@/lib/ide
 import { requireAuth, isAuthenticated, getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { POST as authPost, GET as authGet } from "@/app/api/auth/route";
 import { proxy } from "@/proxy";
+import { GET as realtimeGet } from "@/app/api/realtime/route";
 import { resetRateLimitsForTesting } from "@/lib/rate-limit";
 import { createRequest } from "../helpers/request";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
@@ -144,5 +145,64 @@ describe("purging revoked tokens", () => {
     expect(removed).toBeGreaterThanOrEqual(1);
     expect(await prisma.revokedToken.findUnique({ where: { jti: "purge-expired" } })).toBeNull();
     expect(await prisma.revokedToken.findUnique({ where: { jti: "purge-live" } })).not.toBeNull();
+  });
+});
+
+describe("review findings: live streams, failed revocation, rate limit", () => {
+  it("ends an already-open realtime stream after its session is signed out", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const token = generateToken(business.ownerUserId);
+      const response = await realtimeGet(authed(token, "/api/realtime") as NextRequest);
+      const reader = response.body!.getReader();
+      expect(new TextDecoder().decode((await reader.read()).value)).toContain("connected");
+
+      await logout(token);
+      await vi.advanceTimersByTimeAsync(30_000); // the next session check
+
+      let ended = false;
+      for (let i = 0; i < 5 && !ended; i++) ended = (await reader.read()).done === true;
+      expect(ended).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a stream open while its session is still valid", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const token = generateToken(business.ownerUserId);
+      const response = await realtimeGet(authed(token, "/api/realtime") as NextRequest);
+      const reader = response.body!.getReader();
+      await reader.read(); // connected
+      await vi.advanceTimersByTimeAsync(30_000);
+      const next = await reader.read();
+      expect(next.done).toBe(false); // heartbeat, not a close
+      await reader.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not report a successful sign-out when the session could not be revoked (the cookie is still cleared)", async () => {
+    const token = generateToken(business.ownerUserId);
+    const spy = vi.spyOn(prisma.revokedToken, "upsert").mockRejectedValueOnce(new Error("db down"));
+    try {
+      const response = await logout(token);
+      expect(response.status).toBe(500);
+      expect(response.cookies.get("owly-token")?.value).toBe("");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("does not let sign-outs consume the login brute-force budget", async () => {
+    const post = (body: Record<string, unknown>) =>
+      proxy(new NextRequest("http://localhost:3000/api/auth", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" } }));
+    for (let i = 0; i < 12; i++) expect((await post({ action: "logout" })).status).not.toBe(429);
+    // The login budget (5/min) is untouched by those 12 sign-outs...
+    for (let i = 0; i < 5; i++) expect((await post({ action: "login", username: "x", password: "y" })).status).not.toBe(429);
+    // ...and still enforced for logins.
+    expect((await post({ action: "login", username: "x", password: "y" })).status).toBe(429);
   });
 });

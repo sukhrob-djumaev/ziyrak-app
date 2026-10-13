@@ -15,9 +15,12 @@ Session: 2026-10-13 → 2026-10-14 (Asia/Kuala_Lumpur) — Phase 9 close-out, th
 - Real-browser checks caught what unit tests could not: the approve route's missing tool registration (a latent production bug), stale `[object Object]` logging, and the login limit's interaction with scripts.
 - A failed `npm audit fix` in the live working copy damaged `@prisma/engines` (restored from a pristine clone). Work on dependencies only in an isolated worktree.
 
+- The acceptance rerun (16/16 on an isolated production build) found three real defects and a hazard, all fixed in #26: the live stream leaked through the back/forward cache (six navigations hung a tab), the per-IP API limit (60/min) was exhausted by the dashboard's background requests (now per-session, keyed by `jti`), and J09/J10's `pkill` stopped the **live worker** for ~6 min (restored; the harness now kills only its own recorded PID). Lesson: anything that stops processes by name must be fenced; run harnesses from an isolated worktree.
+- Also fixed after the first reviews: `/api/actions/[id]/approve` registers its tools (#21); nodemailer 10 (#25).
+
 ## Verification
 
-`npm run test` 1108 passed / 23 skipped; `test:signup-seeded` ~640; `tsc`, lint, build clean on Next 16.4.0; browser suites header 2/2, approvals 19/19, policies 12/12, live updates 7/7 (production build in a worktree against `owly_test`, never the live app). Live DB migrated with backups; worker restarted and verified.
+`npm run test` 1118 passed / 23 skipped; `test:signup-seeded` ~640; `tsc`, lint, build clean on Next 16.4.0; browser suites header 2/2, approvals 19/19, policies 12/12, live updates 7/7 (production build in a worktree against `owly_test`, never the live app). Live DB migrated with backups; worker restarted and verified.
 
 ## Continuation point
 

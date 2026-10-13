@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { verifyToken } from "@/lib/identity/auth";
+import { verifyToken, verifyActiveToken } from "@/lib/identity/auth";
 import { isPublicApiPath } from "@/lib/identity/public-api-paths";
 
 const API_VERSION = "2026-04-07";
@@ -181,8 +181,11 @@ export async function proxy(request: NextRequest) {
   // Verify the JWT is well-formed AND validly signed (not just structurally
   // shaped). Real, database-backed authorization still happens in
   // requireAuth() for every route — this is a fast, cookie-only "optimistic"
-  // check, per Next.js's own guidance for Proxy auth.
-  const payload = token ? verifyToken(token) : null;
+  // check, per Next.js's own guidance for Proxy auth. Pages additionally
+  // refuse a signed-out (revoked) session here, so a copied token cannot open
+  // the dashboard after logout; API routes do the same lookup in requireAuth(),
+  // so it is not repeated on every API call.
+  const payload = token ? (pathname.startsWith("/api/") ? verifyToken(token) : await verifyActiveToken(token)) : null;
   if (!payload) {
     if (pathname.startsWith("/api/")) {
       return addHeaders(

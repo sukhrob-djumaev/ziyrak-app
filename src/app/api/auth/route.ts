@@ -7,6 +7,7 @@ import {
   clearAuthCookie,
   getCurrentUser,
   isSetupComplete,
+  revokeToken,
 } from "@/lib/identity/auth";
 import { provisionBusiness } from "@/lib/platform/provisioning";
 import { validateBody, signupSchema } from "@/lib/validations";
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "logout") {
+    // End the session server-side, not just in the browser: a copied token must stop working too.
+    const presented = request.cookies.get("owly-token")?.value;
+    if (presented) await revokeToken(presented).catch((error) => logger.error("Failed to revoke token on logout:", error));
     const cookie = clearAuthCookie();
     const response = NextResponse.json({ success: true });
     response.cookies.set(cookie);

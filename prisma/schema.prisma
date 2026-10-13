@@ -84,6 +84,19 @@ model User {
   memberships Membership[]
 }
 
+// Sign-out revocation list: one row per signed-out session token (its `jti`).
+// A token is refused while a row exists; rows are purged once the token would
+// have expired anyway (`sweep-retention`). Tokens issued before `jti` existed
+// carry none and cannot be revoked — they age out within the 7-day lifetime.
+model RevokedToken {
+  jti       String   @id
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 // ==================== CONTROL PLANE (PLAN.md §7.4-7.6) ====================
 // Read by platform infrastructure to route a request/job to the right tenant
 // data connection. Not tenant-owned data; a tenant admin never edits these

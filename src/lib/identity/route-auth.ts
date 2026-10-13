@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/identity/auth";
+import { verifyActiveToken } from "@/lib/identity/auth";
 import { hasPermission, Permission } from "@/lib/rbac/rbac";
 import { prisma } from "@/lib/prisma/raw-client";
 import { resolveTenantPlacement } from "@/lib/platform/tenant-placement";
@@ -125,7 +125,7 @@ export async function requireAuth(
     );
   }
 
-  const payload = verifyToken(token);
+  const payload = await verifyActiveToken(token);
   if (!payload) {
     return NextResponse.json(
       { error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } },
@@ -182,7 +182,7 @@ export async function getTenantContextFromCookies(): Promise<TenantContext | nul
   const token = cookieStore.get("owly-token")?.value;
   if (!token) return null;
 
-  const payload = verifyToken(token);
+  const payload = await verifyActiveToken(token);
   if (!payload) return null;
 
   const result = await resolveHumanContext(payload.userId);

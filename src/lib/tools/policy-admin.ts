@@ -16,13 +16,28 @@ import { DEFAULT_TOOL_POLICIES, resolveEffectiveToolPolicy, type EffectiveToolPo
  * enforces, so a saved change takes effect on the AI's next tool call.
  */
 
+/**
+ * "Customised" means the effective policy differs from the default — not merely
+ * that a row exists: signup seeds a row per tool equal to the default, which
+ * must not look like a change the business made.
+ */
+function differsFromDefault(policy: EffectiveToolPolicy, fallback: EffectiveToolPolicy): boolean {
+  const roles = (list: string[]) => [...new Set(list)].sort().join(",");
+  return (
+    policy.enabledForTenant !== fallback.enabledForTenant ||
+    policy.allowedForAI !== fallback.allowedForAI ||
+    policy.requiresHumanApproval !== fallback.requiresHumanApproval ||
+    roles(policy.allowedForHumanRoles) !== roles(fallback.allowedForHumanRoles)
+  );
+}
+
 /** Internal tools that are not a business-level setting. */
 const HIDDEN_TOOLS: ReadonlySet<string> = new Set(["noop_test_action"]);
 
 export interface ToolPolicyView {
   tool: string;
   description: string;
-  /** True when this business has its own row (otherwise the platform default applies). */
+  /** True when this business's effective policy differs from the platform default. */
   customized: boolean;
   policy: EffectiveToolPolicy;
   defaultPolicy: EffectiveToolPolicy;
@@ -47,31 +62,14 @@ function visibleTool(name: string) {
 }
 
 async function view(ctx: TenantContext, name: string, description: string): Promise<ToolPolicyView> {
-  const row = await getScopedPrisma(ctx).toolPolicy.findUnique({ where: { businessId_tool: { businessId: ctx.businessId, tool: name } } });
-  return {
-    tool: name,
-    description,
-    customized: row !== null,
-    policy: await resolveEffectiveToolPolicy(ctx, name),
-    defaultPolicy: DEFAULT_TOOL_POLICIES[name],
-  };
+  const policy = await resolveEffectiveToolPolicy(ctx, name);
+  return { tool: name, description, customized: differsFromDefault(policy, DEFAULT_TOOL_POLICIES[name]), policy, defaultPolicy: DEFAULT_TOOL_POLICIES[name] };
 }
 
 export async function listToolPolicies(ctx: TenantContext): Promise<ToolPolicyView[]> {
   const tools = toolRegistry.getAllRegistered().filter((t) => !HIDDEN_TOOLS.has(t.name));
-  const rows = await getScopedPrisma(ctx).toolPolicy.findMany({ select: { tool: true } });
-  const customized = new Set(rows.map((r) => r.tool));
-  const views: ToolPolicyView[] = [];
-  for (const tool of tools) {
-    views.push({
-      tool: tool.name,
-      description: tool.description,
-      customized: customized.has(tool.name),
-      policy: await resolveEffectiveToolPolicy(ctx, tool.name),
-      defaultPolicy: DEFAULT_TOOL_POLICIES[tool.name],
-    });
-  }
-  return views.sort((a, b) => a.tool.localeCompare(b.tool));
+  const views = await Promise.all(tools.map((tool) => view(ctx, tool.name, tool.description)));
+  return views.sort((x, y) => x.tool.localeCompare(y.tool));
 }
 
 export async function updateToolPolicy(ctx: TenantContext, name: string, patch: ToolPolicyPatch, actorName?: string): Promise<ToolPolicyView> {

@@ -78,6 +78,23 @@ describe("GET /api/tool-policies", () => {
   });
 });
 
+describe("customised means different from the default, not merely having a row", () => {
+  it("a signup-seeded row equal to the default is not customised; a real change is; changing it back is not", async () => {
+    // Signup seeds one row per tool, equal to the default (platform/provisioning.ts).
+    await getScopedPrisma(a.ctx).toolPolicy.create({
+      data: { businessId: a.businessId, tool: "get_customer_history", enabledForTenant: true, allowedForAI: true, allowedForHumanRoles: ["agent", "supervisor", "admin", "owner"], requiresHumanApproval: false },
+    });
+    const find = async () => (await parseJsonResponse(await list(ownerToken))).data.find((t: { tool: string }) => t.tool === "get_customer_history");
+    expect((await find()).customized).toBe(false);
+
+    await put(ownerToken, "get_customer_history", { allowedForAI: false });
+    expect((await find()).customized).toBe(true);
+
+    await put(ownerToken, "get_customer_history", { allowedForAI: true, allowedForHumanRoles: ["owner", "admin", "supervisor", "agent"] }); // same roles, different order
+    expect((await find()).customized).toBe(false);
+  });
+});
+
 describe("PUT /api/tool-policies/[tool]", () => {
   it("lets an owner require approval, keeping every other field at its effective value", async () => {
     const response = await put(ownerToken, "send_internal_email", { requiresHumanApproval: true });

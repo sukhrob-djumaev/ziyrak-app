@@ -9,10 +9,19 @@ let hub: LiveEventHub | null = null;
 let endSession: (() => void) | null = null;
 
 function getHub(): LiveEventHub {
-  hub ??= new LiveEventHub(
-    () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
-    () => endSession?.()
-  );
+  if (!hub) {
+    hub = new LiveEventHub(
+      () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
+      () => endSession?.()
+    );
+    // Leaving the page parks it in the back/forward cache with its connection still open; close it, and reopen
+    // if the user comes back to the cached page.
+    const created = hub;
+    window.addEventListener("pagehide", () => created.suspend());
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) created.resume();
+    });
+  }
   return hub;
 }
 

@@ -115,4 +115,44 @@ describe("LiveEventHub", () => {
     vi.advanceTimersByTime(120_000);
     expect(FakeSource.instances).toHaveLength(1);
   });
+
+  // A page that is navigated away from is kept in the browser's back/forward cache with its connection still
+  // open; six of those exhaust the browser's per-host connection limit and the next page load hangs.
+  it("suspend() closes the connection but keeps subscribers; resume() reconnects them", () => {
+    const { hub } = make();
+    const seen: string[] = [];
+    hub.subscribe((e) => seen.push(e.type));
+    FakeSource.instances[0].emit({ type: "message:new", data: {} });
+    hub.suspend();
+    expect(FakeSource.instances[0].closed).toBe(true);
+    vi.advanceTimersByTime(120_000);
+    expect(FakeSource.instances).toHaveLength(1); // no reconnect while suspended
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(2);
+    FakeSource.instances[1].emit({ type: "notification", data: {} });
+    expect(seen).toEqual(["message:new", "notification"]); // the same subscriber, no re-subscribe needed
+  });
+
+  it("resume() does nothing without subscribers, when already connected, or after an unsubscribe", () => {
+    const { hub } = make();
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(0);
+    const stop = hub.subscribe(() => {});
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(1);
+    hub.suspend();
+    stop();
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(1);
+  });
+
+  it("a pending reconnect is cancelled by suspend()", () => {
+    const { hub } = make();
+    hub.subscribe(() => {});
+    FakeSource.instances[0].readyState = 2;
+    FakeSource.instances[0].onerror?.({});
+    hub.suspend();
+    vi.advanceTimersByTime(120_000);
+    expect(FakeSource.instances).toHaveLength(1);
+  });
 });

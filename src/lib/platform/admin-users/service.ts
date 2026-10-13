@@ -11,7 +11,7 @@ import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
  * global `Admin` table these routes used to manage directly. `Membership`
  * is tenant-owned (§16.4's own wording — "User outside of Membership" is
  * control-plane, Membership itself is not) and goes through
- * `getScopedPrisma(ctx)` like any other tenant resource; `User` itself is
+ * `getControlPlaneScopedPrisma(ctx)` like any other tenant resource; `User` itself is
  * control-plane (a person may belong to more than one business, §9.2) and
  * is only ever touched here for the create/credential-update half of this
  * feature — this file is in the ESLint raw-client allowlist for exactly
@@ -38,13 +38,23 @@ function toView(membership: { id: string; role: string; createdAt: Date; user: {
   };
 }
 
+/**
+ * `Membership` is control-plane data (PLAN.md §7.4): authentication reads it
+ * from the shared connection (`route-auth`), so administering it must write
+ * there too — even for a business whose data plane is a dedicated database.
+ * Still tenant-scoped; only the connection is pinned.
+ */
+function getControlPlaneScopedPrisma(ctx: TenantContext) {
+  return getScopedPrisma({ ...ctx, dataConnection: "shared-default" });
+}
+
 export interface ListParams {
   skip: number;
   take: number;
 }
 
 export async function list(ctx: TenantContext, params: ListParams) {
-  const db = getScopedPrisma(ctx);
+  const db = getControlPlaneScopedPrisma(ctx);
   const [memberships, total] = await Promise.all([
     db.membership.findMany({
       orderBy: { createdAt: "asc" },
@@ -82,7 +92,7 @@ export async function create(ctx: TenantContext, input: CreateInput) {
     data: { username, password: hashed, name: input.name?.trim() || username },
   });
 
-  const db = getScopedPrisma(ctx);
+  const db = getControlPlaneScopedPrisma(ctx);
   const membership = await db.membership.create({
     data: { businessId: ctx.businessId, userId: user.id, role },
   });
@@ -97,7 +107,7 @@ export interface UpdateInput {
 }
 
 export async function update(ctx: TenantContext, membershipId: string, input: UpdateInput) {
-  const db = getScopedPrisma(ctx);
+  const db = getControlPlaneScopedPrisma(ctx);
   const membership = await db.membership.findUnique({ where: { id: membershipId }, include: { user: true } });
   if (!membership) throw new NotFoundError("User");
 
@@ -125,7 +135,7 @@ export async function update(ctx: TenantContext, membershipId: string, input: Up
 }
 
 export async function remove(ctx: TenantContext, membershipId: string): Promise<void> {
-  const db = getScopedPrisma(ctx);
+  const db = getControlPlaneScopedPrisma(ctx);
   const membership = await db.membership.findUnique({ where: { id: membershipId } });
   if (!membership) throw new NotFoundError("User");
 

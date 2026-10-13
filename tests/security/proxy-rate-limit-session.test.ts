@@ -75,6 +75,29 @@ describe("API rate limiting is per session, not only per address", () => {
   });
 });
 
+describe("the bucket belongs to the session, not the person (a revoked token must not hurt its owner)", () => {
+  it("gives each session of the same user its own budget", async () => {
+    const stolenThenRevoked = generateToken("victim");
+    await statuses(RATE_LIMITS.apiUser.maxRequests + 10, () => request("/api/conversations", { token: stolenThenRevoked, ip: "192.0.2.50" }));
+    expect((await proxy(request("/api/conversations", { token: stolenThenRevoked, ip: "192.0.2.50" }))).status).toBe(429);
+    const victimsOwnSession = generateToken("victim"); // a different login => a different jti
+    expect((await proxy(request("/api/conversations", { token: victimsOwnSession, ip: "192.0.2.51" }))).status).not.toBe(429);
+  });
+
+  it("opens of the live stream are per session too", async () => {
+    const a = generateToken("streamer-2");
+    const b = generateToken("streamer-2");
+    await statuses(RATE_LIMITS.stream.maxRequests + 3, () => request("/api/realtime?channel=global", { token: a }));
+    expect((await proxy(request("/api/realtime?channel=global", { token: b }))).status).not.toBe(429);
+  });
+
+  it("falls back to the user for a legacy token that has no jti", async () => {
+    const legacy = () => jwt.sign({ userId: "legacy-user" }, process.env.JWT_SECRET ?? "test-only-fallback-secret", { expiresIn: "7d" });
+    const result = await statuses(RATE_LIMITS.apiUser.maxRequests + 3, () => request("/api/conversations", { token: legacy() }));
+    expect(result.slice(RATE_LIMITS.apiUser.maxRequests).every((s) => s === 429)).toBe(true);
+  });
+});
+
 describe("opening the live event stream", () => {
   it("has its own, smaller per-session budget so reconnect storms cannot starve ordinary requests", async () => {
     const token = generateToken("streamer");

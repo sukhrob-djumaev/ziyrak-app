@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LiveEventHub, shouldRefreshOn, type SourceLike } from "@/lib/live/hub";
+import { LiveEventHub, bindPageLifecycle, shouldRefreshOn, type SourceLike } from "@/lib/live/hub";
 
 let hub: LiveEventHub | null = null;
 /** Set by whichever mounted hook last registered: the router the hub should use when the server ends the session. */
@@ -14,13 +14,7 @@ function getHub(): LiveEventHub {
       () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
       () => endSession?.()
     );
-    // Leaving the page parks it in the back/forward cache with its connection still open; close it, and reopen
-    // if the user comes back to the cached page.
-    const created = hub;
-    window.addEventListener("pagehide", () => created.suspend());
-    window.addEventListener("pageshow", (event) => {
-      if (event.persisted) created.resume();
-    });
+    bindPageLifecycle(hub, window, document);
   }
   return hub;
 }

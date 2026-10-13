@@ -141,14 +141,18 @@ export async function proxy(request: NextRequest) {
   // General API rate limiting
   let apiRateInfo: { limit: number; remaining: number; resetAt: number } | undefined;
   if (pathname.startsWith("/api/")) {
-    // A request with a validly signed session token is limited per user; everything else (anonymous, API key,
+    // A request with a validly signed session token is limited per session; everything else (anonymous, API key,
     // forged or expired token) per client address. Only the signature is checked here — requireAuth() still
     // decides whether the session is actually allowed to do anything.
     const sessionToken = request.cookies.get("owly-token")?.value;
     const session = sessionToken ? verifyToken(sessionToken) : null;
     const isStream = pathname === "/api/realtime";
-    const bucket = session
-      ? { key: `${isStream ? "stream" : "apiuser"}:${session.userId}`, config: isStream ? RATE_LIMITS.stream : RATE_LIMITS.apiUser }
+    // Keyed by the token's own id (`jti`, signed, not attacker-chosen), not by the user: a stolen token that has
+    // since been revoked keeps a valid signature, and keying by user would let it burn its owner's budget from
+    // any address. A token without a `jti` (issued before sessions were revocable) falls back to the user.
+    const sessionKey = session ? (session.jti ?? `user-${session.userId}`) : null;
+    const bucket = sessionKey
+      ? { key: `${isStream ? "stream" : "apisession"}:${sessionKey}`, config: isStream ? RATE_LIMITS.stream : RATE_LIMITS.apiUser }
       : { key: `api:${getClientIp(request)}`, config: RATE_LIMITS.api };
     const rateResult = await checkRateLimit(bucket.key, bucket.config);
 

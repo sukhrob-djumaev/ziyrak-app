@@ -13,7 +13,7 @@ export const RATE_LIMITS = {
   logout: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
   // Anonymous callers, API keys and anything without a valid session: keyed by client address.
   api: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
-  // A signed-in dashboard session, keyed by the verified user. Higher than the per-address limit because each
+  // A signed-in dashboard session, keyed by the verified session token. Higher than the per-address limit because each
   // page makes several background requests (account menu, approvals badge, live updates) and many people can
   // share one address (an office NAT, a tunnel), where a shared per-address budget would lock them all out.
   apiUser: { maxRequests: 600, windowMs: 60 * 1000 } as RateLimitConfig,

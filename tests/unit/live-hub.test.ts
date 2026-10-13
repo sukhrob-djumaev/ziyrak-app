@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { LiveEventHub, parseLiveEvent, shouldRefreshOn, type SourceLike, type LiveEvent } from "@/lib/live/hub";
+import { LiveEventHub, bindPageLifecycle, parseLiveEvent, shouldRefreshOn, type SourceLike, type LiveEvent } from "@/lib/live/hub";
 
 class FakeSource implements SourceLike {
   static instances: FakeSource[] = [];
@@ -154,5 +154,51 @@ describe("LiveEventHub", () => {
     hub.suspend();
     vi.advanceTimersByTime(120_000);
     expect(FakeSource.instances).toHaveLength(1);
+  });
+});
+
+describe("bindPageLifecycle", () => {
+  type Handler = (event: { persisted?: boolean }) => void;
+  const fakeTargets = () => {
+    const handlers: Record<string, Handler[]> = {};
+    const target = { addEventListener: (type: string, h: Handler) => (handlers[type] ??= []).push(h) };
+    const doc = { visibilityState: "visible" as string, addEventListener: target.addEventListener };
+    const fire = (type: string, event: { persisted?: boolean } = {}) => (handlers[type] ?? []).forEach((h) => h(event));
+    return { target, doc, fire };
+  };
+  const setup = () => {
+    FakeSource.instances = [];
+    const hub = new LiveEventHub(() => new FakeSource(), () => {});
+    const t = fakeTargets();
+    bindPageLifecycle(hub, t.target as never, t.doc as never);
+    hub.subscribe(() => {});
+    return { hub, ...t };
+  };
+
+  it("closes the stream when the page is hidden for navigation and reopens it when restored from the cache", () => {
+    const { fire } = setup();
+    fire("pagehide");
+    expect(FakeSource.instances[0].closed).toBe(true);
+    fire("pageshow", { persisted: true });
+    expect(FakeSource.instances).toHaveLength(2);
+  });
+
+  it("also recovers when the page was never unloaded after pagehide (a cancelled navigation)", () => {
+    const { fire } = setup();
+    fire("pagehide");
+    fire("pageshow", { persisted: false });
+    expect(FakeSource.instances).toHaveLength(2);
+  });
+
+  it("recovers when the tab becomes visible again, and does not double-connect", () => {
+    const { fire, doc } = setup();
+    fire("pagehide");
+    doc.visibilityState = "hidden";
+    fire("visibilitychange");
+    expect(FakeSource.instances).toHaveLength(1);
+    doc.visibilityState = "visible";
+    fire("visibilitychange");
+    fire("pageshow", { persisted: false });
+    expect(FakeSource.instances).toHaveLength(2);
   });
 });

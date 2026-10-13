@@ -1,23 +1,24 @@
 # Latest session handoff
 
-Session: 2026-10-13 (Asia/Kuala_Lumpur) — Phase 8 close-out, worker-stall fix, Phase 9 (synthetic).
+Session: 2026-10-13 → 2026-10-14 (Asia/Kuala_Lumpur) — Phase 9 close-out, then an overnight hardening pass the owner asked for ("work as much as possible until morning").
 
-## Changes
+## Changes (all merged, CI green)
 
-- PR #5/#6 (Phase 8 + state) and PR #7 (30 s pg-boss heartbeat on `process-inbound-message`, applied to existing queues via `updateQueue`; SIGKILL child-worker test) merged to `main`. `phase-8-complete` pushed.
-- PR #9: CI on `main` went red after #7 (cross-conversation concurrency test gave B1 only 500 ms vs pg-boss's 2 s poll interval; passed locally, failed 3× in CI). Test now holds A1 for 3.5 s and prints a timeline on failure; CI green. Root cause treated as timing, not proven; watch `main` runs. **I merged #7 without checking CI — always check first.**
-- PR #8 (draft): Phase 9 — `InfrastructurePolicy` + allowlists, dedicated DB (`dedicated-database.ts`), `dedicated:<profile>` placement, identity-bound RLS, `scripts/infra.ts`, `PLAN.md` §46.9 record.
+- Phase 9 (#8): policy + provider allowlists, dedicated database provisioning/migration/routing, identity-bound RLS, `npm run infra`. Dedicated `StorageProfile` deferred (no `ObjectStorage` implementation exists).
+- Worker heartbeat (#7) + CI timing fixes (#9, #19). I merged #7 without checking CI and `main` was red until #9 — always check CI first.
+- Hardening #12–#22: sign-out revocation (`RevokedToken`), approvals UI, tool policy API/UI (`tools:read`/`tools:update`), `GET /api/me` + header identity, live dashboard updates, GDPR delete contract, logger fix, non-retried Web Chat id conflict, approve route registers its tools, `npm audit fix`, Next.js 16.2.2 → 16.4.0. Details and limits: `PLAN.md` "Post-Phase-9 hardening log" and §46.9 record.
+- Env/repo hygiene: `.env.example` rewritten (#10), compose ports bound to 127.0.0.1 and `.dockerignore` widened (#11). Audit of git history found no committed secret.
 
-## Findings
+## Findings worth remembering
 
-- `Membership`, `ApiKey`, `ChannelConnection` are control-plane (§7.4) but were tenant-scoped; `getScopedPrisma` now serves them from the shared connection for dedicated tenants (`CONTROL_PLANE_RESIDENT_MODELS`). Found in part by me (Membership), the rest by the independent review.
-- Independent review fixes: per-business row locks in cutover, allowlist on `/api/knowledge/test`, profile-secret changes reach running processes, RLS refuses mismatched business/profile/database, `REVOKE CREATE`, error redaction, CLI provider validation. Dedicated `StorageProfile` deferred (no `ObjectStorage` implementation exists).
-- A red-phase test once ran `enableRowLevelSecurity` against `owly_test` (guard didn't exist yet); cleaned up (policies, roles). The live `owly` DB was never touched.
+- Independent read-only reviews (subagents) ran on Phase 9, token revocation and tool policies; every confirmed finding was fixed (e.g. `ApiKey`/`ChannelConnection` must stay on the control plane for dedicated tenants; SSE streams must re-check their session; concurrent policy edits lost updates).
+- Real-browser checks caught what unit tests could not: the approve route's missing tool registration (a latent production bug), stale `[object Object]` logging, and the login limit's interaction with scripts.
+- A failed `npm audit fix` in the live working copy damaged `@prisma/engines` (restored from a pristine clone). Work on dependencies only in an isolated worktree.
 
 ## Verification
 
-`tsc`, lint clean; `npm run test` 1035 / 23 skipped; `test:signup-seeded` 600; CI green on PR #8 at `0781590`. Real-Postgres tests only against `owly_test` and throwaway databases.
+`npm run test` 1108 passed / 23 skipped; `test:signup-seeded` ~640; `tsc`, lint, build clean on Next 16.4.0; browser suites header 2/2, approvals 19/19, policies 12/12, live updates 7/7 (production build in a worktree against `owly_test`, never the live app). Live DB migrated with backups; worker restarted and verified.
 
 ## Continuation point
 
-PR #8 awaits the owner (merge, then apply the Phase 9 migration to the live DB before deploying). Live Meta reachability needs a tunnel to port 3000 (owner's call; port 7700 is the remote-control service). Nothing else is waiting on the owner.
+The live web still runs the old build — see CURRENT.md for the deploy steps and the open owner decisions. No work is in progress.

@@ -1,36 +1,23 @@
 # Latest session handoff
 
-Session: 2026-10-11 (Asia/Kuala_Lumpur) — Phase 8 (Scalability and Shared Infrastructure, §46.8), authorized by the owner.
+Session: 2026-10-13 (Asia/Kuala_Lumpur) — Phase 8 close-out, worker-stall fix, Phase 9 (synthetic).
 
 ## Changes
 
-- Branch `claude/phase8-redis-scalability`: `24a8b6e` (Redis client, rate limiter, cache, realtime bus, placement cache, pool/direct-URL knobs), `594635a` (compose/Helm/CI/load-test harness, SIGTERM-correct container entrypoints), plus the commit with the plan record, state files and security-review fixes (find it with `git log -3`).
-- Details, deviations (`checkRateLimit` async), evidence and known limits: `PLAN.md` §46.8 "Implementation record (Phase 8)"; §41 note lifted.
+- PR #5/#6 (Phase 8 + state) and PR #7 (30 s pg-boss heartbeat on `process-inbound-message`, applied to existing queues via `updateQueue`; SIGKILL child-worker test) merged to `main`. `phase-8-complete` pushed.
+- PR #9: CI on `main` went red after #7 (cross-conversation concurrency test gave B1 only 500 ms vs pg-boss's 2 s poll interval; passed locally, failed 3× in CI). Test now holds A1 for 3.5 s and prints a timeline on failure; CI green. Root cause treated as timing, not proven; watch `main` runs. **I merged #7 without checking CI — always check first.**
+- PR #8 (draft): Phase 9 — `InfrastructurePolicy` + allowlists, dedicated DB (`dedicated-database.ts`), `dedicated:<profile>` placement, identity-bound RLS, `scripts/infra.ts`, `PLAN.md` §46.9 record.
 
 ## Findings
 
-- The load test caught a real defect: `npm run worker` as PID 1 swallowed SIGTERM, so stopped workers never drained (16/24 jobs finished); containers now run `node` directly.
-- Independent read-only security review: no in-app cross-tenant path; infra findings (unauthenticated Redis, Helm selector overlap, no Redis command timeout/breaker, sslMode dropped, unbounded limiter keys, pod hardening, existingSecret) all fixed and recorded.
-- A flaky `RedisRealtimeBus.settled()` race (connect resolving before the ready-reconcile) was fixed.
+- `Membership`, `ApiKey`, `ChannelConnection` are control-plane (§7.4) but were tenant-scoped; `getScopedPrisma` now serves them from the shared connection for dedicated tenants (`CONTROL_PLANE_RESIDENT_MODELS`). Found in part by me (Membership), the rest by the independent review.
+- Independent review fixes: per-business row locks in cutover, allowlist on `/api/knowledge/test`, profile-secret changes reach running processes, RLS refuses mismatched business/profile/database, `REVOKE CREATE`, error redaction, CLI provider validation. Dedicated `StorageProfile` deferred (no `ObjectStorage` implementation exists).
+- A red-phase test once ran `enableRowLevelSecurity` against `owly_test` (guard didn't exist yet); cleaned up (policies, roles). The live `owly` DB was never touched.
 
-## Verification (2026-10-11)
+## Verification
 
-- `npx tsc --noEmit`, `npm run lint -- --max-warnings 0` clean; `npm run test` ~1017 passed, and unchanged with `REDIS_URL` set ~1020 passed; `npm run test:signup-seeded` 571; Docker image builds; `helm lint/template` + guards (helm via Docker).
-- `scripts/loadtest/run.sh both`: 8/8 in Redis-on and Redis-off control runs on the final image; Redis-outage probe passed (before the breaker change; the breaker only shortens it).
-- Not run: a real Kubernetes cluster (HPA objects rendered only), `npm run build` on the host (the live `.next` was deliberately not rebuilt), Meta smoke suites.
-
-## Later in session
-
-- `c209a80` trusted-proxy client IP (`TRUSTED_PROXY_HOPS`; Helm default 1). Branch pushed. Live web/worker rebuilt and restarted; health 200 locally and through the tunnel; pg-boss sweeps completing. No real inbound Meta message was sent after the restart.
+`tsc`, lint clean; `npm run test` 1035 / 23 skipped; `test:signup-seeded` 600; CI green on PR #8 at `0781590`. Real-Postgres tests only against `owly_test` and throwaway databases.
 
 ## Continuation point
 
-`phase-8-complete` tagged and pushed. Owner decides: the worker-dies-without-draining stall (heartbeat/expiry decision). Phase 9 needs explicit authorization. Remove test Redis with `docker rm -f owly-redis-test`.
-
-## Update 2026-10-13
-
-PR #5 (`claude/phase8-redis-scalability`) merged into `main` (`944f911`). `gh` installed and logged in. `phase-8-complete` pushed. Remaining owner decisions: the worker-stall decision, Phase 9 authorization.
-
-## Update 2026-10-13 (worker heartbeat)
-
-Branch `claude/worker-heartbeat` (from `main` @ `20db24d`): `heartbeatSeconds: 30` for `process-inbound-message`, `updateQueue` in `ensureQueue`, SIGKILL child-worker test (`tests/helpers/hanging-worker.ts`). Verified against `owly_test` (never the live `owly` DB; `.env` DATABASE_URL points at `owly`, so export the test URL): red without fix, green with; `tsc`, lint clean; `npm run test` 1004 passed / 23 skipped. Test data note: I cleared `process-inbound-message` rows in `pgboss.job_common` of `owly_test` to reset state. Not done: push/PR, live stack restart (running web/worker still on the old queue config; the queue picks up the heartbeat on next worker start), Docker test Redis `owly-redis-test` exists but is stopped.
+PR #8 awaits the owner (merge, then apply the Phase 9 migration to the live DB before deploying). Live Meta reachability needs a tunnel to port 3000 (owner's call; port 7700 is the remote-control service). Nothing else is waiting on the owner.

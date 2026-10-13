@@ -2,27 +2,26 @@
 
 Updated: 2026-10-13 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
 
-- **Phase:** 8 — Scalability and Shared Infrastructure (§46.8), authorized by the owner on 2026-10-11 ("lets proceed"). Phase 7 closed earlier (`phase-7-complete`, local only).
-- **Objective:** Redis rate limit/cache/`RealtimeBus`, PgBouncer, multi-replica validation, HPA, placement cache. Complete; `phase-8-complete` tagged on the owner's delegation and pushed 2026-10-13.
-- **Branch / code baseline:** `claude/phase8-redis-scalability` (from `claude/phase7-openai-acceptance` @ `0ff11cb`); commits `24a8b6e` (adapters), `594635a` (compose/Helm/load test), `fa564b9` (review fixes + record), `c209a80` (trusted-proxy client IP). Pushed to `origin/claude/phase8-redis-scalability` on 2026-10-11 ; PR #5 merged into `main` on 2026-10-13 (merge commit `944f911`). Recheck Git at every resume.
+- **Phase:** 9 — Enterprise Infrastructure Overrides (§46.9), authorized by the owner on 2026-10-13 and built **synthetically** (no customer; throwaway databases only). Phases 0–8 are complete and tagged (`phase-0-complete` … `phase-8-complete`; the latter pushed).
+- **Objective:** Policy + provider allowlists, dedicated database provisioning/verified migration/routing, identity-bound RLS, operator CLI (`npm run infra`). Implementation record, deviations, review and limits: `PLAN.md` §46.9 "Implementation record (Phase 9)". **Task 3 (dedicated `StorageProfile`) deliberately deferred**: `ObjectStorage` has no implementation to override.
+- **Branch / baseline:** `claude/phase9-enterprise-overrides` — PR #8 (draft until the owner is ready to merge). Latest `0781590` (review fixes); CI green on it. `main` includes the worker heartbeat (PR #7) and the CI test-timing fix (PR #9).
 
 ## Status
 
-- Implementation record, evidence and known limits are in `PLAN.md` §46.8 "Implementation record (Phase 8)". Acceptance criteria met: rate limit aggregated across replicas, ordering with competing workers (in-process and multi-process), full suite unchanged with Redis selected (1017 pass), HPA enabled on load-test evidence (rendered/linted; no cluster here).
-- Load test: `scripts/loadtest/run.sh [redis|no-redis|both|up|down]` (needs Docker, image `owly:local`, ports 3201/3202/55432/4010). 8/8 expectations in both modes on 2026-10-11.
-- Independent security review of the Phase 8 diff: see HANDOFF for result and what was fixed.
+- Verification (2026-10-13, against `owly_test`): `tsc`, lint clean; `npm run test` 1035 passed / 23 skipped; `npm run test:signup-seeded` 600 passed. Independent read-only security review done; confirmed findings fixed (see PLAN record).
+- Not run: a real customer migration, a live dedicated database outside the test server, a real Kubernetes cluster, Meta smoke suites.
 
 ## Next actions
 
-1. Done: PR #5 merged. `phase-8-complete` pushed to origin on 2026-10-13. `gh` is installed and authenticated as `sukhrob-djumaev`.
-2. Worker-dies stall: fixed on branch `claude/worker-heartbeat` (30 s heartbeat on `process-inbound-message`); PR/merge and a live-stack restart are the owner's call.
-3. Phase 9 only with explicit authorization.
+1. Owner merges PR #8 (mark ready first) — not before reading the PLAN record's known limits (no write freeze: quiesce a business for before and ~1 min after `migrate`).
+2. Apply migration `20261013140000_phase9_infrastructure_policy` to the live `owly` database before deploying Phase 9 code (live DB is untouched so far).
+3. Phase 10 does not exist; further enterprise work (dedicated storage, region deployment) only against a real requirement.
 
 ## Environment notes
 
-- Live Meta stack restarted on the Phase 8 build on 2026-10-11 (host `npm run build` passed). `com.ziyrak.meta.web` and `.worker` now run as `ProcessType=Interactive` launchd services (plists in the session scratchpad, bootstrapped; not persistent across reboot) running `node` directly; plain `launchctl submit` + `npx`/`npm` jobs took 40s+ to start and hung under this Mac's memory thrash. Tunnel untouched. `REDIS_URL` unset, so behavior is the in-memory default.
-- Test Redis container `owly-redis-test` on :6390 (`REDIS_TEST_URL`/`REDIS_URL=redis://localhost:6390`); remove with `docker rm -f owly-redis-test` when done. Live Postgres `owly-db-1` untouched; the load test uses its own compose project `owlyload` (torn down).
+- Live stack on `main` code (built 2026-10-13): worker as launchd service `com.ziyrak.meta.worker` (not persistent across reboot); web started by the owner on `127.0.0.1:3000` in a prompt session. **Port 7700 and its cloudflared tunnel belong to the owner's remote-control service — never use or touch them.** No tunnel points at port 3000, so Meta cannot reach the web app. A dead `com.ziyrak.meta.web` launchd job may remain loaded (it failed with EADDRINUSE on 7700).
+- Tests must use `DATABASE_URL=…/owly_test` — `.env` points at the live `owly` database. Docker Desktop and `owly-db-1` are running. Test Redis container was removed.
 
 ## Prohibited
 
-Starting Phase 9, pushing/merging/deploying without the owner's say-so, changing product architecture without the rule 11 decision, touching Business A's or B's Meta connections.
+Pushing/merging/deploying without the owner's say-so, merging without checking CI first, changing product architecture without the rule 11 decision, touching Business A's or B's Meta connections, using port 7700.

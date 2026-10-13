@@ -33,9 +33,12 @@ if [ "$what" = all ] || [ "$what" = web ]; then
   fi
 fi
 if [ "$what" = all ] || [ "$what" = worker ]; then
+  # The worker's exact PID is recorded so a journey can stop THIS worker and nothing else. (A pattern kill such as
+  # `pkill -f src/worker.ts` also kills any other worker on the machine — including a live one — and did.)
+  # `node --import tsx` is what `npm run worker` runs, minus the npm wrapper process that would own the PID.
   if [ "${ACC_REAL_AI:-0}" = "1" ]; then
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" nohup npm run worker >> "$work/worker.log" 2>&1 &)
+    (NODE_ENV=production DATABASE_URL="$ACC_DB" nohup node --import tsx src/worker.ts >> "$work/worker.log" 2>&1 & echo $! > "$work/worker.pid")
   else
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" OPENAI_BASE_URL=http://127.0.0.1:4010/v1 nohup npm run worker >> "$work/worker.log" 2>&1 &)
+    (NODE_ENV=production DATABASE_URL="$ACC_DB" OPENAI_BASE_URL=http://127.0.0.1:4010/v1 nohup node --import tsx src/worker.ts >> "$work/worker.log" 2>&1 & echo $! > "$work/worker.pid")
   fi
 fi

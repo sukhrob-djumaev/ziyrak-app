@@ -33,10 +33,65 @@ const CHROMIUM = resolveChromium();
 const BASE = process.env.ACC_BASE_URL || "http://localhost:3100";
 exports.BASE = BASE; exports.SP = SP;
 exports.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Dashboard pages keep one long-lived event stream open (/api/realtime, live updates), so the browser never
+// reports "network idle" for them and `waitUntil: "networkidle0|2"` would time out. Every journey page is
+// created through launch(), which makes "networkidle" mean what the journeys intend — the page's own requests
+// have settled — by ignoring that stream: load, then no (or <=2) requests in flight for 500 ms.
+const LONG_LIVED_STREAM = /\/api\/realtime(\?|$)/;
+function idleBudget(waitUntil) {
+  const list = Array.isArray(waitUntil) ? waitUntil : [waitUntil];
+  const hit = list.find((w) => typeof w === "string" && w.startsWith("networkidle"));
+  return hit === undefined ? null : hit === "networkidle2" ? 2 : 0;
+}
+function makeIdleAware(page) {
+  const inflight = new Set();
+  const startedAt = new WeakMap();
+  page.on("request", (r) => { if (!LONG_LIVED_STREAM.test(r.url())) { inflight.add(r); startedAt.set(r, Date.now()); } });
+  const settle = (r) => inflight.delete(r);
+  page.on("requestfinished", settle);
+  page.on("requestfailed", settle);
+  page.on("requestservedfromcache", settle); // a cache hit does not always emit "requestfinished"
+  // Requests cancelled by navigating away are not always reported as failed; they belong to a document that is gone.
+  page.on("framenavigated", (frame) => { if (frame === page.mainFrame()) inflight.clear(); });
+  const idle = async (max, timeoutMs = 30000, quietMs = 500) => {
+    const t0 = Date.now();
+    let quietSince = null;
+    while (Date.now() - t0 < timeoutMs) {
+      if (inflight.size <= max) { quietSince ??= Date.now(); if (Date.now() - quietSince >= quietMs) return; } else quietSince = null;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`Timeout waiting for network idle (${inflight.size} request(s) still in flight: ${[...inflight].slice(0, 5).map((r) => r.method() + " " + r.url().replace(BASE, "") + " [resp=" + (r.response() ? r.response().status() : "none") + ", " + Math.round((Date.now() - (startedAt.get(r) || Date.now())) / 1000) + "s]").join(", ")})`);
+  };
+  for (const method of ["goto", "reload"]) {
+    const original = page[method].bind(page);
+    page[method] = async (...args) => {
+      const optsIndex = method === "goto" ? 1 : 0;
+      const opts = args[optsIndex] || {};
+      const max = idleBudget(opts.waitUntil);
+      if (max === null) return original(...args);
+      args[optsIndex] = { ...opts, waitUntil: "load" };
+      const response = await original(...args);
+      await idle(max);
+      return response;
+    };
+  }
+  const originalWait = page.waitForNavigation.bind(page);
+  page.waitForNavigation = async (opts = {}) => {
+    const max = idleBudget(opts.waitUntil);
+    if (max === null) return originalWait(opts);
+    const response = await originalWait({ ...opts, waitUntil: "load" });
+    await idle(max);
+    return response;
+  };
+  return page;
+}
 exports.launch = async (name) => {
   const userDataDir = path.join(SP, "profiles", name);
   fs.mkdirSync(userDataDir, { recursive: true });
-  return puppeteer.launch({ executablePath: CHROMIUM, headless: true, userDataDir, args: ["--no-sandbox", "--window-size=1280,900"], defaultViewport: { width: 1280, height: 900 } });
+  const browser = await puppeteer.launch({ executablePath: CHROMIUM, headless: true, userDataDir, args: ["--no-sandbox", "--window-size=1280,900"], defaultViewport: { width: 1280, height: 900 } });
+  const newPage = browser.newPage.bind(browser);
+  browser.newPage = async (...args) => makeIdleAware(await newPage(...args));
+  return browser;
 };
 // Collects network + console evidence for a page.
 exports.watch = (page, tag) => {

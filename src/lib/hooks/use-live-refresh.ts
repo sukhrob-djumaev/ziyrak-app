@@ -2,17 +2,20 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LiveEventHub, shouldRefreshOn, type SourceLike } from "@/lib/live/hub";
+import { LiveEventHub, bindPageLifecycle, shouldRefreshOn, type SourceLike } from "@/lib/live/hub";
 
 let hub: LiveEventHub | null = null;
 /** Set by whichever mounted hook last registered: the router the hub should use when the server ends the session. */
 let endSession: (() => void) | null = null;
 
 function getHub(): LiveEventHub {
-  hub ??= new LiveEventHub(
-    () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
-    () => endSession?.()
-  );
+  if (!hub) {
+    hub = new LiveEventHub(
+      () => new EventSource("/api/realtime?channel=global") as unknown as SourceLike,
+      () => endSession?.()
+    );
+    bindPageLifecycle(hub, window, document);
+  }
   return hub;
 }
 

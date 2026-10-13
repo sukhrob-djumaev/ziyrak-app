@@ -24,9 +24,12 @@ const widgetLog = (p) => p.$$eval("#ziyrak-log > div", (ds) => ds.map((d) => d.t
   out.j10.followupMessage = sql(`select input->>'message' from "ActionExecution" where tool='schedule_followup' order by "createdAt" desc limit 1`);
   mark(`J10 pending job before stop: ${out.j10.pgboss_pending}`);
   const stopT = Date.now();
-  sh(`pkill -TERM -f "src/[w]orker.ts" || true`); await L.sleep(3000);
+  // Stop only the acceptance worker, by the PID start-all.sh recorded — never by name, which would also stop a live worker.
+  const workerPid = require("fs").readFileSync(`${L.SP}/worker.pid`, "utf8").trim();
+  L.assert(/^\d+$/.test(workerPid), `J10: ${L.SP}/worker.pid holds a PID (start the topology with start-all.sh)`);
+  sh(`kill -TERM ${workerPid} || true`); await L.sleep(3000);
   const wlog = sh(`tail -4 ${L.SP}/worker.log`); out.j10.workerLogOnStop = wlog.split("\n").slice(-2);
-  mark(`J10 worker stopped; processes left: ${sh(`pgrep -f "src/[w]orker.ts" | wc -l`)}`);
+  mark(`J10 worker stopped; acceptance worker still running: ${sh(`kill -0 ${workerPid} 2>/dev/null && echo yes || echo no`)}`);
   // web must stay up
   out.j10.webWhileWorkerDown = { health: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api/health`), loginPage: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/login`), widgetJs: sh(`curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/widget.js`) };
   mark(`J10 web while worker down: ${JSON.stringify(out.j10.webWhileWorkerDown)}`);

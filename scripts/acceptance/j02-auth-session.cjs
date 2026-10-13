@@ -23,7 +23,8 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
     tokens[key] = (await p.cookies()).find((k) => k.name === "owly-token").value;
     // real Sign Out through the avatar menu
     await p.goto(L.BASE + "/", { waitUntil: "networkidle0" });
-    await clickText(p, "header button", "A"); await L.sleep(300);
+    // The avatar shows the signed-in person's initial (it used to be a hard-coded "A"), so find it by its label.
+    await p.waitForSelector('header button[aria-label^="Account menu"]'); await p.click('header button[aria-label^="Account menu"]'); await L.sleep(300);
     r.signOutClicked = await clickText(p, "button", "Sign Out");
     await p.waitForFunction(() => location.pathname.startsWith("/login"), { timeout: 10000 }).catch(() => {});
     r.afterSignOutUrl = p.url().replace(L.BASE, "");
@@ -50,7 +51,7 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
     out.perBusiness[key] = r; await b.close();
 
     L.assert(r.me === c.user, `${key}: session identifies the signed-up owner, got ${r.me}`);
-    for (const path of Object.keys(r.nav)) L.assert(r.nav[path].startsWith("200 ->"), `${key}: ${path} loads (200) while authenticated, got ${r.nav[path]}`);
+    for (const path of Object.keys(r.nav)) L.assert(/^(200|304) ->/.test(r.nav[path]) && r.nav[path].endsWith(`-> ${path}`), `${key}: ${path} loads (200, or 304 when the browser revalidates the cached prerendered shell) while authenticated, got ${r.nav[path]}`);
     L.assert(r.signOutClicked === true, `${key}: Sign Out control was found and clicked`);
     L.assert(r.afterSignOutUrl.startsWith("/login"), `${key}: sign-out navigates to /login, got ${r.afterSignOutUrl}`);
     L.assert(!r.cookiesAfterLogout.includes("owly-token"), `${key}: owly-token cookie is cleared after sign-out`);

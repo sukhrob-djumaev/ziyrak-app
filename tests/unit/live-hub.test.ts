@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { LiveEventHub, parseLiveEvent, shouldRefreshOn, type SourceLike, type LiveEvent } from "@/lib/live/hub";
+import { LiveEventHub, bindPageLifecycle, parseLiveEvent, shouldRefreshOn, type SourceLike, type LiveEvent } from "@/lib/live/hub";
 
 class FakeSource implements SourceLike {
   static instances: FakeSource[] = [];
@@ -114,5 +114,91 @@ describe("LiveEventHub", () => {
     FakeSource.instances[0].onerror?.({});
     vi.advanceTimersByTime(120_000);
     expect(FakeSource.instances).toHaveLength(1);
+  });
+
+  // A page that is navigated away from is kept in the browser's back/forward cache with its connection still
+  // open; six of those exhaust the browser's per-host connection limit and the next page load hangs.
+  it("suspend() closes the connection but keeps subscribers; resume() reconnects them", () => {
+    const { hub } = make();
+    const seen: string[] = [];
+    hub.subscribe((e) => seen.push(e.type));
+    FakeSource.instances[0].emit({ type: "message:new", data: {} });
+    hub.suspend();
+    expect(FakeSource.instances[0].closed).toBe(true);
+    vi.advanceTimersByTime(120_000);
+    expect(FakeSource.instances).toHaveLength(1); // no reconnect while suspended
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(2);
+    FakeSource.instances[1].emit({ type: "notification", data: {} });
+    expect(seen).toEqual(["message:new", "notification"]); // the same subscriber, no re-subscribe needed
+  });
+
+  it("resume() does nothing without subscribers, when already connected, or after an unsubscribe", () => {
+    const { hub } = make();
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(0);
+    const stop = hub.subscribe(() => {});
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(1);
+    hub.suspend();
+    stop();
+    hub.resume();
+    expect(FakeSource.instances).toHaveLength(1);
+  });
+
+  it("a pending reconnect is cancelled by suspend()", () => {
+    const { hub } = make();
+    hub.subscribe(() => {});
+    FakeSource.instances[0].readyState = 2;
+    FakeSource.instances[0].onerror?.({});
+    hub.suspend();
+    vi.advanceTimersByTime(120_000);
+    expect(FakeSource.instances).toHaveLength(1);
+  });
+});
+
+describe("bindPageLifecycle", () => {
+  type Handler = (event: { persisted?: boolean }) => void;
+  const fakeTargets = () => {
+    const handlers: Record<string, Handler[]> = {};
+    const target = { addEventListener: (type: string, h: Handler) => (handlers[type] ??= []).push(h) };
+    const doc = { visibilityState: "visible" as string, addEventListener: target.addEventListener };
+    const fire = (type: string, event: { persisted?: boolean } = {}) => (handlers[type] ?? []).forEach((h) => h(event));
+    return { target, doc, fire };
+  };
+  const setup = () => {
+    FakeSource.instances = [];
+    const hub = new LiveEventHub(() => new FakeSource(), () => {});
+    const t = fakeTargets();
+    bindPageLifecycle(hub, t.target as never, t.doc as never);
+    hub.subscribe(() => {});
+    return { hub, ...t };
+  };
+
+  it("closes the stream when the page is hidden for navigation and reopens it when restored from the cache", () => {
+    const { fire } = setup();
+    fire("pagehide");
+    expect(FakeSource.instances[0].closed).toBe(true);
+    fire("pageshow", { persisted: true });
+    expect(FakeSource.instances).toHaveLength(2);
+  });
+
+  it("also recovers when the page was never unloaded after pagehide (a cancelled navigation)", () => {
+    const { fire } = setup();
+    fire("pagehide");
+    fire("pageshow", { persisted: false });
+    expect(FakeSource.instances).toHaveLength(2);
+  });
+
+  it("recovers when the tab becomes visible again, and does not double-connect", () => {
+    const { fire, doc } = setup();
+    fire("pagehide");
+    doc.visibilityState = "hidden";
+    fire("visibilitychange");
+    expect(FakeSource.instances).toHaveLength(1);
+    doc.visibilityState = "visible";
+    fire("visibilitychange");
+    fire("pageshow", { persisted: false });
+    expect(FakeSource.instances).toHaveLength(2);
   });
 });

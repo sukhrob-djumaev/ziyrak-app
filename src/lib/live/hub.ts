@@ -63,9 +63,27 @@ export class LiveEventHub {
     private readonly onSessionEnded: () => void
   ) {}
 
+  private suspended = false;
+
+  /**
+   * Closes the connection but keeps the subscribers. Called when the page is hidden for navigation
+   * (`pagehide`): a page parked in the back/forward cache would otherwise keep its stream open, and a handful of
+   * those exhaust the browser's per-host connection limit.
+   */
+  suspend(): void {
+    this.suspended = true;
+    this.close();
+  }
+
+  /** Reconnects after `suspend()` (`pageshow` from the back/forward cache), if anyone is still listening. */
+  resume(): void {
+    this.suspended = false;
+    if (this.listeners.size > 0 && !this.source && !this.retryTimer) this.open();
+  }
+
   subscribe(listener: (event: LiveEvent) => void): () => void {
     this.listeners.add(listener);
-    if (!this.source && !this.retryTimer) this.open();
+    if (!this.source && !this.retryTimer && !this.suspended) this.open();
     return () => {
       this.listeners.delete(listener);
       if (this.listeners.size === 0) this.close();
@@ -113,4 +131,22 @@ export class LiveEventHub {
     this.source = null;
     this.backoff = BACKOFF_START_MS;
   }
+}
+
+/**
+ * Ties a hub to the page lifecycle: close the stream when the page is hidden for navigation (a page parked in the
+ * back/forward cache would keep it open), and reopen it whenever the page is shown or its tab becomes visible
+ * again. `resume()` is guarded, so being called on every `pageshow`/visibility change — including when the page was
+ * never actually unloaded (a cancelled navigation) — cannot open a second connection.
+ */
+export function bindPageLifecycle(
+  hub: Pick<LiveEventHub, "suspend" | "resume">,
+  target: Pick<Window, "addEventListener">,
+  doc: Pick<Document, "addEventListener" | "visibilityState">
+): void {
+  target.addEventListener("pagehide", () => hub.suspend());
+  target.addEventListener("pageshow", () => hub.resume());
+  doc.addEventListener("visibilitychange", () => {
+    if (doc.visibilityState === "visible") hub.resume();
+  });
 }

@@ -11,7 +11,14 @@ export const RATE_LIMITS = {
   // Sign-out needs a signature-valid token to do anything, so it is not a brute-force surface;
   // a shared NAT address must still be able to sign people out.
   logout: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
+  // Anonymous callers, API keys and anything without a valid session: keyed by client address.
   api: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
+  // A signed-in dashboard session, keyed by the verified session token. Higher than the per-address limit because each
+  // page makes several background requests (account menu, approvals badge, live updates) and many people can
+  // share one address (an office NAT, a tunnel), where a shared per-address budget would lock them all out.
+  apiUser: { maxRequests: 600, windowMs: 60 * 1000 } as RateLimitConfig,
+  // Opening the live event stream: a reconnect storm must not starve the same session's ordinary requests.
+  stream: { maxRequests: 30, windowMs: 60 * 1000 } as RateLimitConfig,
   // Public provider webhook: generous for Meta's real bursts, but bounds the
   // pre-verification lookup/decrypt work an unauthenticated client can force.
   metaWebhook: { maxRequests: 1200, windowMs: 60 * 1000 } as RateLimitConfig,

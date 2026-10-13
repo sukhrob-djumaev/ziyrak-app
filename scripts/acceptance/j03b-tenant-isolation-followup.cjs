@@ -35,7 +35,8 @@ const call = (p, m, url, body) => p.evaluate(async (m, url, body) => { const r =
   // cross-tenant GDPR hard-delete answers 200 {success:false,...}, not 404 — never fixed because
   // nothing is actually deleted (deletedRecords:0). The safety property is "no records deleted",
   // not the status code.
-  L.assert(/"success":false/.test(out["B: HARD gdpr-delete A's customer (with body)"]) && /"deletedRecords":0/.test(out["B: HARD gdpr-delete A's customer (with body)"]), `B's hard-delete of A's customer deletes nothing, got ${out["B: HARD gdpr-delete A's customer (with body)"]}`);
+  // Another business's customer is a 404 (it used to be a 200 {"success":false}); nothing is deleted either way (A's customer is re-read below).
+  L.assert(/^404 /.test(out["B: HARD gdpr-delete A's customer (with body)"]), `B's hard-delete of A's customer is a 404 and deletes nothing, got ${out["B: HARD gdpr-delete A's customer (with body)"]}`);
   L.assert(out["B: gdpr-export A's customer"].startsWith("404"), `B cannot export A's customer via GDPR export, got ${out["B: gdpr-export A's customer"]}`);
   // transferConversation() looks up toMemberId through the SAME scoped client used everywhere else
   // (getScopedPrisma(ctx).teamMember.findUnique) — a foreign id (or, as here, any id not in B's own

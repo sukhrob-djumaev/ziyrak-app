@@ -130,6 +130,8 @@ describe("PUT /api/tool-policies/[tool]", () => {
     expect((await put(ownerToken, "does_not_exist", { enabledForTenant: false })).status).toBe(404);
     expect((await put(ownerToken, "noop_test_action", { enabledForTenant: false })).status).toBe(404);
     expect((await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["agent", "superuser"] })).status).toBe(400);
+    // Viewers are read-only by definition: a policy must not be able to let them run tools.
+    expect((await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["viewer", "agent"] })).status).toBe(400);
     expect((await put(ownerToken, "create_ticket", { requiresHumanApproval: "yes" })).status).toBe(400);
     expect((await put(ownerToken, "create_ticket", {})).status).toBe(400); // nothing to change
   });
@@ -143,6 +145,36 @@ describe("PUT /api/tool-policies/[tool]", () => {
     expect(entry).not.toBeNull();
     expect(entry!.description).toMatch(/trigger_webhook/);
     expect(entry!.userId).toBe(a.ownerUserId);
+  });
+});
+
+describe("concurrent edits and the audit trail (security review)", () => {
+  it("two simultaneous edits of different fields are both kept (no lost update)", async () => {
+    await reset(ownerToken, "get_customer_history");
+    await Promise.all([
+      put(ownerToken, "get_customer_history", { allowedForAI: false }),
+      put(ownerToken, "get_customer_history", { requiresHumanApproval: true }),
+      put(ownerToken, "get_customer_history", { allowedForHumanRoles: ["owner", "admin"] }),
+    ]);
+    const { data } = await parseJsonResponse(await list(ownerToken));
+    const policy = data.find((t: { tool: string }) => t.tool === "get_customer_history").policy;
+    expect(policy).toMatchObject({ allowedForAI: false, requiresHumanApproval: true });
+    expect([...policy.allowedForHumanRoles].sort()).toEqual(["admin", "owner"]);
+  });
+
+  it("records the previous values and flags changes that widen what the AI may do", async () => {
+    await reset(ownerToken, "trigger_webhook");
+    await put(ownerToken, "trigger_webhook", { requiresHumanApproval: true }); // narrowing
+    await put(ownerToken, "trigger_webhook", { requiresHumanApproval: false, allowedForAI: true }); // widening: approval removed
+    const entries = await getScopedPrisma(a.ctx).activityLog.findMany({
+      where: { action: "tool_policy.updated", entityId: "trigger_webhook" },
+      orderBy: { createdAt: "asc" },
+    });
+    const meta = entries.map((e) => e.metadata as { changes: Record<string, unknown>; before: Record<string, unknown>; widensAccess: boolean });
+    const narrowing = meta[meta.length - 2];
+    const widening = meta[meta.length - 1];
+    expect(narrowing).toMatchObject({ before: { requiresHumanApproval: false }, changes: { requiresHumanApproval: true }, widensAccess: false });
+    expect(widening).toMatchObject({ before: { requiresHumanApproval: true }, changes: { requiresHumanApproval: false }, widensAccess: true });
   });
 });
 

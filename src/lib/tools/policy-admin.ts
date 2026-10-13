@@ -3,7 +3,6 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { NotFoundError } from "@/lib/observability/errors";
 import { logActivity } from "@/lib/observability/activity";
-import { ROLES } from "@/lib/rbac/rbac";
 import { toolRegistry } from "./registry";
 import { DEFAULT_TOOL_POLICIES, resolveEffectiveToolPolicy, type EffectiveToolPolicy } from "./policy";
 
@@ -43,11 +42,18 @@ export interface ToolPolicyView {
   defaultPolicy: EffectiveToolPolicy;
 }
 
+/**
+ * Roles a policy may let run a tool by hand. `viewer` is deliberately absent:
+ * viewers are read-only, and a tool without its own baseline permission would
+ * otherwise become runnable by them on the strength of the policy alone.
+ */
+const HUMAN_ROLES = ["agent", "supervisor", "admin", "owner"] as const;
+
 export const toolPolicyPatchSchema = z
   .object({
     enabledForTenant: z.boolean().optional(),
     allowedForAI: z.boolean().optional(),
-    allowedForHumanRoles: z.array(z.enum(ROLES)).max(ROLES.length).optional(),
+    allowedForHumanRoles: z.array(z.enum(HUMAN_ROLES)).max(HUMAN_ROLES.length).optional(),
     requiresHumanApproval: z.boolean().optional(),
   })
   .strict()
@@ -72,23 +78,48 @@ export async function listToolPolicies(ctx: TenantContext): Promise<ToolPolicyVi
   return views.sort((x, y) => x.tool.localeCompare(y.tool));
 }
 
+/** True when the patch gives the AI or more people more power than `current` allows (for the audit trail). */
+function widens(current: EffectiveToolPolicy, patch: ToolPolicyPatch): boolean {
+  return (
+    (patch.enabledForTenant === true && !current.enabledForTenant) ||
+    (patch.allowedForAI === true && !current.allowedForAI) ||
+    (patch.requiresHumanApproval === false && current.requiresHumanApproval) ||
+    (patch.allowedForHumanRoles?.some((role) => !current.allowedForHumanRoles.includes(role)) ?? false)
+  );
+}
+
 export async function updateToolPolicy(ctx: TenantContext, name: string, patch: ToolPolicyPatch, actorName?: string): Promise<ToolPolicyView> {
   const tool = visibleTool(name);
   const current = await resolveEffectiveToolPolicy(ctx, name);
-  const next: EffectiveToolPolicy = {
-    ...current,
+  const change: ToolPolicyPatch = {
     ...patch,
-    allowedForHumanRoles: patch.allowedForHumanRoles ? Array.from(new Set(patch.allowedForHumanRoles)) : current.allowedForHumanRoles,
+    ...(patch.allowedForHumanRoles && { allowedForHumanRoles: Array.from(new Set(patch.allowedForHumanRoles)) }),
   };
+  const full: EffectiveToolPolicy = { ...current, ...change };
 
-  await getScopedPrisma(ctx).toolPolicy.upsert({
-    where: { businessId_tool: { businessId: ctx.businessId, tool: name } },
-    update: next,
-    create: { businessId: ctx.businessId, tool: name, ...next },
+  // Write only the fields being changed, so two simultaneous edits of different
+  // fields cannot overwrite each other with a stale copy of the rest. When both
+  // are first-time edits their creates collide (unique business+tool); the loser
+  // retries as an update of just its own fields.
+  const db = getScopedPrisma(ctx);
+  const where = { businessId_tool: { businessId: ctx.businessId, tool: name } };
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db.toolPolicy.upsert({ where, update: change, create: { businessId: ctx.businessId, tool: name, ...full } });
+      break;
+    } catch (error) {
+      if (attempt >= 2 || (error as { code?: string }).code !== "P2002") throw error;
+    }
+  }
+
+  const changed = (Object.keys(change) as (keyof EffectiveToolPolicy)[]).map((key) => `${key}=${JSON.stringify(change[key])}`).join(", ");
+  const before = Object.fromEntries((Object.keys(change) as (keyof EffectiveToolPolicy)[]).map((key) => [key, current[key]]));
+  await logActivity(ctx, "tool_policy.updated", "tool_policy", name, `Policy for tool "${name}" changed: ${changed}`, actorName, {
+    tool: name,
+    changes: change,
+    before,
+    widensAccess: widens(current, change),
   });
-
-  const changed = (Object.keys(patch) as (keyof EffectiveToolPolicy)[]).map((key) => `${key}=${JSON.stringify(next[key])}`).join(", ");
-  await logActivity(ctx, "tool_policy.updated", "tool_policy", name, `Policy for tool "${name}" changed: ${changed}`, actorName, { tool: name, changes: patch });
   return view(ctx, name, tool.description);
 }
 

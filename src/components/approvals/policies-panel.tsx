@@ -22,7 +22,7 @@ interface ToolPolicyRow {
   policy: Policy;
 }
 
-const ROLE_OPTIONS = ["viewer", "agent", "supervisor", "admin", "owner"] as const;
+const ROLE_OPTIONS = ["agent", "supervisor", "admin", "owner"] as const;
 
 function Switch({ checked, disabled, label, hint, onChange }: { checked: boolean; disabled?: boolean; label: string; hint?: string; onChange: (value: boolean) => void }) {
   return (
@@ -79,7 +79,7 @@ export function PoliciesPanel() {
   const save = async (tool: string, patch: Partial<Policy>) => {
     setSaving(tool);
     try {
-      const res = await fetch(`/api/tool-policies/${tool}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      const res = await fetch(`/api/tool-policies/${encodeURIComponent(tool)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : body?.error?.message ?? "Could not save.");
       setRows((prev) => prev.map((r) => (r.tool === tool ? (body as ToolPolicyRow) : r)));
@@ -93,7 +93,7 @@ export function PoliciesPanel() {
   const reset = async (tool: string) => {
     setSaving(tool);
     try {
-      const res = await fetch(`/api/tool-policies/${tool}`, { method: "DELETE" });
+      const res = await fetch(`/api/tool-policies/${encodeURIComponent(tool)}`, { method: "DELETE" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error?.message ?? "Could not reset.");
       setRows((prev) => prev.map((r) => (r.tool === tool ? (body as ToolPolicyRow) : r)));

@@ -1,6 +1,6 @@
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { emitNewMessage } from "@/lib/realtime/realtime";
+import { emitConversationUpdate, emitNewMessage } from "@/lib/realtime/realtime";
 import { logActivity } from "@/lib/observability/activity";
 
 /**
@@ -37,9 +37,11 @@ export async function appendCustomerMessage(
   content: string
 ): Promise<{ id: string }> {
   const db = getScopedPrisma(ctx);
-  return db.message.create({
+  const saved = await db.message.create({
     data: { businessId: ctx.businessId, conversationId, role: "customer", content },
   });
+  emitNewMessage(ctx.businessId, conversationId, { id: saved.id, role: "customer", content });
+  return saved;
 }
 
 export async function appendAssistantMessage(
@@ -67,6 +69,7 @@ export async function escalateConversation(ctx: TenantContext, conversationId: s
     data: { status: "escalated" },
   });
   await logActivity(ctx, "conversation.escalated", "conversation", conversationId, "Conversation escalated for human attention");
+  emitConversationUpdate(ctx.businessId, conversationId, { status: "escalated" });
 }
 
 export function notifyNewAssistantMessage(

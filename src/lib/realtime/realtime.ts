@@ -132,6 +132,16 @@ export function emitNewMessage(
   });
 }
 
+/** A conversation was opened; the dashboard lists it without a refresh. */
+export function emitNewConversation(businessId: string, conversationId: string, data: Record<string, unknown> = {}): void {
+  publish(tenantGlobalChannel(businessId), { type: "conversation:new", conversationId, data: { conversationId, ...data } });
+}
+
+/** Something needs a person's attention (e.g. an AI action waiting for approval). */
+export function emitNotification(businessId: string, kind: string, data: Record<string, unknown> = {}): void {
+  publish(tenantGlobalChannel(businessId), { type: "notification", data: { kind, ...data } });
+}
+
 /**
  * Helper: Emit typing indicator.
  */

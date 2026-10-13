@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: owly_load
     ports: !override
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
   redis:
     ports: !reset []
   pgbouncer:
@@ -29,14 +29,14 @@ services:
     env_file: !reset []
     environment: *loadtest-env
     ports: !override
-      - "3201:3000"
+      - "127.0.0.1:3201:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
   app-2:
     env_file: !reset []
     environment: *loadtest-env
     ports: !override
-      - "3202:3000"
+      - "127.0.0.1:3202:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
   worker:

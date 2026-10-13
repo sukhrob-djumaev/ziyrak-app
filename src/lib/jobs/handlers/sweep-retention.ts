@@ -3,6 +3,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { resolveTenantPlacement } from "@/lib/platform/tenant-placement";
 import { applyRetentionPolicy } from "@/lib/customers/gdpr";
+import { purgeExpiredRevokedTokens } from "@/lib/identity/auth";
 import { jobQueue } from "@/lib/jobs/queue";
 import { SWEEP_RETENTION_JOB } from "@/lib/jobs/job-types";
 import { logger } from "@/lib/observability/logger";
@@ -39,7 +40,13 @@ export async function runRetentionSweep(): Promise<void> {
     }
   }
 
-  logger.info("[sweep-retention] sweep complete", { businessCount: businesses.length, processed });
+  // Platform-wide housekeeping, independent of any business's retention policy.
+  const purged = await purgeExpiredRevokedTokens().catch((error) => {
+    logger.error("[sweep-retention] failed to purge expired revoked tokens", { error });
+    return 0;
+  });
+
+  logger.info("[sweep-retention] sweep complete", { businessCount: businesses.length, processed, revokedTokensPurged: purged });
 }
 
 jobQueue.registerHandler(SWEEP_RETENTION_JOB, async () => {

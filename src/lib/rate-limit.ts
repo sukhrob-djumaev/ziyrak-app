@@ -8,6 +8,9 @@ export type { RateLimitConfig, RateLimitResult };
 
 export const RATE_LIMITS = {
   auth: { maxRequests: 5, windowMs: 60 * 1000 } as RateLimitConfig,
+  // Sign-out needs a signature-valid token to do anything, so it is not a brute-force surface;
+  // a shared NAT address must still be able to sign people out.
+  logout: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
   api: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
   // Public provider webhook: generous for Meta's real bursts, but bounds the
   // pre-verification lookup/decrypt work an unauthenticated client can force.

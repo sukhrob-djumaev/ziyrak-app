@@ -23,15 +23,18 @@ Updated 2026-10-14 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
 
 ## Exact continuation
 
-Candidate22a9951 is committed and built. All16 existing browser scripts and the
-new J17 recovery journey passed individually; SQL evidence fixes require one
-fresh clean runner pass. Commit harness/docs repair, rebuild for that HEAD,
-run fresh full suite, and record acceptance separately from real Meta (R4).
+R1 local criteria passed: full128 files/1175 tests (23 optional Redis skips),
+signup-seeded680, type/lint/build, actual SIGKILL/natural pg-boss recovery,
+independent security review and fresh all17 browser scripts on63247f6.
+Owned browser topology stopped; no matching recorded process remains alive.
+R4 retains real-provider verification; no milestone/phase/deployment completion.
 
-Independent R3 experiments are in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`:
-five targeted override candidates reduce audit16→5 high production and21high/1low→10high full.
-Compatibility checks and no-patch browser-archive/braces residual decisions remain
-open; no changes are integrated into the serving R1 acceptance checkout.
+Current objective: R3 in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`.
+Five targeted overrides reduce audit16→5 high production and21high/1low→10high full.
+Merge/listing security regressions observed failing on baseline, now pass.
+Default browser downloads disabled and both Puppeteer copies checked.
+Full/Redis/Docker compatibility checks and no-patch archive/braces decision open.
+The R1 checkout is clean; dependency experiments are not integrated yet.
 
 ## Protected boundaries
 

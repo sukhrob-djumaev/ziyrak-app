@@ -31,7 +31,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
-| 1 | **R1 — Delivery reliability** | In progress / focused regression, Postgres and queue retry checks passed; browser closure open | Rule 11 contract approved; saved-response retries and audited human recovery. |
+| 1 | **R1 — Delivery reliability** | Implemented / local required checks passed (including all17 browser scripts); R4 provider boundary open | Rule 11 contract approved; saved-response retries and audited human recovery. |
 | 2 | **R3 — Operational safety** | In progress / audit and seven harness regressions executed; assembled rehearsal open | Harness repairs implemented; dependency remediation remains open. |
 | 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
@@ -214,7 +214,9 @@ The live board above owns ordering and status; CURRENT points to the next eligib
 - **Result (2026-10-14 continuation):** owner approved the
   [rule 11 correction](docs/r1-delivery-contract-proposal-2026-10-14.md).
   Durable operations, saved responses, conservative uncertainty and audited human
-  recovery are implemented in the isolated worktree; acceptance remains open.
+  recovery are implemented and locally verified in the isolated worktree. All17
+  browser scripts passed on candidate63247f6; affected real Meta verification
+  remains a separate R4 requirement. No deployment or milestone closure.
   [Current evidence](docs/r1-delivery-implementation-2026-10-14.md) separates
   mocked regressions, real Postgres/pg-boss, review and browser/provider layers.
 

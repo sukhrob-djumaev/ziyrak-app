@@ -40,6 +40,9 @@ const eslintConfig = defineConfig([
       "src/lib/prisma/**",
       "src/lib/identity/auth.ts",
       "src/lib/identity/route-auth.ts",
+      // P1 person/session authentication before selected workspace or support
+      // grant resolution; only safe User identity/platform-role projection.
+      "src/lib/identity/account-auth.ts",
       // PLAN.md §6/§14.3/§46.5 — resolves which business an identity-less
       // inbound channel webhook belongs to (ChannelConnection lookup by
       // provider identifier), the same pre-ctx reason route-auth.ts is here.
@@ -182,13 +185,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            "whatsapp-web.js",
-            "twilio",
-            "nodemailer",
-            "imap",
-            "mailparser",
-          ].map((name) => ({
+          paths: ["whatsapp-web.js", "twilio", "nodemailer", "imap", "mailparser"].map((name) => ({
             name,
             message:
               "ai/ must not import a concrete channel/messaging SDK directly (PLAN.md §5.7) — that belongs behind a channels/ or tools/ boundary.",

@@ -15,6 +15,7 @@ const ctx: TenantContext = {
   role: null,
   actor: { kind: "system_job", jobId: "synthetic-job" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 beforeEach(() => {
   f.owned.mockReset().mockResolvedValue({ id: "synthetic-connection" });

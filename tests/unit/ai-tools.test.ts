@@ -33,6 +33,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 vi.mock("nodemailer", () => ({
@@ -61,11 +62,20 @@ describe("Built-in tools (tools/builtin/*)", () => {
   describe("create_ticket", () => {
     it("creates a ticket with correct fields", async () => {
       mockPrisma.department.findFirst.mockResolvedValue({ id: "dept-1", name: "Support" });
-      mockPrisma.ticket.create.mockResolvedValue({ id: "ticket-1", title: "Login issue", priority: "high" });
+      mockPrisma.ticket.create.mockResolvedValue({
+        id: "ticket-1",
+        title: "Login issue",
+        priority: "high",
+      });
 
       const result = await createTicketTool.execute(
         ctx,
-        { title: "Login issue", description: "Cannot login", priority: "high", department: "Support" },
+        {
+          title: "Login issue",
+          description: "Cannot login",
+          priority: "high",
+          department: "Support",
+        },
         { conversationId: "conv-1" }
       );
 
@@ -87,7 +97,11 @@ describe("Built-in tools (tools/builtin/*)", () => {
 
     it("creates ticket without department when not found", async () => {
       mockPrisma.department.findFirst.mockResolvedValue(null);
-      mockPrisma.ticket.create.mockResolvedValue({ id: "ticket-2", title: "Issue", priority: "medium" });
+      mockPrisma.ticket.create.mockResolvedValue({
+        id: "ticket-2",
+        title: "Issue",
+        priority: "medium",
+      });
 
       const result = await createTicketTool.execute(
         ctx,
@@ -101,10 +115,18 @@ describe("Built-in tools (tools/builtin/*)", () => {
 
   describe("assign_to_person", () => {
     it("assigns ticket to matching team member", async () => {
-      mockPrisma.teamMember.findFirst.mockResolvedValue({ id: "member-1", name: "Jane", department: { name: "Billing" } });
+      mockPrisma.teamMember.findFirst.mockResolvedValue({
+        id: "member-1",
+        name: "Jane",
+        department: { name: "Billing" },
+      });
       mockPrisma.ticket.update.mockResolvedValue({});
 
-      const result = await assignToPersonTool.execute(ctx, { ticketId: "ticket-1", expertise: "billing" }, {});
+      const result = await assignToPersonTool.execute(
+        ctx,
+        { ticketId: "ticket-1", expertise: "billing" },
+        {}
+      );
 
       expect(result.success).toBe(true);
       expect((result.data as { assignedTo: string }).assignedTo).toBe("Jane");
@@ -117,7 +139,11 @@ describe("Built-in tools (tools/builtin/*)", () => {
     it("returns failure when no matching member found", async () => {
       mockPrisma.teamMember.findFirst.mockResolvedValue(null);
 
-      const result = await assignToPersonTool.execute(ctx, { ticketId: "ticket-1", expertise: "quantum-physics" }, {});
+      const result = await assignToPersonTool.execute(
+        ctx,
+        { ticketId: "ticket-1", expertise: "quantum-physics" },
+        {}
+      );
 
       expect(result.success).toBe(false);
       expect(result.status).toBe("failed");
@@ -147,7 +173,11 @@ describe("Built-in tools (tools/builtin/*)", () => {
     it("returns failure when SMTP not configured", async () => {
       mockPrisma.settings.findFirst.mockResolvedValue({ smtpHost: null });
 
-      const result = await sendInternalEmailTool.execute(ctx, { to: "team@test.com", subject: "Test", body: "Test body" }, {});
+      const result = await sendInternalEmailTool.execute(
+        ctx,
+        { to: "team@test.com", subject: "Test", body: "Test body" },
+        {}
+      );
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("Email not configured");
@@ -201,7 +231,11 @@ describe("Built-in tools (tools/builtin/*)", () => {
       const { dispatchHttpRequest } = await import("@/lib/integrations/http-dispatcher");
       vi.mocked(dispatchHttpRequest).mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
 
-      const result = await triggerWebhookTool.execute(ctx, { webhookName: "Slack", data: { event: "ticket_created" } }, {});
+      const result = await triggerWebhookTool.execute(
+        ctx,
+        { webhookName: "Slack", data: { event: "ticket_created" } },
+        {}
+      );
 
       expect(result.success).toBe(true);
       expect(dispatchHttpRequest).toHaveBeenCalledWith(
@@ -228,8 +262,11 @@ describe("Built-in tools (tools/builtin/*)", () => {
         headers: {},
       });
 
-      const { dispatchHttpRequest, SSRFBlockedError } = await import("@/lib/integrations/http-dispatcher");
-      vi.mocked(dispatchHttpRequest).mockRejectedValue(new SSRFBlockedError("http://169.254.169.254/", "resolves to a disallowed address"));
+      const { dispatchHttpRequest, SSRFBlockedError } =
+        await import("@/lib/integrations/http-dispatcher");
+      vi.mocked(dispatchHttpRequest).mockRejectedValue(
+        new SSRFBlockedError("http://169.254.169.254/", "resolves to a disallowed address")
+      );
 
       const result = await triggerWebhookTool.execute(ctx, { webhookName: "Internal" }, {});
 
@@ -242,7 +279,10 @@ describe("Built-in tools (tools/builtin/*)", () => {
   describe("schedule_followup", () => {
     it("tells the provider how to express a minute-scale delay without rounding it to zero", () => {
       const definition = toProviderToolDefinition(scheduleFollowupTool);
-      const properties = definition.function.parameters.properties as Record<string, { description?: string }>;
+      const properties = definition.function.parameters.properties as Record<
+        string,
+        { description?: string }
+      >;
 
       expect(properties.delayHours.description).toContain("0.0167");
     });

@@ -1,3 +1,5 @@
+import { retirementContext } from "@/lib/tenancy/work-lifecycle";
+import { retireConversationWork } from "./retire-work";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { NotFoundError } from "@/lib/observability/errors";
@@ -35,7 +37,13 @@ export async function list(ctx: TenantContext, params: ListConversationsParams) 
   }
 
   const [conversations, total] = await Promise.all([
-    db.conversation.findMany({ where, orderBy: { updatedAt: "desc" }, skip: params.skip, take: params.take, include: LIST_INCLUDE }),
+    db.conversation.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+      include: LIST_INCLUDE,
+    }),
     db.conversation.count({ where }),
   ]);
 
@@ -108,7 +116,11 @@ export async function update(ctx: TenantContext, id: string, input: UpdateConver
     await db.conversationTag.deleteMany({ where: { conversationId: id } });
     if (input.tagIds.length > 0) {
       await db.conversationTag.createMany({
-        data: input.tagIds.map((tagId) => ({ businessId: ctx.businessId, conversationId: id, tagId })),
+        data: input.tagIds.map((tagId) => ({
+          businessId: ctx.businessId,
+          conversationId: id,
+          tagId,
+        })),
       });
     }
   }
@@ -127,7 +139,10 @@ export async function remove(ctx: TenantContext, id: string): Promise<void> {
   const db = getScopedPrisma(ctx);
   const existing = await db.conversation.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Conversation");
-  await db.conversation.delete({ where: { id } });
+  await getScopedPrisma(retirementContext(ctx)).$transaction(async (tx) => {
+    await retireConversationWork(tx, [id], { clearReferences: true });
+    await tx.conversation.delete({ where: { id } });
+  });
 }
 
 export async function listMessages(ctx: TenantContext, conversationId: string) {
@@ -152,7 +167,12 @@ export async function addMessage(
   const messageRole = role && validRoles.includes(role) ? role : "assistant";
 
   const message = await db.message.create({
-    data: { businessId: ctx.businessId, conversationId, role: messageRole, content: content.trim() },
+    data: {
+      businessId: ctx.businessId,
+      conversationId,
+      role: messageRole,
+      content: content.trim(),
+    },
   });
 
   await db.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });

@@ -38,6 +38,7 @@ beforeAll(async () => {
     role: null,
     actor: { kind: "system_job", jobId: "test-job", jobType: "process-inbound-message" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   };
 });
 

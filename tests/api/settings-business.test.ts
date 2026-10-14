@@ -29,16 +29,23 @@ vi.mock("@/lib/tenancy/default-business", async () => {
   return {
     getDefaultBusinessId: vi.fn(async () => {
       defaultBusinessLookups.count += 1;
-      throw new Error("getDefaultBusinessId() called: a tenant settings route fell back to the Default Business");
+      throw new Error(
+        "getDefaultBusinessId() called: a tenant settings route fell back to the Default Business"
+      );
     }),
     isDefaultBusiness: vi.fn(async () => false),
     assertDefaultBusinessOnly: vi.fn(async (_ctx: unknown, featureLabel: string) => {
-      throw new AppError(501, "NOT_YET_SUPPORTED", `${featureLabel} is not yet available for businesses other than the first one.`);
+      throw new AppError(
+        501,
+        "NOT_YET_SUPPORTED",
+        `${featureLabel} is not yet available for businesses other than the first one.`
+      );
     }),
     getDefaultBusinessContext: vi.fn(),
   };
 });
 
+import { recordWorkspaceSelection } from "../helpers/workspace-selection";
 import { generateToken } from "@/lib/identity/auth";
 import { prisma } from "@/lib/prisma/raw-client";
 import { provisionBusiness } from "@/lib/platform/provisioning";
@@ -52,7 +59,10 @@ interface SignedUp {
   token: string;
 }
 
-async function signUp(label: string, profile: { businessName: string; businessDesc: string; welcomeMessage: string; tone: string }): Promise<SignedUp> {
+async function signUp(
+  label: string,
+  profile: { businessName: string; businessDesc: string; welcomeMessage: string; tone: string }
+): Promise<SignedUp> {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const provisioned = await provisionBusiness({
     ownerUsername: `${label}-${suffix}`,
@@ -60,7 +70,12 @@ async function signUp(label: string, profile: { businessName: string; businessDe
     ownerName: "Owner",
     ...profile,
   });
-  return { businessId: provisioned.businessId, userId: provisioned.userId, token: generateToken(provisioned.userId) };
+  recordWorkspaceSelection(provisioned.userId, provisioned.businessId);
+  return {
+    businessId: provisioned.businessId,
+    userId: provisioned.userId,
+    token: generateToken(provisioned.userId),
+  };
 }
 
 let bakery: SignedUp;
@@ -115,18 +130,34 @@ describe("GET/PUT /api/settings/business — a signed-up business edits its own 
     const put = await PUT(
       as(bakery.token, "/api/settings/business", {
         method: "PUT",
-        body: { businessName: "Sunrise Bakery & Café", tone: "professional", language: "en", welcomeMessage: "Hello, friend!" },
+        body: {
+          businessName: "Sunrise Bakery & Café",
+          tone: "professional",
+          language: "en",
+          welcomeMessage: "Hello, friend!",
+        },
       })
     );
     const putData = await parseJsonResponse(put);
 
     expect(put.status).toBe(200);
-    expect(putData).toMatchObject({ businessName: "Sunrise Bakery & Café", tone: "professional", language: "en", welcomeMessage: "Hello, friend!" });
+    expect(putData).toMatchObject({
+      businessName: "Sunrise Bakery & Café",
+      tone: "professional",
+      language: "en",
+      welcomeMessage: "Hello, friend!",
+    });
     // a partial update leaves the other fields alone
     expect(putData.businessDesc).toBe("Sourdough and pastries");
 
-    const row = await prisma.businessConfig.findUnique({ where: { businessId: bakery.businessId } });
-    expect(row).toMatchObject({ businessName: "Sunrise Bakery & Café", tone: "professional", language: "en" });
+    const row = await prisma.businessConfig.findUnique({
+      where: { businessId: bakery.businessId },
+    });
+    expect(row).toMatchObject({
+      businessName: "Sunrise Bakery & Café",
+      tone: "professional",
+      language: "en",
+    });
 
     const again = await parseJsonResponse(await GET(as(bakery.token, "/api/settings/business")));
     expect(again.businessName).toBe("Sunrise Bakery & Café");
@@ -145,7 +176,9 @@ describe("GET/PUT /api/settings/business — a signed-up business edits its own 
     expect(await bad({ aiCredentialRef: "anything" })).toBe(400);
     expect(await bad({ retentionDays: 1 })).toBe(400);
 
-    const other = await prisma.businessConfig.findUnique({ where: { businessId: scooters.businessId } });
+    const other = await prisma.businessConfig.findUnique({
+      where: { businessId: scooters.businessId },
+    });
     expect(other?.businessName).toBe("Volt Scooters");
   });
 
@@ -153,12 +186,25 @@ describe("GET/PUT /api/settings/business — a signed-up business edits its own 
     const { GET, PUT } = await import("@/app/api/settings/business/route");
 
     expect((await GET(createRequest("/api/settings/business"))).status).toBe(401);
-    expect((await PUT(createRequest("/api/settings/business", { method: "PUT", body: { tone: "formal" } }))).status).toBe(401);
+    expect(
+      (
+        await PUT(
+          createRequest("/api/settings/business", { method: "PUT", body: { tone: "formal" } })
+        )
+      ).status
+    ).toBe(401);
 
     expect((await GET(as(viewerToken, "/api/settings/business"))).status).toBe(403);
-    const viewerPut = await PUT(as(viewerToken, "/api/settings/business", { method: "PUT", body: { businessName: "Viewer Edit" } }));
+    const viewerPut = await PUT(
+      as(viewerToken, "/api/settings/business", {
+        method: "PUT",
+        body: { businessName: "Viewer Edit" },
+      })
+    );
     expect(viewerPut.status).toBe(403);
-    const row = await prisma.businessConfig.findUnique({ where: { businessId: bakery.businessId } });
+    const row = await prisma.businessConfig.findUnique({
+      where: { businessId: bakery.businessId },
+    });
     expect(row?.businessName).not.toBe("Viewer Edit");
   });
 });
@@ -167,14 +213,28 @@ describe("tenant isolation: /api/settings/business", () => {
   it("one business's edit never reaches another's profile, in either direction", async () => {
     const { GET, PUT } = await import("@/app/api/settings/business/route");
 
-    await PUT(as(scooters.token, "/api/settings/business", { method: "PUT", body: { businessName: "Volt Scooters Ltd", tone: "formal" } }));
+    await PUT(
+      as(scooters.token, "/api/settings/business", {
+        method: "PUT",
+        body: { businessName: "Volt Scooters Ltd", tone: "formal" },
+      })
+    );
 
-    const seenByBakery = await parseJsonResponse(await GET(as(bakery.token, "/api/settings/business")));
+    const seenByBakery = await parseJsonResponse(
+      await GET(as(bakery.token, "/api/settings/business"))
+    );
     expect(seenByBakery.businessName).toBe("Sunrise Bakery & Café");
     expect(seenByBakery.tone).toBe("professional");
 
-    await PUT(as(bakery.token, "/api/settings/business", { method: "PUT", body: { businessDesc: "Bread only" } }));
-    const seenByScooters = await parseJsonResponse(await GET(as(scooters.token, "/api/settings/business")));
+    await PUT(
+      as(bakery.token, "/api/settings/business", {
+        method: "PUT",
+        body: { businessDesc: "Bread only" },
+      })
+    );
+    const seenByScooters = await parseJsonResponse(
+      await GET(as(scooters.token, "/api/settings/business"))
+    );
     expect(seenByScooters.businessName).toBe("Volt Scooters Ltd");
     expect(seenByScooters.businessDesc).toBe("Electric scooters and repairs");
   });
@@ -182,7 +242,11 @@ describe("tenant isolation: /api/settings/business", () => {
   it("a query-string businessId is ignored: the caller's own business is always the one read", async () => {
     const { GET } = await import("@/app/api/settings/business/route");
     const data = await parseJsonResponse(
-      await GET(as(bakery.token, "/api/settings/business", { searchParams: { businessId: scooters.businessId } }))
+      await GET(
+        as(bakery.token, "/api/settings/business", {
+          searchParams: { businessId: scooters.businessId },
+        })
+      )
     );
     expect(data.businessName).toBe("Sunrise Bakery & Café");
   });
@@ -203,12 +267,20 @@ describe("AI configuration for a signed-up business (/api/settings/ai)", () => {
     const putBody = JSON.stringify(await parseJsonResponse(put));
     expect(putBody).not.toContain(secret);
 
-    const getBody = JSON.stringify(await parseJsonResponse(await GET(as(bakery.token, "/api/settings/ai"))));
+    const getBody = JSON.stringify(
+      await parseJsonResponse(await GET(as(bakery.token, "/api/settings/ai")))
+    );
     expect(getBody).not.toContain(secret);
-    expect(JSON.parse(getBody)).toMatchObject({ aiConfigured: true, aiModel: "gpt-4o-mini", temperature: 0.4 });
+    expect(JSON.parse(getBody)).toMatchObject({
+      aiConfigured: true,
+      aiModel: "gpt-4o-mini",
+      temperature: 0.4,
+    });
 
     // stored as an opaque SecretResolver reference, never plaintext
-    const row = await prisma.businessConfig.findUnique({ where: { businessId: bakery.businessId } });
+    const row = await prisma.businessConfig.findUnique({
+      where: { businessId: bakery.businessId },
+    });
     expect(row?.aiCredentialRef).toBeTruthy();
     expect(row?.aiCredentialRef).not.toContain(secret);
 
@@ -218,6 +290,7 @@ describe("AI configuration for a signed-up business (/api/settings/ai)", () => {
       role: "owner",
       actor: { kind: "user", userId: bakery.userId },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     });
     expect(resolved.apiKey).toBe(secret);
 
@@ -233,7 +306,9 @@ describe("the legacy single-tenant /api/settings stays constrained", () => {
 
     const { GET, PUT } = await import("@/app/api/settings/route");
     const get = await GET(as(bakery.token, "/api/settings"));
-    const put = await PUT(as(bakery.token, "/api/settings", { method: "PUT", body: { businessName: "Legacy Write" } }));
+    const put = await PUT(
+      as(bakery.token, "/api/settings", { method: "PUT", body: { businessName: "Legacy Write" } })
+    );
 
     expect(get.status).toBe(501);
     expect(put.status).toBe(501);

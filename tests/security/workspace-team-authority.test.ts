@@ -13,6 +13,7 @@ import {
 } from "../helpers/tenant-fixtures";
 import { createRequest } from "../helpers/request";
 import { PUT, DELETE } from "@/app/api/admin/users/[id]/route";
+import { POST } from "@/app/api/admin/users/route";
 let a: SeededBusiness,
   b: SeededBusiness,
   adminId: string,
@@ -44,6 +45,47 @@ function req(actor: string, id: string, body: object) {
   });
 }
 describe("workspace team authority (real route auth/Postgres)", () => {
+  it("a restricted admin cannot provision a wider membership", async () => {
+    const actor = await addMember(a.businessId, "admin", "restricted-provisioner");
+    const conn = await prisma.channelConnection.create({
+      data: {
+        businessId: a.businessId,
+        type: "webchat",
+        name: "Restricted administration fixture",
+      },
+    });
+    const membership = await prisma.membership.update({
+      where: {
+        businessId_userId: { businessId: a.businessId, userId: actor.userId },
+      },
+      data: { scopeMode: "connections", customerProfileAccess: "none" },
+    });
+    await prisma.membershipConnectionScope.create({
+      data: {
+        businessId: a.businessId,
+        membershipId: membership.id,
+        connectionId: conn.id,
+      },
+    });
+    const username = "forbidden-wider-" + crypto.randomUUID();
+    const response = await POST(
+      createRequest("/api/admin/users", {
+        method: "POST",
+        cookies: { "owly-token": generateToken(actor.userId) },
+        body: {
+          username,
+          password: "synthetic-secured-password",
+          name: "Synthetic member",
+          role: "admin",
+        },
+      })
+    );
+    expect(response.status).toBe(403);
+    expect(await prisma.user.findUnique({ where: { username } })).toBeNull();
+    expect(
+      (await prisma.membership.findUniqueOrThrow({ where: { id: membership.id } })).scopeMode
+    ).toBe("connections");
+  });
   it("denies admin promotion of a member to owner", async () => {
     const r = await PUT(req(adminId, targetMembership, { role: "owner" }), {
       params: Promise.resolve({ id: targetMembership }),
@@ -112,12 +154,12 @@ describe("workspace team authority (real route auth/Postgres)", () => {
       }),
       { params: Promise.resolve({ id: targetMembership }) }
     );
-    expect(u.status).toBe(403);
+    expect(u.status).toBe(401); // Higher-role keys are invalid at the identity boundary.
     const d = await DELETE(
       createRequest(`/api/admin/users/${targetMembership}`, { ...options, method: "DELETE" }),
       { params: Promise.resolve({ id: targetMembership }) }
     );
-    expect(d.status).toBe(403);
+    expect(d.status).toBe(401);
   });
   it("never changes or removes a target promoted to owner after the authorization read", async () => {
     for (const method of ["update", "delete"] as const) {

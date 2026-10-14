@@ -6,7 +6,7 @@ import crypto from "node:crypto";
  * for every relation in §8.4's table (plus the two schema-quality fixes
  * bundled into it, CallLog/Schedule per §12), this deliberately bypasses
  * the service layer AND `assertSameTenant()` (layer 4) entirely, writing
- * directly against `getScopedPrisma(ctx)`, and asserts Postgres's own
+ * directly against the raw Prisma client with an explicit businessId, and asserts Postgres's own
  * composite foreign-key constraint rejects the cross-tenant reference
  * regardless. This is what proves layer 3 holds even if every layer above
  * it has a bug — the literal, non-negotiable acceptance criterion added in
@@ -17,6 +17,7 @@ import crypto from "node:crypto";
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
+import { prisma } from "@/lib/prisma/raw-client";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 
@@ -43,8 +44,13 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const departmentA = await dbA.department.create({ data: { name: "Dept A" } });
 
     await expect(
-      dbB.teamMember.create({
-        data: { departmentId: departmentA.id, name: "Cross-tenant TM", email: "x@test.com" },
+      prisma.teamMember.create({
+        data: {
+          businessId: businessB.businessId,
+          departmentId: departmentA.id,
+          name: "Cross-tenant TM",
+          email: "x@test.com",
+        },
       })
     ).rejects.toThrow(FK_VIOLATION);
 
@@ -65,7 +71,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     });
 
     await expect(
-      dbB.ticket.create({ data: { title: "t", description: "d", assignedToId: teamMemberA.id } })
+      prisma.ticket.create({
+        data: {
+          businessId: businessB.businessId,
+          title: "t",
+          description: "d",
+          assignedToId: teamMemberA.id,
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const departmentB = await dbB.department.create({ data: { name: "Dept B2" } });
@@ -85,7 +98,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const departmentA = await dbA.department.create({ data: { name: "Dept A3" } });
 
     await expect(
-      dbB.ticket.create({ data: { title: "t", description: "d", departmentId: departmentA.id } })
+      prisma.ticket.create({
+        data: {
+          businessId: businessB.businessId,
+          title: "t",
+          description: "d",
+          departmentId: departmentA.id,
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const departmentB = await dbB.department.create({ data: { name: "Dept B3" } });
@@ -102,7 +122,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const conversationA = await dbA.conversation.create({ data: { channel: "whatsapp" } });
 
     await expect(
-      dbB.ticket.create({ data: { title: "t", description: "d", conversationId: conversationA.id } })
+      prisma.ticket.create({
+        data: {
+          businessId: businessB.businessId,
+          title: "t",
+          description: "d",
+          conversationId: conversationA.id,
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const conversationB = await dbB.conversation.create({ data: { channel: "whatsapp" } });
@@ -122,8 +149,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     });
 
     await expect(
-      dbB.schedule.create({
-        data: { teamMemberId: teamMemberA.id, dayOfWeek: 1, startTime: "09:00", endTime: "17:00" },
+      prisma.schedule.create({
+        data: {
+          businessId: businessB.businessId,
+          teamMemberId: teamMemberA.id,
+          dayOfWeek: 1,
+          startTime: "09:00",
+          endTime: "17:00",
+        },
       })
     ).rejects.toThrow(FK_VIOLATION);
 
@@ -144,7 +177,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const categoryA = await dbA.category.create({ data: { name: "Cat A" } });
 
     await expect(
-      dbB.knowledgeEntry.create({ data: { categoryId: categoryA.id, title: "t", content: "c" } })
+      prisma.knowledgeEntry.create({
+        data: {
+          businessId: businessB.businessId,
+          categoryId: categoryA.id,
+          title: "t",
+          content: "c",
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const categoryB = await dbB.category.create({ data: { name: "Cat B" } });
@@ -161,7 +201,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const conversationA = await dbA.conversation.create({ data: { channel: "whatsapp" } });
 
     await expect(
-      dbB.message.create({ data: { conversationId: conversationA.id, role: "customer", content: "hi" } })
+      prisma.message.create({
+        data: {
+          businessId: businessB.businessId,
+          conversationId: conversationA.id,
+          role: "customer",
+          content: "hi",
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const conversationB = await dbB.conversation.create({ data: { channel: "whatsapp" } });
@@ -178,7 +225,13 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const conversationA = await dbA.conversation.create({ data: { channel: "whatsapp" } });
 
     await expect(
-      dbB.internalNote.create({ data: { conversationId: conversationA.id, content: "note" } })
+      prisma.internalNote.create({
+        data: {
+          businessId: businessB.businessId,
+          conversationId: conversationA.id,
+          content: "note",
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const conversationB = await dbB.conversation.create({ data: { channel: "whatsapp" } });
@@ -196,7 +249,13 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const tagB = await dbB.tag.create({ data: { name: `tag-b-${crypto.randomUUID()}` } });
 
     await expect(
-      dbB.conversationTag.create({ data: { conversationId: conversationA.id, tagId: tagB.id } })
+      prisma.conversationTag.create({
+        data: {
+          businessId: businessB.businessId,
+          conversationId: conversationA.id,
+          tagId: tagB.id,
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const conversationB = await dbB.conversation.create({ data: { channel: "whatsapp" } });
@@ -214,7 +273,13 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const conversationB = await dbB.conversation.create({ data: { channel: "whatsapp" } });
 
     await expect(
-      dbB.conversationTag.create({ data: { conversationId: conversationB.id, tagId: tagA.id } })
+      prisma.conversationTag.create({
+        data: {
+          businessId: businessB.businessId,
+          conversationId: conversationB.id,
+          tagId: tagA.id,
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const tagB = await dbB.tag.create({ data: { name: `tag-b2-${crypto.randomUUID()}` } });
@@ -231,7 +296,9 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const customerA = await dbA.customer.create({ data: { name: "Cust A" } });
 
     await expect(
-      dbB.conversation.create({ data: { channel: "whatsapp", customerId: customerA.id } })
+      prisma.conversation.create({
+        data: { businessId: businessB.businessId, channel: "whatsapp", customerId: customerA.id },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const customerB = await dbB.customer.create({ data: { name: "Cust B" } });
@@ -248,7 +315,9 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const customerA = await dbA.customer.create({ data: { name: "Cust A2" } });
 
     await expect(
-      dbB.customerNote.create({ data: { customerId: customerA.id, content: "note" } })
+      prisma.customerNote.create({
+        data: { businessId: businessB.businessId, customerId: customerA.id, content: "note" },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const customerB = await dbB.customer.create({ data: { name: "Cust B2" } });
@@ -265,8 +334,9 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     const conversationA = await dbA.conversation.create({ data: { channel: "phone" } });
 
     await expect(
-      dbB.callLog.create({
+      prisma.callLog.create({
         data: {
+          businessId: businessB.businessId,
           conversationId: conversationA.id,
           callSid: `CA-bypass-${crypto.randomUUID()}`,
           from: "+15550000000",
@@ -296,7 +366,14 @@ describe("Composite foreign-key isolation — §8.4's table, bypassing assertSam
     });
 
     await expect(
-      dbB.webhookDelivery.create({ data: { webhookId: webhookA.id, event: "test", payload: {} } })
+      prisma.webhookDelivery.create({
+        data: {
+          businessId: businessB.businessId,
+          webhookId: webhookA.id,
+          event: "test",
+          payload: {},
+        },
+      })
     ).rejects.toThrow(FK_VIOLATION);
 
     const webhookB = await dbB.webhook.create({

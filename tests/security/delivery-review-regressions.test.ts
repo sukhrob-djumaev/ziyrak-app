@@ -262,10 +262,18 @@ describe("independent delivery review regressions (real Postgres, synthetic prov
       const { registerInboundEvent } = await import("@/lib/events/inbound-receipt");
       const { handleProcessInboundMessage } = await import("@/lib/conversations/inbound");
       const { buildMessageReceivedEvent } = await import("@/lib/events/types");
+      const webchatConnection = await prisma.channelConnection.create({
+        data: {
+          businessId: business.businessId,
+          type: "webchat",
+          name: "Collision fixture",
+          isActive: true,
+        },
+      });
       const event = buildMessageReceivedEvent({
         businessId: business.businessId,
         channel: "webchat",
-        connectionId,
+        connectionId: webchatConnection.id,
         conversationId: conv.id,
         payload: {
           text: "Synthetic collision",

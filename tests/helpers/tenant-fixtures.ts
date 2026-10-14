@@ -1,3 +1,4 @@
+import { recordWorkspaceSelection } from "./workspace-selection";
 import { prisma } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
 import { provisionBusiness } from "@/lib/platform/provisioning";
@@ -55,6 +56,7 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
       ownerPassword: "not-a-real-login-password",
       ownerName: "Test Owner",
     });
+    recordWorkspaceSelection(provisioned.userId, provisioned.businessId);
     return {
       businessId: provisioned.businessId,
       slug: provisioned.slug,
@@ -65,20 +67,26 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
         role: "owner",
         actor: { kind: "user", userId: provisioned.userId },
         dataConnection: "shared-default",
+        resourceScope: { kind: "workspace", customerProfileAccess: "write" },
       },
     };
   }
 
   const slug = `test-${suffix}`;
 
-  const business = await prisma.business.create({ data: { slug, name: `Isolation Test Business ${suffix}` } });
+  const business = await prisma.business.create({
+    data: { slug, name: `Isolation Test Business ${suffix}` },
+  });
   await prisma.tenantPlacement.create({ data: { businessId: business.id } });
 
   const passwordHash = await hashPassword("not-a-real-login-password");
   const user = await prisma.user.create({
     data: { username: `owner-${suffix}`, password: passwordHash, name: "Test Owner" },
   });
-  await prisma.membership.create({ data: { businessId: business.id, userId: user.id, role: "owner" } });
+  await prisma.membership.create({
+    data: { businessId: business.id, userId: user.id, role: "owner" },
+  });
+  recordWorkspaceSelection(user.id, business.id);
 
   return {
     businessId: business.id,
@@ -90,6 +98,7 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
       role: "owner",
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace", customerProfileAccess: "write" },
     },
   };
 }
@@ -111,6 +120,7 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
       orderBy: { createdAt: "asc" },
     });
     if (membership) {
+      recordWorkspaceSelection(membership.userId, existing.id);
       return {
         businessId: existing.id,
         slug: existing.slug,
@@ -121,12 +131,15 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
           role: "owner",
           actor: { kind: "user", userId: membership.userId },
           dataConnection: "shared-default",
+          resourceScope: { kind: "workspace", customerProfileAccess: "write" },
         },
       };
     }
   }
 
-  const business = existing ?? (await prisma.business.create({ data: { slug: "default", name: "Default Business" } }));
+  const business =
+    existing ??
+    (await prisma.business.create({ data: { slug: "default", name: "Default Business" } }));
   await prisma.tenantPlacement.upsert({
     where: { businessId: business.id },
     update: {},
@@ -135,9 +148,16 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
 
   const passwordHash = await hashPassword("not-a-real-login-password");
   const user = await prisma.user.create({
-    data: { username: `default-owner-${uniqueSuffix("d")}`, password: passwordHash, name: "Default Owner" },
+    data: {
+      username: `default-owner-${uniqueSuffix("d")}`,
+      password: passwordHash,
+      name: "Default Owner",
+    },
   });
-  await prisma.membership.create({ data: { businessId: business.id, userId: user.id, role: "owner" } });
+  await prisma.membership.create({
+    data: { businessId: business.id, userId: user.id, role: "owner" },
+  });
+  recordWorkspaceSelection(user.id, business.id);
 
   return {
     businessId: business.id,
@@ -149,6 +169,7 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
       role: "owner",
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace", customerProfileAccess: "write" },
     },
   };
 }
@@ -165,6 +186,7 @@ export async function addMember(
     data: { username: `${label}-${suffix}`, password: passwordHash, name: `Test ${label}` },
   });
   await prisma.membership.create({ data: { businessId, userId: user.id, role } });
+  recordWorkspaceSelection(user.id, businessId);
 
   return {
     userId: user.id,
@@ -174,6 +196,7 @@ export async function addMember(
       role,
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace", customerProfileAccess: "write" },
     },
   };
 }
@@ -186,7 +209,10 @@ export async function addMember(
  * explicitly since `User` is not itself tenant-owned (§16.4).
  */
 export async function cleanupBusiness(businessId: string): Promise<void> {
-  const memberships = await prisma.membership.findMany({ where: { businessId }, select: { userId: true } });
+  const memberships = await prisma.membership.findMany({
+    where: { businessId },
+    select: { userId: true },
+  });
   await prisma.business.delete({ where: { id: businessId } }).catch(() => {});
   for (const { userId } of memberships) {
     await prisma.user.delete({ where: { id: userId } }).catch(() => {});

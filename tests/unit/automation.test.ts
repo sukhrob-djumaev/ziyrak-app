@@ -8,6 +8,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 const mockPrisma = prisma as unknown as {
@@ -28,9 +29,7 @@ describe("Automation Rule Engine", () => {
     name: "Test Rule",
     type: "auto_route",
     isActive: true,
-    conditions: [
-      { field: "message_content", operator: "contains", value: "billing" },
-    ],
+    conditions: [{ field: "message_content", operator: "contains", value: "billing" }],
     actions: [{ type: "route", value: "billing-dept" }],
     priority: 10,
     triggerCount: 0,
@@ -54,9 +53,7 @@ describe("Automation Rule Engine", () => {
   it("should match rule with 'equals' operator", async () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([
       makeRule({
-        conditions: [
-          { field: "channel", operator: "equals", value: "whatsapp" },
-        ],
+        conditions: [{ field: "channel", operator: "equals", value: "whatsapp" }],
       }),
     ]);
 
@@ -115,11 +112,7 @@ describe("Automation Rule Engine", () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([]);
 
     // findMany is called with { where: { isActive: true } }
-    const result = await evaluateRules(
-      ctx,
-      { content: "billing" },
-      { id: "conv-1" }
-    );
+    const result = await evaluateRules(ctx, { content: "billing" }, { id: "conv-1" });
 
     expect(result).toHaveLength(0);
     expect(mockPrisma.automationRule.findMany).toHaveBeenCalledWith(
@@ -134,24 +127,16 @@ describe("Automation Rule Engine", () => {
       makeRule({
         id: "rule-high",
         priority: 100,
-        conditions: [
-          { field: "message_content", operator: "contains", value: "help" },
-        ],
+        conditions: [{ field: "message_content", operator: "contains", value: "help" }],
       }),
       makeRule({
         id: "rule-low",
         priority: 1,
-        conditions: [
-          { field: "message_content", operator: "contains", value: "help" },
-        ],
+        conditions: [{ field: "message_content", operator: "contains", value: "help" }],
       }),
     ]);
 
-    const result = await evaluateRules(
-      ctx,
-      { content: "I need help" },
-      { id: "conv-1" }
-    );
+    const result = await evaluateRules(ctx, { content: "I need help" }, { id: "conv-1" });
 
     expect(result).toHaveLength(2);
     expect(result[0].ruleId).toBe("rule-high");
@@ -161,11 +146,7 @@ describe("Automation Rule Engine", () => {
   it("should return empty array when no rules match", async () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([makeRule()]);
 
-    const result = await evaluateRules(
-      ctx,
-      { content: "How is the weather?" },
-      { id: "conv-1" }
-    );
+    const result = await evaluateRules(ctx, { content: "How is the weather?" }, { id: "conv-1" });
 
     expect(result).toHaveLength(0);
   });
@@ -188,31 +169,19 @@ describe("Automation Rule Engine", () => {
       makeRule({
         id: "rule-b",
         priority: 5,
-        conditions: [
-          { field: "message_content", operator: "contains", value: "billing" },
-        ],
+        conditions: [{ field: "message_content", operator: "contains", value: "billing" }],
       }),
     ]);
 
-    const result = await evaluateRules(
-      ctx,
-      { content: "billing question" },
-      { id: "conv-1" }
-    );
+    const result = await evaluateRules(ctx, { content: "billing question" }, { id: "conv-1" });
 
     expect(result).toHaveLength(2);
   });
 
   it("should not match when conditions array is empty", async () => {
-    mockPrisma.automationRule.findMany.mockResolvedValue([
-      makeRule({ conditions: [] }),
-    ]);
+    mockPrisma.automationRule.findMany.mockResolvedValue([makeRule({ conditions: [] })]);
 
-    const result = await evaluateRules(
-      ctx,
-      { content: "anything" },
-      { id: "conv-1" }
-    );
+    const result = await evaluateRules(ctx, { content: "anything" }, { id: "conv-1" });
 
     expect(result).toHaveLength(0);
   });
@@ -220,9 +189,7 @@ describe("Automation Rule Engine", () => {
   it("should use conversation channel when message channel is missing", async () => {
     mockPrisma.automationRule.findMany.mockResolvedValue([
       makeRule({
-        conditions: [
-          { field: "channel", operator: "equals", value: "phone" },
-        ],
+        conditions: [{ field: "channel", operator: "equals", value: "phone" }],
       }),
     ]);
 

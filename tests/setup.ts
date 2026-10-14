@@ -44,8 +44,16 @@ vi.mock("@/lib/identity/route-auth", () => ({
     role: "admin",
     actor: { kind: "user", userId: TEST_DEFAULT_USER_ID },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace", customerProfileAccess: "write" },
   }),
   isAuthenticated: vi.fn().mockReturnValue(true),
+  getTenantContextFromCookies: vi.fn().mockResolvedValue({
+    businessId: TEST_DEFAULT_BUSINESS_ID,
+    role: "admin",
+    actor: { kind: "user", userId: TEST_DEFAULT_USER_ID },
+    dataConnection: "shared-default",
+    resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+  }),
 }));
 
 // Phase 1's default-business stopgap (§46.1), narrowed by the Phase 2
@@ -67,6 +75,7 @@ vi.mock("@/lib/tenancy/default-business", () => ({
     role: null,
     actor: { kind: "channel_credential", channelConnectionId: "test-default-channel-connection" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace", customerProfileAccess: "write" },
   }),
 }));
 
@@ -165,7 +174,9 @@ function createMockPrismaClient() {
     $executeRaw: vi.fn(),
     $connect: vi.fn(),
     $disconnect: vi.fn(),
-    $transaction: vi.fn(),
+    $transaction: vi.fn(async (input) =>
+      typeof input === "function" ? input(client) : Promise.all(input)
+    ),
   };
 
   for (const model of models) {

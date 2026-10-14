@@ -85,8 +85,8 @@ export async function markReceiptProcessed(
   status: "processed" | "failed" | "needs_review" | "enqueued"
 ): Promise<void> {
   const db = getScopedPrisma(ctx);
-  await db.inboundEventReceipt.update({
-    where: { id: receiptId },
+  await db.inboundEventReceipt.updateMany({
+    where: { id: receiptId, processingStatus: { not: "cancelled" } },
     data: { processingStatus: status },
   });
 }

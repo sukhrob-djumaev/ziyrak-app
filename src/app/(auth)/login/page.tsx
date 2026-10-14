@@ -23,7 +23,7 @@ export default function LoginPage() {
           return;
         }
         if (data.authenticated) {
-          router.replace("/");
+          router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
           return;
         }
       } catch {
@@ -54,7 +54,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace("/");
+      router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
@@ -72,27 +72,14 @@ export default function LoginPage() {
   return (
     <div className="bg-owly-surface rounded-2xl shadow-lg border border-owly-border p-8">
       <div className="flex flex-col items-center mb-8">
-        <Image
-          src="/owly.png"
-          alt="Owly"
-          width={56}
-          height={56}
-          className="mb-4"
-        />
-        <h1 className="text-2xl font-bold text-owly-text">
-          Welcome to Owly
-        </h1>
-        <p className="text-owly-text-light text-sm mt-1">
-          Sign in to your account
-        </p>
+        <Image src="/owly.png" alt="Owly" width={56} height={56} className="mb-4" />
+        <h1 className="text-2xl font-bold text-owly-text">Welcome to Owly</h1>
+        <p className="text-owly-text-light text-sm mt-1">Sign in to your account</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label
-            htmlFor="username"
-            className="block text-sm font-medium text-owly-text mb-1.5"
-          >
+          <label htmlFor="username" className="block text-sm font-medium text-owly-text mb-1.5">
             Username
           </label>
           <input
@@ -108,10 +95,7 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-owly-text mb-1.5"
-          >
+          <label htmlFor="password" className="block text-sm font-medium text-owly-text mb-1.5">
             Password
           </label>
           <input

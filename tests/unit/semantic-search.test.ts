@@ -15,18 +15,37 @@ const ctx: TenantContext = {
   role: "owner",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 /** A stored embedding with the provenance the indexing job writes (knowledge/indexing.ts) — bare vectors are not trusted. */
-async function indexedMetadata(vector: number[], text: { title: string; content: string }, model = "test") {
+async function indexedMetadata(
+  vector: number[],
+  text: { title: string; content: string },
+  model = "test"
+) {
   const { knowledgeContentHash } = await import("@/lib/knowledge/indexing");
   return {
     embedding: vector,
-    embeddingIndex: { provider: "openai", model, dimensions: vector.length, contentHash: knowledgeContentHash(text), indexedAt: new Date().toISOString() },
+    embeddingIndex: {
+      provider: "openai",
+      model,
+      dimensions: vector.length,
+      contentHash: knowledgeContentHash(text),
+      indexedAt: new Date().toISOString(),
+    },
   };
 }
 
-function entry(overrides: Partial<{ id: string; title: string; content: string; priority: number; metadata: Record<string, unknown> }> = {}) {
+function entry(
+  overrides: Partial<{
+    id: string;
+    title: string;
+    content: string;
+    priority: number;
+    metadata: Record<string, unknown>;
+  }> = {}
+) {
   return {
     id: overrides.id ?? "entry-1",
     title: overrides.title ?? "Return Policy",
@@ -77,9 +96,15 @@ describe("searchKnowledgeBase (§46.4/§22.2)", () => {
       entry({ id: "2", metadata: await indexedMetadata([0, 1, 0], text) }),
     ]);
 
-    const embedSpy = vi.fn().mockResolvedValue({ vector: [1, 0, 0], model: "test", usage: { totalTokens: 3 } });
+    const embedSpy = vi
+      .fn()
+      .mockResolvedValue({ vector: [1, 0, 0], model: "test", usage: { totalTokens: 3 } });
     const { embeddingProviderRegistry } = await import("@/lib/ai/providers/embedding-registry");
-    vi.spyOn(embeddingProviderRegistry, "get").mockReturnValue({ name: "openai", dimensions: 3, embed: embedSpy });
+    vi.spyOn(embeddingProviderRegistry, "get").mockReturnValue({
+      name: "openai",
+      dimensions: 3,
+      embed: embedSpy,
+    });
 
     const { searchKnowledgeBase } = await import("@/lib/knowledge/semantic-search");
     const results = await searchKnowledgeBase(ctx, "test query");
@@ -95,12 +120,23 @@ describe("searchKnowledgeBase (§46.4/§22.2)", () => {
     vi.mocked(resolveEmbeddingConfig).mockResolvedValue({ provider: "openai", apiKey: "sk-test" });
 
     mockPrisma.knowledgeEntry.findMany.mockResolvedValue([
-      entry({ id: "no-embedding", title: "shipping rates", content: "shipping rates info", metadata: {} }),
+      entry({
+        id: "no-embedding",
+        title: "shipping rates",
+        content: "shipping rates info",
+        metadata: {},
+      }),
     ]);
 
-    const embedSpy = vi.fn().mockResolvedValue({ vector: [1, 0, 0], model: "test", usage: { totalTokens: 3 } });
+    const embedSpy = vi
+      .fn()
+      .mockResolvedValue({ vector: [1, 0, 0], model: "test", usage: { totalTokens: 3 } });
     const { embeddingProviderRegistry } = await import("@/lib/ai/providers/embedding-registry");
-    vi.spyOn(embeddingProviderRegistry, "get").mockReturnValue({ name: "openai", dimensions: 3, embed: embedSpy });
+    vi.spyOn(embeddingProviderRegistry, "get").mockReturnValue({
+      name: "openai",
+      dimensions: 3,
+      embed: embedSpy,
+    });
 
     const { searchKnowledgeBase } = await import("@/lib/knowledge/semantic-search");
     const results = await searchKnowledgeBase(ctx, "shipping rates");

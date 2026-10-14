@@ -69,6 +69,7 @@ describe("WhatsApp Web client-assignment race regression (§2.5/§20.2)", () => 
       role: "owner",
       actor: { kind: "user" as const, userId: "test-owner" },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     };
 
     // Do not await — initialize() is deliberately unresolved at this point.

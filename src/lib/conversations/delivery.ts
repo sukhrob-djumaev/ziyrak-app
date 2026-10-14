@@ -81,7 +81,10 @@ export async function prepareDelivery(
   ctx: TenantContext,
   op: DeliveryOperation,
   prepare: (
-    recordConversation: (id: string) => Promise<void>
+    recordConversation: (
+      id: string,
+      repository?: Pick<ReturnType<typeof getScopedPrisma>, "deliveryOperation">
+    ) => Promise<void>
   ) => Promise<{ conversationId: string; response: string }>
 ): Promise<DeliveryOperation> {
   const db = getScopedPrisma(ctx);
@@ -100,8 +103,8 @@ export async function prepareDelivery(
   if (!claimed.count) throw new DeliveryBusyError("Preparation claim was taken by another worker.");
   const end = heartbeat(ctx, op.id, token);
   try {
-    const result = await prepare(async (conversationId) => {
-      const owned = await db.deliveryOperation.updateMany({
+    const result = await prepare(async (conversationId, repository) => {
+      const owned = await (repository ?? db).deliveryOperation.updateMany({
         where: { id: op.id, status: "preparing", claimToken: token },
         data: { conversationId },
       });
@@ -152,6 +155,7 @@ export async function validateDeliveryDestination(
   ]);
   if (
     !conversation ||
+    conversation.retiredAt ||
     !connection ||
     conversation.channel !== op.channel ||
     conversation.customerContact !== op.recipient

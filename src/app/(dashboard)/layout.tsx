@@ -1,10 +1,9 @@
 import { Sidebar } from "@/components/layout/sidebar";
+import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
+import { redirect } from "next/navigation";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  if (!(await getTenantContextFromCookies())) redirect("/workspaces");
   return (
     <div className="flex h-full">
       <Sidebar />

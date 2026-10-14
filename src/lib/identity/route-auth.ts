@@ -1,9 +1,11 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyActiveToken } from "@/lib/identity/auth";
-import { hasPermission, Permission } from "@/lib/rbac/rbac";
+import { Permission } from "@/lib/rbac/rbac";
 import { prisma } from "@/lib/prisma/raw-client";
 import { resolveTenantPlacement } from "@/lib/platform/tenant-placement";
+import { hasTenantPermission, scopeFromRecord, scopeIsWithin } from "@/lib/tenancy/resource-scope";
+import type { TokenPayload } from "@/lib/identity/auth";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
@@ -14,73 +16,102 @@ import type { TenantContext } from "@/lib/tenancy/context";
  */
 async function authenticateApiKey(presentedKey: string): Promise<TenantContext | null> {
   const keyPrefix = presentedKey.slice(0, 16);
-  const candidates = await prisma.apiKey.findMany({ where: { keyPrefix, isActive: true } });
+  const candidates = await prisma.apiKey.findMany({
+    where: { keyPrefix, isActive: true },
+    include: { connectionScopes: true },
+  });
   if (candidates.length === 0) return null;
 
   const presentedHash = crypto.createHash("sha256").update(presentedKey).digest("hex");
   const key = candidates.find((k) => k.keyHash === presentedHash);
   if (!key) return null;
+  if (!(["agent", "viewer"] as string[]).includes(key.role)) return null;
+  let resourceScope;
+  try {
+    resourceScope = scopeFromRecord(key);
+  } catch {
+    return null;
+  }
+  if (key.scopeOrigin === "issuer") {
+    if (!key.issuedByUserId) return null;
+    const issuer = await prisma.membership.findUnique({
+      where: { businessId_userId: { businessId: key.businessId, userId: key.issuedByUserId } },
+      include: { connectionScopes: true },
+    });
+    if (!issuer || !(["admin", "owner"] as string[]).includes(issuer.role)) return null;
+    try {
+      if (!scopeIsWithin(resourceScope, scopeFromRecord(issuer))) return null;
+    } catch {
+      return null;
+    }
+  } else if (key.scopeOrigin !== "legacy_workspace") return null;
+  const business = await prisma.business.findUnique({
+    where: { id: key.businessId },
+    select: { status: true },
+  });
+  if (business?.status !== "active") return null;
   if (key.revokedAt) return null;
   if (key.expiresAt && key.expiresAt.getTime() < Date.now()) return null;
 
   const placement = await resolveTenantPlacement(key.businessId);
 
-  await prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } }).catch(() => {
-    // Best-effort usage tracking — never block authentication on it.
-  });
+  await prisma.apiKey
+    .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+    .catch(() => {
+      // Best-effort usage tracking — never block authentication on it.
+    });
 
   return {
     businessId: key.businessId,
     role: key.role,
     actor: { kind: "api_key", apiKeyId: key.id },
     dataConnection: placement.dataConnection,
+    resourceScope,
+    authorization: { kind: "api_key", apiKeyId: key.id },
   };
 }
 
 type HumanContextResult =
   | { ok: true; ctx: TenantContext }
-  | { ok: false; reason: "no_user" | "no_membership" };
+  | { ok: false; reason: "no_user" | "no_membership" | "selection_required" | "invalid_scope" };
 
-/**
- * PLAN.md §9.3/§15.1 — resolves a signed-in human's `TenantContext`.
- * `Membership.role` (not a JWT claim, §14.4) is the source of truth, looked
- * up fresh on every request so a revoked/changed membership takes effect
- * immediately rather than waiting for a 7-day token to expire.
- *
- * A `User` may hold `Membership` rows in more than one `Business` (§9.2 —
- * a consultant, a platform support engineer). This codebase has no
- * business-switcher yet (deferred alongside the polished signup flow,
- * §46.1/§46.2's "Explicitly deferred" sections), so the deterministic
- * choice here is the earliest-created membership — that never grants
- * access to a business the user isn't a member of, it only decides *which*
- * of their own businesses a bare-JWT request resolves to.
- */
-async function resolveHumanContext(userId: string): Promise<HumanContextResult> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+/** P1: selection locates a current membership; it is never authority. */
+export async function resolveHumanContext(
+  userId: string,
+  selectedWorkspace?: string,
+  session?: TokenPayload
+): Promise<HumanContextResult> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
   if (!user) return { ok: false, reason: "no_user" };
-
-  const memberships = await prisma.membership.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
+  if (!selectedWorkspace) return { ok: false, reason: "selection_required" };
+  const membership = await prisma.membership.findUnique({
+    where: { businessId_userId: { businessId: selectedWorkspace, userId } },
+    include: { connectionScopes: true, business: { select: { status: true } } },
   });
-
-  // §15.2 — platform_admin gets no tenant-resource permission implicitly.
-  // A platform admin with no membership in any business is simply not a
-  // member of one, exactly like anyone else; there is no platform-only
-  // route in this codebase yet for `actor.kind === "platform_admin"` to
-  // serve (that is future, explicitly-deferred support-access tooling).
-  if (memberships.length === 0) return { ok: false, reason: "no_membership" };
-
-  const membership = memberships[0];
+  if (!membership || membership.business.status !== "active")
+    return { ok: false, reason: "no_membership" };
+  let resourceScope;
+  try {
+    resourceScope = scopeFromRecord(membership);
+  } catch {
+    return { ok: false, reason: "invalid_scope" };
+  }
   const placement = await resolveTenantPlacement(membership.businessId);
-
   return {
     ok: true,
     ctx: {
       businessId: membership.businessId,
       role: membership.role,
-      actor: { kind: "user", userId: user.id },
+      actor: { kind: "user", userId },
       dataConnection: placement.dataConnection,
+      resourceScope,
+      authorization: {
+        kind: "membership",
+        userId,
+        membershipId: membership.id,
+        sessionJti: session?.jti,
+        sessionExpiresAt: session?.exp,
+      },
     },
   };
 }
@@ -105,7 +136,14 @@ export async function requireAuth(
       );
     }
 
-    if (permission && !hasPermission(ctx.role ?? "", permission)) {
+    const requestedWorkspace = request.headers.get("x-workspace-id");
+    if (requestedWorkspace && requestedWorkspace !== ctx.businessId)
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "API key belongs to another workspace" } },
+        { status: 403 }
+      );
+
+    if (permission && !hasTenantPermission(ctx, permission)) {
       return NextResponse.json(
         { error: { code: "FORBIDDEN", message: "Insufficient permissions" } },
         { status: 403 }
@@ -120,7 +158,12 @@ export async function requireAuth(
 
   if (!token) {
     return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Authentication required. Use cookie or X-API-Key header." } },
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required. Use cookie or X-API-Key header.",
+        },
+      },
       { status: 401 }
     );
   }
@@ -133,8 +176,29 @@ export async function requireAuth(
     );
   }
 
-  const result = await resolveHumanContext(payload.userId);
+  const cookieWorkspace = request.cookies.get("ziyrak-workspace")?.value;
+  const headerWorkspace = request.headers.get("x-workspace-id") ?? undefined;
+  if (cookieWorkspace && headerWorkspace && cookieWorkspace !== headerWorkspace)
+    return NextResponse.json(
+      { error: { code: "FORBIDDEN", message: "Conflicting workspace selection" } },
+      { status: 403 }
+    );
+  const result = await resolveHumanContext(
+    payload.userId,
+    headerWorkspace ?? cookieWorkspace,
+    payload
+  );
   if (!result.ok) {
+    if (result.reason === "selection_required")
+      return NextResponse.json(
+        {
+          error: {
+            code: "WORKSPACE_SELECTION_REQUIRED",
+            message: "Choose a workspace to continue",
+          },
+        },
+        { status: 409 }
+      );
     if (result.reason === "no_user") {
       return NextResponse.json(
         { error: { code: "UNAUTHORIZED", message: "User not found" } },
@@ -142,12 +206,12 @@ export async function requireAuth(
       );
     }
     return NextResponse.json(
-      { error: { code: "FORBIDDEN", message: "You are not a member of any business" } },
+      { error: { code: "FORBIDDEN", message: "The selected workspace is unavailable" } },
       { status: 403 }
     );
   }
 
-  if (permission && !hasPermission(result.ctx.role ?? "", permission)) {
+  if (permission && !hasTenantPermission(result.ctx, permission)) {
     return NextResponse.json(
       { error: { code: "FORBIDDEN", message: "Insufficient permissions" } },
       { status: 403 }
@@ -160,9 +224,7 @@ export async function requireAuth(
 /**
  * Type guard: check if result is a TenantContext (not an error response).
  */
-export function isAuthenticated(
-  result: TenantContext | NextResponse
-): result is TenantContext {
+export function isAuthenticated(result: TenantContext | NextResponse): result is TenantContext {
   return !(result instanceof NextResponse);
 }
 
@@ -185,7 +247,11 @@ export async function getTenantContextFromCookies(): Promise<TenantContext | nul
   const payload = await verifyActiveToken(token);
   if (!payload) return null;
 
-  const result = await resolveHumanContext(payload.userId);
+  const result = await resolveHumanContext(
+    payload.userId,
+    cookieStore.get("ziyrak-workspace")?.value,
+    payload
+  );
   return result.ok ? result.ctx : null;
 }
 
@@ -221,7 +287,12 @@ export async function resolveActorDisplayName(ctx: TenantContext): Promise<strin
  * Who a signed-in human is, for display (header avatar/menu). Never includes
  * the password hash or any credential; `null` for a non-human actor.
  */
-export async function resolveActorProfile(ctx: TenantContext): Promise<{ id: string; name: string; username: string } | null> {
+export async function resolveActorProfile(
+  ctx: TenantContext
+): Promise<{ id: string; name: string; username: string } | null> {
   if (ctx.actor.kind !== "user") return null;
-  return prisma.user.findUnique({ where: { id: ctx.actor.userId }, select: { id: true, name: true, username: true } });
+  return prisma.user.findUnique({
+    where: { id: ctx.actor.userId },
+    select: { id: true, name: true, username: true },
+  });
 }

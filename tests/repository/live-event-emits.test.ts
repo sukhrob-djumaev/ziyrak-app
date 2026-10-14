@@ -34,7 +34,9 @@ afterAll(async () => {
 type Seen = { type: string; conversationId?: string; data: Record<string, unknown> };
 function listen(business: SeededBusiness) {
   const seen: Seen[] = [];
-  const stop = subscribe(tenantGlobalChannel(business.businessId), (event) => seen.push(event as Seen));
+  const stop = subscribe(tenantGlobalChannel(business.businessId), (event) =>
+    seen.push(event as Seen)
+  );
   return { seen, stop };
 }
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
@@ -48,7 +50,13 @@ describe("server emits the events the dashboard needs, to the right tenant only"
     await settle();
     mine.stop();
     theirs.stop();
-    expect(mine.seen).toContainEqual(expect.objectContaining({ type: "message:new", conversationId: conversation.id, data: expect.objectContaining({ messageId: message.id, role: "customer" }) }));
+    expect(mine.seen).toContainEqual(
+      expect.objectContaining({
+        type: "message:new",
+        conversationId: conversation.id,
+        data: expect.objectContaining({ messageId: message.id, role: "customer" }),
+      })
+    );
     expect(theirs.seen).toHaveLength(0);
   });
 
@@ -58,18 +66,31 @@ describe("server emits the events the dashboard needs, to the right tenant only"
     await escalateConversation(a.ctx, conversation.id);
     await settle();
     mine.stop();
-    expect(mine.seen).toContainEqual(expect.objectContaining({ type: "conversation:updated", conversationId: conversation.id, data: expect.objectContaining({ status: "escalated" }) }));
+    expect(mine.seen).toContainEqual(
+      expect.objectContaining({
+        type: "conversation:updated",
+        conversationId: conversation.id,
+        data: expect.objectContaining({ status: "escalated" }),
+      })
+    );
   });
 
   it("a new conversation, from the service and from the inbound (Web Chat) path", async () => {
     const mine = listen(a);
     const created = await createNewConversation(a.ctx, "whatsapp", "Visitor", "+15550001");
+    const connection = await getScopedPrisma(a.ctx).channelConnection.create({
+      data: {
+        businessId: a.businessId,
+        type: "webchat",
+        name: "Realtime fixture",
+      },
+    });
     const inboundId = `inbound-${Date.now()}`;
     await resolveOrCreateConversation(a.ctx, {
       id: "e1",
       type: "message.received",
       businessId: a.businessId,
-      source: { channel: "webchat", connectionId: "conn-1" },
+      source: { channel: "webchat", connectionId: connection.id },
       conversationId: inboundId,
       occurredAt: new Date().toISOString(),
       receivedAt: new Date().toISOString(),
@@ -78,7 +99,9 @@ describe("server emits the events the dashboard needs, to the right tenant only"
     } as never);
     await settle();
     mine.stop();
-    const created2 = mine.seen.filter((e) => e.type === "conversation:new").map((e) => e.conversationId);
+    const created2 = mine.seen
+      .filter((e) => e.type === "conversation:new")
+      .map((e) => e.conversationId);
     expect(created2).toEqual(expect.arrayContaining([created.id, inboundId]));
   });
 
@@ -86,11 +109,21 @@ describe("server emits the events the dashboard needs, to the right tenant only"
     await getScopedPrisma(a.ctx).toolPolicy.upsert({
       where: { businessId_tool: { businessId: a.businessId, tool: "noop_test_action" } },
       update: { allowedForAI: true, requiresHumanApproval: true },
-      create: { businessId: a.businessId, tool: "noop_test_action", allowedForAI: true, requiresHumanApproval: true },
+      create: {
+        businessId: a.businessId,
+        tool: "noop_test_action",
+        allowedForAI: true,
+        requiresHumanApproval: true,
+      },
     });
     const mine = listen(a);
     const result = await toolRegistry.execute(
-      { businessId: a.businessId, role: null, actor: { kind: "ai_agent", conversationId: "c", model: "m" }, dataConnection: "shared-default" },
+      {
+        businessId: a.businessId,
+        role: null,
+        actor: { kind: "ai_agent", conversationId: "c", model: "m" },
+        dataConnection: "shared-default",
+      },
       "noop_test_action",
       {},
       { toolCallId: `tc-${Math.random()}` }
@@ -98,6 +131,11 @@ describe("server emits the events the dashboard needs, to the right tenant only"
     await settle();
     mine.stop();
     expect(result.status).toBe("pending_approval");
-    expect(mine.seen).toContainEqual(expect.objectContaining({ type: "notification", data: expect.objectContaining({ kind: "action.pending_approval" }) }));
+    expect(mine.seen).toContainEqual(
+      expect.objectContaining({
+        type: "notification",
+        data: expect.objectContaining({ kind: "action.pending_approval" }),
+      })
+    );
   });
 });

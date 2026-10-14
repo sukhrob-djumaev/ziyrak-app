@@ -69,6 +69,7 @@ const testCtx = {
   role: "owner",
   actor: { kind: "user" as const, userId: "test-owner" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 // A live WhatsApp Web session only exists on a deployment that enables the
@@ -95,6 +96,12 @@ describe("Characterization: WhatsApp inbound message flow", () => {
     }
 
     installDeliveryMemory(mockPrisma);
+    mockPrisma.channelConnection.findUnique.mockResolvedValue({
+      id: TEST_CONNECTION_ID,
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+      type: "whatsapp",
+      isActive: true,
+    });
     mockPrisma.channelConnection.findFirst.mockResolvedValue({
       id: TEST_CONNECTION_ID,
       type: "whatsapp",

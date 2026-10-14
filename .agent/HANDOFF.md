@@ -1,22 +1,29 @@
 # Latest session handoff
 
-2026-10-15 overnight approved through08:00 KL. Main documentation checkpoint
-9a604f5; live main product/deps/provider/services unchanged.
-R1 locally verified c894b63; all17 browser scripts63247f6, stopped topology.
-R3 checkpoint2adfc1b (R1 integrated copy086f659): full1183, Redis1205,
-Node22 build/probes/type/lint/security review passed. Residual owner decision
-pending; details docs/r3-remediation-2026-10-15.md. Silence is not acceptance.
+2026-10-15 overnight authorized through08:00 KL. Main docs checkpoint9a604f5;
+live product/deps/providers/services unchanged. R1 locally verified c894b63;
+R3 code2adfc1b (integrated086f659), residual owner decision pending, not waived.
 
-Active P1 `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly` parent2adfc1b.
-Explicit permission contract written. First team/connection slice: baseline7fail/
-1pass; focused21pass; full134files1194pass23optionalRedis skips; type/lintpass.
-Actual API-key denial and concurrentownerpromotion guarded; final independent
-source/security recheck found no confirmed issue. See docs/p1-access-implementation-2026-10-15.md. Production build/full
-browser rerun pending; no P1 completion claim. Next: selected workspace,
-platform/grant/scope schema and fresh authorization foundation, tests first.
+P1 first slice1322b03 integrated to runtime80b5f33; buildwLh2ej40gDoE5_A4LJVCH
+and fresh full17 browser suite passed. Owned topology stopped; manifest under
+R1 candidate `.work/p1-slice-20261015`. No real-provider claim.
 
-P1 DB ziyrak_p1_test_20261015, paired URLs. R3 DB separate; task-owned Redis6381
-exactIDfile/tasklabel retained. R1 checkout stopped, own deps refreshed afterR3.
-Never edit main source/deps/live.env, port7700/tunnel/providers, or liveDB. No
-name-based kills, push/merge/deploy/release/newmilestone. Finish reviews and owned
-cleanup; preserve real-provider/owner decisions at morning cutoff.
+Active P1 tree `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly` has a
+foundation checkpoint: explicit workspace entry/UI, normalized scope/schema,
+API-key issuer ceiling, related query/reference restrictions and monotonic work
+retirement. Full141files1253pass/23optional skips; signup-seeded73files751pass on
+separate isolated DB; lifecycle22pass; type/strict lint pass. Earlier concurrent
+full/seeded runs exhausted DB connections and are not acceptance. Use sequential
+bounded workers. Three migrations applied only to P1 test/signup-test databases.
+Independent security/privacy source rechecks found no further confirmed issue in
+the foundation after repairs; reviewers did not execute tests. See P1 evidence doc.
+
+Next: review staged diff and local foundation commit, isolated production build,
+fresh full17 browser rerun plus actual workspace-choice/switch journey. Then P1
+fresh stream/delegated authority and secured platform/support roles/grants/UI.
+Tool-only followup targets need durable parent binding. No support bootstrap/console
+exposed; partial candidate not live-ready. Dedicated migration quiescence required.
+
+Paired isolated DB URLs; owned Redis6381 exactIDfile/tasklabel retained. No name
+kills, live main product/deps/environment/7700/tunnel/DB changes, push/merge/deploy,
+release or new milestone. Preserve owner/provider boundaries at morning cutoff.

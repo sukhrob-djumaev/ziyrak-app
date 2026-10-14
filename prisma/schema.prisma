@@ -20,6 +20,9 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  platformAssignments  PlatformAssignment[]
+  supportGrants        SupportGrant[]
+  platformAccessAudits PlatformAccessAudit[]
   memberships          Membership[]
   config               BusinessConfig?
   channelConnections   ChannelConnection[]
@@ -61,28 +64,174 @@ model Business {
 }
 
 model Membership {
-  id         String   @id @default(uuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role       String // owner | admin | supervisor | agent | viewer (§9)
-  createdAt  DateTime @default(now())
+  id                    String                      @id @default(uuid())
+  businessId            String
+  business              Business                    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role                  String // owner | admin | supervisor | agent | viewer (§9)
+  createdAt             DateTime                    @default(now())
+  scopeMode             ResourceScopeMode           @default(workspace)
+  customerProfileAccess CustomerProfileAccess       @default(write)
+  connectionScopes      MembershipConnectionScope[]
 
+  @@unique([businessId, id])
   @@unique([businessId, userId])
   @@index([userId])
 }
 
 model User {
-  id              String   @id @default(uuid())
-  username        String   @unique
+  id              String        @id @default(uuid())
+  username        String        @unique
   password        String
-  name            String   @default("")
-  isPlatformAdmin Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  name            String        @default("")
+  isPlatformAdmin Boolean       @default(false) // Historical display flag; grants no platform authority.
+  platformRole    PlatformRole?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  memberships Membership[]
+  memberships          Membership[]
+  platformAssignments  PlatformAssignment[]
+  supportGrants        SupportGrant[]
+  platformAccessAudits PlatformAccessAudit[]
+  issuedApiKeys        ApiKey[]
+  platformControl      PlatformControl?
+}
+
+// P1 control-plane authority and explicit resource scope. No public role assignment.
+enum PlatformRole {
+  super_admin
+  operator
+}
+
+enum ResourceScopeMode {
+  workspace
+  connections
+  unclassified
+}
+
+enum ApiKeyScopeOrigin {
+  unclassified
+  legacy_workspace
+  issuer
+}
+
+enum CustomerProfileAccess {
+  none
+  read
+  write
+}
+
+model PlatformControl {
+  id               String   @id
+  superAdminUserId String?  @unique
+  superAdmin       User?    @relation(fields: [superAdminUserId], references: [id], onDelete: Restrict)
+  generation       Int      @default(0)
+  updatedAt        DateTime @updatedAt
+}
+
+model MembershipConnectionScope {
+  businessId   String
+  membershipId String
+  connectionId String
+  membership   Membership        @relation(fields: [businessId, membershipId], references: [businessId, id], onDelete: Cascade)
+  connection   ChannelConnection @relation(fields: [businessId, connectionId], references: [businessId, id], onDelete: Cascade)
+
+  @@id([businessId, membershipId, connectionId])
+}
+
+model ApiKeyConnectionScope {
+  businessId   String
+  apiKeyId     String
+  connectionId String
+  apiKey       ApiKey            @relation(fields: [businessId, apiKeyId], references: [businessId, id], onDelete: Cascade)
+  connection   ChannelConnection @relation(fields: [businessId, connectionId], references: [businessId, id], onDelete: Cascade)
+
+  @@id([businessId, apiKeyId, connectionId])
+}
+
+model PlatformAssignment {
+  id                    String                      @id @default(uuid())
+  businessId            String
+  business              Business                    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  operatorUserId        String
+  operator              User                        @relation(fields: [operatorUserId], references: [id], onDelete: Restrict)
+  allowedOperations     String[]
+  scopeMode             ResourceScopeMode
+  customerProfileAccess CustomerProfileAccess       @default(none)
+  reason                String
+  expiresAt             DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  connectionScopes      AssignmentConnectionScope[]
+  supportGrants         SupportGrant[]
+
+  @@unique([businessId, operatorUserId, id])
+  @@index([operatorUserId, businessId])
+}
+
+model AssignmentConnectionScope {
+  businessId     String
+  operatorUserId String
+  assignmentId   String
+  connectionId   String
+  assignment     PlatformAssignment @relation(fields: [businessId, operatorUserId, assignmentId], references: [businessId, operatorUserId, id], onDelete: Cascade)
+  connection     ChannelConnection  @relation(fields: [businessId, connectionId], references: [businessId, id], onDelete: Cascade)
+
+  @@id([businessId, assignmentId, connectionId])
+}
+
+model SupportGrant {
+  id                    String                 @id @default(uuid())
+  businessId            String
+  business              Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  actorUserId           String
+  actor                 User                   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  assignmentId          String?
+  assignment            PlatformAssignment?    @relation(fields: [businessId, actorUserId, assignmentId], references: [businessId, operatorUserId, id], onDelete: NoAction)
+  requestId             String
+  allowedOperations     String[]
+  scopeMode             ResourceScopeMode
+  customerProfileAccess CustomerProfileAccess  @default(none)
+  reason                String
+  expiresAt             DateTime
+  revokedAt             DateTime?
+  createdAt             DateTime               @default(now())
+  connectionScopes      GrantConnectionScope[]
+  accessAudits          PlatformAccessAudit[]
+
+  @@unique([businessId, id])
+  @@unique([actorUserId, requestId])
+  @@index([actorUserId, businessId, expiresAt])
+}
+
+model GrantConnectionScope {
+  businessId   String
+  grantId      String
+  connectionId String
+  grant        SupportGrant      @relation(fields: [businessId, grantId], references: [businessId, id], onDelete: Cascade)
+  connection   ChannelConnection @relation(fields: [businessId, connectionId], references: [businessId, id], onDelete: Cascade)
+
+  @@id([businessId, grantId, connectionId])
+}
+
+model PlatformAccessAudit {
+  id          String        @id @default(uuid())
+  actorUserId String
+  actor       User          @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  action      String
+  businessId  String?
+  business    Business?     @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  workspaceId String? // Immutable workspace identifier retained after workspace deletion.
+  grantId     String?
+  grant       SupportGrant? @relation(fields: [grantId], references: [id], onDelete: SetNull)
+  reason      String
+  details     Json
+  createdAt   DateTime      @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([businessId, createdAt])
 }
 
 // Sign-out revocation list: one row per signed-out session token (its `jti`).
@@ -220,6 +369,11 @@ model ChannelConnection {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  membershipScopes MembershipConnectionScope[]
+  apiKeyScopes     ApiKeyConnectionScope[]
+  assignmentScopes AssignmentConnectionScope[]
+  grantScopes      GrantConnectionScope[]
+
   @@unique([businessId, id])
   @@index([businessId, type])
 }
@@ -249,6 +403,7 @@ model InboundEventReceipt {
   eventPayload     Json     @default("{}")
 
   deliveryOperations DeliveryOperation[]
+  retiredAt          DateTime?
 
   @@unique([businessId, id])
   @@unique([businessId, source, externalEventId])
@@ -284,6 +439,7 @@ model DeliveryOperation {
   recoveryLog       Json                 @default("[]")
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
+  retiredAt         DateTime?
 
   @@unique([businessId, operationKey])
   @@index([businessId, status])
@@ -445,6 +601,9 @@ model Conversation {
   aiInteractionLogs  AIInteractionLog[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+
+  actionExecutions ActionExecution[]
+  retiredAt        DateTime?
 
   @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog/AIInteractionLog.conversationId
   @@index([channel])
@@ -802,19 +961,25 @@ model BusinessHours {
 // rehashed — see scripts/phase1-migration-steps.ts's invalidateExistingApiKeys
 // and the Phase 1 kickoff report for why.
 model ApiKey {
-  id         String    @id @default(uuid())
-  businessId String
-  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name       String
-  keyPrefix  String // e.g. "zy_live_a1b2c3d4" — safe to display/search by, not secret
-  keyHash    String // SHA-256 (or stronger) hash of the full secret — never the secret itself
-  role       String    @default("agent") // capped below "owner" (§9.1) — enforced at creation time, not by the schema
-  isActive   Boolean   @default(true)
-  lastUsedAt DateTime?
-  expiresAt  DateTime?
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                    String                  @id @default(uuid())
+  businessId            String
+  business              Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name                  String
+  keyPrefix             String // e.g. "zy_live_a1b2c3d4" — safe to display/search by, not secret
+  keyHash               String // SHA-256 (or stronger) hash of the full secret — never the secret itself
+  role                  String                  @default("agent") // capped below "owner" (§9.1) — enforced at creation time, not by the schema
+  isActive              Boolean                 @default(true)
+  lastUsedAt            DateTime?
+  expiresAt             DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  scopeMode             ResourceScopeMode       @default(unclassified)
+  scopeOrigin           ApiKeyScopeOrigin       @default(unclassified)
+  customerProfileAccess CustomerProfileAccess   @default(none)
+  issuedByUserId        String?
+  issuedBy              User?                   @relation(fields: [issuedByUserId], references: [id], onDelete: Restrict)
+  connectionScopes      ApiKeyConnectionScope[]
 
   @@unique([businessId, id])
   @@index([keyPrefix])
@@ -903,22 +1068,26 @@ model ToolPolicy {
 // attempt has one (§24.4), identifying the attempt (AI provider toolCallId,
 // or an explicit client-supplied key) rather than a hash of arguments.
 model ActionExecution {
-  id             String    @id @default(uuid())
-  businessId     String
-  business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  tool           String
-  status         String    @default("requested") // requested | pending_approval | scheduled | running | succeeded | failed | cancelled
-  input          Json
-  result         Json?
-  conversationId String?
-  requestedBy    String // "ai" | userId | "system"
-  idempotencyKey String
-  errorMessage   String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  completedAt    DateTime?
+  id                    String        @id @default(uuid())
+  businessId            String
+  business              Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tool                  String
+  status                String        @default("requested") // requested | pending_approval | scheduled | running | succeeded | failed | cancelled
+  input                 Json
+  result                Json?
+  conversationId        String?
+  conversation          Conversation? @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: NoAction)
+  legacyConversationId  String?
+  authorizationSnapshot Json?
+  requestedBy           String // "ai" | userId | "system"
+  idempotencyKey        String
+  errorMessage          String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  completedAt           DateTime?
 
   deliveryOperations DeliveryOperation[]
+  retiredAt          DateTime?
 
   @@unique([businessId, id])
   @@unique([businessId, idempotencyKey])

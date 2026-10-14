@@ -10,6 +10,7 @@ const defaultCtx: TenantContext = {
   role: "owner",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 const otherBusinessCtx: TenantContext = {
@@ -17,6 +18,7 @@ const otherBusinessCtx: TenantContext = {
   role: "owner",
   actor: { kind: "user", userId: "other-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence", () => {
@@ -84,10 +86,12 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     });
   });
 
-  it("normalizes the legacy \"claude\" provider value to \"anthropic\"", async () => {
+  it('normalizes the legacy "claude" provider value to "anthropic"', async () => {
     const { resolveAIConfig } = await import("@/lib/ai/config");
 
-    mockPrisma.businessConfig.findUnique.mockResolvedValue({ businessId: TEST_DEFAULT_BUSINESS_ID });
+    mockPrisma.businessConfig.findUnique.mockResolvedValue({
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+    });
     mockPrisma.settings.findUnique.mockResolvedValue({
       id: "default",
       aiProvider: "claude",
@@ -131,7 +135,9 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
   it("never falls back to legacy Settings for a non-Default business", async () => {
     const { resolveAIConfig } = await import("@/lib/ai/config");
 
-    mockPrisma.businessConfig.findUnique.mockResolvedValue({ businessId: otherBusinessCtx.businessId });
+    mockPrisma.businessConfig.findUnique.mockResolvedValue({
+      businessId: otherBusinessCtx.businessId,
+    });
     mockPrisma.settings.findUnique.mockResolvedValue({
       id: "default",
       aiProvider: "openai",
@@ -237,9 +243,11 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
   });
 
   it("embedding config uses its own dedicated credential over the generation one when both are set", async () => {
-    const { encryptAIProviderCredential, encryptEmbeddingProviderCredential, resolveEmbeddingConfig } = await import(
-      "@/lib/ai/config"
-    );
+    const {
+      encryptAIProviderCredential,
+      encryptEmbeddingProviderCredential,
+      resolveEmbeddingConfig,
+    } = await import("@/lib/ai/config");
     const aiRef = await encryptAIProviderCredential("openai", "sk-generation-key");
     const embeddingRef = await encryptEmbeddingProviderCredential("openai", "sk-embedding-key");
 

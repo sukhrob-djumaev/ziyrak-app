@@ -1,3 +1,4 @@
+import type { ResourceScope } from "./resource-scope";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /**
@@ -20,11 +21,44 @@ export type ExecutionPrincipal =
  * `AsyncLocalStorage` (below) is a narrowly-scoped backstop only, never the
  * primary way business logic learns its own tenant.
  */
+export type AuthorizationProvenance =
+  | {
+      kind: "membership";
+      userId: string;
+      membershipId: string;
+      sessionJti?: string;
+      sessionExpiresAt?: number;
+    }
+  | { kind: "api_key"; apiKeyId: string }
+  | {
+      kind: "support";
+      userId: string;
+      grantId: string;
+      allowedOperations: string[];
+      sessionJti?: string;
+      sessionExpiresAt?: number;
+    }
+  | {
+      kind: "delegated_job";
+      actorUserId?: string;
+      allowedOperations: string[];
+      origin: Exclude<AuthorizationProvenance, { kind: "delegated_job" }>;
+    };
+
 export interface TenantContext {
   businessId: string;
   role: string | null;
   actor: ExecutionPrincipal;
   dataConnection: string;
+  resourceScope?: ResourceScope;
+  authorization?: AuthorizationProvenance;
+  /** Server-created lifecycle parents, never a permission grant. */
+  workBinding?: {
+    conversationId?: string;
+    actionExecutionId?: string;
+    deliveryOperationId?: string;
+    receiptId?: string;
+  };
 }
 
 const storage = new AsyncLocalStorage<TenantContext>();

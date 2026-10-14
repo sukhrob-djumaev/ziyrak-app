@@ -154,6 +154,7 @@ const ctx: TenantContext = {
   role: null,
   actor: { kind: "system_job", jobId: "audit-job" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 const payload = {
   businessId: ctx.businessId,

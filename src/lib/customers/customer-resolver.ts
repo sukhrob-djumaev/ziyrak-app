@@ -1,5 +1,5 @@
 import { logger } from "@/lib/observability/logger";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 /**
@@ -31,9 +31,10 @@ export async function resolveCustomer(
   ctx: TenantContext,
   channel: string,
   customerContact: string,
-  customerName: string
+  customerName: string,
+  repository?: Pick<ScopedPrisma, "customer">
 ): Promise<string> {
-  const db = getScopedPrisma(ctx);
+  const db = repository ?? getScopedPrisma(ctx);
 
   // PLAN.md §20.2/§46.7 — a Meta Cloud conversation's channel is
   // "whatsapp_cloud" (that is what routes replies/follow-ups to the right
@@ -43,37 +44,44 @@ export async function resolveCustomer(
   channel = channel === "whatsapp_cloud" ? "whatsapp" : channel;
 
   if (!customerContact) {
-    return createCustomer(ctx, customerName, channel, customerContact);
+    return createCustomer(ctx, customerName, channel, customerContact, db);
   }
 
-  // Step 1: Direct field match by channel
-  const directMatch = await findByChannelField(ctx, channel, customerContact);
-  if (directMatch) {
-    await updateExistingCustomer(ctx, directMatch.id, channel, customerContact, customerName);
-    return directMatch.id;
+  const existing = await findExistingCustomer(ctx, channel, customerContact, db);
+  if (existing) {
+    await updateExistingCustomer(ctx, existing.id, channel, customerContact, customerName, db);
+    return existing.id;
   }
+  return createCustomer(ctx, customerName, channel, customerContact, db);
+}
 
-  // Step 2: Normalized phone match (for phone/whatsapp channels)
+/** Read-only identity lookup shared by admission and receipt erasure. Preserve
+ * the existing phase order and normalization so erasure never uses a broader
+ * target-only matcher or mutates another customer's profile while discovering.
+ */
+export async function findExistingCustomer(
+  ctx: TenantContext,
+  channel: string,
+  customerContact: string,
+  repository?: Pick<ScopedPrisma, "customer">
+) {
+  const db = repository ?? getScopedPrisma(ctx);
+  channel = channel === "whatsapp_cloud" ? "whatsapp" : channel;
+  if (!customerContact) return null;
+  const direct = await findByChannelField(ctx, channel, customerContact, db);
+  if (direct) return direct;
   if (channel === "phone" || channel === "whatsapp") {
     const normalized = normalizePhone(customerContact);
     if (normalized.length >= 7) {
-      const phoneMatch = await db.customer.findFirst({
+      const phone = await db.customer.findFirst({
         where: {
-          OR: [
-            { phone: { contains: normalized } },
-            { whatsapp: { contains: normalized } },
-          ],
+          OR: [{ phone: { contains: normalized } }, { whatsapp: { contains: normalized } }],
         },
       });
-      if (phoneMatch) {
-        await updateExistingCustomer(ctx, phoneMatch.id, channel, customerContact, customerName);
-        return phoneMatch.id;
-      }
+      if (phone) return phone;
     }
   }
-
-  // Step 3: Cross-field fallback (search all contact fields)
-  const crossMatch = await db.customer.findFirst({
+  return db.customer.findFirst({
     where: {
       OR: [
         { email: { equals: customerContact, mode: "insensitive" } },
@@ -82,17 +90,15 @@ export async function resolveCustomer(
       ],
     },
   });
-  if (crossMatch) {
-    await updateExistingCustomer(ctx, crossMatch.id, channel, customerContact, customerName);
-    return crossMatch.id;
-  }
-
-  // Step 4: Auto-create new customer
-  return createCustomer(ctx, customerName, channel, customerContact);
 }
 
-async function findByChannelField(ctx: TenantContext, channel: string, contact: string) {
-  const db = getScopedPrisma(ctx);
+async function findByChannelField(
+  ctx: TenantContext,
+  channel: string,
+  contact: string,
+  repository: Pick<ScopedPrisma, "customer">
+) {
+  const db = repository ?? getScopedPrisma(ctx);
   switch (channel) {
     case "email":
       return db.customer.findFirst({
@@ -124,9 +130,10 @@ async function createCustomer(
   ctx: TenantContext,
   name: string,
   channel: string,
-  contact: string
+  contact: string,
+  repository: Pick<ScopedPrisma, "customer">
 ): Promise<string> {
-  const db = getScopedPrisma(ctx);
+  const db = repository ?? getScopedPrisma(ctx);
   const customer = await db.customer.create({
     data: {
       businessId: ctx.businessId,
@@ -154,9 +161,10 @@ async function updateExistingCustomer(
   customerId: string,
   channel: string,
   contact: string,
-  name: string
+  name: string,
+  repository: Pick<ScopedPrisma, "customer">
 ): Promise<void> {
-  const db = getScopedPrisma(ctx);
+  const db = repository ?? getScopedPrisma(ctx);
   const update: Record<string, unknown> = {
     lastContact: new Date(),
   };

@@ -83,6 +83,7 @@ function aiCtx(conversationId: string): TenantContext {
     role: null,
     actor: { kind: "ai_agent", conversationId, model: "test-model" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   };
 }
 

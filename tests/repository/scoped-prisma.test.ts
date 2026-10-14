@@ -340,16 +340,20 @@ async function createMinimalRow(
           correlationId: marker,
         },
       });
-    case "deliveryOperation":
+    case "deliveryOperation": {
+      const connection = await db.channelConnection.create({
+        data: { type: "test", name: marker },
+      });
       return db.deliveryOperation.create({
         data: {
           operationKey: marker,
           kind: "inbound",
           channel: "test",
-          connectionId: "synthetic",
+          connectionId: connection.id,
           recipient: "synthetic",
         },
       });
+    }
     case "toolPolicy":
       return db.toolPolicy.create({ data: { tool: `test_tool_${marker}` } });
     case "actionExecution":

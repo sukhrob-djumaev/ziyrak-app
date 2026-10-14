@@ -26,6 +26,7 @@ describe("POST /api/auth", () => {
     it("should login with valid credentials", async () => {
       const { hashPassword } = await import("@/lib/identity/auth");
       const hashedPassword = await hashPassword("admin123");
+      mockPrisma.membership.findMany.mockResolvedValue([]);
 
       mockPrisma.user.findUnique.mockResolvedValue({
         ...fixtures.admin,
@@ -91,43 +92,78 @@ describe("POST /api/auth", () => {
   });
 
   describe("signup action (PLAN.md §46.7 task 3)", () => {
-    const validSignup = { action: "signup", businessName: "Acme", username: "newowner", password: "secure1234", name: "New Owner" };
+    const validSignup = {
+      action: "signup",
+      businessName: "Acme",
+      username: "newowner",
+      password: "secure1234",
+      name: "New Owner",
+    };
 
     it("creates a business through provisioning and signs the owner in", async () => {
       const { provisionBusiness } = await import("@/lib/platform/provisioning");
-      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-new", slug: "acme-1234", userId: "new-user" });
-      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "new-user", username: "newowner", name: "New Owner" });
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({
+        businessId: "biz-new",
+        slug: "acme-1234",
+        userId: "new-user",
+      });
+      mockPrisma.user.findUniqueOrThrow = vi
+        .fn()
+        .mockResolvedValue({ id: "new-user", username: "newowner", name: "New Owner" });
 
       const { POST } = await import("@/app/api/auth/route");
-      const response = await POST(createRequest("/api/auth", { method: "POST", body: validSignup }));
+      const response = await POST(
+        createRequest("/api/auth", { method: "POST", body: validSignup })
+      );
       const data = await parseJsonResponse(response);
 
       expect(response.status).toBe(201);
       expect(data.success).toBe(true);
       expect(data.business).toEqual({ id: "biz-new", name: "Acme" });
       expect(response.headers.get("set-cookie")).toContain("owly-token=");
-      expect(provisionBusiness).toHaveBeenCalledWith(expect.objectContaining({ businessName: "Acme", ownerUsername: "newowner" }));
+      expect(provisionBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({ businessName: "Acme", ownerUsername: "newowner" })
+      );
     });
 
     it("stays open after a business already exists (no single-installation gate)", async () => {
       const { isSetupComplete } = await import("@/lib/identity/auth");
       (isSetupComplete as ReturnType<typeof vi.fn>).mockResolvedValue(true);
       const { provisionBusiness } = await import("@/lib/platform/provisioning");
-      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-2", slug: "second-1", userId: "u2" });
-      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "u2", username: "second", name: "Second" });
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({
+        businessId: "biz-2",
+        slug: "second-1",
+        userId: "u2",
+      });
+      mockPrisma.user.findUniqueOrThrow = vi
+        .fn()
+        .mockResolvedValue({ id: "u2", username: "second", name: "Second" });
 
       const { POST } = await import("@/app/api/auth/route");
-      const response = await POST(createRequest("/api/auth", { method: "POST", body: { ...validSignup, username: "second" } }));
+      const response = await POST(
+        createRequest("/api/auth", { method: "POST", body: { ...validSignup, username: "second" } })
+      );
       expect(response.status).toBe(201);
     });
 
     it("never forwards a client-supplied business id or role to provisioning", async () => {
       const { provisionBusiness } = await import("@/lib/platform/provisioning");
-      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({ businessId: "biz-3", slug: "x-1", userId: "u3" });
-      mockPrisma.user.findUniqueOrThrow = vi.fn().mockResolvedValue({ id: "u3", username: "newowner", name: "N" });
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({
+        businessId: "biz-3",
+        slug: "x-1",
+        userId: "u3",
+      });
+      mockPrisma.user.findUniqueOrThrow = vi
+        .fn()
+        .mockResolvedValue({ id: "u3", username: "newowner", name: "N" });
 
       const { POST } = await import("@/app/api/auth/route");
-      await POST(createRequest("/api/auth", { method: "POST", body: { ...validSignup, businessId: "victim", role: "owner", isPlatformAdmin: true } }));
+      await POST(
+        createRequest("/api/auth", {
+          method: "POST",
+          body: { ...validSignup, businessId: "victim", role: "owner", isPlatformAdmin: true },
+        })
+      );
 
       const input = (provisionBusiness as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0];
       expect(JSON.stringify(input)).not.toContain("victim");
@@ -138,10 +174,14 @@ describe("POST /api/auth", () => {
     it("reports a taken username as 409", async () => {
       const { provisionBusiness } = await import("@/lib/platform/provisioning");
       const { AppError } = await import("@/lib/observability/errors");
-      (provisionBusiness as ReturnType<typeof vi.fn>).mockRejectedValue(new AppError(409, "USERNAME_TAKEN", "That username is already taken."));
+      (provisionBusiness as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new AppError(409, "USERNAME_TAKEN", "That username is already taken.")
+      );
 
       const { POST } = await import("@/app/api/auth/route");
-      const response = await POST(createRequest("/api/auth", { method: "POST", body: validSignup }));
+      const response = await POST(
+        createRequest("/api/auth", { method: "POST", body: validSignup })
+      );
       expect(response.status).toBe(409);
     });
 
@@ -150,14 +190,24 @@ describe("POST /api/auth", () => {
       (provisionBusiness as ReturnType<typeof vi.fn>).mockClear();
 
       const { POST } = await import("@/app/api/auth/route");
-      const response = await POST(createRequest("/api/auth", { method: "POST", body: { action: "signup", username: "x", password: "short" } }));
+      const response = await POST(
+        createRequest("/api/auth", {
+          method: "POST",
+          body: { action: "signup", username: "x", password: "short" },
+        })
+      );
       expect(response.status).toBe(400);
       expect(provisionBusiness).not.toHaveBeenCalled();
     });
 
     it("the old one-time 'setup' action no longer exists", async () => {
       const { POST } = await import("@/app/api/auth/route");
-      const response = await POST(createRequest("/api/auth", { method: "POST", body: { action: "setup", username: "admin", password: "pass1234" } }));
+      const response = await POST(
+        createRequest("/api/auth", {
+          method: "POST",
+          body: { action: "setup", username: "admin", password: "pass1234" },
+        })
+      );
       expect(response.status).toBe(400);
     });
   });

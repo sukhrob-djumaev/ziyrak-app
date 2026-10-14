@@ -15,6 +15,8 @@ import { createRequest, parseJsonResponse } from "../helpers/request";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import * as apiKeysService from "@/lib/identity/admin-api-keys/service";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { prisma } from "@/lib/prisma/raw-client";
+import { requireAuth } from "@/lib/identity/route-auth";
 
 let businessA: SeededBusiness;
 let businessB: SeededBusiness;
@@ -33,12 +35,59 @@ afterAll(async () => {
 });
 
 describe("API key authentication — real hash-compare path (§9.4/§33.4 item 5)", () => {
+  it("persists a normalized restricted scope and rechecks the current issuer ceiling", async () => {
+    const conn = await getScopedPrisma(businessA.ctx).channelConnection.create({
+      data: { type: "webchat", name: "Key scope fixture" },
+    });
+    const restricted = {
+      ...businessA.ctx,
+      resourceScope: {
+        kind: "connections" as const,
+        connectionIds: [conn.id],
+        customerProfileAccess: "none" as const,
+      },
+    };
+    const { apiKey, fullKey } = await apiKeysService.create(restricted, "Restricted synthetic key");
+    const rows = await prisma.apiKeyConnectionScope.findMany({ where: { apiKeyId: apiKey.id } });
+    expect(rows.map((row) => row.connectionId)).toEqual([conn.id]);
+    const context = await requireAuth(
+      createRequest("/api/conversations", { headers: { "x-api-key": fullKey } }),
+      "conversations:read"
+    );
+    expect(context).toMatchObject({
+      businessId: businessA.businessId,
+      resourceScope: restricted.resourceScope,
+    });
+    const membership = await prisma.membership.findUniqueOrThrow({
+      where: {
+        businessId_userId: { businessId: businessA.businessId, userId: businessA.ownerUserId },
+      },
+    });
+    await prisma.membership.update({
+      where: { id: membership.id },
+      data: { scopeMode: "connections", customerProfileAccess: "none" },
+    });
+    try {
+      const denied = await requireAuth(
+        createRequest("/api/conversations", { headers: { "x-api-key": fullKey } }),
+        "conversations:read"
+      );
+      expect(denied).toMatchObject({ status: 401 });
+    } finally {
+      await prisma.membership.update({
+        where: { id: membership.id },
+        data: { scopeMode: "workspace", customerProfileAccess: "write" },
+      });
+    }
+  });
   it("resolves to the key's own business, not a hardcoded global admin", async () => {
     const dbA = getScopedPrisma(businessA.ctx);
     const customerA = await dbA.customer.create({ data: { name: "A's customer" } });
 
     const { GET } = await import("@/app/api/customers/[id]/route");
-    const request = createRequest(`/api/customers/${customerA.id}`, { headers: { "x-api-key": fullKeyA } });
+    const request = createRequest(`/api/customers/${customerA.id}`, {
+      headers: { "x-api-key": fullKeyA },
+    });
     const response = await GET(request, { params: Promise.resolve({ id: customerA.id }) });
     const data = await parseJsonResponse(response);
 
@@ -51,7 +100,9 @@ describe("API key authentication — real hash-compare path (§9.4/§33.4 item 5
     const customerB = await dbB.customer.create({ data: { name: "B's customer" } });
 
     const { GET } = await import("@/app/api/customers/[id]/route");
-    const request = createRequest(`/api/customers/${customerB.id}`, { headers: { "x-api-key": fullKeyA } });
+    const request = createRequest(`/api/customers/${customerB.id}`, {
+      headers: { "x-api-key": fullKeyA },
+    });
     const response = await GET(request, { params: Promise.resolve({ id: customerB.id }) });
 
     expect(response.status).toBe(404);
@@ -71,7 +122,9 @@ describe("API key authentication — real hash-compare path (§9.4/§33.4 item 5
     expect(response.status).toBe(403);
 
     // Sanity: the same key CAN read team departments (agent-level read access).
-    const readRequest = createRequest("/api/team/departments", { headers: { "x-api-key": fullKeyA } });
+    const readRequest = createRequest("/api/team/departments", {
+      headers: { "x-api-key": fullKeyA },
+    });
     const readResponse = await GET(readRequest);
     expect(readResponse.status).toBe(200);
   });

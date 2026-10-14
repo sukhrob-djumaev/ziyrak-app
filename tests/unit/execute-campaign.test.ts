@@ -26,7 +26,13 @@ beforeAll(async () => {
 
   const fakeAdapter: ChannelAdapter = {
     type: TEST_CHANNEL,
-    capabilities: { supportsMedia: false, supportsTemplates: false, supportsTypingIndicator: false, supportsDeliveryReceipts: false, supportsMultipleConnections: false },
+    capabilities: {
+      supportsMedia: false,
+      supportsTemplates: false,
+      supportsTypingIndicator: false,
+      supportsDeliveryReceipts: false,
+      supportsMultipleConnections: false,
+    },
     async validateInbound() {
       return { kind: "rejected", reason: "not used in this test" };
     },
@@ -42,7 +48,12 @@ beforeAll(async () => {
   registerChannelAdapter(TEST_CHANNEL, fakeAdapter);
 
   await rawClient.channelConnection.create({
-    data: { businessId: business.businessId, type: TEST_CHANNEL, name: "campaign-conn", isActive: true },
+    data: {
+      businessId: business.businessId,
+      type: TEST_CHANNEL,
+      name: "campaign-conn",
+      isActive: true,
+    },
   });
 });
 
@@ -56,6 +67,7 @@ function ctx(): TenantContext {
     role: null,
     actor: { kind: "system_job", jobId: "test-execute-campaign", jobType: "execute-campaign" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   };
 }
 
@@ -64,18 +76,35 @@ describe("execute-campaign — partial failure does not stop the remaining sends
     attemptedContacts = [];
     failingPhone = "+15550000001";
 
-    const customerA = await rawClient.customer.create({ data: { businessId: business.businessId, name: "A", phone: failingPhone } });
-    const customerB = await rawClient.customer.create({ data: { businessId: business.businessId, name: "B", phone: "+15550000002" } });
-    const customerC = await rawClient.customer.create({ data: { businessId: business.businessId, name: "C", phone: "+15550000003" } });
-
-    const campaign = await rawClient.campaign.create({
-      data: { businessId: business.businessId, name: "Test Campaign", channel: TEST_CHANNEL, message: "Special offer!", segments: [] },
+    const customerA = await rawClient.customer.create({
+      data: { businessId: business.businessId, name: "A", phone: failingPhone },
+    });
+    const customerB = await rawClient.customer.create({
+      data: { businessId: business.businessId, name: "B", phone: "+15550000002" },
+    });
+    const customerC = await rawClient.customer.create({
+      data: { businessId: business.businessId, name: "C", phone: "+15550000003" },
     });
 
-    await handleExecuteCampaign(ctx(), { businessId: business.businessId, campaignId: campaign.id });
+    const campaign = await rawClient.campaign.create({
+      data: {
+        businessId: business.businessId,
+        name: "Test Campaign",
+        channel: TEST_CHANNEL,
+        message: "Special offer!",
+        segments: [],
+      },
+    });
+
+    await handleExecuteCampaign(ctx(), {
+      businessId: business.businessId,
+      campaignId: campaign.id,
+    });
 
     // All three were attempted — the failure on A did not stop B/C.
-    expect(attemptedContacts.sort()).toEqual([customerA.phone, customerB.phone, customerC.phone].sort());
+    expect(attemptedContacts.sort()).toEqual(
+      [customerA.phone, customerB.phone, customerC.phone].sort()
+    );
 
     const finalCampaign = await rawClient.campaign.findUnique({ where: { id: campaign.id } });
     expect(finalCampaign?.status).toBe("completed");
@@ -84,9 +113,15 @@ describe("execute-campaign — partial failure does not stop the remaining sends
 
     // Per-customer result tracking: a real Conversation+Message exists for
     // each successful send, and none exists for the customer whose send failed.
-    const conversationA = await rawClient.conversation.findFirst({ where: { customerId: customerA.id } });
-    const conversationB = await rawClient.conversation.findFirst({ where: { customerId: customerB.id } });
-    const conversationC = await rawClient.conversation.findFirst({ where: { customerId: customerC.id } });
+    const conversationA = await rawClient.conversation.findFirst({
+      where: { customerId: customerA.id },
+    });
+    const conversationB = await rawClient.conversation.findFirst({
+      where: { customerId: customerB.id },
+    });
+    const conversationC = await rawClient.conversation.findFirst({
+      where: { customerId: customerC.id },
+    });
     expect(conversationA).toBeNull();
     expect(conversationB).not.toBeNull();
     expect(conversationC).not.toBeNull();
@@ -94,10 +129,19 @@ describe("execute-campaign — partial failure does not stop the remaining sends
 
   it("pauses the campaign honestly when no active connection exists for its channel, rather than claiming completion", async () => {
     const campaign = await rawClient.campaign.create({
-      data: { businessId: business.businessId, name: "No Connection Campaign", channel: "channel-with-no-connection", message: "hi", segments: [] },
+      data: {
+        businessId: business.businessId,
+        name: "No Connection Campaign",
+        channel: "channel-with-no-connection",
+        message: "hi",
+        segments: [],
+      },
     });
 
-    await handleExecuteCampaign(ctx(), { businessId: business.businessId, campaignId: campaign.id });
+    await handleExecuteCampaign(ctx(), {
+      businessId: business.businessId,
+      campaignId: campaign.id,
+    });
 
     const finalCampaign = await rawClient.campaign.findUnique({ where: { id: campaign.id } });
     expect(finalCampaign?.status).toBe("paused");

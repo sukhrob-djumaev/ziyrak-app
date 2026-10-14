@@ -24,11 +24,24 @@ Updated 2026-10-15 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
 P1 active checkout `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly`,
 parent R3 checkpoint2adfc1b. Explicit matrix written; first team/connection slice
 implemented after7failed/1passed regressions, targeted21passed. Full134files1194passed/23optional Redis skips, focused21/type/lint passed.
-First-slice production build/browser rerun and full P1 acceptance remain open. Preparation identified team-update
+First slice1322b03 / runtime80b5f33 buildwLh2ej40gDoE5_A4LJVCH and all17 browser journeys passed; owned topology stopped. Full P1 acceptance remains open. Preparation identified team-update
 owner escalation/global credential edits, same-contact cross-connection reuse,
 related-resource/stream leakage and delayed authority loss. No P1 criterion passed
 or new platform authority enabled yet. Keep restricted access unavailable until
 all exposed paths enforce it; secured provisioning precedes P3 invitations.
+
+Foundation implemented in this P1 tree: selected-workspace entry/UI, normalized
+scope guard, API-key issuer ceiling, related-query/reference checks, guarded short
+writes and lifecycle retirement. Three migrations applied only to isolated P1 test
+and signup-test DBs. Full141files1253pass/23optional skips; signup-seeded73files751pass;
+type/strict lint pass. Lifecycle22pass. Independent source/security and targeted
+final privacy rechecks report no further confirmed foundation issue after repairs;
+reviewers did not run tests. Foundation browser/build acceptance remains pending.
+Earlier concurrent full/seeded runs hit connection limits and are not acceptance.
+Next: coherent local foundation checkpoint, isolated production build and fresh
+full browser rerun plus workspace-choice journey; then fresh stream/delegated
+authority and platform/support workflows. Tool-only followup targets still need
+durable parent binding in the delayed-work slice. P1 remains open, not live-ready.
 
 ## Runtime and prohibited actions
 

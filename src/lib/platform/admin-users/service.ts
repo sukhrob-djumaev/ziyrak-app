@@ -4,6 +4,23 @@ import { ROLES, hasPermission } from "@/lib/rbac/rbac";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { effectiveResourceScope } from "@/lib/tenancy/resource-query";
+
+function assertWorkspaceDelegation(
+  ctx: TenantContext,
+  permission: "admin:create" | "admin:update" | "admin:delete"
+) {
+  if (
+    ctx.actor.kind !== "user" ||
+    !hasPermission(ctx.role ?? "", permission) ||
+    effectiveResourceScope(ctx).kind !== "workspace"
+  )
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Team access management requires workspace-wide human authority"
+    );
+}
 
 /**
  * PLAN.md §46.1/§46.2 — "admin users" now means "this business's own team
@@ -76,6 +93,7 @@ export interface CreateInput {
 const INVITABLE_ROLES = ROLES.filter((r) => r !== "owner");
 
 export async function create(ctx: TenantContext, input: CreateInput) {
+  assertWorkspaceDelegation(ctx, "admin:create");
   const username = input.username.trim();
   const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) throw new AppError(409, "CONFLICT", "Username already exists");
@@ -91,7 +109,13 @@ export async function create(ctx: TenantContext, input: CreateInput) {
 
   const db = getScopedPrisma(ctx);
   const membership = await db.membership.create({
-    data: { businessId: ctx.businessId, userId: user.id, role },
+    data: {
+      businessId: ctx.businessId,
+      userId: user.id,
+      role,
+      scopeMode: "workspace",
+      customerProfileAccess: effectiveResourceScope(ctx).customerProfileAccess,
+    },
   });
 
   return toView({ ...membership, user });
@@ -104,6 +128,7 @@ export interface UpdateInput {
 }
 
 export async function update(ctx: TenantContext, membershipId: string, input: UpdateInput) {
+  assertWorkspaceDelegation(ctx, "admin:update");
   const db = getScopedPrisma(ctx);
   const membership = await db.membership.findUnique({
     where: { id: membershipId },
@@ -158,6 +183,7 @@ export async function update(ctx: TenantContext, membershipId: string, input: Up
 }
 
 export async function remove(ctx: TenantContext, membershipId: string): Promise<void> {
+  assertWorkspaceDelegation(ctx, "admin:delete");
   const db = getScopedPrisma(ctx);
   const membership = await db.membership.findUnique({ where: { id: membershipId } });
   if (!membership) throw new NotFoundError("User");

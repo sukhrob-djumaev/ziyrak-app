@@ -11,7 +11,12 @@ vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal())
 
 import { generateToken } from "@/lib/identity/auth";
 import { createRequest, parseJsonResponse } from "../helpers/request";
-import { seedBusiness, cleanupBusiness, addMember, type SeededBusiness } from "../helpers/tenant-fixtures";
+import {
+  seedBusiness,
+  cleanupBusiness,
+  addMember,
+  type SeededBusiness,
+} from "../helpers/tenant-fixtures";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { toolRegistry } from "@/lib/tools/registry";
 import "@/lib/tools/builtin";
@@ -35,7 +40,11 @@ afterAll(async () => {
   await cleanupBusiness(businessB.businessId);
 });
 
-function authedRequest(path: string, token: string, options: Parameters<typeof createRequest>[1] = {}) {
+function authedRequest(
+  path: string,
+  token: string,
+  options: Parameters<typeof createRequest>[1] = {}
+) {
   return createRequest(path, { ...options, cookies: { "owly-token": token, ...options.cookies } });
 }
 
@@ -43,7 +52,12 @@ async function seedPendingApproval(business: SeededBusiness) {
   await getScopedPrisma(business.ctx).toolPolicy.upsert({
     where: { businessId_tool: { businessId: business.businessId, tool: "noop_test_action" } },
     update: { allowedForAI: true, requiresHumanApproval: true },
-    create: { businessId: business.businessId, tool: "noop_test_action", allowedForAI: true, requiresHumanApproval: true },
+    create: {
+      businessId: business.businessId,
+      tool: "noop_test_action",
+      allowedForAI: true,
+      requiresHumanApproval: true,
+    },
   });
 
   const aiCtx: TenantContext = {
@@ -51,12 +65,22 @@ async function seedPendingApproval(business: SeededBusiness) {
     role: null,
     actor: { kind: "ai_agent", conversationId: `conv-${business.businessId}`, model: "test-model" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   };
-  const result = await toolRegistry.execute(aiCtx, "noop_test_action", {}, { toolCallId: `tc-${Date.now()}-${Math.random()}` });
+  const result = await toolRegistry.execute(
+    aiCtx,
+    "noop_test_action",
+    {},
+    { toolCallId: `tc-${Date.now()}-${Math.random()}` }
+  );
   expect(result.status).toBe("pending_approval");
 
   const row = await getScopedPrisma(business.ctx).actionExecution.findFirst({
-    where: { businessId: business.businessId, tool: "noop_test_action", status: "pending_approval" },
+    where: {
+      businessId: business.businessId,
+      tool: "noop_test_action",
+      status: "pending_approval",
+    },
     orderBy: { createdAt: "desc" },
   });
   return row!;
@@ -67,15 +91,20 @@ describe("POST /api/actions/[id]/approve and /reject (§23.4/§46.6)", () => {
     const pending = await seedPendingApproval(businessA);
 
     const { POST } = await import("@/app/api/actions/[id]/approve/route");
-    const response = await POST(authedRequest(`/api/actions/${pending.id}/approve`, ownerTokenA, { method: "POST" }), {
-      params: Promise.resolve({ id: pending.id }),
-    });
+    const response = await POST(
+      authedRequest(`/api/actions/${pending.id}/approve`, ownerTokenA, { method: "POST" }),
+      {
+        params: Promise.resolve({ id: pending.id }),
+      }
+    );
     const data = await parseJsonResponse(response);
 
     expect(response.status).toBe(200);
     expect(data.status).toBe("succeeded");
 
-    const finalRow = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({ where: { id: pending.id } });
+    const finalRow = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({
+      where: { id: pending.id },
+    });
     expect(finalRow?.status).toBe("succeeded");
   });
 
@@ -83,12 +112,17 @@ describe("POST /api/actions/[id]/approve and /reject (§23.4/§46.6)", () => {
     const pending = await seedPendingApproval(businessA);
 
     const { POST } = await import("@/app/api/actions/[id]/reject/route");
-    const response = await POST(authedRequest(`/api/actions/${pending.id}/reject`, ownerTokenA, { method: "POST" }), {
-      params: Promise.resolve({ id: pending.id }),
-    });
+    const response = await POST(
+      authedRequest(`/api/actions/${pending.id}/reject`, ownerTokenA, { method: "POST" }),
+      {
+        params: Promise.resolve({ id: pending.id }),
+      }
+    );
 
     expect(response.status).toBe(200);
-    const finalRow = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({ where: { id: pending.id } });
+    const finalRow = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({
+      where: { id: pending.id },
+    });
     expect(finalRow?.status).toBe("cancelled");
   });
 
@@ -96,12 +130,17 @@ describe("POST /api/actions/[id]/approve and /reject (§23.4/§46.6)", () => {
     const pending = await seedPendingApproval(businessA);
 
     const { POST } = await import("@/app/api/actions/[id]/approve/route");
-    const response = await POST(authedRequest(`/api/actions/${pending.id}/approve`, viewerTokenA, { method: "POST" }), {
-      params: Promise.resolve({ id: pending.id }),
-    });
+    const response = await POST(
+      authedRequest(`/api/actions/${pending.id}/approve`, viewerTokenA, { method: "POST" }),
+      {
+        params: Promise.resolve({ id: pending.id }),
+      }
+    );
 
     expect(response.status).toBe(403);
-    const row = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({ where: { id: pending.id } });
+    const row = await getScopedPrisma(businessA.ctx).actionExecution.findUnique({
+      where: { id: pending.id },
+    });
     expect(row?.status).toBe("pending_approval"); // untouched
   });
 
@@ -109,12 +148,17 @@ describe("POST /api/actions/[id]/approve and /reject (§23.4/§46.6)", () => {
     const pendingB = await seedPendingApproval(businessB);
 
     const { POST } = await import("@/app/api/actions/[id]/approve/route");
-    const response = await POST(authedRequest(`/api/actions/${pendingB.id}/approve`, ownerTokenA, { method: "POST" }), {
-      params: Promise.resolve({ id: pendingB.id }),
-    });
+    const response = await POST(
+      authedRequest(`/api/actions/${pendingB.id}/approve`, ownerTokenA, { method: "POST" }),
+      {
+        params: Promise.resolve({ id: pendingB.id }),
+      }
+    );
 
     expect(response.status).toBe(404); // §33.3 — indistinguishable from "does not exist"
-    const row = await getScopedPrisma(businessB.ctx).actionExecution.findUnique({ where: { id: pendingB.id } });
+    const row = await getScopedPrisma(businessB.ctx).actionExecution.findUnique({
+      where: { id: pendingB.id },
+    });
     expect(row?.status).toBe("pending_approval"); // untouched by Business A's attempt
   });
 });

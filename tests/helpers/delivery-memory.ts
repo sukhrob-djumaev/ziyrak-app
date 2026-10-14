@@ -20,6 +20,7 @@ export function installDeliveryMemory(client: Record<string, unknown>) {
       response: null,
       attempts: 0,
       metadata: {},
+      retiredAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       ...create,
@@ -35,8 +36,13 @@ export function installDeliveryMemory(client: Record<string, unknown>) {
   });
   delegate.updateMany.mockImplementation(async ({ where, data }: { where: Row; data: Row }) => {
     let count = 0;
-    for (const row of rows.values()) {
-      const matches = Object.entries(where).every(([key, value]) => {
+    const matchesWhere = (row: Row, filter: Row): boolean =>
+      Object.entries(filter).every(([key, value]) => {
+        if (key === "AND")
+          return (Array.isArray(value) ? value : [value]).every((item) =>
+            matchesWhere(row, item as Row)
+          );
+        if (key === "OR") return (value as Row[]).some((item) => matchesWhere(row, item));
         if (value && typeof value === "object" && "in" in value)
           return (value.in as unknown[]).includes(row[key]);
         if (value && typeof value === "object" && "lt" in value)
@@ -44,6 +50,8 @@ export function installDeliveryMemory(client: Record<string, unknown>) {
         if (key === "updatedAt") return (row[key] as Date).getTime() === (value as Date).getTime();
         return row[key] === value;
       });
+    for (const row of rows.values()) {
+      const matches = matchesWhere(row, where);
       if (!matches) continue;
       for (const [key, value] of Object.entries(data))
         row[key] =

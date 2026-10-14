@@ -1,5 +1,5 @@
 import type { TenantContext } from "@/lib/tenancy/context";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { resolveCustomer } from "@/lib/customers/customer-resolver";
 import { chat } from "@/lib/ai/engine";
 import { evaluateRules, applyAutomationActions } from "@/lib/automations/automation";
@@ -19,6 +19,7 @@ import {
   DeliveryRefusedError,
   projectDeliveryStatus,
 } from "./delivery";
+import { WorkRetiredError } from "@/lib/tenancy/work-lifecycle";
 import { NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 import { logActivity } from "@/lib/observability/activity";
@@ -82,12 +83,15 @@ export class ConversationIdUnavailableError extends NotFoundError {
 
 export async function resolveOrCreateConversation(
   ctx: TenantContext,
-  event: ZiyrakEvent<MessageReceivedPayload>
+  event: ZiyrakEvent<MessageReceivedPayload>,
+  repository?: Pick<ScopedPrisma, "customer" | "conversation" | "activityLog">,
+  afterCommit?: (() => void)[]
 ) {
-  const db = getScopedPrisma(ctx);
+  const db = repository ?? getScopedPrisma(ctx);
 
   if (event.conversationId && event.source.channel === "webchat") {
     const existing = await db.conversation.findUnique({ where: { id: event.conversationId } });
+    if (existing?.retiredAt) throw new WorkRetiredError();
     if (existing) {
       // PLAN.md §46.7 — `WebChatAdapter.validateInbound` already refuses this
       // case before a receipt is ever written; this is the second,
@@ -120,7 +124,8 @@ export async function resolveOrCreateConversation(
           ctx,
           event.source.channel,
           event.payload.customerContact,
-          event.payload.customerName
+          event.payload.customerName,
+          db
         )
       : undefined;
 
@@ -155,14 +160,18 @@ export async function resolveOrCreateConversation(
       created.id,
       `New webchat conversation started by ${event.payload.customerName}`,
       undefined,
-      { channel: "webchat" }
+      { channel: "webchat" },
+      db
     );
-    emitNewConversation(ctx.businessId, created.id, { channel: "webchat" });
+    const announce = () => emitNewConversation(ctx.businessId, created.id, { channel: "webchat" });
+    if (afterCommit) afterCommit.push(announce);
+    else announce();
     return created;
   }
 
   if (event.conversationId) {
     const existing = await db.conversation.findUnique({ where: { id: event.conversationId } });
+    if (existing?.retiredAt) throw new WorkRetiredError();
     // Authenticated internal chat returns its response directly. Its synthetic
     // connection is not the external connection that owns an existing thread.
     if (
@@ -197,11 +206,13 @@ export async function resolveOrCreateConversation(
       customerContact,
       undefined,
       undefined,
-      event.source.connectionId
+      event.source.connectionId,
+      db,
+      afterCommit
     );
   }
 
-  const customerId = await resolveCustomer(ctx, channel, customerContact, customerName);
+  const customerId = await resolveCustomer(ctx, channel, customerContact, customerName, db);
 
   const existing = await db.conversation.findFirst({
     where: {
@@ -210,6 +221,7 @@ export async function resolveOrCreateConversation(
       // threads are not inferred to belong to whichever connection arrived next.
       metadata: { path: ["channelConnectionId"], equals: event.source.connectionId },
       status: { in: ["active", "escalated"] },
+      retiredAt: null,
       OR: [{ customerId }, { customerContact }],
     },
   });
@@ -223,7 +235,9 @@ export async function resolveOrCreateConversation(
       customerContact,
       customerId,
       undefined,
-      event.source.connectionId
+      event.source.connectionId,
+      db,
+      afterCommit
     ))
   );
 }
@@ -251,11 +265,26 @@ export async function processInboundMessage(
   runtime?: { receiptId: string }
 ): Promise<OutboundResult> {
   if (event.businessId !== ctx.businessId) throw new NotFoundError("Inbound event");
-  const prepare = async (recordConversation?: (id: string) => Promise<void>) => {
-    const conversation = await resolveOrCreateConversation(ctx, event);
-    if (recordConversation) await recordConversation(conversation.id);
+  let workCtx = ctx;
+  const prepare = async (
+    recordConversation?: (
+      id: string,
+      repository?: Pick<ScopedPrisma, "deliveryOperation">
+    ) => Promise<void>
+  ) => {
+    const afterCommit: (() => void)[] = [];
+    const conversation = await getScopedPrisma(workCtx).$transaction(async (tx) => {
+      const resolved = await resolveOrCreateConversation(workCtx, event, tx, afterCommit);
+      if (recordConversation) await recordConversation(resolved.id, tx);
+      return resolved;
+    });
+    const preparationCtx: TenantContext = {
+      ...workCtx,
+      workBinding: { ...workCtx.workBinding, conversationId: conversation.id },
+    };
+    for (const announce of afterCommit) announce();
     const matchedActions = await evaluateRules(
-      ctx,
+      preparationCtx,
       {
         content: event.payload.text,
         channel: event.source.channel,
@@ -267,9 +296,13 @@ export async function processInboundMessage(
         customerName: event.payload.customerName,
       }
     );
-    const overrideResponse = await applyAutomationActions(ctx, conversation, matchedActions);
+    const overrideResponse = await applyAutomationActions(
+      preparationCtx,
+      conversation,
+      matchedActions
+    );
     const response = await chat(
-      ctx,
+      preparationCtx,
       conversation.id,
       event.payload.text,
       overrideResponse ? { overrideResponse } : undefined
@@ -287,7 +320,15 @@ export async function processInboundMessage(
     recipient: event.payload.customerContact,
     metadata: event.metadata,
   });
-  const prepared = await prepareDelivery(ctx, op, prepare);
+  workCtx = {
+    ...ctx,
+    workBinding: {
+      ...ctx.workBinding,
+      deliveryOperationId: op.id,
+      ...(runtime && { receiptId: runtime.receiptId }),
+    },
+  };
+  const prepared = await prepareDelivery(workCtx, op, prepare);
   const result = await dispatchDelivery(ctx, prepared.id);
   if (result.status === "rejected" && result.retryable) throw new DeliveryRefusedError(true);
   return {

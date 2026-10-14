@@ -18,7 +18,11 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => importOriginal());
 import { prisma } from "@/lib/prisma/raw-client";
 import { cookies } from "next/headers";
 import { generateToken, verifyToken, purgeExpiredRevokedTokens } from "@/lib/identity/auth";
-import { requireAuth, isAuthenticated, getTenantContextFromCookies } from "@/lib/identity/route-auth";
+import {
+  requireAuth,
+  isAuthenticated,
+  getTenantContextFromCookies,
+} from "@/lib/identity/route-auth";
 import { POST as authPost, GET as authGet } from "@/app/api/auth/route";
 import { proxy } from "@/proxy";
 import { GET as realtimeGet } from "@/app/api/realtime/route";
@@ -41,8 +45,16 @@ beforeEach(async () => {
   await resetRateLimitsForTesting();
 });
 
-const authed = (token: string, path = "/api/conversations") => createRequest(path, { cookies: { "owly-token": token } });
-const logout = (token: string) => authPost(createRequest("/api/auth", { method: "POST", body: { action: "logout" }, cookies: { "owly-token": token } }));
+const authed = (token: string, path = "/api/conversations") =>
+  createRequest(path, { cookies: { "owly-token": token } });
+const logout = (token: string) =>
+  authPost(
+    createRequest("/api/auth", {
+      method: "POST",
+      body: { action: "logout" },
+      cookies: { "owly-token": token },
+    })
+  );
 
 describe("token identity", () => {
   it("gives every token its own jti, readable after verification", () => {
@@ -79,7 +91,12 @@ describe("logout revokes the presented session", () => {
   it("is refused for server components and /api/auth too", async () => {
     const token = generateToken(business.ownerUserId);
     const cookieStore = await cookies();
-    vi.mocked(cookieStore.get).mockImplementation(((name: string) => (name === "owly-token" ? { name, value: token } : undefined)) as never);
+    vi.mocked(cookieStore.get).mockImplementation(((name: string) =>
+      name === "owly-token"
+        ? { name, value: token }
+        : name === "ziyrak-workspace"
+          ? { name, value: business.businessId }
+          : undefined) as never);
     expect(await getTenantContextFromCookies()).not.toBeNull();
     expect((await (await authGet()).json()).authenticated).toBe(true);
     await logout(token);
@@ -90,7 +107,10 @@ describe("logout revokes the presented session", () => {
 
   it("is refused at the page gate (proxy) with a redirect to /login", async () => {
     const token = generateToken(business.ownerUserId);
-    const page = () => proxy(new NextRequest("http://localhost:3000/", { headers: { cookie: `owly-token=${token}` } }));
+    const page = () =>
+      proxy(
+        new NextRequest("http://localhost:3000/", { headers: { cookie: `owly-token=${token}` } })
+      );
     expect((await page()).headers.get("location") ?? "").not.toContain("/login");
     await logout(token);
     const after = await page();
@@ -112,21 +132,30 @@ describe("logout revokes the presented session", () => {
 describe("logout with tokens that cannot be revoked", () => {
   it("clears the cookie and writes nothing for a forged token", async () => {
     const before = await prisma.revokedToken.count();
-    const forged = jwt.sign({ userId: business.ownerUserId }, "attacker-secret", { jwtid: "forged-jti", expiresIn: "7d" });
+    const forged = jwt.sign({ userId: business.ownerUserId }, "attacker-secret", {
+      jwtid: "forged-jti",
+      expiresIn: "7d",
+    });
     const response = await logout(forged);
     expect(response.status).toBe(200);
     expect(await prisma.revokedToken.count()).toBe(before);
   });
 
   it("keeps honouring a legacy token that has no jti (issued before this change) until it expires", async () => {
-    const legacy = jwt.sign({ userId: business.ownerUserId }, process.env.JWT_SECRET ?? "test-only-fallback-secret", { expiresIn: "7d" });
+    const legacy = jwt.sign(
+      { userId: business.ownerUserId },
+      process.env.JWT_SECRET ?? "test-only-fallback-secret",
+      { expiresIn: "7d" }
+    );
     expect(isAuthenticated(await requireAuth(authed(legacy)))).toBe(true);
     const response = await logout(legacy);
     expect(response.status).toBe(200); // cookie cleared; nothing to record
   });
 
   it("logout with no cookie at all still succeeds", async () => {
-    const response = await authPost(createRequest("/api/auth", { method: "POST", body: { action: "logout" } }));
+    const response = await authPost(
+      createRequest("/api/auth", { method: "POST", body: { action: "logout" } })
+    );
     expect(response.status).toBe(200);
   });
 });
@@ -198,10 +227,17 @@ describe("review findings: live streams, failed revocation, rate limit", () => {
 
   it("does not let sign-outs consume the login brute-force budget", async () => {
     const post = (body: Record<string, unknown>) =>
-      proxy(new NextRequest("http://localhost:3000/api/auth", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" } }));
+      proxy(
+        new NextRequest("http://localhost:3000/api/auth", {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
+        })
+      );
     for (let i = 0; i < 12; i++) expect((await post({ action: "logout" })).status).not.toBe(429);
     // The login budget (5/min) is untouched by those 12 sign-outs...
-    for (let i = 0; i < 5; i++) expect((await post({ action: "login", username: "x", password: "y" })).status).not.toBe(429);
+    for (let i = 0; i < 5; i++)
+      expect((await post({ action: "login", username: "x", password: "y" })).status).not.toBe(429);
     // ...and still enforced for logins.
     expect((await post({ action: "login", username: "x", password: "y" })).status).toBe(429);
   });

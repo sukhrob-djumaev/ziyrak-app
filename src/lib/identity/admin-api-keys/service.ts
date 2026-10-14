@@ -1,6 +1,7 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { NotFoundError } from "@/lib/observability/errors";
+import { validateResourceScope, hasTenantPermission } from "@/lib/tenancy/resource-scope";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 import crypto from "crypto";
 
 /** PLAN.md §16.2/§9.4 — application-service layer for "admin/api-keys". */
@@ -33,6 +34,13 @@ function generateApiKey(): { fullKey: string; keyPrefix: string; keyHash: string
 }
 
 export async function create(ctx: TenantContext, name: string) {
+  if (
+    ctx.actor.kind !== "user" ||
+    ctx.authorization?.kind === "support" ||
+    !hasTenantPermission(ctx, "admin:create")
+  )
+    throw new AppError(403, "FORBIDDEN", "An authorized workspace member is required");
+  const scope = validateResourceScope(ctx.resourceScope);
   const db = getScopedPrisma(ctx);
   const { fullKey, keyPrefix, keyHash } = generateApiKey();
 
@@ -45,6 +53,17 @@ export async function create(ctx: TenantContext, name: string) {
       // Capped below "owner" per §9.1/§9.4 — a leaked long-lived key must
       // never be able to reach owner-only actions (deleting the business).
       role: "agent",
+      scopeMode: scope.kind,
+      scopeOrigin: "issuer",
+      issuedByUserId: ctx.actor.userId,
+      customerProfileAccess: scope.customerProfileAccess,
+      ...(scope.kind === "connections" && {
+        connectionScopes: {
+          create: scope.connectionIds.map((connectionId) => ({
+            connectionId,
+          })),
+        },
+      }),
     },
   });
 

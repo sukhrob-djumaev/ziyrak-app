@@ -304,6 +304,14 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   production web/worker/Redis/stand-in/Chromium, owned topology stopped. See
   `docs/p1-widget-poll-authority-2026-10-15.md`. P1 remains incomplete.
 
+- **Secured enrollment checkpoint (2026-10-15):** bootstrap/recovery service and
+  own-account UI/API implemented in isolated P1. Seventeen realPG cases and86route
+  coverage checks passed; tests-first actor/IP rate evasion repaired, independent
+  targeted source/security reviews found no remaining confirmed finding. Frozen
+  full144files1301passed/23optional skips, signup75files794passed, type/lint passed.
+  Actual new UI/full20browser run pending; no live enrollment, operator/support
+  activation or P1 closure. See `docs/p1-platform-enrollment-2026-10-15.md`.
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

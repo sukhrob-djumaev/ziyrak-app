@@ -277,9 +277,40 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   target workspace, scope, reason and lifetime. P3 supplies the shared invitation
   lifecycle; until then use secured operator provisioning, never public role assignment.
 - **Result (2026-10-15):** explicit permission contract and tests-first team/connection
-  slice in isolated P1 worktree; initial regressions7failed/1passed, targeted
-  checks21passed after fixes. Full final run underway; platform/scope/lifecycle
-  foundation and required browser/security acceptance remain open.
+  slice1322b03 plus foundation524fc17 in isolated P1 worktrees. Foundation full
+  141files1253passed/23optional skips; signup-seeded73files751passed; type/strict lint
+  and independent source/security/privacy rechecks passed after confirmed repairs.
+  Runtime ddfb28b/buildwGZWKxtJLXDsM9Bpq5mC2: fresh all17 browser journeys passed;
+  native Chrome owner/viewer workspace choice/switch and viewer Settings denial passed.
+  Second viewer membership was a synthetic DB prerequisite, not invitation evidence.
+  Owned topology stopped; live main product unchanged. New stream/delegated authority,
+  platform bootstrap/support grant lifecycle and full actual-role matrix remain open.
+  Stream slice92ae475/runtime b4a317f: full143files1277passed/23optional skips,
+  signup74files770passed, type/lint and independent source recheck passed. Production
+  build5Wsu11zRYbUiAIFjLzkmu/frozen digestf72cadf...ef64 covered all19 journeys through
+  first17 and corrected J18/J19 continuations; first runner failed at new harness
+  setup, not claimed as an uninterrupted19-script pass. Real Redis web/worker frames,
+  widget visitor binding/token rotation, workspace choice/revocation and UI logout
+  were verified. Saved/current PID/birth/cwd checks confirmed owned topology stopped.
+  Platform/support, delayed authority and full role matrix remain open. No P1 closure
+  or real-provider claim. See [P1 evidence](docs/p1-access-implementation-2026-10-15.md)
+  and [stream evidence](docs/p1-stream-authority-2026-10-15.md).
+
+- **Polling follow-up (2026-10-15):** c56686d (runtime d026791) denies wrong-channel/
+  retired initial widget reads and enforces current parent predicates in polling/
+  public cursors. Tests-first five failures repaired; focused58/full1283,
+  23optional skips, type/lint and independent targeted source recheck passed.
+  Fresh uninterrupted full19browser pass, build9146d4aHpG45JEXRsbL8K; isolated
+  production web/worker/Redis/stand-in/Chromium, owned topology stopped. See
+  `docs/p1-widget-poll-authority-2026-10-15.md`. P1 remains incomplete.
+
+- **Secured enrollment checkpoint (2026-10-15):** bootstrap/recovery service and
+  own-account UI/API implemented in isolated P1. Seventeen realPG cases and86route
+  coverage checks passed; tests-first actor/IP rate evasion repaired, independent
+  targeted source/security reviews found no remaining confirmed finding. Frozen
+  full144files1301passed/23optional skips, signup75files794passed, type/lint passed.
+  Actual new UI/full20browser run pending; no live enrollment, operator/support
+  activation or P1 closure. See `docs/p1-platform-enrollment-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits
 

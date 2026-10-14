@@ -15,7 +15,14 @@ Logs `/private/tmp/ziyrak-p1-widget-initial-read-red.log`,
 `/private/tmp/ziyrak-p1-widget-poll-race-{red,green}.log`,
 `/private/tmp/ziyrak-p1-widget-poll-{full,type,lint}.log`.
 
-Containing commit is established by Git. Fresh production build/full19journey
-rerun is still pending for this follow-up; prior stream browser evidence does not
-cover these new edits. No main product/live account/provider/runtime changes.
+Code c56686d705f8fde7eaf1bcb667d205435fa40239, runtime equivalent
+ d02679199fa6102e3705efb6180370890fda32be. Fresh migrated isolated
+`ziyrak_acceptance_p1_poll_20261015`, own Redis6381, production web/separate
+worker/local LLM stand-in/real Chromium: uninterrupted `run-all.sh` full19journeys
+passed. Build9146d4aHpG45JEXRsbL8K, digest
+b7569e24a080566e2ec239b56d8718481c93cb70f8efbc3216eafee371bf29e7.
+Artifacts runtime `scripts/acceptance/.work/p1-poll-20261015`, log
+`/private/tmp/ziyrak-p1-poll-browser.log`. Own topology stopped; exact saved/current
+PID/birth/cwd comparison found remainingOwned[]. No real-provider claim.
+No main product/live account/provider/runtime changes.
 P1 platform/support/delayed authority and complete role acceptance remain open.

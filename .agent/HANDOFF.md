@@ -1,18 +1,21 @@
-# Latest session: P1 widget polling follow-up
+# Latest checkpoint: secured platform enrollment
 
-Approved MS-2026-10-14, P1 remains incomplete; overnight cutoff08:00 KL.
-Isolated development worktree; stream checkpoint92ae475 (runtimeb4a317f).
-New initial public stream/poll channel and retirement checks; content and cursor
-queries repeat current parent predicates, cursor public roles only. Five tests-first
-failures repaired; focused58/full1283 (23optional)/type/strict lint passed; independent
-security source recheck no confirmed remaining issue. See
-`docs/p1-widget-poll-authority-2026-10-15.md`. Containing commit via Git.
+Approved P1, cutoff08:00 KL; no new phase/deployment authorization.
+Isolated development c56686d plus enrollment changes; containing commit via Git.
+Own-account bootstrap/recovery UI/API, separate hashed owner proofs, short shared
+control transaction, fresh revocable session/pointer-role authority, generation CAS,
+displaced-role/grant revocation and mandatory atomic audit. Actor-wide proof budget
+repaired after independent review/tests-first varied-IP regression. No tenant bypass.
 
-Fresh isolated production/full19 browser rerun pending for this follow-up. Prior
-stream build5Wsu11zRYbUiAIFjLzkmu remains historical to this follow-up. All owned
-stream topology processes stopped. Redis6381 remains task-owned for next checks.
+Frozen full1301/23optional, signup794, focused103, type/strict lint and independent
+source security rechecks passed. Runtime parentd026791 + identical frozen digest
+5607ad...dbb61/buildoNIe1NB_lH9Q5DEg-o0VY: full20browser including actual newJ20 is
+running; do not claim it passed yet. Polling c56686d/runtime d026791 full19previous
+fresh browser pass is separate. See docs/p1-platform-enrollment-2026-10-15.md.
 
-Next: platform bootstrap/recovery tests first, then provisioning/assignments/grants
-and delayed authority/complete role UI. Contract drafted/design reviewed, no live
-platform enrollment. Main product/dependencies/live services unchanged. R3 residual
-risk owner decision remains pending; no deployment/push/new phase authorization.
+Next: collect browser result, stop exact owned processes, record real evidence;
+then eligible operator/assignment/support/delayed authority work. Investigation
+confirmed unbound follow-up actions and absent delayed origin snapshots, not a
+proven retired-target send bypass. P1 remains incomplete. R3 owner residual-risk
+decision pending. Live main product/runtime/secrets unchanged. Own Redis6381 is
+retained; verify exactID/tasklabel for cleanup at morning cutoff.

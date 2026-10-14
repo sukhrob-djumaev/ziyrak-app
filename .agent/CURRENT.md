@@ -19,6 +19,7 @@ lint and independent targeted source security reviews passed. Redis17platform ca
 passed. Fresh uninterrupted full20browser plus supplementary five-role J21 passed
 on buildoNIe1NB_lH9Q5DEg-o0VY/runtime parentd026791+frozen product digest
 5607ad247b9ef70ebeed27c51f081e56a16b21a5f18c1e49340246bb8d4dbb61.
+Evidence40b06a2; equivalent runtime checkpoint963f19a6538f219d8569ba8fb869b70796b59245.
 Actual enrollment/recovery/audit, role API matrix and super-admin no-bypass proved;
 synthetic local proofs/accounts/LLM stand-in, no live-provider or invitation claim.
 See enrollment/role-browser/stream/widget/foundation evidence docs. Runtime product

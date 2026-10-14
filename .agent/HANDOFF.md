@@ -1,7 +1,8 @@
 # Morning handoff: P1 enrollment and role acceptance
 
 Approved overnight milestone work, P1 incomplete; no new phase/deployment approval.
-Code17f0707 (foundation524fc17/stream92ae475/pollingc56686d) in isolated P1 worktree.
+Code17f0707, evidence40b06a2, equivalent runtime963f19a
+(foundation524fc17/stream92ae475/pollingc56686d) in isolated P1 worktrees.
 Secured explicit-account bootstrap/recovery UI/API with fresh session/control role,
 generation CAS, atomic audit and actor-wide proof budget. Independent security
 review finding fixed with tests-first varied-IP regression; final recheck clear.

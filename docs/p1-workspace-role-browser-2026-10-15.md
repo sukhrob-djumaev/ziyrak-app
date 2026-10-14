@@ -12,7 +12,7 @@ through the real login page. Random fixture passwords remain in memory. Owner is
 the original real signup fixture. This is secured workspace account provisioning,
 not P3 invitation lifecycle or platform operator provisioning evidence.
 
-Observed checks (every positive item returned the exact persisted ID):
+Observed checks (each authorized conversation read returned its exact persisted ID):
 
 | Actual role | Own known conversation | User list | Business settings | Approval read | Owner demotion | Foreign known conversation |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -38,7 +38,7 @@ expectation before execution; changed to current workspace `/api/settings/busine
 It also prompted exact-object positive read, table-row and cookie-only controls.
 No execution or acceptance claim comes from source review. Restricted-connection
 UI, platform operators/assignments/support and delayed authority remain unfinished
-P1 criteria even if this full-workspace role matrix passes.
+P1 criteria after this full-workspace role matrix pass.
 
 Execution log `/private/tmp/ziyrak-p1-workspace-role-browser.log`; artifacts under
 runtime `scripts/acceptance/.work/p1-enrollment-20261015`, including five role

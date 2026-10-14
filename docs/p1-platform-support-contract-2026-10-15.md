@@ -87,7 +87,8 @@ review remain required. Synthetic local proofs/accounts are test evidence, not
 production bootstrap or permission to alter live accounts/secret configuration.
 
 Independent read-only design review verified fit with PLAN and supplied these
-race/audit tests. It is not implementation security signoff. Bootstrap/recovery authority and its enrollment API/UI are now implemented in the
+race/audit tests. It is not implementation security signoff. Bootstrap/recovery
+authority and its enrollment API/UI are now implemented in the
 isolated P1 worktree; the broader operator/assignment/support contracts above
 remain unimplemented. Their admission, streams and delayed-work integration must
 pass before support activation. P1 remains incomplete.

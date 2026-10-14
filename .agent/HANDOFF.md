@@ -1,21 +1,28 @@
-# Latest checkpoint: secured platform enrollment
+# Morning handoff: P1 enrollment and role acceptance
 
-Approved P1, cutoff08:00 KL; no new phase/deployment authorization.
-Isolated development c56686d plus enrollment changes; containing commit via Git.
-Own-account bootstrap/recovery UI/API, separate hashed owner proofs, short shared
-control transaction, fresh revocable session/pointer-role authority, generation CAS,
-displaced-role/grant revocation and mandatory atomic audit. Actor-wide proof budget
-repaired after independent review/tests-first varied-IP regression. No tenant bypass.
+Approved overnight milestone work, P1 incomplete; no new phase/deployment approval.
+Code17f0707 (foundation524fc17/stream92ae475/pollingc56686d) in isolated P1 worktree.
+Secured explicit-account bootstrap/recovery UI/API with fresh session/control role,
+generation CAS, atomic audit and actor-wide proof budget. Independent security
+review finding fixed with tests-first varied-IP regression; final recheck clear.
 
-Frozen full1301/23optional, signup794, focused103, type/strict lint and independent
-source security rechecks passed. Runtime parentd026791 + identical frozen digest
-5607ad...dbb61/buildoNIe1NB_lH9Q5DEg-o0VY: full20browser including actual newJ20 is
-running; do not claim it passed yet. Polling c56686d/runtime d026791 full19previous
-fresh browser pass is separate. See docs/p1-platform-enrollment-2026-10-15.md.
+Full1301/23optional, signup794, focused103, Redis17platform cases, type/strict lint
+passed. Fresh production full20runner passed uninterrupted. Supplementary J21
+passed on the same frozen buildoNIe1NB_lH9Q5DEg-o0VY/digest5607ad...dbb61, runtime
+parentd026791+dirty source identical to17f0707. Actual UI creation/login of all five
+workspace roles, owner protection, foreign isolation, enrollment/recovery/audit and
+super-admin no implicit tenant access proved. Stand-in AI/synthetic accounts/proofs;
+no live-provider, P3 invitation or platform-operator/support claim. Screenshots read.
+Evidence: docs/p1-platform-enrollment-2026-10-15.md and role-browser evidence.
 
-Next: collect browser result, stop exact owned processes, record real evidence;
-then eligible operator/assignment/support/delayed authority work. Investigation
-confirmed unbound follow-up actions and absent delayed origin snapshots, not a
-proven retired-target send bypass. P1 remains incomplete. R3 owner residual-risk
-decision pending. Live main product/runtime/secrets unchanged. Own Redis6381 is
-retained; verify exactID/tasklabel for cleanup at morning cutoff.
+Owned topology stopped; exact PID/birth/cwd comparison remainingOwned[]. Task Redis
+6381 stopped/removed only after exactID/name/tasklabel verification. Main product,
+live services/accounts/secrets unchanged. Later runtime checkpoint HEAD requires
+fresh acceptance build before startup; historical metadata must not be reused.
+
+Next: secured operator provisioning/assignments, audited explicit support lifecycle,
+then fresh delayed origin authority and restricted UI acceptance. Contract prepared;
+delayed investigation documented concrete lineage/provenance gaps and tests-first
+packet, not a newly proven retired-target send bypass. Existing Administration
+page shell/control presentation is open; protected rows/actions deny. R3 residual
+owner-risk decision still pending. No P1 closure, push, deploy or new milestone.

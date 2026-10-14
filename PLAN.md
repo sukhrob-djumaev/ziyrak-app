@@ -309,8 +309,13 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   coverage checks passed; tests-first actor/IP rate evasion repaired, independent
   targeted source/security reviews found no remaining confirmed finding. Frozen
   full144files1301passed/23optional skips, signup75files794passed, type/lint passed.
-  Actual new UI/full20browser run pending; no live enrollment, operator/support
-  activation or P1 closure. See `docs/p1-platform-enrollment-2026-10-15.md`.
+  Fresh uninterrupted full20browser command and supplementary J21 actual five-role
+  UI/API matrix passed on buildoNIe1NB_lH9Q5DEg-o0VY/unchanged digest5607ad...dbb61;
+  Redis-backed17platform cases also passed. Actual enrollment/recovery/audit and
+  super-admin no-bypass proved. Owned topology stopped. Existing Administration
+  page shell/control presentation remains open; protected rows/actions denied.
+  No live enrollment, operator/support activation or P1 closure. See
+  `docs/p1-platform-enrollment-2026-10-15.md` and role-browser evidence.
 
 ### P2 — Managed AI and usage limits
 

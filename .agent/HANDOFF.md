@@ -1,26 +1,22 @@
 # Latest session handoff
 
-2026-10-15 overnight, approved through08:00 Asia/Kuala_Lumpur.
-R1 checkpoint c894b63 locally complete; all17 browser scripts passed on63247f6,
-owned topology stopped. Real-provider boundary remains R4; no deployment.
+2026-10-15 overnight approved through08:00 KL. Main documentation checkpoint
+9a604f5; live main product/deps/provider/services unchanged.
+R1 locally verified c894b63; all17 browser scripts63247f6, stopped topology.
+R3 checkpoint2adfc1b (R1 integrated copy086f659): full1183, Redis1205,
+Node22 build/probes/type/lint/security review passed. Residual owner decision
+pending; details docs/r3-remediation-2026-10-15.md. Silence is not acceptance.
 
-R3 candidate in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`:
-five targeted overrides; automatic browser provisioning defaults off, Docker
-copies config before install and into runtime; CI pins both DB URLs. Baseline
-merge/parser regressions failed, patched passed. get-uri FTP compatibility and
-passive-host denial pass. Full132files/1183passed/23optional Redis skips;
-Redis132files/1205passed/1 intentional fallback skip; type/lint pass; actual
-Node22 Docker build and network-disabled nonroot consumed-version/config/security
-probe pass. Independent source/security review reports no confirmed new finding.
-Docker image1fa65810446e0721e8e8796f4e0dbb5ac3156eecd386f632c27ac739261bfd52.
+Active P1 `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly` parent2adfc1b.
+Explicit permission contract written. First team/connection slice: baseline7fail/
+1pass; focused21pass; full134files1194pass23optionalRedis skips; type/lintpass.
+Actual API-key denial and concurrentownerpromotion guarded; final independent
+source/security recheck found no confirmed issue. See docs/p1-access-implementation-2026-10-15.md. Production build/full
+browser rerun pending; no P1 completion claim. Next: selected workspace,
+platform/grant/scope schema and fresh authorization foundation, tests first.
 
-R3 safety baseline verified; closure pending owner decision on unpatched archive
-extractor/braces. Concrete controls/evidence in docs/r3-remediation-2026-10-15.md;
-async question sent, no answer yet. No silent acceptance; remote exact-commit CI
-required before any separately authorized merge. No live dependency changes.
-
-Next eligible P1 work: explicit permission/model contract, tests-first team
-privilege/global-identity and same-contact connection regressions, then scoped
-workspace/platform foundation. Read-only investigation complete; no P1 code yet.
-R3 owns separate deps/test DB, task-owned Redis6381 (recorded exact ID/tasklabel);
-R1 tree clean, dependencies not integrated. Protected main/live services unchanged.
+P1 DB ziyrak_p1_test_20261015, paired URLs. R3 DB separate; task-owned Redis6381
+exactIDfile/tasklabel retained. R1 checkout stopped, own deps refreshed afterR3.
+Never edit main source/deps/live.env, port7700/tunnel/providers, or liveDB. No
+name-based kills, push/merge/deploy/release/newmilestone. Finish reviews and owned
+cleanup; preserve real-provider/owner decisions at morning cutoff.

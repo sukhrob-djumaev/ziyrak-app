@@ -87,6 +87,10 @@ describe("POST /api/chat", () => {
   it("should use provided conversationId", async () => {
     const { chat } = await import("@/lib/ai/engine");
     (chat as ReturnType<typeof vi.fn>).mockResolvedValue("Response");
+    const { prisma } = await import("@/lib/prisma/raw-client");
+    (prisma.conversation.findUnique as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      id: "existing-conv",
+    });
 
     const { POST } = await import("@/app/api/chat/route");
     const request = createRequest("/api/chat", {

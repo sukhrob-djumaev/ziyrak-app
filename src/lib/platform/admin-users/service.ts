@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
-import { ROLES } from "@/lib/rbac/rbac";
+import { ROLES, hasPermission } from "@/lib/rbac/rbac";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
@@ -13,7 +13,7 @@ import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
  * control-plane, Membership itself is not) and goes through
  * `getScopedPrisma(ctx)` like any other tenant resource; `User` itself is
  * control-plane (a person may belong to more than one business, §9.2) and
- * is only ever touched here for the create/credential-update half of this
+ * is only ever touched here for the secured create half of this
  * feature — this file is in the ESLint raw-client allowlist for exactly
  * that reason, not to bypass tenant scoping on Membership.
  */
@@ -27,7 +27,12 @@ interface AdminUserView {
   createdAt: Date;
 }
 
-function toView(membership: { id: string; role: string; createdAt: Date; user: { id: string; username: string; name: string } }): AdminUserView {
+function toView(membership: {
+  id: string;
+  role: string;
+  createdAt: Date;
+  user: { id: string; username: string; name: string };
+}): AdminUserView {
   return {
     id: membership.id,
     userId: membership.user.id,
@@ -75,7 +80,9 @@ export async function create(ctx: TenantContext, input: CreateInput) {
   const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) throw new AppError(409, "CONFLICT", "Username already exists");
 
-  const role = INVITABLE_ROLES.includes(input.role as (typeof INVITABLE_ROLES)[number]) ? input.role! : "viewer";
+  const role = INVITABLE_ROLES.includes(input.role as (typeof INVITABLE_ROLES)[number])
+    ? input.role!
+    : "viewer";
 
   const hashed = await hashPassword(input.password);
   const user = await prisma.user.create({
@@ -98,29 +105,55 @@ export interface UpdateInput {
 
 export async function update(ctx: TenantContext, membershipId: string, input: UpdateInput) {
   const db = getScopedPrisma(ctx);
-  const membership = await db.membership.findUnique({ where: { id: membershipId }, include: { user: true } });
+  const membership = await db.membership.findUnique({
+    where: { id: membershipId },
+    include: { user: true },
+  });
   if (!membership) throw new NotFoundError("User");
 
-  if (input.role !== undefined && ROLES.includes(input.role as (typeof ROLES)[number])) {
-    // Prevent removing the last owner (§9.1 — exactly one accountable
-    // party per business is a structural requirement, not a preference).
-    if (membership.role === "owner" && input.role !== "owner") {
-      const ownerCount = await db.membership.count({ where: { role: "owner" } });
-      if (ownerCount <= 1) {
-        throw new AppError(400, "VALIDATION_ERROR", "Cannot change role of the last owner");
-      }
+  if (ctx.actor.kind !== "user" || !hasPermission(ctx.role ?? "", "admin:update")) {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Team role management requires an authorized workspace member"
+    );
+  }
+  // User is a shared identity, not a workspace resource. Credential/profile
+  // changes belong to authenticated account flows (P3), never team editing.
+  // Validate the entire request before any membership write.
+  if (input.name !== undefined || input.password !== undefined) {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Account identity cannot be changed through workspace team management"
+    );
+  }
+  if (input.role !== undefined) {
+    if (!ROLES.includes(input.role as (typeof ROLES)[number])) {
+      throw new AppError(400, "VALIDATION_ERROR", "Unknown workspace role");
     }
-    await db.membership.update({ where: { id: membershipId }, data: { role: input.role } });
+    if (input.role === "owner" || membership.role === "owner") {
+      throw new AppError(
+        403,
+        "FORBIDDEN",
+        "Ownership changes require the explicit ownership transfer flow"
+      );
+    }
+    await db.membership
+      .update({
+        where: { id: membershipId, role: { not: "owner" } },
+        data: { role: input.role },
+      })
+      .catch((error: unknown) => {
+        if ((error as { code?: string } | null)?.code === "P2025") throw new NotFoundError("User");
+        throw error;
+      });
   }
 
-  const userData: Record<string, unknown> = {};
-  if (input.name !== undefined) userData.name = input.name.trim();
-  if (input.password && input.password.length >= 6) userData.password = await hashPassword(input.password);
-  if (Object.keys(userData).length > 0) {
-    await prisma.user.update({ where: { id: membership.userId }, data: userData });
-  }
-
-  const updated = await db.membership.findUnique({ where: { id: membershipId }, include: { user: true } });
+  const updated = await db.membership.findUnique({
+    where: { id: membershipId },
+    include: { user: true },
+  });
   return toView(updated!);
 }
 
@@ -129,14 +162,23 @@ export async function remove(ctx: TenantContext, membershipId: string): Promise<
   const membership = await db.membership.findUnique({ where: { id: membershipId } });
   if (!membership) throw new NotFoundError("User");
 
+  if (ctx.actor.kind !== "user" || !hasPermission(ctx.role ?? "", "admin:delete")) {
+    throw new AppError(403, "FORBIDDEN", "Team removal requires an authorized workspace member");
+  }
   if (membership.role === "owner") {
-    const ownerCount = await db.membership.count({ where: { role: "owner" } });
-    if (ownerCount <= 1) {
-      throw new AppError(400, "VALIDATION_ERROR", "Cannot delete the last owner");
-    }
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Ownership changes require the explicit ownership transfer flow"
+    );
   }
 
   // Deletes only this business's Membership — the underlying User is not
   // tenant-owned and may belong to other businesses (§16.4/§9.2).
-  await db.membership.delete({ where: { id: membershipId } });
+  await db.membership
+    .delete({ where: { id: membershipId, role: { not: "owner" } } })
+    .catch((error: unknown) => {
+      if ((error as { code?: string } | null)?.code === "P2025") throw new NotFoundError("User");
+      throw error;
+    });
 }

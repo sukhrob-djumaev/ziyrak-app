@@ -45,11 +45,10 @@ export interface OutboundResult {
  *    exact id (Prisma accepts an explicit `id` on `create`), otherwise the
  *    existing one is reused (every later message in the same widget
  *    session).
- *  - `event.conversationId` set, any other channel (the internal chat
- *    API's "continue this conversation" case) → used as-is, unresolved
- *    here; `chat()` itself already returns "Conversation not found." for a
- *    bad id, so this stays a pure passthrough exactly like `/api/chat`
- *    today.
+ *  - Authenticated internal chat continuation resolves the id through the
+ *    tenant repository; it does not pretend its synthetic source owns a real
+ *    channel. Explicit real-channel ids must match channel, connection/contact.
+ *    Unknown/foreign ids fail before AI preparation.
  *  - no `conversationId` and no usable `customerContact` (the internal chat
  *    API's anonymous default) → always creates a new conversation, exactly
  *    matching `/api/chat`'s pre-Phase-5 behavior (it never searched for an
@@ -74,9 +73,9 @@ export interface OutboundResult {
  * another business. Permanent (retrying cannot help) and deliberately free of any
  * detail about whose it is.
  */
-export class ConversationIdUnavailableError extends Error {
+export class ConversationIdUnavailableError extends NotFoundError {
   constructor() {
-    super("The supplied conversation id is not available.");
+    super("Conversation");
     this.name = "ConversationIdUnavailableError";
   }
 }
@@ -163,7 +162,28 @@ export async function resolveOrCreateConversation(
   }
 
   if (event.conversationId) {
-    return { id: event.conversationId };
+    const existing = await db.conversation.findUnique({ where: { id: event.conversationId } });
+    // Authenticated internal chat returns its response directly. Its synthetic
+    // connection is not the external connection that owns an existing thread.
+    if (
+      event.source.channel === "api" &&
+      event.source.connectionId === "internal-chat-api" &&
+      (ctx.actor.kind === "user" || ctx.actor.kind === "api_key")
+    ) {
+      if (!existing) throw new ConversationIdUnavailableError();
+      return existing;
+    }
+    const connectionId = (existing?.metadata as Record<string, unknown> | null)
+      ?.channelConnectionId;
+    if (
+      !existing ||
+      existing.channel !== event.source.channel ||
+      connectionId !== event.source.connectionId ||
+      existing.customerContact !== event.payload.customerContact
+    ) {
+      throw new ConversationIdUnavailableError();
+    }
+    return existing;
   }
 
   const { channel } = event.source;
@@ -186,6 +206,9 @@ export async function resolveOrCreateConversation(
   const existing = await db.conversation.findFirst({
     where: {
       channel,
+      // Two same-type connections are independent resources. Legacy unstamped
+      // threads are not inferred to belong to whichever connection arrived next.
+      metadata: { path: ["channelConnectionId"], equals: event.source.connectionId },
       status: { in: ["active", "escalated"] },
       OR: [{ customerId }, { customerContact }],
     },

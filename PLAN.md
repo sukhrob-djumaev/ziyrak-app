@@ -31,9 +31,9 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
-| 1 | **R1 — Delivery reliability** | Implemented / local required checks passed (including all17 browser scripts); R4 provider boundary open | Rule 11 contract approved; saved-response retries and audited human recovery. |
-| 2 | **R3 — Operational safety** | In progress / audit and seven harness regressions executed; assembled rehearsal open | Harness repairs implemented; dependency remediation remains open. |
-| 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
+| 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
+| 2 | **R3 — Operational safety** | Implementation/local verification passed; residual owner decision pending | Verified isolated safety baseline;5high production/10high full advisories remain. |
+| 3 | **P1 — Platform and workspace access** | In progress; foundation and full acceptance open | Explicit contract; tests-first team and connection boundary slice under review. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
@@ -276,7 +276,10 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   retain legitimate access without gaining privilege. Support access records actor,
   target workspace, scope, reason and lifetime. P3 supplies the shared invitation
   lifecycle; until then use secured operator provisioning, never public role assignment.
-- **Result:** implementation not started; verification not run.
+- **Result (2026-10-15):** explicit permission contract and tests-first team/connection
+  slice in isolated P1 worktree; initial regressions7failed/1passed, targeted
+  checks21passed after fixes. Full final run underway; platform/scope/lifecycle
+  foundation and required browser/security acceptance remain open.
 
 ### P2 — Managed AI and usage limits
 

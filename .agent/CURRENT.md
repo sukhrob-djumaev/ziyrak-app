@@ -7,7 +7,7 @@ Updated 2026-10-15 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
 - R1 local criteria passed on63247f6/buildGg0DWAo-ZUcXzw2VozQmS: full1175,
   signup-seeded680, actual worker SIGKILL/natural recovery, security review,
   type/lint/build and all17 browser scripts. Owned topology stopped; R4 live
-  provider verification remains open. R1 checkpoint c894b63; tree clean.
+  provider verification remains open. R1 checkpoint c894b63; integrated R3 checkpoint086f659; tree clean.
 - R3 isolated candidate: targeted overrides, default archive-download suppression,
   paired CI DB URLs. Full1183/23optional skips; Redis1205/1intentional skip;
   type/lint, Node22 Docker build/consumed-version probes passed. Independent
@@ -21,8 +21,10 @@ Updated 2026-10-15 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
 
 ## Exact continuation
 
-P1: define the explicit permission/model boundary, then tests-first authorization
-and connection ownership regressions. Read-only preparation identified team-update
+P1 active checkout `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly`,
+parent R3 checkpoint2adfc1b. Explicit matrix written; first team/connection slice
+implemented after7failed/1passed regressions, targeted21passed. Full134files1194passed/23optional Redis skips, focused21/type/lint passed.
+First-slice production build/browser rerun and full P1 acceptance remain open. Preparation identified team-update
 owner escalation/global credential edits, same-contact cross-connection reuse,
 related-resource/stream leakage and delayed authority loss. No P1 criterion passed
 or new platform authority enabled yet. Keep restricted access unavailable until

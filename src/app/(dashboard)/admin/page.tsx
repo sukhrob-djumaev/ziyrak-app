@@ -197,19 +197,13 @@ export default function AdminPage() {
 
     setSavingUser(true);
     try {
-      const url = editingUser
-        ? `/api/admin/users/${editingUser.id}`
-        : "/api/admin/users";
+      const url = editingUser ? `/api/admin/users/${editingUser.id}` : "/api/admin/users";
       const method = editingUser ? "PUT" : "POST";
 
-      const payload: Record<string, string> = {
-        name: userForm.name.trim(),
-        role: userForm.role,
-      };
+      const payload: Record<string, string> = { role: userForm.role };
       if (!editingUser) {
+        payload.name = userForm.name.trim();
         payload.username = userForm.username.trim();
-        payload.password = userForm.password;
-      } else if (userForm.password) {
         payload.password = userForm.password;
       }
 
@@ -345,10 +339,7 @@ export default function AdminPage() {
 
   return (
     <>
-      <Header
-        title="Administration"
-        description="Manage users and API access"
-      />
+      <Header title="Administration" description="Manage users and API access" />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Tab switcher */}
@@ -437,14 +428,10 @@ export default function AdminPage() {
                             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-owly-primary-50 text-owly-primary text-sm font-semibold">
                               {user.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium text-owly-text">
-                              {user.name}
-                            </span>
+                            <span className="text-sm font-medium text-owly-text">{user.name}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-sm text-owly-text-light">
-                          {user.username}
-                        </td>
+                        <td className="px-5 py-3 text-sm text-owly-text-light">{user.username}</td>
                         <td className="px-5 py-3">
                           <RoleBadge role={user.role} />
                         </td>
@@ -636,19 +623,18 @@ export default function AdminPage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={userForm.name}
-                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                  placeholder="Full name"
-                  className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
-                />
-              </div>
-
+              {!editingUser && (
+                <div>
+                  <label className="block text-xs font-medium text-owly-text mb-1.5">Name</label>
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    placeholder="Full name"
+                    className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                  />
+                </div>
+              )}
               {!editingUser && (
                 <div>
                   <label className="block text-xs font-medium text-owly-text mb-1.5">
@@ -657,54 +643,47 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={userForm.username}
-                    onChange={(e) =>
-                      setUserForm({ ...userForm, username: e.target.value })
-                    }
+                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                     placeholder="Username for login"
                     className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
                   />
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">
-                  {editingUser ? "New Password (leave blank to keep current)" : "Password"}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={userForm.password}
-                    onChange={(e) =>
-                      setUserForm({ ...userForm, password: e.target.value })
-                    }
-                    placeholder={editingUser ? "Leave blank to keep current" : "Minimum 6 characters"}
-                    className="w-full px-3 py-2 pr-10 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+              {!editingUser && (
+                <div>
+                  <label className="block text-xs font-medium text-owly-text mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      placeholder="Minimum 6 characters"
+                      className="w-full px-3 py-2 pr-10 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
+              )}
               <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">
-                  Role
-                </label>
+                <label className="block text-xs font-medium text-owly-text mb-1.5">Role</label>
                 <select
                   value={userForm.role}
                   onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
                 >
                   <option value="admin">Admin - Full access</option>
-                  <option value="supervisor">Supervisor - Manage team, knowledge, and approvals</option>
+                  <option value="supervisor">
+                    Supervisor - Manage team, knowledge, and approvals
+                  </option>
                   <option value="agent">Agent - Reply to and handle conversations</option>
                   <option value="viewer">Viewer - Read-only access</option>
                 </select>
@@ -748,10 +727,8 @@ export default function AdminPage() {
               </div>
               <p className="text-sm text-owly-text-light">
                 Are you sure you want to delete{" "}
-                <span className="font-medium text-owly-text">
-                  {deleteUserTarget.name}
-                </span>
-                ? This action cannot be undone.
+                <span className="font-medium text-owly-text">{deleteUserTarget.name}</span>? This
+                action cannot be undone.
               </p>
               {deleteUserError && (
                 <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -807,9 +784,7 @@ export default function AdminPage() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">
-                  Key Name
-                </label>
+                <label className="block text-xs font-medium text-owly-text mb-1.5">Key Name</label>
                 <input
                   type="text"
                   value={keyForm.name}
@@ -907,10 +882,8 @@ export default function AdminPage() {
               </div>
               <p className="text-sm text-owly-text-light">
                 Are you sure you want to delete the key{" "}
-                <span className="font-medium text-owly-text">
-                  {deleteKeyTarget.name}
-                </span>
-                ? Any integrations using this key will stop working immediately.
+                <span className="font-medium text-owly-text">{deleteKeyTarget.name}</span>? Any
+                integrations using this key will stop working immediately.
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">

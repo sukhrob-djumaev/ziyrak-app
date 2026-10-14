@@ -1,33 +1,40 @@
 # Current task
 
-Updated: 2026-10-14, about 11:35 (Asia/Kuala_Lumpur). Operational snapshot; `PLAN.md` governs.
+Updated: 2026-10-14 (Asia/Kuala_Lumpur). `PLAN.md` governs scope and criteria.
 
-- **Phase:** Phases 0–8 are tagged (`phase-0-complete` … `phase-8-complete`). Phase 7 closure includes the recorded October 11 owner waiver for Business B's recipient-visible delivery; that criterion was not passed. Phase 9 (§46.9, synthetic — no customer) was merged in #8, with dedicated storage deferred and no Phase 9 completion tag. Post-Phase-9 hardening through #28 is merged; see the PLAN hardening log. There is no Phase 10.
-- **Baseline:** reviewed product code `main` @ `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; exact-SHA GitHub CI verified green (1149 passed / 4 skipped default; 1152 / 1 Redis-selected, 119 files). Latest recorded 16-script browser pass used a stand-in LLM and excluded live J16; it was not rerun in this review.
-- **Bounded task:** status and model-work assessment complete; no product implementation in progress. Evidence and phase-by-phase judgments: `docs/status-review-2026-10-14.md`. Two current delivery-reliability gaps were reproduced with isolated mocked dependencies; next implementation scope must be explicitly selected.
+- **Authorized milestone:** quality recovery R1–R4 in PLAN, approved by the owner on October 14. This session updates documentation only; a subsequent `continue` resumes recovery. No new product phase or deployment is implied.
+- **Next task:** R1 delivery reliability — not started; verification not run. Read its referenced contracts and both findings in `docs/status-review-2026-10-14.md`; inspect current handlers; add durable desired-behavior regressions and observe them fail before implementing the smallest fix. Do this in an isolated worktree, since the live worker runs from this checkout. Do not simply replay the entire AI pipeline after a send failure.
+- **Sequence:** R1 → R2 → R3 → R4. Prepare R2 cases or perform independent R3 work if an earlier external dependency/owner decision is blocked. Keep the blocked criterion open. Stop at recovery closure or a genuine remaining decision boundary.
+- **Baseline:** product code `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; assessment commit `1ea078cab50f66b7598869a3c40e14812ef93a49`. Documentation revision is the commit containing this state. Inspect Git for the actual current HEAD and preserve unrelated work.
+- **Phase status:** 0–8 tagged. Phase 7 includes the October 11 owner waiver for second-number recipient-visible delivery. Phase 9 synthetic DB/RLS merged, storage deferred, no completion tag. Historical records now live in `docs/implementation-history.md`.
 
-## Live stack (2026-10-14)
+## Verification status
 
-- **Database `owly`:** prior session recorded migrations through `20261014000000_revoked_token`, after backups (`owly-before-phase9.dump` and `owly-before-revoked-token.dump` in its scratchpad; copy somewhere durable if needed). This review verified database health, not the migration list or backups.
-- **Worker:** `com.ziyrak.meta.worker` reports running, PID 51216, started around 02:41 UTC today; queue processing was not freshly exercised. Prior session verified its 30 s heartbeat. The acceptance harness's old `pkill` stopped the live worker for ~6 min on October 13 at 15:49 UTC (fixed in #26); preserve process isolation. The launchd job was previously recorded as not persistent across reboot.
-- **Web:** `127.0.0.1:3000`, PID 51167, is now `next-server (v16.4.0)`; installed Next.js is 16.4.0 and nodemailer 10.1.0. Build timestamp 02:40:42 UTC; manifest includes approvals, `/api/me`, and tool policies; web/worker starts follow it. Fresh `/api/health`: production, status ok, database connected, OpenAI reachable. Exact embedded Git build identity and end-to-end deployment acceptance were not verified. The earlier "old build / Next 16.2.2 / deploy pending" note is superseded.
-- **Port 7700 and its cloudflared tunnel belong to the owner's remote-control service — never use or touch them.** The prior session recorded no tunnel to port 3000; current external Meta reachability was not rechecked here.
+- The earlier October 14 review verified exact-product-SHA CI: 1149 passed/4 skipped default, 1152/1 Redis-selected. Latest recorded 16-script browser pass used a stand-in and excluded live J16. No new application verification during this documentation update.
+- R1's two failures were reproduced with real handlers and mocked dependencies. Temporary diagnostics: `/private/tmp/ziyrak-status-review-20261014/`; recreate from the report if unavailable. Passing diagnostic assertions demonstrate bugs, not fixes.
+- R2 policy/thresholds require an owner decision on a concrete proposal. R3 dependency audit needs refreshing. R4 live acceptance is not started; use PLAN's verification-selection policy instead of requiring Meta for every edit.
 
-## Owner decisions open
+## Runtime snapshot — historical, recheck before operating
 
-1. Select a follow-up scope for the two reproduced reliability findings: duplicate follow-up after a successful send plus failed persistence; failed inbound outbound send still marked processed. Report has exact paths and reproduction. No product fix was attempted.
-2. Short AI replies with no tool use score 0.5 < 0.6 and escalate (existing regression tests encode this) — keep or change?
-3. Dependency advisories: prior production-only audit recorded 16 highs in the dev/demo WhatsApp Web adapter's puppeteer tree and `imap`. Latest exact-SHA CI install reports 21 high / 1 low across all dependencies (different scope); production-only audit not freshly rerun.
-4. Optional Origin check on state-changing cookie-authenticated requests (defence in depth).
-5. Confirm Meta reachability before any new live acceptance. Business B visible delivery remains a recorded owner waiver; do not silently turn it into a pass or revoke the waiver.
+Observed during the earlier October 14 review, not refreshed in this documentation session:
+web `127.0.0.1:3000`, PID 51167, Next.js 16.4.0; worker launchd job
+`com.ziyrak.meta.worker`, PID 51216; build timestamp 02:40:42 UTC. Health was
+production/ok, DB connected, OpenAI reachable. Embedded Git build identity, queue
+execution and current external Meta reachability were not verified. Never act on
+these old PIDs without checking ownership again. The worker job was previously
+recorded as not persistent across reboot.
 
-## Notes for the next session
+Prior session recorded live `owly` migrations through `20261014000000_revoked_token`
+and scratchpad backups `owly-before-phase9.dump` / `owly-before-revoked-token.dump`;
+existence/restorability was not rechecked. Preserve backup/restore gates before changes.
 
-- Tests must use `DATABASE_URL=…/owly_test` — `.env` points at the live `owly` database. Docker Desktop and `owly-db-1` are running.
-- **Do dependency work and browser builds in an isolated git worktree** (own `node_modules`, own port, `owly_test`): this folder is what the live worker runs from, and a failed `npm audit fix` here once left `@prisma/engines` half-removed (restored). Keep this folder on `main`.
-- Acceptance suite: `ACC_DB=… scripts/acceptance/start-all.sh all` then `run-all.sh`, from an isolated worktree on ports 3100/4010/4020–4022; the harness now records the acceptance worker's PID and never kills by process name. J09/J10 needs a fresh database each run.
-- Browser checks: the Claude-in-Chrome extension failed ("different extension" error); headless Chrome via `puppeteer-core` worked. One browser window per role (background tabs are throttled); wait for the URL, not `networkidle` (the event stream stays open); the login limit is 5/min per address.
+## Environment and external boundaries
 
-## Prohibited
-
-Pushing/merging/deploying without the owner's say-so (standing permission from 2026-10-14: merge own PRs when CI is green; restart the worker and apply additive migrations after a backup), merging without checking CI first, changing product architecture without the rule 11 decision, touching Business A's or B's Meta connections, using port 7700.
+- Keep this live checkout on `main`; product changes, dependency installs and browser builds belong in an isolated worktree with its own `node_modules`, environment and ports.
+- `.env` points at live `owly`. Repository tests use disposable `owly_test`; acceptance uses a distinct fresh throwaway DB. Check `DATABASE_URL` **and** `DIRECT_DATABASE_URL`; set both to the intended isolated target. Never run destructive test cleanup on live/retained data.
+- Acceptance topology: web 3100, stand-in 4010, customer sites 4020–4022; build with `NEXT_PUBLIC_APP_URL=http://localhost:3100`. Read `start-all.sh` and `run-all.sh`; set `ACC_DB` and matching DB variables. J09/J10 needs a fresh DB each full run. Stop only verified test-owned PIDs, never by process name.
+- Browser: prior headless Chrome via `puppeteer-core` worked; the Claude-in-Chrome extension failed. Recheck available tools. Use one window per role; persistent event streams make `networkidle` unsuitable. Avoid burning the 5/min login limit during debugging.
+- **Port 7700 and its cloudflared tunnel belong to the owner's remote-control service. Never touch them.** No application tunnel is assumed ready. Do not alter Business A/B Meta connections to unblock unrelated work.
+- Confirmed external blockers affect the corresponding acceptance/release, not all development. Record evidence, next manual action and retry condition; continue eligible R1–R4 work.
+- Optional Origin hardening, dedicated storage, new channels and enterprise cutover automation remain outside this milestone. Preserve the historical Business B waiver without broadening it.
+- No push/release/deploy/history rewrite without applicable explicit authorization. The previous handoff records October 14 standing permission to merge own PRs only when CI is green, and to restart the worker/apply additive migrations after a backup; honor those exact conditions if relevant, not a broader implied permission. This documentation task exercises none of them.

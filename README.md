@@ -1,537 +1,203 @@
-<p align="center">
-  <img src="docs/social-preview.png" alt="Owly" width="100%" />
-</p>
+# Ziyrak AI
 
-<p align="center">
-  <a href="#features">Features</a> &middot;
-  <a href="#screenshots">Screenshots</a> &middot;
-  <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#configuration">Configuration</a> &middot;
-  <a href="#api">API</a> &middot;
-  <a href="#tech-stack">Tech Stack</a> &middot;
-  <a href="docs/wiki/Home.md">Wiki</a> &middot;
-  <a href="#roadmap">Roadmap</a>
-</p>
+Ziyrak is a multi-tenant customer-support application developed from Owly. Businesses
+manage their own knowledge, conversations, customers, tools and channels. A separate
+worker handles queued inbound messages, knowledge indexing and scheduled actions.
 
-<p align="center">
-  <a href="https://github.com/Hesper-Labs/owly/actions/workflows/ci.yml"><img src="https://github.com/Hesper-Labs/owly/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
-  <img src="https://img.shields.io/badge/version-0.2.2-brightgreen.svg" alt="Version" />
-  <img src="https://img.shields.io/badge/tests-274%20passed-success.svg" alt="Tests" />
-  <img src="https://img.shields.io/badge/helm-ready-0F1689.svg" alt="Helm" />
-  <img src="https://img.shields.io/badge/node-%3E%3D20-green.svg" alt="Node" />
-  <img src="https://img.shields.io/badge/typescript-5.x-blue.svg" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/next.js-16-black.svg" alt="Next.js" />
-  <img src="https://img.shields.io/badge/PostgreSQL-16+-336791.svg" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
-</p>
+Built with Next.js, TypeScript, PostgreSQL, Prisma and pg-boss; Redis supports shared
+rate limiting, cache and realtime across replicas. See [package.json](package.json)
+and [CI](.github/workflows/ci.yml) for the actual versions and checks.
 
-<p align="center">
-  <img src="docs/demo.gif" alt="Owly Demo" width="700" />
-</p>
+## Current status
 
----
+The core application is implemented. **Quality recovery is the active milestone:**
+fix delivery retry gaps, validate AI escalation, improve operational safety and run
+final acceptance. Implementation is not a blanket production-readiness claim.
 
-## What is Owly?
+| Capability                               | Current scope and limits                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Business accounts, roles and isolation   | Implemented with tenant-scoped access and real-Postgres security tests.                                                                           |
+| Web Chat and Meta WhatsApp Cloud API     | MVP channels. Web Chat has repeatable browser acceptance; Meta has historical live evidence with a specific second-number delivery waiver.        |
+| Knowledge and AI                         | OpenAI/Anthropic provider adapters and semantic indexing/retrieval. Real-provider coverage varies; escalation quality is part of recovery.        |
+| Tools, approvals, follow-ups and handoff | Implemented, including approval/policy UI. Two delivery reliability failures remain open in R1.                                                   |
+| Scaling                                  | Redis and multiple web/worker processes exercised. Kubernetes HPA is configured but not cluster-verified.                                         |
+| Enterprise placement                     | Dedicated DB/RLS exercised synthetically; dedicated storage deferred, migration manually quiesced. Full Phase 9 acceptance is incomplete.         |
+| Other channel adapters                   | Email/Phone and other adapter code are not equivalent to accepted production MVP channels. WhatsApp Web QR is restricted to development/demo use. |
 
-Owly is a **self-hosted AI customer support agent** that small businesses and individuals can run on their own machines -- completely free. Connect your WhatsApp, Email, and Phone channels, add your business knowledge, and let the AI handle customer inquiries 24/7. Owly automatically identifies customers across channels -- someone who emails first and later calls gets a unified profile with full conversation history.
+Canonical status, scope and criteria: [PLAN.md](PLAN.md#start-here-current-status-and-authorized-work).
+Evidence: [October 14 review](docs/status-review-2026-10-14.md) and
+[implementation history](docs/implementation-history.md). These are dated records;
+recheck changed code, provider state and deployment before relying on old results.
 
-<table>
-  <tr>
-    <td width="25%" align="center">
-      <br/>
-      <strong>Zero Cost</strong><br/>
-      <sub>No monthly fees. You only pay<br/>for AI API usage.</sub>
-      <br/><br/>
-    </td>
-    <td width="25%" align="center">
-      <br/>
-      <strong>Your Data, Your Server</strong><br/>
-      <sub>Everything runs on your machine.<br/>Complete privacy.</sub>
-      <br/><br/>
-    </td>
-    <td width="25%" align="center">
-      <br/>
-      <strong>Multi-Channel</strong><br/>
-      <sub>WhatsApp, Email, and Phone<br/>from a single dashboard.</sub>
-      <br/><br/>
-    </td>
-    <td width="25%" align="center">
-      <br/>
-      <strong>5-Minute Setup</strong><br/>
-      <sub>Docker Compose or npm.<br/>Guided setup wizard.</sub>
-      <br/><br/>
-    </td>
-  </tr>
-</table>
+## Continue development with Codex or Claude
 
----
+Open this repository and say **`continue`** or **`continue current Ziyrak task`**.
 
-## Features
+Both agents follow [AGENTS.md](AGENTS.md); [CLAUDE.md](CLAUDE.md) imports it.
+The agent reads the approved plan, [current task](.agent/CURRENT.md) and
+[latest handoff](.agent/HANDOFF.md), checks Git, and resumes the first eligible
+unfinished task. It records verification and the next action before stopping.
+A completed task permits the next task within the authorized milestone; a new
+phase, architecture change or external action still follows its approval boundary.
 
-### Multi-Channel Support
+Do not copy old chat transcripts into prompts or treat historical phase tags as
+proof that current acceptance passed. Product contracts stay in the plan; state
+files contain only operational status and continuation information.
 
-Connect all your customer communication channels in one place.
+## Local setup
 
-<table>
-  <tr>
-    <td width="33%">
-      <h4 align="center">WhatsApp</h4>
-      <p align="center">Connect via QR code scan or Business API. Handles text, images, voice messages, and documents.</p>
-    </td>
-    <td width="33%">
-      <h4 align="center">Email</h4>
-      <p align="center">IMAP/SMTP with any provider. Branded HTML templates with automatic thread tracking.</p>
-    </td>
-    <td width="33%">
-      <h4 align="center">Phone</h4>
-      <p align="center">Twilio Voice with OpenAI Whisper (STT) and ElevenLabs (TTS) for natural voice conversations.</p>
-    </td>
-  </tr>
-</table>
+Use Node.js 22 (the CI version), npm, and PostgreSQL 16 or newer. Redis is needed
+for the Redis-selected checks and shared multi-replica behavior. Use a separate
+checkout/worktree and databases for development and testing when another checkout
+is serving a live worker. Never replace its dependencies or build underneath it.
 
-<p align="center">
-  <img src="docs/screenshots/12-channels.png" alt="Channel Management" width="100%" />
-  <br/>
-  <em>Connect and manage all channels from one screen</em>
-</p>
+For a **new isolated checkout**, install and configure:
 
-### AI-Powered Conversations
-
-Owly uses OpenAI GPT (extensible to Claude, Ollama) with your knowledge base to provide accurate, on-brand responses. During conversations, the AI can autonomously:
-
-- **Create tickets** when customers report problems
-- **Route issues** to the right department based on expertise matching
-- **Send internal emails** to notify team members about urgent issues
-- **Look up customer history** for context-aware support
-- **Trigger webhooks** to notify external systems
-- **Schedule follow-ups** for proactive customer care
-
-<p align="center">
-  <img src="docs/screenshots/03-conversations.png" alt="Conversations" width="100%" />
-  <br/>
-  <em>Unified inbox with conversation thread and admin takeover</em>
-</p>
-
-### Customer CRM & Cross-Channel Continuity
-
-Every customer gets a unified profile across all channels -- conversations, notes, tags, and contact history in one place. Owly automatically resolves customer identity when someone switches channels (WhatsApp to Email to Phone), keeping the full context available to both the AI and your team.
-
-<p align="center">
-  <img src="docs/screenshots/04-customers.png" alt="Customer Management" width="100%" />
-  <br/>
-  <em>Customer profiles with notes, tags, and cross-channel history</em>
-</p>
-
-### Knowledge Base
-
-Train your AI with your business information. Organize entries into categories, set priorities, and test responses before going live.
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/05-knowledge-base.png" alt="Knowledge Base Categories" />
-      <br/>
-      <em>Categories with entry counts and color coding</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/20-knowledge-detail.png" alt="Knowledge Base Entries" />
-      <br/>
-      <em>Entries with priority levels and active toggles</em>
-    </td>
-  </tr>
-</table>
-
-### Automation Engine
-
-Automate repetitive tasks with rule-based automation, business hours, SLA tracking, and canned responses.
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/07-automation.png" alt="Automation Rules" />
-      <br/>
-      <em>Auto-route, auto-tag, auto-reply, keyword alerts</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/06-canned-responses.png" alt="Canned Responses" />
-      <br/>
-      <em>Quick reply templates with shortcuts</em>
-    </td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/08-business-hours.png" alt="Business Hours" />
-      <br/>
-      <em>Weekly schedule with timezone and offline messages</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/11-sla-rules.png" alt="SLA Rules" />
-      <br/>
-      <em>Response time targets per channel and priority</em>
-    </td>
-  </tr>
-</table>
-
-### Team & Ticket Management
-
-Organize your team into departments, track issues with a full ticket system, and monitor performance.
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/09-team.png" alt="Team Management" />
-      <br/>
-      <em>Departments, members, expertise, and availability</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/10-tickets.png" alt="Ticket System" />
-      <br/>
-      <em>Priority levels, assignments, and status tracking</em>
-    </td>
-  </tr>
-</table>
-
-### Analytics & Insights
-
-Monitor your support performance with charts, metrics, and team performance tracking.
-
-<p align="center">
-  <img src="docs/screenshots/14-analytics.png" alt="Analytics Dashboard" width="100%" />
-  <br/>
-  <em>Conversation trends, channel breakdown, ticket distribution, and satisfaction scores</em>
-</p>
-
-### Administration & API
-
-Manage users, API keys, webhooks, and explore the full REST API with interactive documentation.
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/16-admin.png" alt="Administration" />
-      <br/>
-      <em>Multi-admin with roles and API key management</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/17-api-docs.png" alt="API Documentation" />
-      <br/>
-      <em>Interactive API docs with live request testing</em>
-    </td>
-  </tr>
-</table>
-
-### Dark Mode
-
-Full dark theme with persistent preference, applied across all 19 pages.
-
-<p align="center">
-  <img src="docs/screenshots/19-dark-mode.png" alt="Dark Mode" width="100%" />
-  <br/>
-  <em>Dark mode dashboard with consistent styling across all components</em>
-</p>
-
-### More Features
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/18-settings.png" alt="Settings" />
-      <br/>
-      <em>6-tab settings: General, AI, Voice, Phone, Email, WhatsApp</em>
-    </td>
-    <td width="50%">
-      <img src="docs/screenshots/13-webhooks.png" alt="Webhooks" />
-      <br/>
-      <em>Webhook management with payload preview and testing</em>
-    </td>
-  </tr>
-</table>
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Node.js** 20+
-- **PostgreSQL** 16+
-
-### Option 1: npm
-
-```bash
-# Clone the repository
-git clone https://github.com/hsperus/owly.git
-cd owly
-
-# Install dependencies
-npm install
-
-# Set up environment
+```sh
+npm ci
 cp .env.example .env
-# Edit .env with your database URL and API keys
-
-# Run database migrations
-npx prisma migrate dev
-
-# (Optional) Load sample data with a default admin account
-npm run db:seed
-# Default login: username=admin, password=admin123
-
-# Start the development server
-npm run dev
 ```
 
-### Option 2: Docker Compose
+Edit `.env` before running anything. The template's database is named `owly`;
+replace it with a database provisioned for this development checkout. Set
+`JWT_SECRET` and `SECRET_KEY_V1` to separately generated strong random values,
+and set `NEXT_PUBLIC_APP_URL` to this checkout's available web URL. Do not overwrite
+an existing `.env`, publish secrets, or copy live credentials into test fixtures.
+See [.env.example](.env.example) for all settings. If `DIRECT_DATABASE_URL` is set,
+it must refer to the same intended database: migrations and pg-boss may use it.
 
-```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+After checking the database target, apply the existing migrations:
 
-cp .env.example .env
-# Edit .env with your API keys
-
-docker compose up -d
+```sh
+npx prisma generate
+npx prisma migrate deploy
 ```
 
-Open [http://localhost:3000](http://localhost:3000) -- the setup wizard will guide you through the initial configuration.
+Start web and worker in separate terminals, with the same isolated database and
+secret configuration. Example for an available port 3001 and
+`NEXT_PUBLIC_APP_URL=http://localhost:3001`:
 
-<p align="center">
-  <img src="docs/screenshots/01-login.png" alt="Login Page" width="500" />
-  <br/>
-  <em>Clean login page with Owly branding</em>
-</p>
-
----
-
-## Configuration
-
-All configuration is done through the admin dashboard -- no config files to edit after initial setup:
-
-| Setting | Location | Description |
-|---------|----------|-------------|
-| Business profile | Settings > General | Name, description, welcome message, tone |
-| AI provider | Settings > AI Configuration | OpenAI / Claude / Ollama, model, API key |
-| Voice | Settings > Voice | ElevenLabs API key and voice selection |
-| Phone | Settings > Phone | Twilio Account SID, auth token, phone number |
-| Email | Settings > Email | SMTP and IMAP server configuration |
-| WhatsApp | Channels > WhatsApp | QR code scan or Business API |
-| Team | Team | Departments, members, expertise areas |
-| SLA | SLA Rules | Response and resolution time targets |
-| Schedule | Business Hours | Weekly availability and offline messages |
-| Automation | Automation | Auto-route, auto-tag, auto-reply rules |
-| Templates | Canned Responses | Pre-written reply templates |
-| Integrations | Webhooks | External service connections |
-
----
-
-## API
-
-Owly provides a full REST API with **OpenAPI 3.0 spec** at `/api/openapi.json`. Interactive documentation with live testing is available at `/api-docs` in the dashboard. All list endpoints are paginated (max 100/page) with standardized response format.
-
-```bash
-# Send a message and get AI response
-curl -X POST http://localhost:3000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What are your business hours?", "channel": "api"}'
-
-# Response:
-# {"conversationId": "...", "response": "We are open Monday to Friday, 9 AM to 6 PM..."}
+```sh
+npm run dev -- --port 3001
 ```
 
-```bash
-# Health check (database, OpenAI, memory, uptime)
-curl http://localhost:3000/api/health
-# {"status": "ok", "version": "0.2.1", "services": {"database": "connected", "openai": "reachable"}, ...}
+```sh
+npm run worker
 ```
 
-Every API response includes enterprise headers: `X-Request-Id`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-API-Version`.
+Use the signup UI to create a business, then configure its AI provider/key,
+knowledge and channel through the application. Provider credentials are stored
+per business; `.env` AI keys are primarily for test/load tooling, not a substitute
+for business configuration. Seeding the legacy Default Business is not required
+for signup acceptance.
 
-<details>
-<summary><strong>View all endpoints</strong></summary>
+For production-equivalent local verification, build and start the web process
+with the intended `NEXT_PUBLIC_APP_URL`; keep the worker separate:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/chat` | Send message, get AI response |
-| `GET` `POST` | `/api/conversations` | List or create conversations |
-| `GET` `PUT` `DELETE` | `/api/conversations/:id` | Manage a conversation |
-| `POST` | `/api/conversations/:id/messages` | Add message (admin takeover) |
-| `POST` | `/api/conversations/:id/satisfaction` | Rate conversation (1-5) |
-| `POST` | `/api/conversations/:id/notes` | Add internal note |
-| `GET` `POST` | `/api/customers` | List or create customers |
-| `GET` `PUT` `DELETE` | `/api/customers/:id` | Manage a customer |
-| `GET` | `/api/customers/:id/conversations` | Cross-channel conversation timeline |
-| `GET` `POST` | `/api/tickets` | List or create tickets |
-| `GET` `PUT` `DELETE` | `/api/tickets/:id` | Manage a ticket |
-| `GET` `POST` | `/api/knowledge/categories` | Knowledge categories |
-| `GET` `POST` | `/api/knowledge/entries` | Knowledge entries |
-| `POST` | `/api/knowledge/test` | Test AI with a question |
-| `GET` `PUT` | `/api/settings` | Application settings |
-| `GET` | `/api/analytics?period=7d` | Analytics data |
-| `GET` | `/api/export?type=conversations&format=csv` | Export (CSV/JSON) |
-| `GET` `POST` | `/api/automation` | Automation rules |
-| `GET` `PUT` | `/api/business-hours` | Business hours config |
-| `GET` `POST` | `/api/sla` | SLA rules |
-| `GET` `POST` | `/api/canned-responses` | Canned responses |
-| `GET` `POST` | `/api/webhooks` | Webhook management |
-| `POST` | `/api/webhooks/test` | Test a webhook |
-| `GET` `POST` | `/api/webhooks/:id/deliveries` | Delivery log and retry |
-| `GET` `POST` | `/api/admin/users` | Admin user management |
-| `GET` `POST` | `/api/admin/api-keys` | API key management |
-| `GET` | `/api/activity` | Activity audit log |
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/openapi.json` | OpenAPI 3.0 specification |
-
-</details>
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript 5 |
-| **Database** | PostgreSQL 16 + Prisma 7 |
-| **UI** | Tailwind CSS 4 + Radix UI |
-| **AI** | OpenAI GPT (extensible to Claude, Ollama) |
-| **Voice TTS** | ElevenLabs |
-| **Voice STT** | OpenAI Whisper |
-| **Phone** | Twilio Voice API |
-| **WhatsApp** | whatsapp-web.js |
-| **Auth** | JWT + bcrypt (12 rounds) |
-| **Validation** | Zod schemas on all endpoints |
-| **Testing** | Vitest (274 tests) |
-| **Charts** | Pure CSS/SVG (zero dependencies) |
-| **Deployment** | Docker Compose / Kubernetes (Helm) |
-
----
-
-## Project Structure
-
-```
-owly/
-├── prisma/                  # Database schema, migrations, seed
-├── public/                  # Static assets (logo)
-├── docs/
-│   ├── screenshots/         # UI screenshots (20 images)
-│   └── wiki/                # Full documentation (25 pages)
-├── helm/owly/               # Kubernetes Helm chart
-│   ├── Chart.yaml
-│   ├── values.yaml
-│   └── templates/           # K8s manifests (deployment, service, ingress, hpa, etc.)
-├── src/
-│   ├── app/
-│   │   ├── (auth)/          # Login, setup wizard
-│   │   ├── (dashboard)/     # 19 dashboard pages
-│   │   └── api/             # 60+ REST API endpoints
-│   ├── components/
-│   │   ├── layout/          # Sidebar, header
-│   │   └── ui/              # 12 reusable components
-│   └── lib/
-│       ├── ai/              # AI engine, tools, types
-│       ├── channels/        # WhatsApp, email, phone
-│       ├── customer-resolver.ts  # Cross-channel identity resolution
-│       ├── errors.ts        # Standardized error responses
-│       ├── logger.ts        # Structured logging
-│       ├── pagination.ts    # Shared pagination helper
-│       ├── rate-limit.ts    # Rate limiting
-│       ├── security.ts      # XSS/CRLF protection, secret masking
-│       ├── validations.ts   # Zod input schemas
-│       ├── webhook-delivery.ts   # Retry logic + HMAC signatures
-│       └── hooks/           # Theme hook
-├── tests/                   # 228 tests (unit, API, security)
-├── docker-compose.yml
-├── Dockerfile               # Multi-stage, non-root, healthcheck
-└── .env.example
+```sh
+npm run build
+npm run start -- --port 3001
 ```
 
----
+Public `NEXT_PUBLIC_*` values are embedded at build time. A successful health
+response does not establish worker processing or customer-visible delivery.
 
-## Documentation
+## Testing
 
-Full documentation is available in the [Wiki](docs/wiki/Home.md):
+Choose checks according to the [verification policy](PLAN.md#verification-selection-and-external-blockers).
+Routine development uses deterministic mocks, real isolated persistence where
+needed, and Web Chat/browser flows. Real-provider checks are separate and targeted.
 
-- [Installation Guide](docs/wiki/Installation-Guide.md)
-- [Setup Wizard](docs/wiki/Setup-Wizard.md)
-- [Quick Start Tutorial](docs/wiki/Quick-Start-Tutorial.md)
-- [API Reference](docs/wiki/API-Reference.md)
-- [AI Tool System](docs/wiki/AI-Tool-System.md)
-- [Architecture](docs/wiki/Architecture.md)
+Before database-backed commands, point **both** database variables at an existing,
+disposable test database. This example matches CI's local test credentials:
 
----
-
-## Deployment
-
-### Docker Compose (recommended for most users)
-
-```bash
-docker compose up -d
+```sh
+export DATABASE_URL='postgresql://postgres:postgres@localhost:5432/owly_test?schema=public'
+export DIRECT_DATABASE_URL="$DATABASE_URL"
+npx prisma migrate deploy
+npx vitest run tests/unit/meta-whatsapp-adapter.test.ts
+npm run test
+npm run test:signup-seeded
+npx tsc --noEmit
+npm run lint -- --max-warnings 0
+npm run build
 ```
 
-### Kubernetes (Helm)
+The tests write and delete data. Never run them against the live database or an
+acceptance database whose evidence must be retained. Check shell/environment-file
+overrides before starting. For the Redis-selected run, use a separate test Redis
+with `REDIS_URL`; CI also uses `REDIS_TEST_URL` for adapter tests. A skipped check
+is not a pass.
 
-```bash
-helm install owly helm/owly \
-  --set database.host=your-postgres-host \
-  --set database.password=your-password \
-  --set secrets.jwtSecret=$(openssl rand -hex 32) \
-  --set secrets.openaiApiKey=sk-... \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=support.yourdomain.com
+### Browser acceptance
+
+Read [start-all.sh](scripts/acceptance/start-all.sh), [run-all.sh](scripts/acceptance/run-all.sh)
+and the [journey requirements](PLAN.md#mvp-browser-acceptance-suite) before running.
+The harness uses production web on port 3100, a separate worker, a local LLM stand-in
+on 4010 and customer sites on 4020–4022. It requires a fresh throwaway acceptance
+database, migrations, independent secrets and a build with
+`NEXT_PUBLIC_APP_URL=http://localhost:3100`.
+
+Set `ACC_DB`, `DATABASE_URL` and `DIRECT_DATABASE_URL` to that same acceptance
+DB in the isolated acceptance shell; keep unit/repository test runs separate.
+Set `ACC_WORK_DIR` to a fresh evidence directory. If the DB is not the compose
+Postgres, configure `ACC_PSQL` for the same isolated DB; the harness's SQL helper
+does not infer every connection topology from `ACC_DB`. Then build and start:
+
+```sh
+NEXT_PUBLIC_APP_URL=http://localhost:3100 npm run build
+scripts/acceptance/start-all.sh all
+scripts/acceptance/run-all.sh
 ```
 
-The Helm chart includes startup/liveness/readiness probes, horizontal pod autoscaling (app and worker), in-cluster Redis (or an external one) and PgBouncer, Ingress with TLS, an optional PersistentVolumeClaim for WhatsApp Web sessions (off by default; single-replica demo only), and init container for database migrations. Running more than one replica requires Redis (shared rate limit, cache and realtime bus); the chart refuses to render without it. Verify a topology with `scripts/loadtest/run.sh`. See [`helm/owly/values.yaml`](helm/owly/values.yaml) for all options.
+The runner supplies the dependency order for all 16 scripts; live Meta J16 is
+separate. J09/J10 currently needs a fresh database per complete run. Record only
+and stop only this run's PIDs; never use process-name kills. One browser window per
+role avoids background-tab throttling. New fixes must be verified on the resulting
+candidate; passing an earlier build is not sufficient.
 
----
+`ACC_REAL_AI=1` plus the script's documented provider/model/key variables selects
+real-model acceptance. Inspect journey assumptions before choosing targeted cases;
+a stand-in assertion is not automatically a valid real-model quality evaluation.
 
-## Roadmap
+### Live providers
 
-- [x] Cross-channel customer identity resolution
-- [x] Kubernetes Helm chart
-- [x] OpenAPI 3.0 specification
-- [x] Webhook delivery retry with HMAC signatures
-- [x] Pagination on all list endpoints
-- [x] Standardized error responses with request tracing
-- [ ] Embeddable live chat widget for customer websites
-- [ ] WebSocket real-time updates
-- [ ] Vector embeddings for semantic knowledge search
-- [ ] Role-based access control (RBAC)
-- [ ] Telegram, Instagram, SMS channels
-- [ ] Shopify / WooCommerce integration
-- [ ] Mobile admin (PWA)
-- [ ] Multi-tenant / white-label
+Available credential-gated suites:
 
----
+- `npm run test:smoke:meta`
+- `npm run test:smoke:anthropic`
+- `npm run test:smoke:openai-embedding`
 
-## Contributing
+Read each suite and its environment requirements before using authorized test
+accounts/recipients and an isolated database. Default CI excludes these suites.
+The Meta smoke checks credential ownership and Graph acceptance; it does **not**
+prove real inbound receipt or recipient-visible delivery. The plan defines when
+those additional observations are required. Never send test messages to arbitrary
+customers or change working account connections to unblock unrelated work.
 
-Contributions are welcome! See the [Contributing Guide](docs/wiki/Contributing.md) for details.
+A provider/account blocker leaves its required acceptance item open. Record the
+cause and next action, then continue independent work in the approved milestone.
+Do not keep repeating the same failing setup or mark a mock run as live acceptance.
 
-```bash
-# Fork, clone, and create a branch
-git checkout -b feature/your-feature
+## Deployment and operations
 
-# Make changes and commit
-git commit -m 'feat: add your feature'
+[docker-compose.yml](docker-compose.yml) and [helm/owly](helm/owly) describe web,
+worker, Postgres/connection pooling and Redis topology. Their presence is not proof
+of deployment readiness; review environment, secrets, database targets and public
+URL before use. Package, image and chart names retain some upstream `owly` naming.
 
-# Push and open a PR
-git push origin feature/your-feature
-```
+Merges require checking CI for the exact commit. Deployment/restarts/migrations
+follow the plan and applicable owner authorization, including backup/restore
+requirements. Record the running build, verify web and worker separately, and
+exercise the relevant visible workflow. Never use a live environment for destructive
+test cleanup. Host-specific process details and protected ports are in CURRENT.
 
----
+## Documentation and license
 
-## License
+- [Architecture, recovery plan and acceptance criteria](PLAN.md)
+- [Agent workflow](AGENTS.md), [current task](.agent/CURRENT.md), [handoff](.agent/HANDOFF.md)
+- [Status review](docs/status-review-2026-10-14.md), [historical implementation evidence](docs/implementation-history.md)
+- [Approvals and tool policies](docs/wiki/Approvals-and-Tool-Policies.md)
+- [Wiki](docs/wiki/Home.md): some pages describe upstream Owly and need rechecking against current source and PLAN.
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-<p align="center">
-  <img src="public/owly.png" alt="Owly" width="48" height="48" /><br/>
-  <strong>Owly</strong> -- AI Customer Support, Enterprise Grade<br/>
-  <sub>Built with Next.js 16, TypeScript, PostgreSQL, and OpenAI</sub>
-</p>
+Derived from Owly. MIT attribution and terms remain in [LICENSE](LICENSE).

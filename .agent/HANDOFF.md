@@ -1,53 +1,49 @@
 # Latest session handoff
 
-Session: 2026-10-14 (Asia/Kuala_Lumpur) — deep status and model-work review.
-Requested scope was assessment, not product changes. Reviewed product baseline:
-`c20513d78421816ac0096eff1cf3dbb0d6c9aa55` on `main`.
+Session: 2026-10-14 — owner-approved documentation and continuation reset.
 
-## Findings and changes
+## Changes
 
-- Full assessment: `docs/status-review-2026-10-14.md`, with phase-by-phase coding
-  judgments, historical runtime-model results, evidence limits and next scope.
-- Corrected CURRENT's stale Next.js/deployment note and unqualified "0–9 done":
-  Phases 0–8 tagged; Phase 7 includes the October 11 owner waiver for Business B
-  delivery; Phase 9 is merged synthetic DB/RLS work with storage deferred/no tag.
-- Two current behaviors reproduced by importing real handlers with isolated
-  mocked dependencies: a follow-up sends twice when the first send succeeds but
-  message persistence fails; an inbound adapter's failed SendResult still causes
-  a processed receipt and resolved job handler. No live messages/database calls.
-- Confirmed short correct answers can escalate under the confidence heuristic.
-  This score is not a measured probability of correctness.
-- No product code, credentials, databases, services, dependencies or tags changed.
-  Documentation-only changes belong to the commit containing this handoff.
+- Rewrote README for current Ziyrak, safe isolated setup, web/worker topology,
+  test layers and limitations; removed stale upstream roadmap/test-count claims.
+- PLAN now starts with current status, the approved R1–R4 quality recovery milestone,
+  explicit completion criteria, and risk-based provider testing. Architecture and
+  original numbered phase requirements remain. Old implementation logs and obsolete
+  starting instructions moved to `docs/implementation-history.md` with references.
+- Preserved the October 11 second-number delivery waiver and deferred enterprise
+  storage. Neither is described as passed. Corrected current browser instructions
+  to use existing approvals/policy UI and per-connection Meta secrets.
+- AGENTS defines continuation within the approved milestone, separate implementation
+  and verification status, and progress on independent work while a provider check
+  is blocked. CLAUDE keeps its shared `@AGENTS.md` import.
+- No product code, services, credentials, dependencies, databases or tags changed.
 
-## Verification actually performed
+## Verification
 
-- Initial Git tree/index clean. Inspected plan, tags/history, source, harness,
-  selected fix commits and current package/CI configuration.
-- Fetched exact-baseline CI run 38432123466/job 115416709853 and actual logs:
-  type check, lint, build green; default 1149 passed/4 skipped; Redis-selected
-  1152 passed/1 skipped, 119 files each. Live provider tests are excluded.
-- Fresh local health: production/ok, database connected, OpenAI reachable.
-  Web PID 51167 identifies Next.js 16.4.0; worker launchd job running, PID 51216.
-  Both started just after today's 02:40:42 UTC build. Built routes include
-  approvals, identity and policies. No embedded Git build stamp verified.
-- Four isolated diagnostic assertions passed, including two reproductions of
-  undesirable behavior; fixture/config at `/private/tmp/ziyrak-status-review-20261014/`.
-- No new full local regression, signup-seeded, browser, load, or provider run.
-  October 14's recorded 16/16 browser pass used the stand-in and excluded J16.
-  Review was lead-only, not an independent security audit.
+- `git diff --check` and Prettier checks passed for README, AGENTS, CLAUDE and
+  state files. PLAN/history parse successfully as Markdown; their retained original
+  text was not broadly reformatted.
+- Checked 40 local links/anchors, preserved 13 archived source blocks exactly, and
+  compared all 10 original phase requirement blocks unchanged. CLAUDE still imports AGENTS.
+- A fresh-context independent read-only agent correctly resumed R1 conceptually
+  from repository files alone. It found a lost J04 indexing assertion and an old
+  instruction forcing live AI whenever credentials exist; both were fixed and
+  rechecked. Its final review reported no unresolved documentation/process findings.
+  This was not an independent product security audit or an actual implementation run.
+- No application tests, build, browser journeys, live sends or runtime probes ran.
+  Earlier runtime/CI evidence remains historical.
 
-## Continuation
+## Continue
 
-Select a bounded delivery-reliability fix before making stronger delivery
-guarantees or rolling out to customers. Replaying the entire AI handler after a
-send failure risks repeating other effects; consider the contract before editing.
-Do not auto-start fixes, deploy, or repeat live acceptance from this review alone.
+Start **R1 delivery reliability**, following PLAN's contracts and acceptance criteria,
+in an isolated worktree. Turn both review reproductions into durable failing
+regressions before fixes. Distinguish delivery retry from replaying AI/tool effects;
+resolve any significant contract deviation under rule 11. Proceed to eligible work
+within R1–R4; do not start a new phase or wait on Meta for unrelated development.
 
-Preserve the existing rules in CURRENT: isolated worktrees/builds/test databases;
-never tests against live `owly`; never process-name kills; do not touch Meta A/B
-connections or the owner's port-7700 remote-control service. Current Meta
-reachability, account state, database migration list and backups were not checked.
-
-Prior hardening implementation, reviews, acceptance runs and the live-worker
-incident remain in PLAN's post-Phase-9 log and Git history. No Phase 10 exists.
+R2 needs a concrete escalation/evaluation proposal before an owner policy decision.
+An external blocker leaves its required criterion open; independent R2 preparation
+or R3 work can continue. This session stops after the requested documentation update
+and discussion, without starting implementation. Runtime boundaries and dated
+observations are in CURRENT. The next commit containing this handoff records the
+change; do not invent its hash in this file.

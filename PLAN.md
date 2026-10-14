@@ -8,8 +8,10 @@ Updated 2026-10-14. This plan owns architecture, acceptance criteria and work sc
 
 The owner approved **managed-service readiness** on 2026-10-14: finish the quality
 recovery work and add the account, access and managed-AI product direction below.
-This session updates documentation only. A subsequent `continue` starts R1 and
-advances through eligible tasks in the live plan, without routine reapproval.
+The planning session changed documentation only. The October 14 continuation
+started R1 regression work and R3 assessment; R1 now awaits the rule 11 contract
+decision linked below. `continue` advances through eligible tasks in the live
+plan, without routine reapproval, while preserving necessary decision boundaries.
 This does not authorize deployment, live account/provider changes or a new channel.
 
 ### Live plan — finished foundations and upcoming work
@@ -29,8 +31,8 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
-| 1 | **R1 — Delivery reliability** | Not started / not run | Fix send/retry/persistence defects. Safe environment prerequisites apply before work. |
-| 2 | **R3 — Operational safety** | Not started / not run | Audit dependencies and rehearse isolated operations; independent work can run alongside blocked R1. |
+| 1 | **R1 — Delivery reliability** | In progress (regressions only) / pre-fix failures confirmed; acceptance open | Rule 11 delivery contract proposal awaits owner decision. Safe environment prerequisites apply before implementation. |
+| 2 | **R3 — Operational safety** | In progress (assessment only) / fresh audit executed; remediation and rehearsal not run | Dependency and harness findings recorded; safe operations remain open. |
 | 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
@@ -209,7 +211,13 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   Document unavoidable provider-side uncertainty and operator recovery. If the
   existing exactly-once language (§31.2) cannot be met without a contract change,
   propose the smallest correction under rule 11 before implementing that deviation.
-- **Result:** implementation not started; verification not run.
+- **Result (2026-10-14 continuation):** implementation in progress, permanent
+  regressions only; product source unchanged. Desired-behavior fixture ran with
+  mocked dependencies: 5 failed/1 passed against the unchanged product baseline.
+  Independent architecture investigation confirms the external-send crash/timeout
+  contract gap. [Rule 11 proposal](docs/r1-delivery-contract-proposal-2026-10-14.md)
+  awaits owner decision before implementing its deviation. Durable Postgres/queue,
+  security and browser acceptance remain not run; R1 is not complete.
 
 ### R3 — Operational safety
 
@@ -230,9 +238,14 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   safe commands and build identification documented; exact-commit CI checked before
   any authorized merge. Deployment requires separate authorization and observed
   web, worker and end-to-end checks; a health endpoint alone is insufficient.
-- **Result:** implementation not started; verification not run. Independent R3 work
-  is eligible while R1 is externally blocked. Its environment safeguards apply
-  before any R1 product work; completing R3 is not permission to risk the live checkout.
+- **Result (2026-10-14 continuation):** assessment in progress; fresh production
+  audit reports 16 high, full audit 21 high/1 low. No versions or scripts changed.
+  [Operational assessment](docs/r3-operational-assessment-2026-10-14.md) records
+  dependency reachability limits and acceptance-harness DB/process gaps.
+  Remediation, independent security review and startup/stop/recovery rehearsal
+  remain not run. Independent R3 work is eligible while R1 is externally blocked.
+  Its environment safeguards apply before any R1 product work; completing R3 is
+  not permission to risk the live checkout.
 
 ### P1 — Platform and workspace access
 

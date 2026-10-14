@@ -1,0 +1,771 @@
+{
+  "date": "2026-10-14",
+  "sourceHead": "551f9cd1d5146ed13368fda1e2ed85610f4fba21",
+  "lockSha256": "b98d072c307177ec03213ea482fc7b3610d8b610190e5000958cb757651cac7e",
+  "commands": {
+    "production": {
+      "command": "npm audit --omit=dev --json",
+      "exitCode": 1,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 16,
+        "critical": 0,
+        "total": 16
+      },
+      "findings": [
+        {
+          "name": "@prisma/config",
+          "severity": "high",
+          "direct": false,
+          "range": "6.13.0-dev.1 - 8.1.0-dev.4",
+          "nodes": ["node_modules/@prisma/config"],
+          "via": ["deepmerge-ts"],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "@puppeteer/browsers",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": ["node_modules/@puppeteer/browsers"],
+          "via": ["extract-zip", "proxy-agent"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "basic-ftp",
+          "severity": "high",
+          "direct": false,
+          "range": "<=6.2.0",
+          "nodes": ["node_modules/basic-ftp"],
+          "via": [
+            {
+              "source": 1240853,
+              "name": "basic-ftp",
+              "dependency": "basic-ftp",
+              "title": "basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking)",
+              "url": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+              "severity": "high",
+              "cwe": ["CWE-1333"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<=6.2.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "deepmerge-ts",
+          "severity": "high",
+          "direct": false,
+          "range": "<8.0.0",
+          "nodes": ["node_modules/@prisma/config/node_modules/deepmerge-ts"],
+          "via": [
+            {
+              "source": 1145093,
+              "name": "deepmerge-ts",
+              "dependency": "deepmerge-ts",
+              "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+              "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+              "severity": "high",
+              "cwe": ["CWE-674"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<8.0.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "extract-zip",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": ["node_modules/extract-zip"],
+          "via": [
+            {
+              "source": 1139346,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip unvalidated symlink path traversal",
+              "url": "https://github.com/advisories/GHSA-jmr9-qjv8-65gv",
+              "severity": "high",
+              "cwe": ["CWE-22"],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+              },
+              "range": "<=2.0.1"
+            },
+            {
+              "source": 1193685,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip allows arbitrary file writes through symlink archive entries",
+              "url": "https://github.com/advisories/GHSA-7pqw-9j4j-h8q3",
+              "severity": "high",
+              "cwe": ["CWE-22"],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:H"
+              },
+              "range": "<=2.0.1"
+            }
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "get-uri",
+          "severity": "high",
+          "direct": false,
+          "range": ">=5.0.0",
+          "nodes": ["node_modules/get-uri"],
+          "via": ["basic-ftp"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "imap",
+          "severity": "high",
+          "direct": true,
+          "range": ">=0.8.18",
+          "nodes": ["node_modules/imap"],
+          "via": ["utf7"],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "mysql2",
+          "severity": "high",
+          "direct": false,
+          "range": "<=3.23.0",
+          "nodes": ["node_modules/mysql2"],
+          "via": [
+            {
+              "source": 1153173,
+              "name": "mysql2",
+              "dependency": "mysql2",
+              "title": "MySQL2: Auth Plugin Downgrade to mysql_clear_password Leaks Plaintext Credentials",
+              "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
+              "severity": "high",
+              "cwe": ["CWE-522"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<3.22.0"
+            },
+            {
+              "source": 1158532,
+              "name": "mysql2",
+              "dependency": "mysql2",
+              "title": "MySQL2: Unbounded zlib inflate in compressed MySQL protocol handler allows decompression-bomb DoS",
+              "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
+              "severity": "moderate",
+              "cwe": ["CWE-409"],
+              "cvss": {
+                "score": 5.9,
+                "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": "<=3.23.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "pac-proxy-agent",
+          "severity": "high",
+          "direct": false,
+          "range": ">=6.0.0",
+          "nodes": ["node_modules/pac-proxy-agent"],
+          "via": ["get-uri"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "prisma",
+          "severity": "high",
+          "direct": true,
+          "range": "6.13.0-dev.1 - 8.1.0-dev.6",
+          "nodes": ["node_modules/prisma"],
+          "via": ["@prisma/config", "mysql2"],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "proxy-agent",
+          "severity": "high",
+          "direct": false,
+          "range": ">=6.0.0",
+          "nodes": ["node_modules/proxy-agent"],
+          "via": ["pac-proxy-agent"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "puppeteer",
+          "severity": "high",
+          "direct": false,
+          "range": "19.8.1 - 24.43.1",
+          "nodes": ["node_modules/whatsapp-web.js/node_modules/puppeteer"],
+          "via": ["@puppeteer/browsers", "puppeteer-core"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "puppeteer-core",
+          "severity": "high",
+          "direct": false,
+          "range": "19.8.4 - 24.43.1",
+          "nodes": ["node_modules/whatsapp-web.js/node_modules/puppeteer-core"],
+          "via": ["@puppeteer/browsers"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "semver",
+          "severity": "high",
+          "direct": false,
+          "range": "2.0.0-alpha - 5.7.1",
+          "nodes": ["node_modules/utf7/node_modules/semver"],
+          "via": [
+            {
+              "source": 1112918,
+              "name": "semver",
+              "dependency": "semver",
+              "title": "semver vulnerable to Regular Expression Denial of Service",
+              "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw",
+              "severity": "high",
+              "cwe": ["CWE-1333"],
+              "cvss": {
+                "score": 7.5,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": ">=2.0.0-alpha <5.7.2"
+            }
+          ],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "utf7",
+          "severity": "high",
+          "direct": false,
+          "range": ">=1.0.2",
+          "nodes": ["node_modules/utf7"],
+          "via": ["semver"],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "whatsapp-web.js",
+          "severity": "high",
+          "direct": true,
+          "range": "1.34.4 - 1.34.7",
+          "nodes": ["node_modules/whatsapp-web.js"],
+          "via": ["puppeteer"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        }
+      ]
+    },
+    "all": {
+      "command": "npm audit --json",
+      "exitCode": 1,
+      "counts": {
+        "info": 0,
+        "low": 1,
+        "moderate": 0,
+        "high": 21,
+        "critical": 0,
+        "total": 22
+      },
+      "findings": [
+        {
+          "name": "@next/eslint-plugin-next",
+          "severity": "high",
+          "direct": false,
+          "range": ">=14.3.0-canary.0",
+          "nodes": ["node_modules/@next/eslint-plugin-next"],
+          "via": ["fast-glob"],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "@prisma/config",
+          "severity": "high",
+          "direct": false,
+          "range": "6.13.0-dev.1 - 8.1.0-dev.4",
+          "nodes": ["node_modules/@prisma/config"],
+          "via": ["deepmerge-ts"],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "@puppeteer/browsers",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": [
+            "node_modules/@puppeteer/browsers",
+            "node_modules/puppeteer-core/node_modules/@puppeteer/browsers",
+            "node_modules/puppeteer/node_modules/@puppeteer/browsers"
+          ],
+          "via": ["extract-zip", "proxy-agent"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "basic-ftp",
+          "severity": "high",
+          "direct": false,
+          "range": "<=6.2.0",
+          "nodes": ["node_modules/basic-ftp"],
+          "via": [
+            {
+              "source": 1240853,
+              "name": "basic-ftp",
+              "dependency": "basic-ftp",
+              "title": "basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking)",
+              "url": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+              "severity": "high",
+              "cwe": ["CWE-1333"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<=6.2.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "braces",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": ["node_modules/braces"],
+          "via": [
+            {
+              "source": 1240992,
+              "name": "braces",
+              "dependency": "braces",
+              "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+              "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+              "severity": "high",
+              "cwe": ["CWE-674"],
+              "cvss": {
+                "score": 7.5,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": "<=3.0.3"
+            }
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "deepmerge-ts",
+          "severity": "high",
+          "direct": false,
+          "range": "<8.0.0",
+          "nodes": ["node_modules/@prisma/config/node_modules/deepmerge-ts"],
+          "via": [
+            {
+              "source": 1145093,
+              "name": "deepmerge-ts",
+              "dependency": "deepmerge-ts",
+              "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+              "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+              "severity": "high",
+              "cwe": ["CWE-674"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<8.0.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "esbuild",
+          "severity": "low",
+          "direct": false,
+          "range": "0.27.3 - 0.28.0",
+          "nodes": ["node_modules/esbuild"],
+          "via": [
+            {
+              "source": 1120680,
+              "name": "esbuild",
+              "dependency": "esbuild",
+              "title": "esbuild allows arbitrary file read when running the development server on Windows",
+              "url": "https://github.com/advisories/GHSA-g7r4-m6w7-qqqr",
+              "severity": "low",
+              "cwe": ["CWE-22"],
+              "cvss": {
+                "score": 2.5,
+                "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N"
+              },
+              "range": ">=0.27.3 <0.28.1"
+            }
+          ],
+          "fixAvailable": true
+        },
+        {
+          "name": "eslint-config-next",
+          "severity": "high",
+          "direct": true,
+          "range": ">=14.3.0-canary.0",
+          "nodes": ["node_modules/eslint-config-next"],
+          "via": ["@next/eslint-plugin-next"],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "extract-zip",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": ["node_modules/extract-zip"],
+          "via": [
+            {
+              "source": 1139346,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip unvalidated symlink path traversal",
+              "url": "https://github.com/advisories/GHSA-jmr9-qjv8-65gv",
+              "severity": "high",
+              "cwe": ["CWE-22"],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+              },
+              "range": "<=2.0.1"
+            },
+            {
+              "source": 1193685,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip allows arbitrary file writes through symlink archive entries",
+              "url": "https://github.com/advisories/GHSA-7pqw-9j4j-h8q3",
+              "severity": "high",
+              "cwe": ["CWE-22"],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:H"
+              },
+              "range": "<=2.0.1"
+            }
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "fast-glob",
+          "severity": "high",
+          "direct": false,
+          "range": "*",
+          "nodes": ["node_modules/fast-glob"],
+          "via": ["micromatch"],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "get-uri",
+          "severity": "high",
+          "direct": false,
+          "range": ">=5.0.0",
+          "nodes": ["node_modules/get-uri"],
+          "via": ["basic-ftp"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "imap",
+          "severity": "high",
+          "direct": true,
+          "range": ">=0.8.18",
+          "nodes": ["node_modules/imap"],
+          "via": ["utf7"],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "micromatch",
+          "severity": "high",
+          "direct": false,
+          "range": ">=0.2.0",
+          "nodes": ["node_modules/micromatch"],
+          "via": ["braces"],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "mysql2",
+          "severity": "high",
+          "direct": false,
+          "range": "<=3.23.0",
+          "nodes": ["node_modules/mysql2"],
+          "via": [
+            {
+              "source": 1153173,
+              "name": "mysql2",
+              "dependency": "mysql2",
+              "title": "MySQL2: Auth Plugin Downgrade to mysql_clear_password Leaks Plaintext Credentials",
+              "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
+              "severity": "high",
+              "cwe": ["CWE-522"],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": "<3.22.0"
+            },
+            {
+              "source": 1158532,
+              "name": "mysql2",
+              "dependency": "mysql2",
+              "title": "MySQL2: Unbounded zlib inflate in compressed MySQL protocol handler allows decompression-bomb DoS",
+              "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
+              "severity": "moderate",
+              "cwe": ["CWE-409"],
+              "cvss": {
+                "score": 5.9,
+                "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": "<=3.23.0"
+            }
+          ],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "pac-proxy-agent",
+          "severity": "high",
+          "direct": false,
+          "range": ">=6.0.0",
+          "nodes": ["node_modules/pac-proxy-agent"],
+          "via": ["get-uri"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "prisma",
+          "severity": "high",
+          "direct": true,
+          "range": "6.13.0-dev.1 - 8.1.0-dev.6",
+          "nodes": ["node_modules/prisma"],
+          "via": ["@prisma/config", "mysql2"],
+          "fixAvailable": {
+            "name": "prisma",
+            "version": "6.19.3",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "proxy-agent",
+          "severity": "high",
+          "direct": false,
+          "range": ">=6.0.0",
+          "nodes": ["node_modules/proxy-agent"],
+          "via": ["pac-proxy-agent"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "puppeteer",
+          "severity": "high",
+          "direct": true,
+          "range": "19.8.1 - 24.43.1",
+          "nodes": [
+            "node_modules/puppeteer",
+            "node_modules/whatsapp-web.js/node_modules/puppeteer"
+          ],
+          "via": ["@puppeteer/browsers", "puppeteer-core"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "puppeteer-core",
+          "severity": "high",
+          "direct": false,
+          "range": "19.8.4 - 24.43.1",
+          "nodes": [
+            "node_modules/puppeteer-core",
+            "node_modules/whatsapp-web.js/node_modules/puppeteer-core"
+          ],
+          "via": ["@puppeteer/browsers"],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.13.0",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "semver",
+          "severity": "high",
+          "direct": false,
+          "range": "2.0.0-alpha - 5.7.1",
+          "nodes": ["node_modules/utf7/node_modules/semver"],
+          "via": [
+            {
+              "source": 1112918,
+              "name": "semver",
+              "dependency": "semver",
+              "title": "semver vulnerable to Regular Expression Denial of Service",
+              "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw",
+              "severity": "high",
+              "cwe": ["CWE-1333"],
+              "cvss": {
+                "score": 7.5,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": ">=2.0.0-alpha <5.7.2"
+            }
+          ],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "utf7",
+          "severity": "high",
+          "direct": false,
+          "range": ">=1.0.2",
+          "nodes": ["node_modules/utf7"],
+          "via": ["semver"],
+          "fixAvailable": {
+            "name": "imap",
+            "version": "0.8.17",
+            "isSemVerMajor": true
+          }
+        },
+        {
+          "name": "whatsapp-web.js",
+          "severity": "high",
+          "direct": true,
+          "range": "1.34.4 - 1.34.7",
+          "nodes": ["node_modules/whatsapp-web.js"],
+          "via": ["puppeteer"],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          }
+        }
+      ]
+    }
+  }
+}

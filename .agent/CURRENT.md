@@ -23,10 +23,15 @@ Updated 2026-10-14 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
 
 ## Exact continuation
 
-Finish updated full regression and commit the independently reviewed candidate,
-build the isolated acceptance topology, exercise recovery UI and rerun all 16
-browser scripts. Record each boundary honestly. Continue R3 dependency remediation
-and then eligible approved product work; preserve real-provider criteria for R4.
+Candidate22a9951 is committed and built. All16 existing browser scripts and the
+new J17 recovery journey passed individually; SQL evidence fixes require one
+fresh clean runner pass. Commit harness/docs repair, rebuild for that HEAD,
+run fresh full suite, and record acceptance separately from real Meta (R4).
+
+Independent R3 experiments are in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`:
+five targeted override candidates reduce audit16→5 high production and21high/1low→10high full.
+Compatibility checks and no-patch browser-archive/braces residual decisions remain
+open; no changes are integrated into the serving R1 acceptance checkout.
 
 ## Protected boundaries
 

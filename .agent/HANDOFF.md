@@ -1,26 +1,28 @@
 # Latest session handoff
 
-2026-10-14 overnight work, active until 2026-10-15 08:00 Asia/Kuala_Lumpur.
-Owner approved R1 conservative recovery and continued eligible milestone work.
+2026-10-14 overnight work, active until2026-10-15 08:00 Asia/Kuala_Lumpur.
+Approved milestone and R1 recovery correction; PLAN governs dependencies.
 
-Implementation is in `/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly`:
-durable delivery operations/saved responses/leases, recovery API and Approvals UI,
-Meta outcome classification, tenant FKs, follow-up connection ownership, atomic
-parent projection, GDPR pending-job/cache/audit redaction, isolated acceptance
-build/DB/process/listener safeguards. No live product/services/provider changes.
+Isolated R1 candidate22a99518e987979aa08fba58a5a7891ed5962f25 implements durable
+saved replies/leases, audited human recovery, tenant/privacy/race fixes and owned
+acceptance topology. Full128 files/1175 passed,23 optional Redis skips;
+signup-seeded680 passed; type/lint/build passed. Actual SIGKILL + natural pg-boss
+recovery passed with one submission. Independent security findings resolved.
 
-Executed: six-file delivery run 29 passed; real-DB durability four passed;
-harness safeguards seven passed. Original mocked regressions observed five fail/
-one pass before implementation; seven independent review regressions also failed
-before their fixes. Actual pg-boss SIGKILL/restart passed (natural expiry, one external submission). Full run128 files/1175 passed/23 optional Redis skips; signup-seeded680 passed. Final updated run/build and recovery UI/full browser rerun remain open. Independent source reviews closed.
-See [R1 evidence](../docs/r1-delivery-implementation-2026-10-14.md).
+Browser2: all16 existing scripts passed; J17 first failed on JSON SQL formatting,
+then passed after helper correction. Actual recovery acknowledgement, saved-reply
+resend/one transcript/reload, interrupted cancel, other-tenant404, owner audit2.
+Screenshots inspected. SQL helper now preserves duplicate columns and JSON cells;
+permanent browser assertions failed before these repairs. One fresh clean full
+runner pass remains before R1 local closure. Real Meta boundary remains R4.
 
-Git: regression checkpoint `7aa004f530a4cbbbea7ae95b6bbb582191da959c`;
-documentation checkpoint `56cf6a5`; this handoff is included in the implementation
-commit. Source/full regression/type/lint checks and independent review passed. No push/merge/deploy/tag.
+Continue: commit harness/docs repair, rebuild for new HEAD, fresh full browser run.
+R3 independent experiments are in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`;
+only its dependencies/configs are changing. Candidate overrides cut production
+high16→5 and full21high/1low→10high. Validate consumed APIs/Prisma/worker/build;
+explicit no-patch residual-risk decision remains open. Do not change the serving
+R1 candidate's dependencies while its test worker runs.
 
-Continue: build the committed candidate;
-build fresh isolated browser topology and run recovery journey + full suite.
-Then finish eligible R3 remediation and proceed in PLAN order. Unknown outcomes
-stay review-required; no whole AI/tool replay. Real Meta acceptance remains R4.
-Dependency audit counts: production 16 high, full 21 high/1 low, no upgrades yet.
+No live main product/services/provider configuration changed. No push/merge/deploy.
+Stop only recorded owned acceptance processes; keep test cleanup out of browser
+or user databases. Preserve port7700/tunnel. Follow PLAN's live order thereafter.

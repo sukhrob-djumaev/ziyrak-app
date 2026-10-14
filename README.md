@@ -147,18 +147,24 @@ database, migrations, independent secrets and a build with
 
 Set `ACC_DB`, `DATABASE_URL` and `DIRECT_DATABASE_URL` to that same acceptance
 DB in the isolated acceptance shell; keep unit/repository test runs separate.
-Set `ACC_WORK_DIR` to a fresh evidence directory. If the DB is not the compose
-Postgres, configure `ACC_PSQL` for the same isolated DB; the harness's SQL helper
-does not infer every connection topology from `ACC_DB`. Then build and start:
+Set `ACC_WORK_DIR` to a fresh **absolute** evidence directory and use an isolated
+Git worktree with its own dependencies. The SQL helper connects to the exact
+`ACC_DB` host/port/database; `ACC_PSQL` is unsupported. Set `CHROMIUM_PATH` to a
+trusted existing browser executable when Puppeteer's cached revision is absent.
+The build command records commit/source/build identity; ordinary `npm run build`
+does not create that acceptance record. Then build, start and verify:
 
 ```sh
-NEXT_PUBLIC_APP_URL=http://localhost:3100 npm run build
+node scripts/acceptance/runtime.cjs build
 scripts/acceptance/start-all.sh all
+node scripts/acceptance/runtime.cjs verify
 scripts/acceptance/run-all.sh
+# Stop only the recorded processes for the same ACC_DB/ACC_WORK_DIR:
+node scripts/acceptance/runtime.cjs stop all
 ```
 
-The runner supplies the dependency order for all 16 scripts; live Meta J16 is
-separate. J09/J10 currently needs a fresh database per complete run. Record only
+The runner supplies the dependency order for the 16 existing scripts plus the
+R1 recovery journey J17; live Meta J16 is separate. J09/J10 currently needs a fresh database per complete run. Record only
 and stop only this run's PIDs; never use process-name kills. One browser window per
 role avoids background-tab throttling. New fixes must be verified on the resulting
 candidate; passing an earlier build is not sufficient.

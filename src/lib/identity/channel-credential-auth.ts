@@ -91,7 +91,7 @@ export async function findConnectionByPhoneNumber(
 /** Telegram/WhatsApp-Web/Email/WebChat resolve by a connection id the caller already has (a URL segment, or an allowlisted business's own connection). */
 export async function findConnectionById(type: string, connectionId: string): Promise<ResolvedConnection | null> {
   const connection = await rawPrisma.channelConnection.findFirst({
-    where: { id: connectionId, type, isActive: true },
+    where: { id: connectionId, type, isActive: true, business: { status: "active" } },
   });
   return connection ? { businessId: connection.businessId, connectionId: connection.id } : null;
 }

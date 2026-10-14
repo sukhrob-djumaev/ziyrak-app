@@ -44,6 +44,7 @@ function sourceDigest() {
       "--",
       "src",
       "prisma",
+      "public",
       "package.json",
       "package-lock.json",
       "next.config.ts",

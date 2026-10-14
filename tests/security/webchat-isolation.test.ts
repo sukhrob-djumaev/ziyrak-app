@@ -183,7 +183,7 @@ describe("WebChat token/origin/tenant isolation (§20.4/§46.5)", () => {
     // from "doesn't exist", §33.3).
     const crossConnectionRequest = createRequest(`/api/channels/webchat/${connectionId2}/stream`, {
       headers: { origin: ALLOWED_ORIGIN },
-      searchParams: { token: token2, conversationId: conversationId1 },
+      searchParams: { token: token2, conversationId: conversationId1, visitorId: `webchat:${conversationId1}` },
     });
     const crossConnectionResponse = await GET(crossConnectionRequest, { params: Promise.resolve({ connectionId: connectionId2 }) });
     expect(crossConnectionResponse.status).toBe(404);
@@ -191,7 +191,7 @@ describe("WebChat token/origin/tenant isolation (§20.4/§46.5)", () => {
     // The legitimate owner (connection1's own token) succeeds.
     const ownRequest = createRequest(`/api/channels/webchat/${connectionId1}/stream`, {
       headers: { origin: ALLOWED_ORIGIN },
-      searchParams: { token: token1, conversationId: conversationId1 },
+      searchParams: { token: token1, conversationId: conversationId1, visitorId: `webchat:${conversationId1}` },
     });
     const ownResponse = await GET(ownRequest, { params: Promise.resolve({ connectionId: connectionId1 }) });
     expect(ownResponse.status).toBe(200);
@@ -210,7 +210,7 @@ describe("WebChat token/origin/tenant isolation (§20.4/§46.5)", () => {
     const response = await GET(
       createRequest(`/api/channels/webchat/${connectionId}/stream`, {
         headers: { origin: ALLOWED_ORIGIN },
-        searchParams: { token, conversationId: crypto.randomUUID() },
+        searchParams: { token, conversationId: crypto.randomUUID(), visitorId: "new-stream-visitor" },
       }),
       { params: Promise.resolve({ connectionId }) }
     );

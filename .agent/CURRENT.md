@@ -1,53 +1,42 @@
 # Current task
 
-Updated 2026-10-15 (Asia/Kuala_Lumpur). PLAN governs scope and criteria.
+Updated 2026-10-15 KL. PLAN governs; approved MS-2026-10-14 order:
+R1 → R3 → P1 → P2 → P3 → R2 → R4 → R5. Overnight authorized through08:00 KL.
 
-- Approved milestone MS-2026-10-14; order R1 → R3 → P1 → P2 → P3 → R2 → R4 → R5.
-- Owner approved R1 contract correction and overnight work through08:00 KL.
-- R1 local criteria passed on63247f6/buildGg0DWAo-ZUcXzw2VozQmS: full1175,
-  signup-seeded680, actual worker SIGKILL/natural recovery, security review,
-  type/lint/build and all17 browser scripts. Owned topology stopped; R4 live
-  provider verification remains open. R1 checkpoint c894b63; integrated R3 checkpoint086f659; tree clean.
-- R3 isolated candidate: targeted overrides, default archive-download suppression,
-  paired CI DB URLs. Full1183/23optional skips; Redis1205/1intentional skip;
-  type/lint, Node22 Docker build/consumed-version probes passed. Independent
-  source/security review found no confirmed candidate issue. Exact containing
-  commit is discoverable through Git; changes are not integrated into live main.
-- R3 verified isolated safety baseline permits P1 work under the board dependency.
-  R3 closure remains pending the owner's extract-zip/braces residual-risk decision;
-  the asynchronous question is open. Silence is not acceptance.
-- Evidence: [R1](../docs/r1-delivery-implementation-2026-10-14.md),
-  [R3 candidate/decision](../docs/r3-remediation-2026-10-15.md).
+R1 locally verified c894b63 (delivery code63247f6, full1175/signup680, worker
+SIGKILL/natural recovery, review/type/lint/build/all17 browser journeys).
+R3 isolated2adfc1b/integrated086f659 safety baseline verified, including Node22
+Docker/consumed dependencies and Redis suites. Closure awaits owner's extract-zip/
+braces residual-risk decision; async question remains unanswered, not waived.
 
-## Exact continuation
+## Active P1 and exact next action
 
-P1 active checkout `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly`,
-parent R3 checkpoint2adfc1b. Explicit matrix written; first team/connection slice
-implemented after7failed/1passed regressions, targeted21passed. Full134files1194passed/23optional Redis skips, focused21/type/lint passed.
-First slice1322b03 / runtime80b5f33 buildwLh2ej40gDoE5_A4LJVCH and all17 browser journeys passed; owned topology stopped. Full P1 acceptance remains open. Preparation identified team-update
-owner escalation/global credential edits, same-contact cross-connection reuse,
-related-resource/stream leakage and delayed authority loss. No P1 criterion passed
-or new platform authority enabled yet. Keep restricted access unavailable until
-all exposed paths enforce it; secured provisioning precedes P3 invitations.
+Development: `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly`.
+Team/connection first slice1322b03; workspace/scope/retirement foundation524fc17.
+Foundation full1253/signup751/type/lint/review and all17 browser journeys passed
+on runtime ddfb28b/buildwGZWKxtJLXDsM9Bpq5mC2. Native Chrome owner/viewer choice,
+switch and viewer Settings denial passed; second membership was a DB prerequisite.
 
-Foundation implemented in this P1 tree: selected-workspace entry/UI, normalized
-scope guard, API-key issuer ceiling, related-query/reference checks, guarded short
-writes and lifecycle retirement. Three migrations applied only to isolated P1 test
-and signup-test DBs. Full141files1253pass/23optional skips; signup-seeded73files751pass;
-type/strict lint pass. Lifecycle22pass. Independent source/security and targeted
-final privacy rechecks report no further confirmed foundation issue after repairs;
-reviewers did not run tests. Foundation browser/build acceptance remains pending.
-Earlier concurrent full/seeded runs hit connection limits and are not acceptance.
-Next: coherent local foundation checkpoint, isolated production build and fresh
-full browser rerun plus workspace-choice journey; then fresh stream/delegated
-authority and platform/support workflows. Tool-only followup targets still need
-durable parent binding in the delayed-work slice. P1 remains open, not live-ready.
+Stream slice is being checkpointed (containing commit via Git): tests-first scope/
+revocation/envelope/retirement races repaired; focused68, full143files1277pass/
+23optional skips, signup74files770pass; type/strict lint and independent source
+recheck passed. Runtime parent ddfb28b + frozen dirty digestf72cadf...ef64,
+build5Wsu11zRYbUiAIFjLzkmu: all19 journeys passed through first17 plus corrected
+J18/J19 continuations. Initial runner failed at new harness setup; no uninterrupted
+19-script command claimed. Redis web/worker frames, token rotation and UI logout
+proved. Owned topology stopped using corrected saved/current identity comparison.
 
-## Runtime and prohibited actions
+Next: secured platform bootstrap/recovery/operator assignments/support grants
+(contract drafted/design reviewed), then delayed authority and complete role UI.
+Tool-only followup targets require durable parent binding. No platform provisioning
+exposed or executed live. Partial P1 candidate is not live-ready; P1 remains open.
+Evidence: docs/p1-access-implementation-2026-10-15.md and
+docs/p1-stream-authority-2026-10-15.md; R1/R3 evidence docs retain provider limits.
 
-Product/dependency/build work remains in isolated worktrees, each with own deps.
-R3 DB `ziyrak_r3_test_20261015`; task-owned Redis on127.0.0.1:6381 (exact ID in
-`/private/tmp/ziyrak-r3-redis.id`, verify task label before cleanup).
-Never touch live main source/deps, port7700/tunnel/provider configuration or live
-DB. No process-name kills, push/merge/deploy/release or new milestone. Stop only
-recorded owned identities. Preserve pending residual decision and live criteria.
+## Runtime boundaries
+
+Own dependencies/worktrees; paired isolated test DB URLs; bounded sequential tests.
+Task-owned Redis6381 exactIDfile `/private/tmp/ziyrak-r3-redis.id`; verify task label.
+Never change main product/deps/live environment/7700/tunnel/provider/live DB, kill
+by name, delete active profile locks, push/merge/deploy/release or select new phase.
+Only recorded PID/birth/cwd or exact container identity may be stopped.

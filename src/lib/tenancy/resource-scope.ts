@@ -54,6 +54,28 @@ export function scopeIsWithin(scope: ResourceScope, ceiling: ResourceScope): boo
     scope.connectionIds.every((id) => ceiling.connectionIds.includes(id))
   );
 }
+/** A connection-time/job ceiling cannot grow when current authority grows. */
+export function intersectResourceScopes(
+  current: ResourceScope,
+  ceiling: ResourceScope
+): ResourceScope {
+  const rank = { none: 0, read: 1, write: 2 };
+  const customerProfileAccess =
+    rank[current.customerProfileAccess] < rank[ceiling.customerProfileAccess]
+      ? current.customerProfileAccess
+      : ceiling.customerProfileAccess;
+  if (current.kind === "workspace" && ceiling.kind === "workspace")
+    return { kind: "workspace", customerProfileAccess };
+  const connectionIds =
+    current.kind === "connections"
+      ? current.connectionIds.filter(
+          (id) => ceiling.kind === "workspace" || ceiling.connectionIds.includes(id)
+        )
+      : ceiling.kind === "connections"
+        ? ceiling.connectionIds
+        : [];
+  return { kind: "connections", connectionIds: [...connectionIds], customerProfileAccess };
+}
 export function hasTenantPermission(ctx: TenantContext, permission: Permission): boolean {
   if (ctx.authorization?.kind === "support")
     return (

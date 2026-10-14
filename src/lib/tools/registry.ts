@@ -157,7 +157,7 @@ export class ToolRegistry {
     const input = parsed.data as Prisma.InputJsonValue;
 
     if (ctx.actor.kind === "ai_agent" && policy.requiresHumanApproval) {
-      await db.actionExecution.create({
+      const pending = await db.actionExecution.create({
         data: {
           businessId: ctx.businessId,
           tool: name,
@@ -177,7 +177,11 @@ export class ToolRegistry {
         undefined,
         { tool: name, conversationId: runtimeCtx.conversationId ?? null }
       );
-      emitNotification(ctx.businessId, "action.pending_approval", { tool: name });
+      emitNotification(ctx.businessId, "action.pending_approval", {
+        tool: name,
+        actionExecutionId: pending.id,
+        ...(pending.conversationId && { conversationId: pending.conversationId }),
+      });
       return {
         success: true,
         message: `This action ("${name}") requires human approval before it will run. It has been forwarded for review.`,

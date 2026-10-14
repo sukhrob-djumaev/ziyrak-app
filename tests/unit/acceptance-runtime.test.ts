@@ -70,6 +70,14 @@ function command(f: ReturnType<typeof fixture>, code: string) {
   }).trim();
 }
 describe("acceptance owned-process recovery", () => {
+  it("invalidates build identity when a public widget asset changes", () => {
+    const f = fixture();
+    mkdirSync(path.join(f.tree, "public"));
+    writeFileSync(path.join(f.tree, "public/widget.js"), "/* changed widget fixture */");
+    expect(() => command(f, "require(" + JSON.stringify(f.script) + ").manifest()")).toThrow(
+      /Build identity is missing\/stale/
+    );
+  });
   it("refuses browser verification when no owned application topology exists", () => {
     const f = fixture();
     const result = spawnSync(process.execPath, [f.script, "verify"], {

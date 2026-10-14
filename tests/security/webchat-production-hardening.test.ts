@@ -244,7 +244,7 @@ describe("hostile widget requests (§20.4/§34.3 item 7)", () => {
     // And B's token cannot subscribe to A's conversation stream (real route).
     const { GET } = await import("@/app/api/channels/webchat/[connectionId]/stream/route");
     const response = await GET(
-      createRequest(`/api/channels/webchat/${b.connectionId}/stream`, { headers: { origin: ORIGIN }, searchParams: { token: b.token, conversationId } }),
+      createRequest(`/api/channels/webchat/${b.connectionId}/stream`, { headers: { origin: ORIGIN }, searchParams: { token: b.token, conversationId, visitorId: visitor } }),
       { params: Promise.resolve({ connectionId: b.connectionId }) }
     );
     expect(response.status).toBe(404);

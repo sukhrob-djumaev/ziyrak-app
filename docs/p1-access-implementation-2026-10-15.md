@@ -35,7 +35,7 @@ internal API continuation through a tenant-scoped lookup. Unknown/foreign IDs404
 First slice code1322b03 was integrated into isolated runtime candidate80b5f33.
 Production buildwLh2ej40gDoE5_A4LJVCH and all17 browser journeys passed on the fresh
 `ziyrak_acceptance_p1_slice_20261015` database; manifest/evidence are under
-`.work/p1-slice-20261015` in the R1 candidate checkout. Owned topology stopped and
+`scripts/acceptance/.work/p1-slice-20261015` in the R1 candidate checkout. Owned topology stopped and
 identity verification found no remaining owned process. These results apply to
 that first slice, not the later uncommitted foundation. Provider fixtures
 prove local routing/persistence, not real recipient delivery. R4 retains affected
@@ -106,9 +106,25 @@ checkpoints fail closed after retirement; approval/rejection admission uses CAS.
   receive explicit legitimate scopes; legacy platform flags grant no new authority.
   No production migration/bootstrap, support console or restricted assignment UI.
 
-Foundation production build, fresh full browser rerun and named workspace-switch
-journey remain pending. First-slice browser evidence above does not cover this
-checkpoint. P1 still requires fresh per-event stream checks, delayed-work provenance,
+Foundation code524fc17083d2faf2ad59d85b8d9d2666066226a8 integrated to isolated
+runtime candidate ddfb28bc7b218e4953bacf7334cba2fc9d1a6d22. Production build
+wGZWKxtJLXDsM9Bpq5mC2 and fresh all17 browser journeys passed on
+`ziyrak_acceptance_p1_foundation_20261015`; source digest
+7364792ea1f6a5f5c5aa568914dfa945c82d83f8fed89d29081b6270981d06dc.
+Manifest/evidence: R1 candidate `scripts/acceptance/.work/p1-foundation-20261015`; browser log
+`/private/tmp/ziyrak-p1-foundation-browser.log`.
+
+Native Chrome exploratory run (private window, local production app) verified:
+multi-workspace login opened the actual choice page; choosing the second workspace
+as viewer loaded that workspace's dashboard/account label; its Settings UI showed
+insufficient permissions; Switch workspace returned the picker; selecting the owner
+workspace reloaded its own dashboard/account label and restored Approvals access.
+The second viewer membership was a documented synthetic DB prerequisite because
+joining an existing account is not exposed until P3 invitations. UI login and
+selection used the real UI. This is owner/viewer switching evidence, not the entire
+P1 role/support matrix. The private test window and all owned runtime processes
+were closed; identity verification reported remainingOwned[]. No real-provider claim.
+P1 still requires fresh per-event stream checks, delayed-work provenance,
 secured platform provisioning/support grants and their actual role/browser matrix.
 Followup targets supplied only in tool arguments also need durable parent binding
 before the delayed-work slice can close. Do not expose this partial candidate live.

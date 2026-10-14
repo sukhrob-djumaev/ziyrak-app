@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { subscribe, tenantGlobalChannel, tenantConversationChannel } from "@/lib/realtime/realtime";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
-import { verifyActiveToken } from "@/lib/identity/auth";
-import { logger } from "@/lib/observability/logger";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+
+import { refreshStreamAuthority } from "@/lib/identity/stream-authority";
+import { authorizedEventStream } from "@/lib/realtime/authorized-stream";
+import { projectDashboardEvent } from "@/lib/identity/stream-event-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -27,19 +29,28 @@ export async function GET(request: NextRequest) {
   const requested = request.nextUrl.searchParams.get("channel") || "global";
 
   let channel: string;
+  let boundConversationId: string | undefined;
   if (requested === "global") {
     channel = tenantGlobalChannel(ctx.businessId);
   } else {
     const match = requested.match(CONVERSATION_CHANNEL);
     if (!match) {
       return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: "channel must be \"global\" or \"conversation:<id>\"" } },
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: 'channel must be "global" or "conversation:<id>"',
+          },
+        },
         { status: 400 }
       );
     }
     const conversationId = match[1];
+    boundConversationId = conversationId;
     const db = getScopedPrisma(ctx);
-    const conversation = await db.conversation.findUnique({ where: { id: conversationId } });
+    const conversation = await db.conversation.findUnique({
+      where: { id: conversationId, retiredAt: null },
+    });
     if (!conversation) {
       return NextResponse.json(
         { error: { code: "NOT_FOUND", message: "Conversation not found" } },
@@ -49,73 +60,24 @@ export async function GET(request: NextRequest) {
     channel = tenantConversationChannel(ctx.businessId, conversationId);
   }
 
-  // The session this stream was opened under. requireAuth() ran once, at connect;
-  // the heartbeat below re-checks the session so a signed-out (or expired) token
-  // stops receiving the tenant's live events instead of streaming until the
-  // client disconnects. API-key callers have no session token to re-check.
-  const sessionToken = request.cookies.get("owly-token")?.value;
-
-  const stream = new ReadableStream({
-    start(controller) {
-      const encoder = new TextEncoder();
-
-      // Send initial connection event
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "connected", channel: requested })}\n\n`)
-      );
-
-      // Subscribe to events
-      const unsubscribe = subscribe(channel, (event) => {
-        try {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-          );
-        } catch {
-          unsubscribe();
-        }
-      });
-
-      const endStream = () => {
-        clearInterval(heartbeat);
-        unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          // Already closed
-        }
-      };
-
-      // Heartbeat every 30 seconds, which is also how soon a signed-out session is cut off.
-      const heartbeat = setInterval(async () => {
-        try {
-          if (sessionToken && !(await verifyActiveToken(sessionToken))) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "session_ended" })}\n\n`));
-            endStream();
-            return;
-          }
-          controller.enqueue(encoder.encode(": heartbeat\n\n"));
-        } catch (error) {
-          if (error instanceof TypeError) {
-            // enqueue on a closed controller: the client is gone.
-            endStream();
-          } else {
-            // A failed session lookup (transient database error) must not drop live streams; the next beat retries.
-            logger.error("[realtime] session re-check failed", error);
-          }
-        }
-      }, 30000);
-
-      // Cleanup on abort
-      request.signal.addEventListener("abort", () => {
-        clearInterval(heartbeat);
-        unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          // Already closed
-        }
-      });
+  const stream = authorizedEventStream({
+    signal: request.signal,
+    connected: { type: "connected", channel: requested },
+    subscribe: (callback) => subscribe(channel, callback),
+    refresh: async () => {
+      const current = await refreshStreamAuthority(request, ctx);
+      if (!current) return null;
+      if (
+        boundConversationId &&
+        !(await getScopedPrisma(current).conversation.findFirst({
+          where: { id: boundConversationId, retiredAt: null },
+          select: { id: true },
+        }))
+      )
+        return null;
+      return current;
     },
+    project: (current, event) => projectDashboardEvent(current, ctx, event),
   });
 
   return new Response(stream, {

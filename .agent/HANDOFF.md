@@ -1,54 +1,53 @@
 # Latest session handoff
 
-Session: 2026-10-14 — managed-service product plan and reordered live roadmap.
+Session: 2026-10-14 — R1 red regressions and necessary contract proposal;
+R3 assessment. Managed-service milestone remains incomplete.
 
-## Changes and scope
+## Changes and findings
 
-- Owner approved adding the discussed business-workspace, admin and managed-AI
-  product direction to the plan. This session changes documentation only.
-- PLAN now owns one live board: finished foundations with evidence limits, then
-  R1 → R3 → P1 → P2 → P3 → R2 → R4 → R5. R1 remains next; R3 isolation safeguards
-  apply before all product work. P1–P3 are new tasks, not completed capabilities.
-- Decision MS-2026-10-14 distinguishes platform super admin/assigned operators from
-  business owners/admins/team, requires explicit audited support access, and adds
-  channel scope, managed AI/allowances, verified accounts/recovery/invitations and
-  resumable onboarding. Updated the older access/configuration/quota/MVP contracts
-  and marked the relevant phase amendments so their old deferrals do not conflict.
-- README describes the target separately from current setup; AGENTS/CURRENT point
-  to the canonical live board. R5 remains the final naming pass, preserving history,
-  attribution and necessary compatibility. No actual rename or product change yet.
+- Created attached isolated worktree with separate dependencies; no live .env
+  copied and no product source, live dependencies/services/database/provider
+  configuration changed.
+- Permanent R1 desired-behavior fixture covers the two October 14 findings plus
+  AI entry-point replay, uncertain transport replay and injected running-state
+  recovery. It remains deliberately red, pending implementation.
+- Independent read-only architecture investigation confirms that the current
+  adapter/result contract cannot atomically commit an external send with its
+  local success record. A final-response checkpoint alone also leaves an earlier
+  tool replay window. [Proposal](../docs/r1-delivery-contract-proposal-2026-10-14.md)
+  recommends accepted/rejected/unknown delivery and operator review for unknown
+  dispatch or interrupted preparation. Rule 11 owner decision is pending;
+  approved architecture and product behavior were not changed.
+- R3 audit and source assessment found 16 high production advisories versus
+  21 high/1 low across all dependencies. Documented reachability limits and
+  harness target/process hazards in the [assessment](../docs/r3-operational-assessment-2026-10-14.md)
+  with [compact registry evidence](../docs/evidence/r3-dependency-audit-2026-10-14.json).
+  No residual-risk acceptance, upgrades or script repairs yet.
 
-## Evidence and decisions
+## Verification and commits
 
-Source inspection: signup provisions Business/User/owner Membership atomically;
-AI keys/models are still customer configured; roles are business-wide and request
-context selects the earliest membership. Platform-admin flag is not a console or
-tenant bypass. Account email lifecycle and enforced AI allowances are missing;
-best-effort usage logs cannot enforce a cap. These findings support extending the
-existing architecture. “Small admins” are represented as separate Ziyrak operator
-and customer workspace-admin roles. Production allowance/limit behavior and R2
-quality thresholds still require concrete owner-reviewed proposals.
-
-Product baseline: `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`. Earlier assessment:
-`1ea078cab50f66b7598869a3c40e14812ef93a49`; workflow rewrite:
-`d7c106fc78faa10db80c0093618f60896eecd6d8`; R5 addition:
-`54a6205a0f37a1b0ddc3058a9e82956187408584`. This revision is the commit containing
-this handoff; inspect Git for its actual hash.
-
-## Verification
-
-Passed: formatting for README/AGENTS/CURRENT/HANDOFF, PLAN Markdown parsing,
-whitespace checks, 40 local links/anchors, live task order and preservation of all
-10 original phase tests-first/acceptance blocks, implementation history and assessment.
-Independent read-only documentation/architecture review completed with no remaining
-findings after reconciling old module/configuration wording and R4 dependencies.
-This is not product security acceptance. No application tests/build/browser/provider
-calls ran; application behavior, environments and milestone acceptance are unchanged.
+- R1 fixture: 5 failed/1 passed, real handlers with mocked dependencies and both
+  DB URLs pointed at an unreachable synthetic target. Reproduces defects;
+  not real DB/queue, worker-kill, tool-execution or provider-delivery evidence.
+- Fixture ESLint and Prettier passed. No application type/build/full-suite,
+  browser or provider run; product unchanged. Main documentation validation
+  passed: formatting, whitespace, 21 local links, audit lock/counts and unchanged
+  original architecture. Independent final documentation/source review found
+  no material issue; this is not implementation security signoff.
+- Initial main HEAD: 551f9cd1d5146ed13368fda1e2ed85610f4fba21; product baseline:
+  c20513d78421816ac0096eff1cf3dbb0d6c9aa55. Local regression commit in attached
+  worktree: 7aa004f530a4cbbbea7ae95b6bbb582191da959c. The main documentation checkpoint is the
+  commit containing this handoff. Nothing pushed, merged or deployed.
 
 ## Continue
 
-Start R1 via PLAN/CURRENT in an isolated worktree, following the shared protocol and
-live-board dependencies. Prepare independent work if a real external blocker appears;
-keep required acceptance open. Preserve protected port 7700/tunnel, live checkout,
-database separation and existing Meta connections. No new product milestone,
-enterprise completion tag, rollout, push or deployment is implied by this plan update.
+Resolve the owner decision in the R1 proposal before its contract deviation.
+R3 safety work can continue independently; complete harness protections before
+real R1 persistence/browser work. Keep the red fixture active; no skip or pass
+claim. After approval, implement in the attached worktree, retaining tenant and
+connection checks; add durable restart/isolation and actual operator/browser
+verification, then independent implementation security review.
+
+Main remains the live checkout. Preserve protected port 7700/tunnel, live DB,
+Meta connections and historical B waiver. Recheck every runtime identity before
+interaction. No milestone/phase completion or rollout is implied.

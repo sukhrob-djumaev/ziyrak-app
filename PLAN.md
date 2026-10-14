@@ -296,6 +296,14 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   or real-provider claim. See [P1 evidence](docs/p1-access-implementation-2026-10-15.md)
   and [stream evidence](docs/p1-stream-authority-2026-10-15.md).
 
+- **Polling follow-up (2026-10-15):** c56686d (runtime d026791) denies wrong-channel/
+  retired initial widget reads and enforces current parent predicates in polling/
+  public cursors. Tests-first five failures repaired; focused58/full1283,
+  23optional skips, type/lint and independent targeted source recheck passed.
+  Fresh uninterrupted full19browser pass, build9146d4aHpG45JEXRsbL8K; isolated
+  production web/worker/Redis/stand-in/Chromium, owned topology stopped. See
+  `docs/p1-widget-poll-authority-2026-10-15.md`. P1 remains incomplete.
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

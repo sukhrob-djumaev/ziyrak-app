@@ -26,6 +26,17 @@ J18/J19 continuations. Initial runner failed at new harness setup; no uninterrup
 19-script command claimed. Redis web/worker frames, token rotation and UI logout
 proved. Owned topology stopped using corrected saved/current identity comparison.
 
+Polling follow-up c56686d (runtime d026791): initial channel/retirement checks,
+current parent/cursor predicates and public cursor roles. Full1283/23optional,
+focused58/type/lint/independent source recheck; fresh uninterrupted full19browser
+pass on build9146d4aHpG45JEXRsbL8K. Owned topology stopped. Evidence:
+docs/p1-widget-poll-authority-2026-10-15.md.
+
+Bootstrap/recovery service implementation in isolated P1 worktree: 13realPG tests,
+type/lint and independent targeted source review passed. Full/signup checks running;
+not exposed, no live platform enrollment. Route/UI and actual new workflow remain
+open; support/operator/delayed authority are still pending.
+
 Next: secured platform bootstrap/recovery/operator assignments/support grants
 (contract drafted/design reviewed), then delayed authority and complete role UI.
 Tool-only followup targets require durable parent binding. No platform provisioning

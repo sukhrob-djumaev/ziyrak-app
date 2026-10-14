@@ -1,27 +1,53 @@
 # Latest session handoff
 
-Session: 2026-10-13 → 2026-10-14 (Asia/Kuala_Lumpur) — Phase 9 close-out, then an overnight hardening pass the owner asked for ("work as much as possible until morning").
+Session: 2026-10-14 (Asia/Kuala_Lumpur) — deep status and model-work review.
+Requested scope was assessment, not product changes. Reviewed product baseline:
+`c20513d78421816ac0096eff1cf3dbb0d6c9aa55` on `main`.
 
-## Changes (all merged, CI green)
+## Findings and changes
 
-- Phase 9 (#8): policy + provider allowlists, dedicated database provisioning/migration/routing, identity-bound RLS, `npm run infra`. Dedicated `StorageProfile` deferred (no `ObjectStorage` implementation exists).
-- Worker heartbeat (#7) + CI timing fixes (#9, #19). I merged #7 without checking CI and `main` was red until #9 — always check CI first.
-- Hardening #12–#22: sign-out revocation (`RevokedToken`), approvals UI, tool policy API/UI (`tools:read`/`tools:update`), `GET /api/me` + header identity, live dashboard updates, GDPR delete contract, logger fix, non-retried Web Chat id conflict, approve route registers its tools, `npm audit fix`, Next.js 16.2.2 → 16.4.0. Details and limits: `PLAN.md` "Post-Phase-9 hardening log" and §46.9 record.
-- Env/repo hygiene: `.env.example` rewritten (#10), compose ports bound to 127.0.0.1 and `.dockerignore` widened (#11). Audit of git history found no committed secret.
+- Full assessment: `docs/status-review-2026-10-14.md`, with phase-by-phase coding
+  judgments, historical runtime-model results, evidence limits and next scope.
+- Corrected CURRENT's stale Next.js/deployment note and unqualified "0–9 done":
+  Phases 0–8 tagged; Phase 7 includes the October 11 owner waiver for Business B
+  delivery; Phase 9 is merged synthetic DB/RLS work with storage deferred/no tag.
+- Two current behaviors reproduced by importing real handlers with isolated
+  mocked dependencies: a follow-up sends twice when the first send succeeds but
+  message persistence fails; an inbound adapter's failed SendResult still causes
+  a processed receipt and resolved job handler. No live messages/database calls.
+- Confirmed short correct answers can escalate under the confidence heuristic.
+  This score is not a measured probability of correctness.
+- No product code, credentials, databases, services, dependencies or tags changed.
+  Documentation-only changes belong to the commit containing this handoff.
 
-## Findings worth remembering
+## Verification actually performed
 
-- Independent read-only reviews (subagents) ran on Phase 9, token revocation and tool policies; every confirmed finding was fixed (e.g. `ApiKey`/`ChannelConnection` must stay on the control plane for dedicated tenants; SSE streams must re-check their session; concurrent policy edits lost updates).
-- Real-browser checks caught what unit tests could not: the approve route's missing tool registration (a latent production bug), stale `[object Object]` logging, and the login limit's interaction with scripts.
-- A failed `npm audit fix` in the live working copy damaged `@prisma/engines` (restored from a pristine clone). Work on dependencies only in an isolated worktree.
+- Initial Git tree/index clean. Inspected plan, tags/history, source, harness,
+  selected fix commits and current package/CI configuration.
+- Fetched exact-baseline CI run 38432123466/job 115416709853 and actual logs:
+  type check, lint, build green; default 1149 passed/4 skipped; Redis-selected
+  1152 passed/1 skipped, 119 files each. Live provider tests are excluded.
+- Fresh local health: production/ok, database connected, OpenAI reachable.
+  Web PID 51167 identifies Next.js 16.4.0; worker launchd job running, PID 51216.
+  Both started just after today's 02:40:42 UTC build. Built routes include
+  approvals, identity and policies. No embedded Git build stamp verified.
+- Four isolated diagnostic assertions passed, including two reproductions of
+  undesirable behavior; fixture/config at `/private/tmp/ziyrak-status-review-20261014/`.
+- No new full local regression, signup-seeded, browser, load, or provider run.
+  October 14's recorded 16/16 browser pass used the stand-in and excluded J16.
+  Review was lead-only, not an independent security audit.
 
-- The acceptance rerun (16/16 on an isolated production build) found three real defects and a hazard, all fixed in #26: the live stream leaked through the back/forward cache (six navigations hung a tab), the per-IP API limit (60/min) was exhausted by the dashboard's background requests (now per-session, keyed by `jti`), and J09/J10's `pkill` stopped the **live worker** for ~6 min (restored; the harness now kills only its own recorded PID). Lesson: anything that stops processes by name must be fenced; run harnesses from an isolated worktree.
-- Also fixed after the first reviews: `/api/actions/[id]/approve` registers its tools (#21); nodemailer 10 (#25).
+## Continuation
 
-## Verification
+Select a bounded delivery-reliability fix before making stronger delivery
+guarantees or rolling out to customers. Replaying the entire AI handler after a
+send failure risks repeating other effects; consider the contract before editing.
+Do not auto-start fixes, deploy, or repeat live acceptance from this review alone.
 
-`npm run test` 1118 passed / 23 skipped; `test:signup-seeded` ~640; `tsc`, lint, build clean on Next 16.4.0; browser suites header 2/2, approvals 19/19, policies 12/12, live updates 7/7 (production build in a worktree against `owly_test`, never the live app). Live DB migrated with backups; worker restarted and verified.
+Preserve the existing rules in CURRENT: isolated worktrees/builds/test databases;
+never tests against live `owly`; never process-name kills; do not touch Meta A/B
+connections or the owner's port-7700 remote-control service. Current Meta
+reachability, account state, database migration list and backups were not checked.
 
-## Continuation point
-
-The live web still runs the old build — see CURRENT.md for the deploy steps and the open owner decisions. No work is in progress.
+Prior hardening implementation, reviews, acceptance runs and the live-worker
+incident remain in PLAN's post-Phase-9 log and Git history. No Phase 10 exists.

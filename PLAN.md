@@ -6,21 +6,43 @@ Updated 2026-10-14. This plan owns architecture, acceptance criteria and work sc
 `README.md` explains setup; `AGENTS.md` defines the shared Codex/Claude workflow;
 `.agent/CURRENT.md` identifies the next task; `.agent/HANDOFF.md` records the latest session.
 
-The owner approved the **quality recovery milestone** below on 2026-10-14.
-The documentation update is the current session's scope; a subsequent `continue`
-resumes R1 and then eligible work within R1–R5. This is remediation of the existing
-product, not Phase 10 or authorization for new features, deployment or account changes.
+The owner approved **managed-service readiness** on 2026-10-14: finish the quality
+recovery work and add the account, access and managed-AI product direction below.
+This session updates documentation only. A subsequent `continue` starts R1 and
+advances through eligible tasks in the live plan, without routine reapproval.
+This does not authorize deployment, live account/provider changes or a new channel.
 
-### Current baseline
+### Live plan — finished foundations and upcoming work
 
-| Area | Implementation | Verification and limits |
+This is the single current roadmap. Update this board and the selected package's
+criterion evidence together; CURRENT is a continuation pointer, not another roadmap.
+**Implemented does not mean newly verified or ready for customer rollout.**
+
+| Finished foundation | Implementation | Verification and limits |
 | --- | --- | --- |
-| Phases 0–6 | Implemented and tagged | Historical evidence in the linked phase records; R1 and R2 address current gaps in those implementations. |
-| Phase 7 | Implemented and tagged | Real Web Chat/OpenAI and Meta evidence exists. The October 11 owner waiver for the second number's visible delivery remains a waiver, not a pass. |
-| Phase 8 | Implemented and tagged | Multi-process and Redis tests recorded; Kubernetes HPA was not exercised on a cluster. |
-| Phase 9 | Synthetic dedicated-DB/RLS work merged; no completion tag | Dedicated storage deferred; migration requires manual quiescence. Full enterprise acceptance remains incomplete. |
-| Post-9 hardening | Merged through PR #28 | Product baseline `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; assessment in `docs/status-review-2026-10-14.md`. |
-| Quality recovery R1–R5 | Approved; implementation not started | No recovery acceptance has passed yet. |
+| Phases 0–6: tenant foundation, roles, knowledge/AI, channels, tools and jobs | Implemented and tagged | Historical phase evidence; R1 and R2 address current delivery and AI-quality gaps. |
+| Phase 7: Web Chat and Meta WhatsApp MVP | Implemented and tagged | Real Web Chat/OpenAI and Meta evidence exists. October 11 second-number visible-delivery waiver remains a waiver, not a pass. |
+| Phase 8: shared infrastructure and multiple processes | Implemented and tagged | Redis and multi-process tests recorded; Kubernetes HPA not cluster-verified. |
+| Phase 9: enterprise placement | Dedicated-DB/RLS portion merged; no completion tag | Synthetic evidence only; dedicated storage deferred, migration manually quiesced. Full enterprise acceptance incomplete. |
+| Post-9 hardening | Merged through PR #28 | Product baseline `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; see the [status review](docs/status-review-2026-10-14.md). |
+| Development process and this product plan | Documented | Shared Codex/Claude continuation, evidence rules and targeted provider testing. These are process changes, not application fixes. |
+
+| Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
+| --- | --- | --- | --- |
+| 1 | **R1 — Delivery reliability** | Not started / not run | Fix send/retry/persistence defects. Safe environment prerequisites apply before work. |
+| 2 | **R3 — Operational safety** | Not started / not run | Audit dependencies and rehearse isolated operations; independent work can run alongside blocked R1. |
+| 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
+| 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
+| 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
+| 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
+| 7 | **R4 — Final functional acceptance** | Not started / not run | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
+| 8 | **R5 — Final Ziyrak naming and branding** | Not started / not run | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
+
+Keep the R identifiers stable for earlier evidence; P identifies newly approved
+product work. This order replaces the earlier R1 → R2 → R3 → R4 → R5 queue.
+Preparation that does not depend on an unfinished contract may proceed when an
+external blocker is recorded; implementation must respect the dependencies above.
+No task in this upcoming table has passed acceptance yet.
 
 The October 14 review verified CI for that exact product baseline: default
 1149 passed/4 skipped; Redis-selected 1152 passed/1 skipped. The latest recorded
@@ -42,23 +64,113 @@ Read current decisions and the relevant later record when interpreting them.
   test run. It does not authorize claiming future customer delivery or skipping
   required release verification after relevant changes.
 - Dedicated storage, automated enterprise cutover, new channels and broader
-  enterprise release work are deferred. R1–R5 does not authorize building them.
-- Product clarification (owner, 2026-10-14): registering users are business
-  customers creating their own private workspace. Platform ownership, scoped
-  admins/users and centrally managed AI remain under discussion; no access-model
-  implementation is authorized by that discussion. §§9/10/15 and current isolation
-  rules still govern until an explicit architecture decision updates them.
+  enterprise release work are deferred. This milestone does not authorize building them.
+- The managed-service decision below is approved product scope. It replaces the
+  earlier pending product discussion and the specifically mapped original deferrals;
+  all other tenant isolation, module boundaries and security contracts remain.
 - Escalation behavior and evaluation thresholds need an explicit product decision
   in R2. Optional cookie-request Origin hardening remains an unselected follow-up.
 - Use isolated worktrees, dependencies, test databases and ports for product work.
   This host's main checkout supplies the live worker. Never run cleanup tests on
   live `owly`, kill processes by name, or touch port 7700 and its remote-control tunnel.
 
-## Quality recovery milestone
+## Approved product direction — managed service
+
+**Decision MS-2026-10-14, owner approved.** Ziyrak is a managed AI customer-support
+service for businesses. A registering business customer creates a private workspace
+and becomes its owner. Reuse `Business` as that workspace boundary; WhatsApp numbers,
+Web Chat and future Phone connections are resources inside it, not separate tenants.
+People messaging a business are customers, not dashboard accounts.
+
+The October 14 source inspection found that signup already creates a Business, User
+and owner Membership atomically, but the wizard asks the customer for AI keys/models.
+Roles currently cover the whole business; request context chooses the earliest
+membership. A platform-admin flag exists without a platform console or support-access
+workflow. Verified email, recovery/invitation flows and enforceable managed-AI quotas
+are missing. These findings justify extending the existing foundation, not replacing it.
+
+### Accounts and responsibilities
+
+| Role | How it is obtained | Allowed scope |
+| --- | --- | --- |
+| Platform super admin | One initial owner-controlled account, provisioned through a secured bootstrap/recovery procedure; never public signup | All platform management: workspaces, operator assignments, service policy, AI credentials/models and limits. Customer-data access uses the explicit audited support flow below. |
+| Platform operator (scoped admin) | Super admin creates/invites and assigns named workspaces and permitted support operations | Only assigned workspaces; no self-assignment, platform-role grants or global provider-secret access. |
+| Business owner | Public signup creates their own private workspace; existing accounts may join another through an invitation | Own workspace, business configuration, channels and team; owner-only accountability remains in §9.1. |
+| Workspace admin | Owner delegates within their workspace | Workspace settings and team operations permitted by the existing role matrix; no platform administration. |
+| Team member | Owner/admin invitation with an explicit role and resource scope | Existing supervisor/agent/viewer permissions, restricted to authorized channels/conversations where assigned. |
+
+“Small admins” therefore has two explicit meanings: **Ziyrak operators** and
+**customer workspace admins**. Do not combine them into a role that can accidentally
+cross businesses. The initial single super admin is a provisioned account, not a
+hardcoded username, shared password or implicit first-public-signup privilege.
+
+Super admin access to all platform management does not bypass tenant data isolation.
+Opening a customer's workspace for support creates an explicit, time-bounded,
+revocable, audited grant with the actual operator identity and reason. Operators
+can obtain such access only inside their assignments and permitted operations.
+Every tenant operation still resolves a concrete workspace and uses normal tenant
+repositories; never impersonate an owner invisibly or expose decrypted secrets.
+
+A person can belong to several workspaces and select one explicitly. The server
+checks current membership/support grant and resource scope on every operation;
+knowing a workspace or channel ID does not grant access. Channel scope limits
+conversation-derived messages, attachments, tickets, customer history, search,
+exports, analytics and realtime streams as well as visible navigation. For a
+customer appearing on several channels, expose only authorized conversation-derived
+data; shared profile fields need an explicit permission, not an accidental join.
+Workspace-wide knowledge/configuration remains governed by its own role permissions.
+No channel assignment silently grants workspace administration.
+
+### Customer journey and service ownership
+
+Target journey: **register → verify account → create/enter private workspace → add
+business knowledge → connect a supported channel → receive a test reply → activate**.
+An invited member joins an existing workspace without creating a duplicate. Signup
+must be resumable and isolated; a new business does not wait for manual super-admin
+assignment. Privileged or unverified accounts cannot bypass activation safeguards.
+
+Ziyrak manages generation/embedding providers, credentials and model selection.
+Business users configure their business, knowledge, tone/language, working hours,
+channels and handoff behavior; they do not supply AI keys or select raw models.
+Channel ownership/credentials still belong to the business and use the existing
+secure connection flow. Normal customers see usage and service status, not secrets
+or infrastructure controls. P2 enforces limits before paid work and defines a clear
+limit-reached state that preserves messages and human handoff.
+
+Web Chat and Meta WhatsApp are the current channel priority. Phone is a later
+product direction, not accepted production functionality in this milestone. Focus
+on one complete customer journey before adding channels, subscriptions or enterprise
+infrastructure. Account-verification email is transactional identity delivery, not
+an expansion to the deferred customer-support Email channel.
+
+### Contract amendments and remaining decisions
+
+This decision amends §§5–12, 14–16, 21, 33–34, 36, 39 and 44 through P1–P3:
+workspace selection/scoped support and channel authorization, managed AI policy and
+durable quotas, account lifecycle and acceptance. The relevant original Phase 1/2/4/7
+requirements remain regression obligations; their historical completion records do
+not prove these additions. §45 is the original migration roadmap; the live board
+above is the active work order. Schema/interface details follow existing contracts
+and must be stated before implementation; a further material deviation uses rule 11.
+
+The old deferrals for platform support tooling and quota enforcement are replaced
+by this bounded milestone. Full billing, new support channels, dedicated storage
+and automated enterprise cutover remain deferred. Existing accounts, memberships,
+channel connections, sessions and encrypted credentials need a tested migration;
+never discard them or grant new privilege implicitly.
+
+Open product values are limited to a concrete proposal for R2 escalation/quality
+thresholds and P2 allowance amounts/periods and customer-facing limit behavior.
+Prepare reviewable examples and conservative test configuration first; seek the
+owner's decision before locking production policy. Provider account purchases,
+email-domain changes and deployment keep their external-action boundaries. These
+pending values do not reopen the approved roles or block independent implementation.
+
+## Managed-service readiness milestone
 
 ### Completion standard: good, with evidence
 
-The milestone is complete only when all required R1–R5 criteria have passed,
+The milestone is complete only when all required R1–R5 and P1–P3 criteria have passed,
 applicable independent review findings are resolved, and the evidence identifies
 the tested code/build, environment, provider, commands, outcomes and limitations.
 An agent rating, merge, test count, health response or Graph acceptance alone
@@ -74,7 +186,7 @@ Track implementation separately from verification:
 
 Each work package uses this template: **problem/evidence; scope/exclusions;
 required behavior; verification; completion criteria; result/evidence links**.
-Keep the live task position in CURRENT rather than duplicating a changing queue here.
+The live board above owns ordering and status; CURRENT points to the next eligible task.
 
 ### R1 — Delivery reliability
 
@@ -99,28 +211,6 @@ Keep the live task position in CURRENT rather than duplicating a changing queue 
   propose the smallest correction under rule 11 before implementing that deviation.
 - **Result:** implementation not started; verification not run.
 
-### R2 — AI decision quality
-
-- **Problem/evidence:** short correct replies can escalate; knowledge-count bonuses
-  cannot fire with the current retrieval limit. Historical handoff transport tests
-  do not establish reliable autonomous escalation.
-- **Scope/exclusions:** confidence/escalation and a bounded representative evaluation
-  of grounding, tool selection and handoff (§§18, 21–24; Phases 4, 6–7). No provider
-  migration, model leaderboard or broad prompt rewrite.
-- **Required behavior:** propose and obtain agreement on escalation rules and
-  measurable acceptance thresholds before changing this product behavior. Prepare
-  examples and expected outcomes first; do not ask the owner to design the tests.
-- **Verification:** deterministic regressions plus a retained real-model case set
-  covering short correct answers, missing knowledge, explicit human requests,
-  failed/pending tools and cross-tenant bait. Define sample size, repetitions and
-  scoring before the run; keep development examples separate from evaluation cases.
-- **Completion criteria:** approved thresholds met, autonomous handoff exercised
-  through the product, safety/isolation cases pass, provider/model/configuration
-  and failures recorded. Do not describe the heuristic as a calibrated probability.
-- **Result:** implementation not started; policy/threshold decision pending;
-  verification not run. R1 is the preferred predecessor; evaluation preparation
-  can proceed if R1 is externally blocked.
-
 ### R3 — Operational safety
 
 - **Problem/evidence:** prior dependency work damaged the live checkout, a browser
@@ -141,23 +231,150 @@ Keep the live task position in CURRENT rather than duplicating a changing queue 
   any authorized merge. Deployment requires separate authorization and observed
   web, worker and end-to-end checks; a health endpoint alone is insufficient.
 - **Result:** implementation not started; verification not run. Independent R3 work
-  is eligible while an R1/R2 external dependency or owner decision is pending.
+  is eligible while R1 is externally blocked. Its environment safeguards apply
+  before any R1 product work; completing R3 is not permission to risk the live checkout.
+
+### P1 — Platform and workspace access
+
+- **Problem/evidence:** the platform-admin flag has no operating console; business
+  roles are workspace-wide and the earliest membership is selected implicitly.
+- **Scope/exclusions:** identity/platform/tenancy/RBAC, workspace selection and
+  connection-scoped access (§§7–9, 12, 14–16). Reuse Business/Membership and current
+  repository boundaries; no generic project hierarchy or invisible owner impersonation.
+- **Required behavior:** implement the approved role table and audited support
+  grants, with an explicit permission matrix before code. Super admin provisions
+  operators and assignments; owners/admins manage only permitted workspace roles.
+  Resolve selected workspace on the server; reject guessed IDs, privilege escalation,
+  stale/revoked membership, expired support access and scope widening through API keys.
+  Restricted users cannot recover excluded channel data through related resources,
+  counts/search/exports, attachments or realtime. Recheck revocation for long-lived
+  subscriptions and delayed user-initiated work; system jobs retain only their defined
+  operation, not a reusable human support grant. Define safe defaults for existing
+  full-workspace memberships and new restricted assignments; unknown scope fails closed.
+- **Verification:** tests first for authorization/isolation regressions; real isolated
+  Postgres across two workspaces and two channels, role/resource matrix, grant audit/
+  expiry/revocation, active streams, queue execution and migration cases. Browser
+  journeys must use each actual role, workspace selection and denied direct URLs/API
+  calls. Obtain independent security review; preserve the full-suite rerun triggers.
+- **Completion criteria:** allowed and denied cases pass; no blanket tenant bypass;
+  privileged bootstrap/recovery and audit behavior documented/tested; existing users
+  retain legitimate access without gaining privilege. Support access records actor,
+  target workspace, scope, reason and lifetime. P3 supplies the shared invitation
+  lifecycle; until then use secured operator provisioning, never public role assignment.
+- **Result:** implementation not started; verification not run.
+
+### P2 — Managed AI and usage limits
+
+- **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices
+  are customer editable. Existing AIInteractionLog writes are best effort, so they
+  cannot enforce a cap on paid provider use.
+- **Scope/exclusions:** platform-managed generation/embedding policy and encrypted
+  credentials, per-workspace service configuration/limits (§§10, 16, 21, 39), customer
+  usage/status UI. Preserve AIProvider, EmbeddingProvider and SecretResolver; no
+  subscription/invoice/payment engine or new AI provider.
+- **Required behavior:** super admin configures allowed providers/models and service
+  limits; customers cannot read global secrets or change raw model/provider/key fields
+  through either UI or API. The backend resolves approved policy for each workspace,
+  respecting InfrastructurePolicy restrictions; absence/invalidity fails clearly and
+  never falls back to another customer's key. Cover generation, embeddings, tool-loop
+  calls, test replies, retries, queued work and concurrent web/worker instances.
+  Reserve a conservative bounded allowance durably before each potentially billable
+  attempt; reconcile actual usage, refunds and uncertain outcomes idempotently. On
+  accounting failure, fail closed for new paid work; preserve inbound data and human
+  handling. Best-effort analytics is separate from enforcement. Document units, reset
+  periods, reservation expiry/recovery and retry charging; caps are not exact invoices.
+- **Verification:** tests first for secret/permission/isolation contracts; deterministic
+  provider fixtures and real-DB concurrent reservation, exhaustion, worker crash,
+  replay and accounting-failure tests. Check customer endpoints, logs and browser
+  responses for secret/configuration leaks. Verify the managed path with a targeted
+  real generation/embedding call before acceptance; broader quality is R2.
+- **Completion criteria:** approved allowance/limit behavior enforced per workspace;
+  one customer cannot exhaust another's allowance; UI explains usage/limit recovery;
+  provider outages and missing setup are explicit. Existing encrypted tenant settings
+  migrate through an explicit tested transition with backup/rollback considerations,
+  no silent loss or surprise switch. Independent security review findings resolved.
+- **Result:** implementation not started; verification not run; production allowance
+  values and limit-facing behavior await a concrete owner-reviewed proposal.
+
+### P3 — Accounts and customer onboarding
+
+- **Problem/evidence:** atomic workspace signup exists, but the wizard exposes AI
+  setup and there is no verified-email, password-recovery or invitation lifecycle.
+- **Scope/exclusions:** self-service business-owner accounts, workspace/team and
+  operator invitations, verified email, password reset and resumable onboarding
+  (§§7, 9, 12, 14–15, 36, 44). No social-login marketplace, billing or new support channel.
+- **Required behavior:** implement the approved customer journey without AI keys.
+  Verification gates activation and paid use; repeated signup/onboarding requests do
+  not create duplicate workspaces or leak another's account state. Invitations bind
+  recipient, workspace/assignment, role and scope; existing verified users join
+  without a second identity. Owners/admins cannot invite platform roles or delegate
+  privileges they do not hold. Use expiring single-use hashed verification/reset/
+  invitation tokens, rate limits and safe non-enumerating responses; reset revokes
+  existing sessions. Verify recipient ownership before accepting privileged invites.
+  Migration must let existing username accounts securely adopt verified email without
+  account takeover or blanket lockout. Workspace administrators manage Membership,
+  not another person's global identity/password/email or other workspace memberships.
+  Global account changes require authenticated self-service or the audited recovery
+  process. Preserve last-owner and ownership rules.
+  Onboarding records knowledge readiness, channel setup, a useful test reply and
+  explicit activation; its customer-visible state survives reloads and failures.
+- **Verification:** tests first for token replay/expiry, wrong-recipient and cross-
+  workspace cases, account recovery, privilege changes and migration. Use a local
+  mail capture adapter for deterministic flows, then execute browser signup, invite,
+  reset and first-reply journeys with production web and separate worker. Test provider
+  failure and resume; record actual versus stand-in channel/AI evidence. Require a
+  controlled real mail delivery check before claiming email delivery ready.
+- **Completion criteria:** a new business owner can reach an isolated working channel
+  and useful reply without AI setup; invited staff see only their permitted scope;
+  account recovery and existing-account migration pass; no activation on failed
+  required setup, hidden provider errors or unverified identity. Independent security
+  review resolved. Real Meta acceptance remains separate when that channel is claimed.
+- **Result:** implementation not started; verification not run.
+
+### R2 — AI decision quality
+
+- **Problem/evidence:** short correct replies can escalate; knowledge-count bonuses
+  cannot fire with the current retrieval limit. Historical handoff transport tests
+  do not establish reliable autonomous escalation.
+- **Scope/exclusions:** confidence/escalation and a bounded representative evaluation
+  of grounding, tool selection and handoff (§§18, 21–24; Phases 4, 6–7). No provider
+  migration, model leaderboard or broad prompt rewrite.
+- **Required behavior:** propose and obtain agreement on escalation rules and
+  measurable acceptance thresholds before changing this product behavior. Prepare
+  examples and expected outcomes first; do not ask the owner to design the tests.
+- **Verification:** deterministic regressions plus a retained real-model case set
+  covering short correct answers, missing knowledge, explicit human requests,
+  failed/pending tools and cross-tenant bait. Define sample size, repetitions and
+  scoring before the run; keep development examples separate from evaluation cases.
+- **Completion criteria:** approved thresholds met, autonomous handoff exercised
+  through the product, safety/isolation cases pass, provider/model/configuration
+  and failures recorded. Do not describe the heuristic as a calibrated probability.
+- **Result:** implementation not started; policy/threshold decision pending;
+  verification not run. R1 and the P2/P3 managed customer flow precede final evaluation; case-set
+  preparation can proceed independently. Record the actual managed policy version.
 
 ### R4 — Final functional acceptance
 
 - **Problem/evidence:** existing evidence spans different dates/builds; the latest
   full browser suite used a stand-in, and the review found gaps after green CI.
-- **Scope/exclusions:** verify the assembled recovery candidate against §§33–36,
+- **Scope/exclusions:** verify the assembled managed-service candidate against §§33–36,
   rule 15 and the MVP browser journeys. Do not reopen historical phases or expand
   the Business B waiver into a blanket exemption.
-- **Required behavior:** one identified candidate satisfies all recovery criteria
-  and applicable workflow requirements; evidence distinguishes local, real-provider
+- **Required behavior:** one identified candidate satisfies R1–R3 and P1–P3 criteria
+  and applicable functional workflow requirements; evidence distinguishes local, real-provider
   and recipient-visible outcomes.
-- **Verification:** after R1–R3, run required automated/isolation checks, the full
+- **Verification:** after R1–R3 and P1–P3, run required automated/isolation checks, the full
   browser suite on production web plus a separate worker and a fresh acceptance
   database, targeted real AI evaluation, and applicable real Meta checks under the
   verification policy below. Build-changing fixes invalidate affected evidence;
-  repeat the required scope on the final candidate.
+  repeat the required scope on the final candidate. Extend the browser suite for
+  verified signup/recovery/invites, workspace selection, operator grants/revocation,
+  channel-scoped views, managed AI, cap exhaustion and activation. Verify the
+  complete new-business journey without customer AI keys, including human handoff,
+  while another workspace stays isolated. Real transactional email delivery requires
+  a controlled recipient check before its delivery claim; local mail capture proves
+  token/UI behavior only. R2 supplies real-model quality evidence; use targeted Meta
+  checks for the affected delivery boundary, not every account-screen change.
 - **Completion criteria:** required checks pass; remaining waivers/deferred features
   are explicit; implementation and deployment verification are recorded separately;
   CURRENT/HANDOFF identify the boundary. A blocked required provider check leaves
@@ -191,10 +408,10 @@ Keep the live task position in CURRENT rather than duplicating a changing queue 
 - **Completion criteria:** no unintended Owly/Owl branding remains in active product
   surfaces; all retained matches are explained as attribution, history, third-party
   provenance or required compatibility. Links/assets/configuration remain valid and
-  affected checks pass on the final candidate. This is the last recovery task;
+  affected checks pass on the final candidate. This is the last milestone task;
   preserve R4 evidence and rerun any checks invalidated by the rename before closure.
-- **Result:** implementation not started; verification not run. Stop at recovery
-  completion; no new product features, account redesign or deployment is implied.
+- **Result:** implementation not started; verification not run. Stop at milestone
+  completion; further product scope or deployment requires applicable authorization.
 
 ## Verification selection and external blockers
 
@@ -208,6 +425,8 @@ layer that can catch the defect, then add the layers needed to prove the workflo
 | Local business logic | Focused regression/contract tests; real DB for query/isolation guarantees | No routine Meta session. |
 | Shared conversation, tools, jobs or delivery behavior | Failure-path tests, relevant DB/queue/security coverage and assembled Web Chat/browser checks | Affected real-provider behavior checked before its acceptance/release claim. Shared delivery changes include a targeted Meta boundary check in R4. |
 | Meta parsing, signatures, routing, credentials, Graph calls, API version or callback topology | Sanitized signed fixtures, wrong-secret/two-tenant/replay cases, real DB where needed, affected browser journeys | Targeted real Meta verification before accepting/releasing the changed boundary; visible delivery when delivery is claimed. |
+| Accounts, roles, workspace/channel scope or recovery | Tests-first security and real-DB isolation coverage, independent security review and full browser suite | Local mail capture for routine account flows; controlled real email for delivery acceptance. No routine Meta setup. |
+| Managed AI configuration or quotas | Permission/secret tests, concurrent durable accounting and real-DB worker recovery; managed UI journey | Targeted real generation/embedding before acceptance; deterministic fixtures during development. |
 | AI provider, prompts, retrieval or escalation | Deterministic tests plus the agreed real-model evaluation | Real AI needed to claim model quality; Meta only if its boundary is affected. |
 | Milestone/release candidate | Existing full-suite triggers, security/isolation checks and relevant real-provider journeys | Required live criteria remain required; mock success cannot satisfy them. |
 
@@ -266,7 +485,8 @@ at the time of a live run.
 Sections below retain the original numbered contracts and phase acceptance criteria.
 Descriptions of the original code state are dated **2026-09-14**. Requirements remain
 governing unless an explicit later decision is recorded; historical present-tense
-observations are not current status. Consult the current baseline and linked history.
+observations are not current status. Decision MS-2026-10-14 and P1–P3 explicitly
+amend the mapped contracts; consult the live plan and linked history.
 
 ## 0. Summary of Second-Pass Revisions
 
@@ -752,17 +972,17 @@ Worker process (separate from web replicas, horizontally scalable independently)
 
 ```
 Platform (control plane)
- │  platform defaults: default AI provider, default embedding provider, default DB profile,
- │  default object storage profile, default retention
+ │  platform-managed AI/embedding policy and workspace allowances (P2),
+ │  default DB/storage profiles and retention
  │
  ├── Business A (shared everything)
  │      TenantPlacement  = { databaseProfileId: "shared-default", storageProfileId: "shared-default" }
- │      config           = platform defaults, no overrides
+ │      config           = assigned default service policy + customer business behavior
  │      data plane       = shared Postgres, shared schema, businessId-filtered + composite-FK-protected rows
  │
- ├── Business B (partial override)
+ ├── Business B (different platform-assigned AI policy)
  │      TenantPlacement  = { databaseProfileId: "shared-default", storageProfileId: "shared-default" }
- │      config           = platform defaults + { aiProvider: "anthropic", aiModel: "..." }
+ │      config           = super-admin-approved provider/model assignment + business behavior
  │      data plane       = shared Postgres, shared schema (unchanged)
  │
  └── Business C (compliance / dedicated infrastructure — Phase 9, §46.9)
@@ -831,10 +1051,10 @@ Current `src/lib/` is flat — roughly two dozen top-level files plus `ai/` and 
 
 | Target module | Owns | Current code it absorbs/wraps | Depends on (contracts only, for infra) |
 |---|---|---|---|
-| `platform/` | `Business`, `User`, `Membership`, platform-admin identity, and — per this revision — the **control-plane** models: `TenantPlacement`, `DatabaseProfile`, `StorageProfile` | *(new)* | — |
+| `platform/` | `Business`, `User`, `Membership`; placement/profile control plane; P1 operator assignments/support grants and P2 managed service policy, credential references and allowance accounting | Original migration module, extended by P1/P2 | — |
 | `tenancy/` | `TenantContext` construction/propagation, config hierarchy resolution | *(new)* | `platform/` |
-| `identity/` | User accounts, sessions, JWT, hashed API keys, channel-credential auth, and the distinct `ExecutionPrincipal` resolution for AI/system callers | `auth.ts`, `route-auth.ts` (rewritten) | `tenancy/` |
-| `rbac/` | Human roles/permissions, platform-vs-tenant authorization | `rbac.ts` (extended) | `tenancy/` |
+| `identity/` | User accounts, sessions, JWT, hashed API keys, channel-credential auth, ExecutionPrincipal resolution; P3 verified-account, recovery and invitation flows | `auth.ts`, `route-auth.ts` (rewritten) | `tenancy/` |
+| `rbac/` | Human roles/permissions, platform-vs-tenant authorization and P1 connection/resource scope | `rbac.ts` (extended) | `tenancy/` |
 | `customers/` | Customer identity resolution, GDPR export/delete for customers | `customer-resolver.ts`, customer parts of `gdpr.ts` | `tenancy/` |
 | `conversations/` | Conversation lifecycle, routing, transfer/merge/snooze, SLA | `conversation-engine.ts` | `tenancy/`, `events/` |
 | `tickets/`, `team/` | Ticket + department/team-member CRUD and assignment | current `tickets`/`team` API logic (mostly unchanged) | `tenancy/` |
@@ -855,7 +1075,7 @@ Current `src/lib/` is flat — roughly two dozen top-level files plus `ai/` and 
 
 `plugins.ts` and its hook system are explicitly **not** carried forward as-is: it is a fully-general, never-invoked extension point that duplicates what the `events/` + `tools/` modules will provide with tenant awareness and real callers. §46.6 makes the explicit call to deprecate it rather than wire it in as-is, and explains why.
 
-Note on `platform/` vs. the rest of this table: this revision moves the control-plane models (`TenantPlacement`, `DatabaseProfile`, `StorageProfile`) into `platform/` rather than `tenancy/`, because they are read by the *platform* to decide where a tenant's data lives — they are not themselves tenant-owned data, and they must remain resolvable even for a business whose data-plane connection is currently unreachable (§7.5's bootstrap requirement). `platform/` is kept deliberately thin beyond this — it does not grow into a full platform-admin product surface in this plan (§44, MVP boundary).
+Note on `platform/` vs. the rest of this table: this revision moves the control-plane models (`TenantPlacement`, `DatabaseProfile`, `StorageProfile`) into `platform/` rather than `tenancy/`, because they are read by the *platform* to decide where a tenant's data lives — they are not themselves tenant-owned data, and they must remain resolvable even for a business whose data-plane connection is currently unreachable (§7.5's bootstrap requirement). MS-2026-10-14 extends this module with the bounded P1 platform administration/support surface and P2 managed-service controls. Platform services own assignments, policy and durable allowances; tenant/domain code consumes their explicit contracts without importing concrete control-plane persistence. P3 identity flows consume platform provisioning/membership contracts. This does not authorize a generic infrastructure-management or billing suite.
 
 ---
 
@@ -907,7 +1127,7 @@ An API key is one of several ways to *authenticate as* a business; it is never t
 
 - Platform administrator accounts (a distinct `User` with no `Membership` rows, or a separate `PlatformAdmin` flag — decided in §9).
 - Platform default configuration (§10): default AI/embedding provider, default database/storage profile, default retention policy — these are code/env constants plus the control-plane `DatabaseProfile`/`StorageProfile` rows (§7.6), never a business-editable singleton, avoiding a repeat of the `Settings`-singleton pattern at the platform level.
-- The `Plan`/quota model (scaffolded only, §39/§43), since plans are a platform product decision, not a per-tenant one.
+- Platform service policy and durable workspace allowance accounting (P2, §39); billing remains deferred. Operator assignments/support grants and identity lifecycle records also belong to the control plane (P1/P3), with explicit workspace linkage and access checks.
 - **The control-plane placement/profile models introduced in this revision** (`TenantPlacement`, `DatabaseProfile`, `StorageProfile`) — these are read by platform infrastructure to route a request or job to the right tenant data connection; they are not tenant-owned data and a tenant admin never edits them directly (§7.4–7.6).
 
 Everything else currently modeled as global (`Settings`, `BusinessHours`, `Channel`, `Category`/`KnowledgeEntry`, `Department`/`TeamMember`, `Customer`, `Conversation`, `Message`, `Ticket`, `Tag`, `CallLog`, `AutomationRule`, `Campaign`, `Flow`, `Webhook`, `ApiKey`, `ActivityLog`, `SLARule`, `CannedResponse`) becomes tenant-owned. Full per-model treatment in §12.
@@ -1210,7 +1430,8 @@ RLS was seriously considered as an additional layer now, not only as the primary
 
 | Identity kind | Represents | Has a `Membership`? | Example |
 |---|---|---|---|
-| Platform administrator | Ziyrak's own staff operating the platform | No — platform admins are marked on `User` (e.g., `User.isPlatformAdmin: Boolean`) or via a separate `PlatformRole` table if platform roles need to be more than binary later | Suspend a business, view platform-wide health |
+| Platform super admin | Platform owner/administrator | Separate platform authority, not an owner Membership in every business | Manage all workspaces, operators, AI and limits; explicit support grant for tenant data |
+| Platform operator | Ziyrak staff with assigned workspaces/operations | Platform assignment; tenant data requires a scoped support grant | Support assigned businesses, with reason, expiry and actual actor audited |
 | Business owner | The user who created/owns the business | Yes — `Membership.role = "owner"` | Sole ability to delete the business, transfer ownership, manage billing |
 | Business admin | Full operational control within one business | Yes — `Membership.role = "admin"` | Manage settings, users, channels, knowledge |
 | Business supervisor | Operational oversight, no destructive/billing power | Yes — `Membership.role = "supervisor"` | Manage team, view analytics, resolve escalations |
@@ -1221,7 +1442,7 @@ RLS was seriously considered as an additional layer now, not only as the primary
 | **AI agent** *(new, §9.5)* | Ziyrak's own AI acting within a conversation, on the business's behalf | No `Membership` — governed by `ToolPolicy`, not RBAC | The AI calls `create_ticket` during a customer conversation |
 | **System job** *(new, §9.5)* | A background worker executing scheduled/durable work | No `Membership` — resolves a `TenantContext` from the job payload's `businessId` | The retention sweep, a scheduled follow-up send |
 
-This directly preserves the four-role additive model already proven out in `rbac.ts` (`viewer < agent < supervisor < admin`), adding **`owner`** as a fifth, business-scoped-only role above `admin` for the handful of operations that must have exactly one accountable party per business (deleting the business, transferring ownership, eventually managing billing/plan). `owner` inherits all `admin` permissions (extends the existing additive `ROLES` array) and adds a small set of owner-only permissions (`business:delete`, `business:transfer-ownership`, `business:billing`). Platform administration is **not** a business role at all — it is not "super-admin across all businesses" as a `Membership` row, precisely because the prompt requires platform administration to be conceptually and structurally separate from tenant administration (a platform admin who wants to act *as* a specific business for support purposes should do so through an explicit, audited impersonation flow — out of scope for the MVP, noted as a deferred item in §46.1).
+This directly preserves the four-role additive model already proven out in `rbac.ts` (`viewer < agent < supervisor < admin`), adding **`owner`** as a fifth, business-scoped-only role above `admin` for the handful of operations that must have exactly one accountable party per business (deleting the business, transferring ownership, eventually managing billing/plan). `owner` inherits all `admin` permissions (extends the existing additive `ROLES` array) and adds a small set of owner-only permissions (`business:delete`, `business:transfer-ownership`, `business:billing`). Platform authority remains separate from business roles. MS-2026-10-14 schedules super-admin and assigned-operator tooling in P1, with explicit audited support access (§15.2); it never creates a blanket owner Membership or hides the real actor. Business roles retain their additive permissions, with resource/channel scope checked separately. Public signup grants only ownership of the newly created workspace.
 
 **AI agent and system job are new, first-class rows in this table, not omissions fixed elsewhere.** The first pass of this plan resolved an AI-initiated tool call's authorization using `ctx.role`, which forced an uncomfortable choice: either give "the AI" a fake `admin`/`agent` `Membership` (over-privileging it, and misattributing its actions to a human role in the audit log), or leave the question unanswered. §9.5 below resolves this properly.
 
@@ -1242,6 +1463,11 @@ if (permission && !hasPermission(membership.role, permission)) return Errors.for
 ```
 
 `hasPermission()` itself (`rbac.ts:107-111`) requires no change — it already takes a role string and a permission and does an array-includes check. The change is entirely in *where the role comes from* (a resolved membership instead of a bare JWT claim) and the addition of the "no membership at all" branch, which has no equivalent in the current single-tenant code (today, having a valid JWT for *any* admin implies access to *the* business, because there is only one). This check applies to **human actors** (`user`, `api_key`); AI/system actors are authorized through the separate mechanism in §9.5, never through `hasPermission()`.
+
+**P1 amendment:** the role check above is necessary but not sufficient. Resolve an
+explicitly selected workspace from current membership or support grant, then intersect
+role permissions with connection/resource scope. Apply scope to reads, mutations,
+related records and streams, including API keys; §15.1 describes the updated gate.
 
 ### 9.4 API key scoping and secure storage (fixes `route-auth.ts:31-37` and the plaintext-key finding, §2.9)
 
@@ -1290,7 +1516,7 @@ Authorization branches on `actor.kind`, not on trying to force every kind throug
 - **`user` / `api_key`** → RBAC as described in §9.3: `Membership.role` (or `ApiKey.role`) checked against `hasPermission()`.
 - **`ai_agent`** → a new, tenant-configurable **`ToolPolicy`** (one row per business per tool, §23.4) is checked instead of RBAC entirely. A tool the AI is not policy-permitted to call is simply not offered to the model (`ToolRegistry.getAvailableTools()` filters on `ToolPolicy.allowedForAI`, not on any `Membership` role) — there is no `Membership` row for the AI to have a role on, so RBAC does not apply to it at all, by design.
 - **`system_job`** → background jobs run with the tenant's data access (via `TenantPlacement`, §7.5) but do not go through `hasPermission()` either; a job handler is trusted to perform exactly the operation its job type implies (e.g., `sweep-retention` deletes old conversations because that is what that job type *is*, not because some role permits it) — the safety boundary for jobs is "which job types exist and what each one is coded to do," reviewed at code-review time, not a runtime permission check.
-- **`platform_admin`** → per §15.2, granted no tenant-resource permission implicitly; must act through an explicit, logged support-access grant (deferred past MVP).
+- **`platform_admin`** → per §15.2, granted no tenant-resource permission implicitly; must act through the explicit, logged support-access grant scheduled in P1. Fresh platform role, assignment, grant expiry/revocation and resource scope are all checked; extend the actor contract as needed while preserving actual identity.
 
 `ToolPolicy` is introduced fully in §23.4; it is named here because it is the direct analog, for AI actors, of what `Membership.role` is for human actors — and the two are deliberately **independent** data: a tool can be `allowedForAI: true` while also being restricted to `["supervisor", "admin"]` for human-initiated use, or vice versa (a tool only the AI is trusted to call automatically because it is narrow and well-defined, but which no human role needs direct UI access to).
 
@@ -1302,30 +1528,37 @@ Authorization branches on `actor.kind`, not on trying to force every kind throug
 
 `Settings` (`prisma/schema.prisma:12-44`) is one row holding business identity fields (name/description/tone/language), AI provider/model/key, and every channel's credentials (SMTP, IMAP, Twilio, ElevenLabs, WhatsApp, Telegram) in one flat table. This conflates three genuinely different concerns that need different lifecycles and different access control: (a) business-facing configuration (tone, language, business description), (b) provider selection/tuning (model, temperature, token limits), and (c) *secrets* (every `*Key`/`*Pass`/`*Token` field). Today all three are masked identically by `maskSettingsSecrets()` (`security.ts`) and updated through one `PUT /api/settings` gated by one `settings:update` permission — fine for one business, not workable once secrets need per-channel rotation and per-business isolation.
 
-### 10.2 Target shape
+### 10.2 Target shape — managed service (MS-2026-10-14 / P2)
 
-```
-PlatformDefaults (code/env constants, not a DB table)
-   { defaultAiProvider: "openai", defaultAiModel: "gpt-4o-mini", defaultEmbeddingProvider: "openai",
-     defaultRetentionDays: 365, defaultDatabaseProfileId: "shared-default",
-     defaultStorageProfileId: "shared-default" }
-        │
-        ▼  merged under
-BusinessConfig (one row per Business — the direct successor to today's non-secret Settings fields)
-   { businessId, businessName, businessDesc, welcomeMessage, tone, language,
-     aiProvider?, aiModel?, embeddingProvider?, maxTokens?, temperature?  }   // all optional = "inherit platform default"
-        │
-        ▼  secrets and per-connection config split out entirely
-ChannelConnection.config (non-secret) + credentialRef → SecretResolver (§10.3)
-        │
-        ▼  Phase 9 only, and NEVER a raw connection string (§7.6)
-InfrastructurePolicy (one row per Business, nullable — absent = fully shared infra)
-   { businessId, dataRegion?, permittedAiProviders?: string[], privateModelEndpointRef?: string }
-        │  (the actual dedicated database/storage connection lives in TenantPlacement → DatabaseProfile/
-        │   StorageProfile, control-plane tables — §7.5/§7.6 — not in InfrastructurePolicy itself)
+This replaces the original customer-editable provider/model override rule.
+
+```text
+Platform defaults → platform-managed service policy
+  approved generation/embedding provider, model, encrypted credential reference,
+  bounded call settings and workspace allowance policy
+        ↓ resolved for an authenticated workspace
+BusinessConfig
+  business name/description, welcome message, tone, language, hours, handoff settings
+        + platform-controlled workspace service assignment and allowance
+        + InfrastructurePolicy restrictions (may only narrow permitted providers/regions)
+        + ChannelConnection config/credentialRef (business-owned channel credentials)
 ```
 
-`resolveConfig(businessId)` merges `PlatformDefaults` ← `BusinessConfig` (only defined fields override) ← `InfrastructurePolicy` (only for the constrained subset: which providers/regions are even *selectable*, not typical per-message config). This mirrors the exact example given in the product brief (Business A = all defaults, Business B = overrides `aiModel`, Business C = dedicated infrastructure) and is deliberately a small, fixed set of tables, not a generic key-value config-override engine — a generic override engine was considered and rejected as unjustified complexity (Principle 2, §4) since the set of overridable fields is small and known.
+Platform super admin controls AI policy and credentials; workspace users cannot
+write raw provider/model/key fields through general settings permissions. Provider
+secrets resolve server-side through SecretResolver, never a browser response.
+`resolveConfig(businessId)` selects the workspace's platform-approved service policy,
+merges business behavior fields, and validates the resulting provider/region against
+InfrastructurePolicy. A disallowed/unconfigured provider fails explicitly; a fallback
+must satisfy the same restrictions. TenantPlacement resolves data/storage profiles
+independently (§7.5–7.6); no credential string belongs in tenant policy.
+
+P2 defines the smallest concrete schema/interface extension for versioned service
+policy and durable allowance enforcement before implementation. Preserve the
+AIProvider/EmbeddingProvider contracts and explicitly migrate existing per-business
+AI configuration; old encrypted keys are not deleted or adopted globally by default.
+Customer APIs expose safe service/usage state and business controls only. This is a
+fixed set of owned settings, not a generic configuration override framework.
 
 ### 10.3 Secret handling — typed schemas, envelope encryption, rotation-ready (revised per review concerns 4 and 16)
 
@@ -1367,8 +1600,8 @@ Existing `Settings` singleton row's non-secret fields map directly onto the new 
 
 | Boundary | Default (shared) | Override mechanism (Phase 9, §46.9) |
 |---|---|---|
-| AI provider | Platform default (`AIProviderRegistry.get(businessConfig.aiProvider ?? platformDefault)`) | `BusinessConfig.aiProvider` already supports this from Phase 4 on — no Phase 9 work needed here, this override exists from day one of the provider abstraction |
-| Embedding provider | Platform default (`EmbeddingProviderRegistry.get(...)`, §21.5) | Same mechanism as AI provider — `BusinessConfig.embeddingProvider`, available from Phase 4 |
+| AI provider | P2 platform-managed generation policy resolved for the workspace (§10.2) | Super-admin service assignment, constrained by InfrastructurePolicy; existing BusinessConfig provider fields are migration inputs, not customer-controlled overrides |
+| Embedding provider | P2 platform-managed embedding policy (§21.5) | Same controlled assignment and provider restrictions as generation, including query and indexing calls |
 | Database | `TenantPlacement.databaseProfileId = "shared-default"` (§7.5) | A new `DatabaseProfile` row is provisioned, and `TenantPlacement.databaseProfileId` is updated to point at it — the connection secret lives only in `DatabaseProfile.connectionSecretRef`, resolved through `SecretResolver` (§7.6, §10.3), never copied into tenant-facing config |
 | Object storage | `TenantPlacement.storageProfileId = "shared-default"` | Same pattern — a new `StorageProfile` row, referenced by ID |
 | Region | Not enforced (single deployment region) | `InfrastructurePolicy.dataRegion` gates which region a business's `DatabaseProfile`/`StorageProfile` are provisioned in — this plan does not implement multi-region deployment itself (out of scope), only the config field and the provisioning contract a future multi-region rollout would read |
@@ -1376,11 +1609,27 @@ Existing `Settings` singleton row's non-secret fields map directly onto the new 
 
 ### 11.2 How this stays cheap until it's needed
 
+**P2 amendment:** the original migration explanation below describes placement
+resolution, not permission for customers to override AI configuration. Effective
+provider/model/credential resolution now uses §10.2's platform service policy and
+workspace restrictions, including embedding calls. TenantPlacement and its data/
+storage profile seam remain unchanged; application code still depends on contracts.
+
 Every override in §11.1 is resolved through the **same two-hop lookup every business already uses** — `TenantPlacement` (or `InfrastructurePolicy` for provider/region constraints) → a profile ID → a resolved connection/credential — not a parallel code path that only exists for special tenants. `resolveTenantPlacement(businessId)`, `getObjectStorageForTenant(businessId)`, and `getAIProviderForTenant(businessConfig)` are the only functions that ever branch on "does this tenant have an override," and for ~100% of businesses pre-Phase-9 they resolve to the literal string `"shared-default"` and the platform's own connection — application/domain code never branches on tenant-infra-policy itself. This means Phase 1-8 ship with `InfrastructurePolicy` not existing at all (deferred to Phase 9, §46.9) with zero rework required later: the resolvers are written from Phase 1 onward (via `TenantPlacement`, introduced in the same phase as `Business` itself — see §7.4) to *already* take a `businessId` and resolve "the shared default" in every case, so adding the override branch in Phase 9 is additive — provisioning new `DatabaseProfile`/`StorageProfile`/`InfrastructurePolicy` rows for one business — not a refactor of call sites.
 
 ---
 
 ## 12. Target Data Model
+
+**Managed-service amendment:** the table records the original migration models.
+P1 adds explicit platform role/assignment, audited support grants and resource-scope
+records; P2 adds service-policy/credential references and durable allowance/reservation
+records; P3 adds verified account identity, single-use token/invitation and onboarding
+state. Define concrete schema/FKs and migrations before implementing each package,
+reusing Business/User/Membership rather than creating parallel identity/tenant models.
+Control-plane records still need explicit workspace/recipient ownership checks;
+scoped grants cannot cross-attach a foreign channel. Preserve existing legitimate
+access/data, with tests for backfill, invalid references and recovery.
 
 Legend: **[new]** net-new model · **[split]** replaces part of an existing model · **[+businessId]** existing model gains a required tenant-owning FK · **[relation via parent]** tenant ownership is inherited through an existing required parent relation (denormalized `businessId` still added, per the rule below) · **[CP]** control-plane model, not tenant-owned data (§7.4) · **[composite FK target]** other tenant-owned models hold a composite `(businessId, thisId)` foreign key into this model (§8.4).
 
@@ -1492,6 +1741,13 @@ Provider-signed webhooks (Meta/WhatsApp, Twilio, Telegram) and the Web Chat widg
 
 `generateToken(userId, role)` (`auth.ts:31-33`) signs a bare `{ userId, role }`. Target: `generateToken(userId)` signs only `{ userId }` — **no role in the token at all**, because role is now tenant-relative (§9) and must be resolved fresh per request against current `Membership` data, not cached in a 7-day-lived JWT (a role/membership change today — e.g., revoking someone's access — must take effect immediately, not after their token expires; embedding role in the JWT would reintroduce exactly the staleness problem multi-tenant membership is meant to avoid). Platform administrators are identified by a claim/flag resolved from the `User` record itself (`isPlatformAdmin`), still looked up fresh per request, not cached in the token either. AI-agent and system-job identities (§9.5) are never JWT-based at all — they are constructed directly by the orchestrator (`ai_agent`, scoped to one conversation and one AI turn) or the worker (`system_job`, scoped to one job execution) and never cross an HTTP boundary as a bearer credential.
 
+**P1/P3 amendment:** the server validates the selected workspace against current
+membership or a valid audited support grant; the earliest membership is not an
+implicit substitute for a user choice. Platform authority and operator assignments
+are also resolved fresh. Account verification, reset and invitations follow P3;
+reset revokes sessions. Revocation reaches active subscriptions and pending
+user-authorized operations, rather than waiting for a new login.
+
 ### 14.5 Service/API identity
 
 Unchanged in mechanism (`X-API-Key` header) but now resolves `{ businessId, role }` from the `ApiKey` row's hash-verified match (§9.4) instead of a hardcoded `role: "admin"` or a recoverable plaintext comparison.
@@ -1500,34 +1756,44 @@ Unchanged in mechanism (`X-API-Key` header) but now resolves `{ businessId, role
 
 ## 15. Authorization Architecture
 
-### 15.1 Two independent checks for human actors; a separate, ToolPolicy-based check for AI/system actors
+### 15.1 Identity, workspace and resource authorization
 
-```ts
-export async function requireAuth(
-  request: NextRequest,
-  permission?: Permission
-): Promise<TenantContext | NextResponse> {
-  const identity = await resolveIdentity(request);              // §14: JWT / API key / channel signature
-  if (!identity) return Errors.unauthorized();
+For human/API requests, preserve the `requireAuth(request, permission)` boundary but
+extend its resolution contract in P1 before changing callers:
 
-  const membership = await resolveMembership(identity);          // which business, what role — §9
-  if (!membership && identity.kind !== "platform_admin") return Errors.forbidden();
+1. Authenticate identity; reject revoked sessions/keys and unmet verification gates.
+2. Resolve an explicitly selected workspace from a current Membership or validated
+   platform support grant. API keys remain bound to their recorded workspace/scope.
+3. Check business role/operation permissions and resource/channel restrictions.
+   A role grant alone does not authorize every channel in that workspace.
+4. Resolve TenantPlacement and use tenant repositories with the actual actor and
+   grant/scope provenance. Never accept a caller-supplied role or business ID as proof.
 
-  const placement = await resolveTenantPlacement(membership?.businessId ?? identity.businessId); // §7.5
+Platform-control routes use a separate super-admin/operator permission check and
+assignments; they do not manufacture a tenant context with blanket permissions.
+Tenant-resource checks cover lists, direct IDs, related data, aggregates, downloads,
+mutations and subscriptions. Scope must not be reduced to a UI filter. `hasPermission`
+can remain the role predicate; workspace/resource authorization is an additional gate.
+AI/system actors keep the operation-specific authorization in §9.5/§23.4. A delayed
+operation initiated with human privileges must carry enough provenance to revalidate
+that authority at execution; a generic job cannot preserve a revoked support grant.
 
-  const role = identity.kind === "platform_admin" ? "platform_admin" : membership!.role;
-  if (permission && !hasPermission(role, permission)) return Errors.forbidden();
+### 15.2 Platform support access — scheduled in P1
 
-  return { businessId: membership?.businessId, role, actor: identity, dataConnection: placement.dataConnection }
-    satisfies TenantContext;
-}
-```
+The super admin manages the whole platform; scoped operators manage only assigned
+workspaces and permitted operations. Neither receives implicit access to all tenant
+data. A support-access action establishes a named workspace, reason, permitted
+operations/resource scope, expiry and revocation state, with both grant issuance and
+use audited against the actual operator. Super admin can initiate a grant for any
+workspace; an operator only within a current assignment. This replaces the original
+post-MVP deferral under MS-2026-10-14.
 
-This is a direct evolution of the existing `route-auth.ts` shape (same function name, same call-site contract at every route — `const ctx = await requireAuth(request, "resource:action"); if (!isAuthenticated(ctx)) return ctx;` is preserved verbatim as a pattern, minimizing churn across the ~63 already-correct call sites) with **membership resolution and placement resolution** inserted as new, mandatory steps. `hasPermission()` and the `PERMISSIONS` table in `rbac.ts` require no structural change — only the addition of an `owner` role above `admin` (§9.1) and a `platform_admin` pseudo-role used solely for platform-level endpoints, which is deliberately **not** granted any of the existing tenant-resource permissions by default. `requireAuth()` above is used exclusively for HTTP requests from **human/API-key actors**; `ai_agent` and `system_job` actors never call it — they are authorized through `ToolRegistry`'s `ToolPolicy` check (§9.5, §23.4), which is a structurally separate code path, not a variant branch inside `requireAuth()`.
-
-### 15.2 Why platform admin is not "admin for every tenant"
-
-If `platform_admin` inherited `admin`'s permissions for every business implicitly, tenant isolation would have a permanent, structural backdoor with no membership record to audit against. Any legitimate platform-support need to view a specific business's data must go through an explicit, logged action (e.g., a time-boxed support-access grant modeled as a temporary `Membership` row with a reason/expiry) rather than an implicit blanket permission — this mechanism is named here as the intended shape but is **explicitly deferred** past the MVP (§44), since Ziyrak's first customers do not require platform-support tooling; the important architectural commitment made now is that `platform_admin` gains no tenant-resource permission without an explicit `Membership`, so building the support-access-grant feature later is additive, not a security-model change.
+Grant issuance requires explicit authorized action, not automatic creation inside a
+normal tenant request. Revocation/expiry/assignment removal must end access, including
+active streams and queued user-initiated work. An explicit support-grant record may
+back the tenant context; do not turn a temporary grant into permanent membership,
+conceal the real actor behind an owner session or bypass repository isolation.
+Global AI/infrastructure secrets remain server-only even during support access.
 
 ### 15.3 Every mutating tenant-owned-FK reference is checked at two independent levels (ties back to §8.5 and §8.4)
 
@@ -1585,13 +1851,18 @@ export async function getById(ctx: TenantContext, id: string) {
 
 The change at each of the ~68 route files is small and mechanical (call a service function with `ctx` instead of calling `prisma` directly), which is precisely why the extension approach (§8.3) was chosen over introducing a bespoke repository class per model — the latter would require hand-writing and testing ~20 repository classes before any route could be migrated, while the extension makes the *existing* Prisma call shape tenant-safe with a small, explicit-`ctx` change per call site, migrated incrementally module-by-module in Phase 3 without a flag day (Principle 10, §4).
 
+**P1 amendment:** tenant filtering alone does not enforce channel restrictions. The
+context/service/repository boundary must also carry and enforce resource scope and
+support-grant provenance (§15.1). A `businessId` match cannot authorize a restricted
+user to read all customers or conversations inside that business.
+
 ### 16.3 Workers get the same treatment, with the same explicit-`ctx` rule
 
 A job handler (§25) resolves its `TenantContext` from the job payload's `businessId` (via `resolveTenantPlacement`, the identical control-plane lookup a request uses, §7.5) and calls `handler(ctx, job.payload)` — the handler function itself takes `ctx` explicitly, exactly like an HTTP-triggered service function. There is exactly one tenant-safety mechanism to reason about, not two (one for HTTP, a different one for background work), and no handler needs `AsyncLocalStorage` to discover its own tenant — it already has `ctx` as a parameter.
 
 ### 16.4 Non-tenant-owned (control-plane) data access is unaffected
 
-Control-plane tables (`Business`, `User` outside of `Membership`, `TenantPlacement`, `DatabaseProfile`, `StorageProfile`, future `Plan`) are deliberately **not** wrapped by the tenant-scoping extension (they have no `businessId` to filter by in the tenant-isolation sense — `TenantPlacement` has a `businessId` primary key, but it is looked up *to determine* tenant context, not filtered *by* an already-resolved one). Access to these is controlled purely by the `platform_admin`/ownership permission checks in §15, using the raw Prisma client directly from the small allowlisted `platform/` module — this is the one place in application code the raw client remains a legitimate import (§8.3's lint-rule allowlist).
+Control-plane tables (`Business`, `User` outside of `Membership`, `TenantPlacement`, `DatabaseProfile`, `StorageProfile`, and P1–P3 identity/assignment/service-policy/allowance records) are deliberately **not** wrapped by the tenant-scoping extension (some carry workspace/recipient references, but are used to establish or administer context rather than automatically filtered by the tenant data-plane extension; their platform services must explicitly enforce ownership, assignment and operation constraints). Access to these is controlled purely by the `platform_admin`/ownership permission checks in §15, using the raw Prisma client directly from the small allowlisted `platform/` module — this is the one place in application code the raw client remains a legitimate import (§8.3's lint-rule allowlist).
 
 ### 16.5 Credential and connection-secret resolution follows the same explicit-parameter discipline
 
@@ -1845,6 +2116,11 @@ Phase 5 (§46.5) introduces the `ChannelAdapter` contract and migrates `WhatsApp
 ---
 
 ## 21. AI Provider Architecture
+
+**P2 amendment:** model/provider/credential resolution is platform-managed (§10.2).
+All generation and embedding paths, including provider retries, reserve allowance
+before each potentially billable attempt (§39.2); a provider retry cannot bypass the
+cap. Keep the provider interfaces independent of customer UI and quota persistence.
 
 ### 21.1 The generation contract
 
@@ -2526,9 +2802,21 @@ Every unit of work this plan already tags with `businessId` (Principle: tag from
 | Storage | `ObjectStorage` adapter can expose per-tenant-prefix byte totals (S3 adapters support prefix-scoped `ListObjects`+size sum natively) | storage bytes per business |
 | Voice minutes (phone channel) | `CallLog.duration` (existing field, already present in the schema) tenant-scoped | `SUM(duration) WHERE businessId = ?` |
 
-### 39.2 What this plan deliberately does not build
+### 39.2 Managed-service allowances now; billing remains deferred
 
-No `Plan`/quota-enforcement engine, no invoice generation, no usage-based rate limiting tied to a subscription tier. Per the product brief's explicit instruction, this is architectural readiness only — the reason every phase insists on `businessId` being present on every cost-relevant record from the moment that record type is introduced (rather than added later) is that **retrofitting attribution onto historical data that was never tagged is often impossible** (you cannot attribute an AI call's cost to a business after the fact if the log line never recorded which business made it) — this is the one piece of "build for the future" this plan treats as mandatory now rather than deferred, specifically because deferring it is irreversible in a way deferring billing itself is not.
+MS-2026-10-14 schedules bounded per-workspace generation/embedding usage enforcement
+in P2, replacing the earlier blanket quota deferral. Enforce limits with durable,
+atomic reservations before potentially billable attempts and idempotent reconciliation
+across requests, retries and workers. Best-effort AIInteractionLog writes remain
+observability, not a cap counter. Scope, units, periods, conservative bounds, unknown
+outcomes, provider retries and reservation recovery must be documented and tested;
+usage reporting distinguishes estimates/reservations from settled measurements.
+
+Super admin controls allowances; customers see their own service/usage state and a
+clear exhaustion/recovery path, preserving inbound messages and human handoff.
+Billing plans, subscriptions, payments and invoices remain out of scope. Tagging cost
+signals by business from inception remains required; neither those logs nor a cap
+implementation constitute an exact financial ledger.
 
 ---
 
@@ -2572,11 +2860,16 @@ Recapping §7.4-7.6/§10/§11/§28.2-28.3 as a single compliance-facing narrativ
 
 ## 44. Ziyrak MVP
 
-### 44.1 What "first real Ziyrak customer" requires, and nothing more
+The table below records the original migration MVP. For managed-service readiness,
+P1–P3 add platform/workspace administration, verified account lifecycle, managed AI/
+allowances and customer onboarding; R1–R5 supply recovery and final acceptance.
+These additions supersede the named older deferrals without claiming implementation.
+
+### 44.1 Original migration MVP boundary
 
 | Included in MVP | Excluded from MVP (exists in Owly today, retained but not required to be reconnected/hardened for v1) |
 |---|---|
-| `Business`/`Membership`/tenant isolation, all five layers (Phase 1-2) | Platform-admin support-impersonation tooling (§15.2, named but deferred) |
+| `Business`/`Membership`/tenant isolation, all five layers (Phase 1-2) | Platform support tooling was excluded from this original MVP; now scheduled in P1 (§15.2) |
 | Secure-by-default auth (Phase 0/2) | Plugin/hook system (§46.6 — deprecated, not shipped) |
 | Customers, conversations, messages (tenant-scoped) | Flow builder (§46.6 — deprecated from the tenant UI, data model retained) |
 | Knowledge base + real semantic retrieval, via `EmbeddingProvider` (Phase 4) | PDF/URL/structured-data knowledge ingestion (§22.4, boundary named only) |
@@ -2584,7 +2877,7 @@ Recapping §7.4-7.6/§10/§11/§28.2-28.3 as a single compliance-facing narrativ
 | One real AI provider (OpenAI) fully working; a second (Anthropic) proven to prove the abstraction (Phase 4); one embedding provider (OpenAI) | Ollama/local-LLM support (stubbed honestly, §21.2); private-endpoint providers (Phase 9) |
 | Human handoff (existing escalation logic, tenant-scoped) | SLA rule dashboard *enforcement* automation — SLA rules can be viewed/configured, but auto-escalation-on-breach is a fast-follow, not a hard MVP blocker, since human agents can monitor manually at initial customer counts |
 | A small, reliable built-in tool set with real `ToolPolicy` defaults: `create_ticket`, `assign_to_person`, `get_customer_history`, `schedule_followup` (now genuinely durable, §24), `trigger_webhook` (SSRF-hardened, §32.1) | Automation rules and campaign broadcast — see §44.2's decision |
-| Activity/audit log (tenant-scoped) | Full usage-based billing (§39 — attribution only) |
+| Activity/audit log (tenant-scoped) | Full usage-based billing (§39); basic managed-AI allowances are now P2 |
 | Inbound webhook deduplication for every production channel (§17.4) | `InfrastructurePolicy`/dedicated infra (Phase 9, post-MVP by definition) |
 | Necessary configuration (`BusinessConfig`, `ChannelConnection`) | Third-party/tenant-defined custom tools |
 
@@ -2598,7 +2891,22 @@ A new `Business` can sign up, its owner can log in, embed the Web Chat widget on
 
 ---
 
+### 44.4 Managed-service customer acceptance (current milestone)
+
+R4 executes signup/verification → private workspace → knowledge → supported channel
+→ useful grounded test reply → activation without customer AI keys, then team
+invitation, scoped human handoff and account recovery. In parallel, another workspace
+cannot access that data, a restricted member cannot access another channel, and
+platform operators cannot leave assigned support scope. Verify service limits and
+support revocation, including worker/realtime behavior. R5 then finishes naming and
+reruns affected acceptance on the final candidate. Mocked account mail, stand-in AI
+and real recipient delivery retain their distinct evidence labels.
+
 ## 45. Migration Roadmap
+
+This is the original Phases 0–9 roadmap, retained for contracts and history. Use the
+[live plan](#live-plan--finished-foundations-and-upcoming-work) for current sequencing;
+do not infer permission to restart phases or close Phase 9 from this historical list.
 
 ### 45.1 What changed in this revision, and why (review concern 11, primarily)
 
@@ -2689,6 +2997,8 @@ Tenant model, membership, control-plane/data-plane split, composite foreign keys
 
 ## 46.1 Phase 1 — Business/Tenant Foundation
 
+**Current milestone amendment:** P1/P3 extend platform roles, scoped support and account lifecycle; §9 and the approved product decision govern those additions.
+
 ### Objective
 Introduce `Business`, `Membership`, `User`, and — new in this revision — the **control-plane/data-plane split** (`TenantPlacement`, `DatabaseProfile`, `StorageProfile`, §7.4-7.6) as first-class models from the start, not retrofitted later; migrate every existing table to carry `businessId`; introduce **composite tenant-aware foreign keys** (§8.4) for every relation identified in that section; replace the one-row-per-type `Channel` model with `ChannelConnection` (§7.7); rewrite `ApiKey` for irrecoverable secret storage (§9.4); split `Settings`/`BusinessHours` singletons into tenant-owned configuration with rotation-ready encryption (§10.3). At the end of this phase, the schema is multi-tenant-shaped **and carries its own database-level isolation guarantee for every composite-FK relation**, even though the query-layer enforcement (the Prisma extension, the lint rule) is not yet built — that is Phase 2's explicit scope, and per §45.2, **this phase's output is never exposed to real external multi-business use until Phase 2 is also complete.**
 
@@ -2767,6 +3077,8 @@ Historical implementation, reviews and acceptance evidence: [Phase 1 record](doc
 ---
 
 ## 46.2 Phase 2 — Authentication, Authorization, Tenant Isolation
+
+**Current milestone amendment:** P1/P3 extend workspace selection, resource authorization and verified account lifecycle; §§14–15 and their new criteria govern.
 
 ### Objective
 Build the enforcement mechanisms this plan has been building up to: real `TenantContext` resolution with **`ctx` explicit at service boundaries** (§8.2, review concern 2), the tenant-scoping Prisma Client Extension (§8.3), the lint rule closing the raw-client escape hatch, secure-by-default middleware (§14.2), and the full tenant-isolation test matrix (§33) — **including the new database-bypass tests that prove the composite foreign keys from Phase 1 work independently of the application-level checks built in this phase**. At the end of this phase, cross-tenant data access is structurally prevented at every one of §8's five layers, not just theoretically prevented by the schema change in Phase 1. **Per §45.2, this phase is released to any externally-reachable environment together with Phase 1 — the two are never shipped independently.**
@@ -2887,6 +3199,8 @@ Historical implementation, reviews and acceptance evidence: [Phase 3 record](doc
 
 ## 46.4 Phase 4 — AI/Embedding Provider Abstraction and Knowledge Retrieval
 
+**Current milestone amendment:** P2 adds platform-managed AI and durable allowances; R2 evaluates the final managed policy. Original provider/isolation contracts remain.
+
 ### Objective
 Make AI provider selection real (§21) — now explicitly split into **generation** (`AIProvider`) and **embedding** (`EmbeddingProvider`, §21.5, review concern 13) — and connect the already-working semantic search into the live chat path (§22), fixing the two most consequential AI-layer defects verified in §2.3, using the module boundaries Phase 3 just established.
 
@@ -2938,7 +3252,7 @@ This is the single highest-leverage correctness fix in the plan relative to effo
 Phase 3 complete (module boundaries and minimal interface sketches must exist).
 
 ### Explicitly deferred
-pgvector/external vector DB (§22.3 — deferred by design until a real scale trigger). Ollama's real implementation (§21.2 — honest stub only). A second `EmbeddingProvider` implementation (§21.5 — not needed until a concrete private-endpoint requirement exists, Phase 9). Knowledge ingestion beyond manual entry (§22.4 — boundary named, not built). Per-tenant AI cost quotas/limits (§39 — attribution only, no enforcement).
+pgvector/external vector DB (§22.3 — deferred by design until a real scale trigger). Ollama's real implementation (§21.2 — honest stub only). A second `EmbeddingProvider` implementation (§21.5 — not needed until a concrete private-endpoint requirement exists, Phase 9). Knowledge ingestion beyond manual entry (§22.4 — boundary named, not built). Per-tenant AI cost quotas/limits were deferred by the original Phase 4; now scheduled separately in P2 (§39), without retroactively changing Phase 4 evidence.
 
 ### Implementation history
 
@@ -3102,6 +3416,8 @@ Historical implementation, reviews and acceptance evidence: [Phase 6 record](doc
 ---
 
 ## 46.7 Phase 7 — Production Channels (WhatsApp + Web Chat) and MVP Hardening
+
+**Current milestone amendment:** P1–P3 and R4 extend customer acceptance beyond this original MVP; historical Phase 7 evidence does not accept these additions.
 
 *(Renumbered from the first pass's Phase 8. Revised per review concern 21 to include Web Chat as a co-equal production MVP channel, not a WhatsApp-only phase.)*
 
@@ -3278,7 +3594,7 @@ Historical implementation, reviews and acceptance evidence: [Phase 9 record](doc
 
 ## Continuation point
 
-The original Phase 0 starting instruction is [archived](docs/implementation-history.md#original-first-task). Resume the approved quality recovery milestone via `.agent/CURRENT.md`; do not restart the migration or retag historical phases.
+The original Phase 0 starting instruction is [archived](docs/implementation-history.md#original-first-task). Resume the approved managed-service readiness milestone via `.agent/CURRENT.md`; do not restart the migration or retag historical phases.
 
 ---
 
@@ -3290,7 +3606,7 @@ This appendix consolidates the handful of places throughout this document where 
 2. **The flow-builder deprecation** (§44.2, §46.6) — architecturally justified, but removing a dashboard feature has user-communication implications outside this document's scope; flagged in §46.6's risks as needing explicit stakeholder sign-off.
 3. **Concrete latency targets for WhatsApp/Web Chat replies** (§46.7's acceptance criteria) — **partially resolved 2026-10-02:** Web Chat is server p95 under 5 seconds and visible-widget p95 under 7 seconds; WhatsApp retains the p95-under-10-seconds target; later manual 1–2 s observations were not an instrumented p95 measurement (see the Phase 7 history).
 4. **Which specific enterprise infrastructure override (region, database, storage, or provider) a first Phase-9 customer actually needs** (§46.9's risks) — this plan deliberately does not guess, since the seam supports any of them being built first, in whatever order real sales/compliance conversations surface.
-5. **Whether platform-support impersonation tooling (§15.2) is needed before or after the MVP** — named as a deferred capability throughout, but the actual timing is a support-operations decision once the platform has real customers to support.
+5. **Platform-support tooling timing (§15.2)** — resolved by MS-2026-10-14: explicit audited support access is required in P1. Preserve actual actor identity; no invisible owner impersonation.
 6. **Managed Redis/Postgres/object-storage vendor selection** (§41, §42) — this plan specifies the *shape* of infrastructure (managed vs. self-hosted, pooled vs. not) but not a specific vendor, which is a commercial/operational decision.
 
 These original migration decisions do not authorize restarting Phase 0. Resolve remaining decisions only when they become relevant to the selected task — they are called out so they are not mistaken for oversights when an implementer reaches that point.
@@ -3299,15 +3615,15 @@ These original migration decisions do not authorize restarting Phase 0. Resolve 
 
 ## Development Execution Protocol
 
-This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret any architectural decision made in §1–§45 or any phase's content in §46.0–§46.9. Where anything below appears to conflict with an earlier section, the earlier section (the architecture) governs, and the conflict itself should be raised per rule 11, not silently resolved either way.
+This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret the architecture in §1–§45, phase contracts in §46.0–§46.9 or the explicit MS-2026-10-14 amendments and P1–P3 criteria. Where anything below appears to conflict with the governing architecture (including its explicit dated amendments), that architecture governs, and the conflict itself should be raised per rule 11, not silently resolved either way.
 
 **1. Read `PLAN.md` first, every session.** Before touching code, an engineering session reads this document — at minimum the phase it has been assigned (§46.x), that phase's dependencies, and the architectural sections it references. A session that has not done this has not met the bar for starting work, regardless of how confident it is about the codebase from other context.
 
-**2. Scope discipline: work only the explicitly selected phase, module, or task.** The approved recovery milestone is a selected scope: `continue` advances through eligible R1–R5 tasks without asking to reauthorize routine steps. Respect dependencies, product decisions and external-action boundaries; stop at milestone closure. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
+**2. Scope discipline: work only the explicitly selected phase, module, or task.** The approved managed-service readiness milestone is a selected scope: `continue` advances in live-board order through eligible R1–R5 and P1–P3 tasks without asking to reauthorize routine steps. Respect dependencies, product decisions and external-action boundaries; stop at milestone closure. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
 
 **3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 14, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
 
-**4. Before writing code for a selected module, restate its contract from `PLAN.md`.** Concretely, identify: what it owns (its section in §6's module table, or the relevant model/contract section), its public contract (the interface it exposes — e.g., `ChannelAdapter` from §19.1, `ToolRegistry` from §23.2, `JobQueue` from §25.1), what it may depend on and what must not depend on it (§5.7's dependency-direction diagram and the per-module "depends on" column in §6), the tests required before/alongside it (§33/§34, plus that phase's own "Tests first" list), and its Definition of Done (the selected recovery criteria and the applicable items from that phase's "Acceptance criteria" list, verbatim — not a paraphrase of them). This restatement does not need to be a formal artifact; it needs to actually happen before implementation, not be skipped because the module "seems obvious." When the selected scope is a phase — or a task within one — that introduces or changes a workflow a user, administrator, agent, customer, or external provider interacts with, also settle at this point how that workflow will be verified in a real run (see "Browser and Live Workflow Verification" below), so it is scheduled rather than discovered missing at closure. The standing instruction for every such phase:
+**4. Before writing code for a selected module, restate its contract from `PLAN.md`.** Concretely, identify: what it owns (its section in §6's module table, or the relevant model/contract section), its public contract (the interface it exposes — e.g., `ChannelAdapter` from §19.1, `ToolRegistry` from §23.2, `JobQueue` from §25.1), what it may depend on and what must not depend on it (§5.7's dependency-direction diagram and the per-module "depends on" column in §6), the tests required before/alongside it (§33/§34, plus that phase's own "Tests first" list), and its Definition of Done (the selected milestone task criteria and the applicable items from that phase's "Acceptance criteria" list, verbatim — not a paraphrase of them). This restatement does not need to be a formal artifact; it needs to actually happen before implementation, not be skipped because the module "seems obvious." When the selected scope is a phase — or a task within one — that introduces or changes a workflow a user, administrator, agent, customer, or external provider interacts with, also settle at this point how that workflow will be verified in a real run (see "Browser and Live Workflow Verification" below), so it is scheduled rather than discovered missing at closure. The standing instruction for every such phase:
 
 > If this phase has a meaningful user-facing workflow, use available browser/computer-use tooling to exercise it end-to-end before phase closure. Do not stop at API/unit/integration tests when the actual product can be run and interacted with.
 
@@ -3419,7 +3735,7 @@ In cases 2 and 3 the agent also performs all automated and non-browser verificat
 
 ### MVP Browser Acceptance Suite
 
-The release-level browser regression suite: rerun it, in full, before any major release or milestone tag, and after any change that touches routing, authentication, channels, the worker, or the widget. It proves what only the assembled, running product can — routing, cookies, CORS, public assets, UI state, the web/worker process boundary, persisted state across reloads and restarts, and tenant isolation *as a user experiences it*. It complements, and never replaces, the automated suites (unit, contract, isolation, `tests/e2e/mvp-acceptance.test.ts`). Current results are dated in the recovery baseline and [implementation history](docs/implementation-history.md#phase-9); this specification does not itself claim a pass. Live J16 is separate from the 16-script runner. The verification-selection policy above governs focused development loops and required live checks.
+The release-level browser regression suite: rerun it, in full, before any major release or milestone tag, and after any change that touches routing, authentication, channels, the worker, or the widget. It proves what only the assembled, running product can — routing, cookies, CORS, public assets, UI state, the web/worker process boundary, persisted state across reloads and restarts, and tenant isolation *as a user experiences it*. It complements, and never replaces, the automated suites (unit, contract, isolation, `tests/e2e/mvp-acceptance.test.ts`). Current results are dated in the live-plan baseline and [implementation history](docs/implementation-history.md#phase-9); this specification does not itself claim a pass. Live J16 is separate from the 16-script runner. The verification-selection policy above governs focused development loops and required live checks.
 
 **Running it.** `scripts/acceptance/run-all.sh` runs the full suite in its real dependency order (not raw numeric order — J03/J03b's cross-tenant attack surface needs data J04/J05/J06b/J08/J11 create first; see the script's own header comment) and exits non-zero the moment any journey's assertions fail. Every journey script asserts its own acceptance-critical outcomes via `lib.cjs`'s `assert()`/`finish()` and fails loudly (non-zero exit) rather than only printing evidence for a human to read. Chromium is resolved automatically (`CHROMIUM_PATH`, else `puppeteer`'s own cached build). Set `ACC_DB` explicitly; the legacy `sql()` fallback is unsafe to rely on. If the DB is not the compose Postgres, set/check `ACC_PSQL` for that same isolated DB. J09/J10 counts retained rows, so use a fresh acceptance database per full run.
 
@@ -3430,6 +3746,16 @@ The release-level browser regression suite: rerun it, in full, before any major 
 **LLM.** Use `scripts/acceptance/llm-standin.cjs` for routine deterministic browser regressions, even when real credentials are available. It answers from the prompt it receives and logs prompts under the acceptance work directory; use synthetic fixture data and protect these artifacts. This proves retrieval/scoping, prompt assembly and tool wiring, not model quality. When the verification policy selects a real-model criterion, use `ACC_REAL_AI=1` and the documented provider/model/key variables, confirm the intended endpoint (no stand-in override), and run cases whose assertions are valid for a real model. Record the exact provider/model and outcomes. Stand-in and real-model runs are separate evidence; credential availability alone does not require repeating every browser journey with a real model.
 
 **Journeys** — current requirements; results belong in dated evidence records:
+
+**Managed-service extensions (P1–P3/R4):** the numbered journeys below describe
+existing flows; keep their isolation/delivery guarantees while updating J01 from
+customer AI configuration to verified signup and platform-managed provisioning,
+and J13 staff creation to the invitation flow. Add named journeys for the P1 role/
+channel matrix and support revocation, P2 managed-policy/limit recovery, and P3
+verification/reset/invitation/resumable activation. Include them in the full runner
+when implemented; do not claim the old 16-script pass covers these additions. Test
+platform policy setup through its real UI, using stand-in credentials only in isolated
+local runs; customers must not enter an AI key even in the updated browser tests.
 
 1. **J01 Signup.** *Purpose:* two independent businesses via the real wizard. *Steps:* `/setup` → account → profile → AI config → dashboard, twice (bakery, e-scooter shop), separate profiles. *Expect:* each gets its own Business, owner User+Membership, `TenantPlacement` (shared-default), `BusinessConfig` (encrypted AI credential ref), 6 `ToolPolicy` rows, `business.created` audit row; no Default Business used; dashboard renders with a clean console. *Phases:* 1, 2, 7. *Creds:* none. *Auto:* yes.
 2. **J02 Auth/session.** *Steps:* refresh, navigate 7 protected pages, Sign Out via the avatar menu, log back in through `/login` (wrong password first), unauthenticated + forged-cookie access to pages/APIs. *Expect:* cookie cleared on sign-out; APIs 401, pages → `/login`; wrong password → "Invalid credentials"; `a.b.c` and wrong-secret JWTs → 401; `/widget.js`, `/api/health` stay public; each session sees only its own user; cookie `HttpOnly; Secure; SameSite=Lax`. *Phases:* 0, 2. *Auto:* yes.

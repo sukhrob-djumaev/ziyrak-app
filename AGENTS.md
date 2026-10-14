@@ -12,11 +12,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - `PLAN.md` governs product architecture, phases, acceptance criteria, security invariants, and development constraints. Follow its **Development Execution Protocol**, **Browser and Live Workflow Verification**, and **Git and Commit Workflow**.
 - Git records implementation history; `.agent/CURRENT.md` records the bounded objective and operational status; `.agent/HANDOFF.md` records the latest session. Chat history is optional. State files reference the plan, never replace it or authorize deviations.
-- Read the current status/recovery section first, then dated implementation records in `docs/implementation-history.md` as well as phase criteria: the archived draft status and early implementation snapshots are historical. Git/source establish what exists, not permission to change the governed architecture. Surface unresolved conflicts under protocol rule 11.
+- Read the current status/live plan and approved product direction first, then dated implementation records in `docs/implementation-history.md` as well as phase criteria: the archived draft status and early implementation snapshots are historical. Git/source establish what exists, not permission to change the governed architecture. Surface unresolved conflicts under protocol rule 11.
 
 ## Start a session / `continue`
 
-`continue` and `continue current Ziyrak task` mean resume the first eligible unfinished task in the approved milestone recorded in CURRENT. Once a task is complete, continue to the next eligible task within that milestone without routine reapproval. They never authorize an unselected phase or milestone. Historical "start Phase 0" instructions are archived, not active.
+`continue` and `continue current Ziyrak task` mean resume the first eligible unfinished task in the approved milestone located by CURRENT, using PLAN’s live board order. Once a task is complete, continue to the next eligible task within that milestone without routine reapproval. They never authorize an unselected phase or milestone. Historical "start Phase 0" instructions are archived, not active.
 
 1. Read this file, then the current milestone and task in `PLAN.md`, applicable phase criteria, relevant linked implementation records, dependencies, referenced contracts, and the execution/Git protocols. Use `CURRENT.md` as a locator if needed. For new work, map the user's request to the plan first.
 2. Read `.agent/CURRENT.md` and `.agent/HANDOFF.md`.

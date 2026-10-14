@@ -1,8 +1,14 @@
 # Ziyrak AI
 
-Ziyrak is a multi-tenant customer-support application developed from Owly. Businesses
-manage their own knowledge, conversations, customers, tools and channels. A separate
+Ziyrak is a multi-tenant customer-support application developed from Owly. Its approved
+product direction is a managed AI service: businesses create private workspaces,
+configure their knowledge and channels, and use AI managed by Ziyrak. A separate
 worker handles queued inbound messages, knowledge indexing and scheduled actions.
+
+The target access model separates a platform super admin, Ziyrak operators assigned
+to specific workspaces, and each customer's owner/admin/team roles. Customers will
+not configure AI provider keys or raw models. These additions are planned; the
+current implementation and remaining work are distinguished below.
 
 Built with Next.js, TypeScript, PostgreSQL, Prisma and pg-boss; Redis supports shared
 rate limiting, cache and realtime across replicas. See [package.json](package.json)
@@ -10,21 +16,19 @@ and [CI](.github/workflows/ci.yml) for the actual versions and checks.
 
 ## Current status
 
-The core application is implemented. **Quality recovery is the active milestone:**
-fix delivery retry gaps, validate AI escalation, improve operational safety, run
-final acceptance and finish Ziyrak naming/branding. Implementation is not a blanket production-readiness claim.
+The core tenant, conversation, knowledge, channel and worker foundations are
+implemented. **Managed-service readiness is the active milestone**, combining quality
+recovery with the approved accounts, access and managed-AI additions. Existing signup
+creates a private business and owner; it still asks for AI configuration. The platform
+console, channel-scoped users, verified account lifecycle and managed usage caps are
+upcoming. Implementation is not a blanket production-readiness claim.
 
-| Capability                               | Current scope and limits                                                                                                                          |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Business accounts, roles and isolation   | Implemented with tenant-scoped access and real-Postgres security tests.                                                                           |
-| Web Chat and Meta WhatsApp Cloud API     | MVP channels. Web Chat has repeatable browser acceptance; Meta has historical live evidence with a specific second-number delivery waiver.        |
-| Knowledge and AI                         | OpenAI/Anthropic provider adapters and semantic indexing/retrieval. Real-provider coverage varies; escalation quality is part of recovery.        |
-| Tools, approvals, follow-ups and handoff | Implemented, including approval/policy UI. Two delivery reliability failures remain open in R1.                                                   |
-| Scaling                                  | Redis and multiple web/worker processes exercised. Kubernetes HPA is configured but not cluster-verified.                                         |
-| Enterprise placement                     | Dedicated DB/RLS exercised synthetically; dedicated storage deferred, migration manually quiesced. Full Phase 9 acceptance is incomplete.         |
-| Other channel adapters                   | Email/Phone and other adapter code are not equivalent to accepted production MVP channels. WhatsApp Web QR is restricted to development/demo use. |
+**One live roadmap:** [finished foundations and upcoming work](PLAN.md#live-plan--finished-foundations-and-upcoming-work).
+It owns task order, implementation status and verification limits. See also the
+[approved product direction](PLAN.md#approved-product-direction--managed-service)
+and each task's acceptance criteria. Phone and additional enterprise capabilities
+remain outside this milestone; current channel priorities are Web Chat and Meta WhatsApp.
 
-Canonical status, scope and criteria: [PLAN.md](PLAN.md#start-here-current-status-and-authorized-work).
 Evidence: [October 14 review](docs/status-review-2026-10-14.md) and
 [implementation history](docs/implementation-history.md). These are dated records;
 recheck changed code, provider state and deployment before relying on old results.
@@ -36,7 +40,8 @@ Open this repository and say **`continue`** or **`continue current Ziyrak task`*
 Both agents follow [AGENTS.md](AGENTS.md); [CLAUDE.md](CLAUDE.md) imports it.
 The agent reads the approved plan, [current task](.agent/CURRENT.md) and
 [latest handoff](.agent/HANDOFF.md), checks Git, and resumes the first eligible
-unfinished task. It records verification and the next action before stopping.
+unfinished task in the live board order. It records verification and the next action
+before stopping.
 A completed task permits the next task within the authorized milestone; a new
 phase, architecture change or external action still follows its approval boundary.
 
@@ -85,11 +90,13 @@ npm run dev -- --port 3001
 npm run worker
 ```
 
-Use the signup UI to create a business, then configure its AI provider/key,
-knowledge and channel through the application. Provider credentials are stored
-per business; `.env` AI keys are primarily for test/load tooling, not a substitute
-for business configuration. Seeding the legacy Default Business is not required
-for signup acceptance.
+**Current implementation:** use the signup UI to create a business, then configure
+its AI provider/key, knowledge and channel through the application. Provider
+credentials are stored per business; `.env` AI keys are primarily for test/load
+tooling, not a substitute for business configuration. Seeding the legacy Default
+Business is not required for signup acceptance. P2/P3 replace this customer AI setup
+with platform-managed service provisioning; update these instructions when that
+behavior is implemented and verified, not before.
 
 For production-equivalent local verification, build and start the web process
 with the intended `NEXT_PUBLIC_APP_URL`; keep the worker separate:
@@ -194,7 +201,7 @@ test cleanup. Host-specific process details and protected ports are in CURRENT.
 
 ## Documentation and license
 
-- [Architecture, recovery plan and acceptance criteria](PLAN.md)
+- [Architecture, live product plan and acceptance criteria](PLAN.md)
 - [Agent workflow](AGENTS.md), [current task](.agent/CURRENT.md), [handoff](.agent/HANDOFF.md)
 - [Status review](docs/status-review-2026-10-14.md), [historical implementation evidence](docs/implementation-history.md)
 - [Approvals and tool policies](docs/wiki/Approvals-and-Tool-Policies.md)

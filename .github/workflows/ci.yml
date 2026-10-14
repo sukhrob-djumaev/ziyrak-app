@@ -8,6 +8,7 @@ on:
 
 env:
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/owly_test?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/owly_test?schema=public
   JWT_SECRET: ci-test-secret-key-do-not-use-in-production
 
 jobs:

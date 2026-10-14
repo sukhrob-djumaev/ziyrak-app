@@ -1,0 +1,339 @@
+{
+  "date": "2026-10-15 Asia/Kuala_Lumpur",
+  "baseline": "5bfbdca",
+  "lockSha256": "93b628c51a9bc933c78b61bd7c375d7b8cf6e5e125a1822f1addc02acd761dff",
+  "overrides": {
+    "utf7": {
+      "semver": "5.7.2"
+    },
+    "prisma": {
+      "mysql2": "3.24.6"
+    },
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "get-uri": {
+      "basic-ftp": "6.2.3"
+    },
+    "esbuild": "0.28.2"
+  },
+  "scopes": {
+    "prod": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 5,
+        "critical": 0,
+        "total": 5
+      },
+      "remaining": {
+        "@puppeteer/browsers": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/@puppeteer/browsers"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "extract-zip"
+          ]
+        },
+        "extract-zip": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/extract-zip"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            {
+              "source": 1139346,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip unvalidated symlink path traversal",
+              "url": "https://github.com/advisories/GHSA-jmr9-qjv8-65gv",
+              "severity": "high",
+              "cwe": [
+                "CWE-22"
+              ],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+              },
+              "range": "<=2.0.1"
+            },
+            {
+              "source": 1193685,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip allows arbitrary file writes through symlink archive entries",
+              "url": "https://github.com/advisories/GHSA-7pqw-9j4j-h8q3",
+              "severity": "high",
+              "cwe": [
+                "CWE-22"
+              ],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:H"
+              },
+              "range": "<=2.0.1"
+            }
+          ]
+        },
+        "puppeteer": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/whatsapp-web.js/node_modules/puppeteer"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "@puppeteer/browsers",
+            "puppeteer-core"
+          ]
+        },
+        "puppeteer-core": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/whatsapp-web.js/node_modules/puppeteer-core"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "@puppeteer/browsers"
+          ]
+        },
+        "whatsapp-web.js": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/whatsapp-web.js"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "puppeteer"
+          ]
+        }
+      }
+    },
+    "all": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 10,
+        "critical": 0,
+        "total": 10
+      },
+      "remaining": {
+        "@next/eslint-plugin-next": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/@next/eslint-plugin-next"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "fast-glob"
+          ]
+        },
+        "@puppeteer/browsers": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/@puppeteer/browsers",
+            "node_modules/puppeteer-core/node_modules/@puppeteer/browsers",
+            "node_modules/puppeteer/node_modules/@puppeteer/browsers"
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.14.0",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "extract-zip"
+          ]
+        },
+        "braces": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/braces"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          },
+          "via": [
+            {
+              "source": 1240992,
+              "name": "braces",
+              "dependency": "braces",
+              "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+              "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+              "severity": "high",
+              "cwe": [
+                "CWE-674"
+              ],
+              "cvss": {
+                "score": 7.5,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": "<=3.0.3"
+            }
+          ]
+        },
+        "eslint-config-next": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/eslint-config-next"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "@next/eslint-plugin-next"
+          ]
+        },
+        "extract-zip": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/extract-zip"
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.14.0",
+            "isSemVerMajor": true
+          },
+          "via": [
+            {
+              "source": 1139346,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip unvalidated symlink path traversal",
+              "url": "https://github.com/advisories/GHSA-jmr9-qjv8-65gv",
+              "severity": "high",
+              "cwe": [
+                "CWE-22"
+              ],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+              },
+              "range": "<=2.0.1"
+            },
+            {
+              "source": 1193685,
+              "name": "extract-zip",
+              "dependency": "extract-zip",
+              "title": "extract-zip allows arbitrary file writes through symlink archive entries",
+              "url": "https://github.com/advisories/GHSA-7pqw-9j4j-h8q3",
+              "severity": "high",
+              "cwe": [
+                "CWE-22"
+              ],
+              "cvss": {
+                "score": 8.1,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:H"
+              },
+              "range": "<=2.0.1"
+            }
+          ]
+        },
+        "fast-glob": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/fast-glob"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "micromatch"
+          ]
+        },
+        "micromatch": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/micromatch"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-next",
+            "version": "14.2.35",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "braces"
+          ]
+        },
+        "puppeteer": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/puppeteer",
+            "node_modules/whatsapp-web.js/node_modules/puppeteer"
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.14.0",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "@puppeteer/browsers",
+            "puppeteer-core"
+          ]
+        },
+        "puppeteer-core": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/puppeteer-core",
+            "node_modules/whatsapp-web.js/node_modules/puppeteer-core"
+          ],
+          "fixAvailable": {
+            "name": "puppeteer",
+            "version": "25.14.0",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "@puppeteer/browsers"
+          ]
+        },
+        "whatsapp-web.js": {
+          "severity": "high",
+          "nodes": [
+            "node_modules/whatsapp-web.js"
+          ],
+          "fixAvailable": {
+            "name": "whatsapp-web.js",
+            "version": "1.34.2",
+            "isSemVerMajor": true
+          },
+          "via": [
+            "puppeteer"
+          ]
+        }
+      }
+    }
+  }
+}

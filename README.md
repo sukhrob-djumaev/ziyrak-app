@@ -151,6 +151,9 @@ Set `ACC_WORK_DIR` to a fresh **absolute** evidence directory and use an isolate
 Git worktree with its own dependencies. The SQL helper connects to the exact
 `ACC_DB` host/port/database; `ACC_PSQL` is unsupported. Set `CHROMIUM_PATH` to a
 trusted existing browser executable when Puppeteer's cached revision is absent.
+Automatic browser archive downloads are disabled by the repository's
+`.puppeteerrc.cjs`, including during dependency installation. Use a trusted system
+or previously verified cached browser; inspect any explicit provisioning separately.
 The build command records commit/source/build identity; ordinary `npm run build`
 does not create that acceptance record. Then build, start and verify:
 

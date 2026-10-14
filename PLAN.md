@@ -239,13 +239,15 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   safe commands and build identification documented; exact-commit CI checked before
   any authorized merge. Deployment requires separate authorization and observed
   web, worker and end-to-end checks; a health endpoint alone is insufficient.
-- **Result (2026-10-14 continuation):** fresh production audit reports 16 high,
-  full audit 21 high/1 low; no dependency versions changed yet.
-  [Operational assessment](docs/r3-operational-assessment-2026-10-14.md) records
-  reachability and harness findings. Isolated target/build/process ownership
-  safeguards and seven regressions pass. Assembled startup/stop rehearsal and
-  dependency remediation remain open. Independent R3 work is eligible while R1
-  is externally blocked; no live checkout changes are authorized by these checks.
+- **Result (2026-10-15 continuation):** verified isolated safety baseline:
+  ownership-safe harness/recovery and all17 assembled browser scripts passed.
+  Five targeted dependency overrides reduce fresh audits to5high production and
+  10high full. Redis-backed full suite1205passed/1 intentional skip, strict
+  type/lint and Node22 Docker build/probes passed; independent candidate security
+  review found no confirmed new issue. [Remediation evidence and concrete residual
+  decision](docs/r3-remediation-2026-10-15.md) record unpatched extract-zip/braces
+  exposure and controls. Owner decision pending; R3 not closed. P1 preparation and
+  implementation may use the verified isolated safety baseline; no live changes.
 
 ### P1 — Platform and workspace access
 

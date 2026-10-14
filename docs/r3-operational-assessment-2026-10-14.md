@@ -1,11 +1,14 @@
 # R3 initial operational assessment
 
-Status: **harness safeguards implemented and independently reviewed; dependency remediation and assembled rehearsal open**.
+Status: **historical initial assessment**. Targeted remediation and assembled
+rehearsal are now recorded in the [October15 evidence](r3-remediation-2026-10-15.md);
+R3 closure still requires the explicit residual-risk decision.
 Source baseline `551f9cd1d5146ed13368fda1e2ed85610f4fba21`, product baseline
 `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`. The initial assessment below is historical.
 Later isolated harness repairs and test/acceptance migrations are recorded in the
 [R1 implementation evidence](r1-delivery-implementation-2026-10-14.md).
-No dependency version, live process/database or provider configuration changed.
+No live dependency, process/database or provider configuration changed.
+The initial no-dependency-change statement applies only to the assessment below.
 
 ## Isolation used in this session
 

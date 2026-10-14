@@ -11,8 +11,8 @@ and [CI](.github/workflows/ci.yml) for the actual versions and checks.
 ## Current status
 
 The core application is implemented. **Quality recovery is the active milestone:**
-fix delivery retry gaps, validate AI escalation, improve operational safety and run
-final acceptance. Implementation is not a blanket production-readiness claim.
+fix delivery retry gaps, validate AI escalation, improve operational safety, run
+final acceptance and finish Ziyrak naming/branding. Implementation is not a blanket production-readiness claim.
 
 | Capability                               | Current scope and limits                                                                                                                          |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |

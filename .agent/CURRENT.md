@@ -2,11 +2,22 @@
 
 Updated: 2026-10-14 (Asia/Kuala_Lumpur). `PLAN.md` governs scope and criteria.
 
-- **Authorized milestone:** quality recovery R1–R4 in PLAN, approved by the owner on October 14. This session updates documentation only; a subsequent `continue` resumes recovery. No new product phase or deployment is implied.
+- **Authorized milestone:** quality recovery R1–R5 in PLAN, approved by the owner on October 14. R5 was added at the owner's request; this session updates documentation only and discusses product direction. A subsequent `continue` resumes recovery. No new product phase or deployment is implied.
 - **Next task:** R1 delivery reliability — not started; verification not run. Read its referenced contracts and both findings in `docs/status-review-2026-10-14.md`; inspect current handlers; add durable desired-behavior regressions and observe them fail before implementing the smallest fix. Do this in an isolated worktree, since the live worker runs from this checkout. Do not simply replay the entire AI pipeline after a send failure.
-- **Sequence:** R1 → R2 → R3 → R4. Prepare R2 cases or perform independent R3 work if an earlier external dependency/owner decision is blocked. Keep the blocked criterion open. Stop at recovery closure or a genuine remaining decision boundary.
+- **Sequence:** R1 → R2 → R3 → R4 → R5 (final Ziyrak naming/branding pass). Prepare R2 cases or perform independent R3 work if an earlier external dependency/owner decision is blocked. Keep the blocked criterion open. Stop at recovery closure or a genuine remaining decision boundary.
 - **Baseline:** product code `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; assessment commit `1ea078cab50f66b7598869a3c40e14812ef93a49`. Documentation revision is the commit containing this state. Inspect Git for the actual current HEAD and preserve unrelated work.
 - **Phase status:** 0–8 tagged. Phase 7 includes the October 11 owner waiver for second-number recipient-visible delivery. Phase 9 synthetic DB/RLS merged, storage deferred, no completion tag. Historical records now live in `docs/implementation-history.md`.
+
+## Product discussion — not an implementation decision
+
+The owner confirmed that registering users are business customers creating their
+own private workspace. They propose a platform super admin, scoped project
+admins/users, and AI keys/models managed by Ziyrak. Clarify whether scoped admins
+are Ziyrak operators or the business's staff, plus invitation/channel scopes, before
+changing architecture.
+Current signup creates a business owner and presents AI configuration; platform-wide
+tenant access and channel-specific user scope are not implemented. Keep current
+isolation contracts until an explicit architecture decision updates them.
 
 ## Verification status
 
@@ -35,6 +46,6 @@ existence/restorability was not rechecked. Preserve backup/restore gates before 
 - Acceptance topology: web 3100, stand-in 4010, customer sites 4020–4022; build with `NEXT_PUBLIC_APP_URL=http://localhost:3100`. Read `start-all.sh` and `run-all.sh`; set `ACC_DB` and matching DB variables. J09/J10 needs a fresh DB each full run. Stop only verified test-owned PIDs, never by process name.
 - Browser: prior headless Chrome via `puppeteer-core` worked; the Claude-in-Chrome extension failed. Recheck available tools. Use one window per role; persistent event streams make `networkidle` unsuitable. Avoid burning the 5/min login limit during debugging.
 - **Port 7700 and its cloudflared tunnel belong to the owner's remote-control service. Never touch them.** No application tunnel is assumed ready. Do not alter Business A/B Meta connections to unblock unrelated work.
-- Confirmed external blockers affect the corresponding acceptance/release, not all development. Record evidence, next manual action and retry condition; continue eligible R1–R4 work.
+- Confirmed external blockers affect the corresponding acceptance/release, not all development. Record evidence, next manual action and retry condition; continue eligible R1–R5 work.
 - Optional Origin hardening, dedicated storage, new channels and enterprise cutover automation remain outside this milestone. Preserve the historical Business B waiver without broadening it.
 - No push/release/deploy/history rewrite without applicable explicit authorization. The previous handoff records October 14 standing permission to merge own PRs only when CI is green, and to restart the worker/apply additive migrations after a backup; honor those exact conditions if relevant, not a broader implied permission. This documentation task exercises none of them.

@@ -8,7 +8,7 @@ Updated 2026-10-14. This plan owns architecture, acceptance criteria and work sc
 
 The owner approved the **quality recovery milestone** below on 2026-10-14.
 The documentation update is the current session's scope; a subsequent `continue`
-resumes R1 and then eligible work within R1–R4. This is remediation of the existing
+resumes R1 and then eligible work within R1–R5. This is remediation of the existing
 product, not Phase 10 or authorization for new features, deployment or account changes.
 
 ### Current baseline
@@ -20,7 +20,7 @@ product, not Phase 10 or authorization for new features, deployment or account c
 | Phase 8 | Implemented and tagged | Multi-process and Redis tests recorded; Kubernetes HPA was not exercised on a cluster. |
 | Phase 9 | Synthetic dedicated-DB/RLS work merged; no completion tag | Dedicated storage deferred; migration requires manual quiescence. Full enterprise acceptance remains incomplete. |
 | Post-9 hardening | Merged through PR #28 | Product baseline `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; assessment in `docs/status-review-2026-10-14.md`. |
-| Quality recovery R1–R4 | Approved; implementation not started | No recovery acceptance has passed yet. |
+| Quality recovery R1–R5 | Approved; implementation not started | No recovery acceptance has passed yet. |
 
 The October 14 review verified CI for that exact product baseline: default
 1149 passed/4 skipped; Redis-selected 1152 passed/1 skipped. The latest recorded
@@ -42,7 +42,12 @@ Read current decisions and the relevant later record when interpreting them.
   test run. It does not authorize claiming future customer delivery or skipping
   required release verification after relevant changes.
 - Dedicated storage, automated enterprise cutover, new channels and broader
-  enterprise release work are deferred. R1–R4 does not authorize building them.
+  enterprise release work are deferred. R1–R5 does not authorize building them.
+- Product clarification (owner, 2026-10-14): registering users are business
+  customers creating their own private workspace. Platform ownership, scoped
+  admins/users and centrally managed AI remain under discussion; no access-model
+  implementation is authorized by that discussion. §§9/10/15 and current isolation
+  rules still govern until an explicit architecture decision updates them.
 - Escalation behavior and evaluation thresholds need an explicit product decision
   in R2. Optional cookie-request Origin hardening remains an unselected follow-up.
 - Use isolated worktrees, dependencies, test databases and ports for product work.
@@ -53,7 +58,7 @@ Read current decisions and the relevant later record when interpreting them.
 
 ### Completion standard: good, with evidence
 
-The milestone is complete only when all required R1–R4 criteria have passed,
+The milestone is complete only when all required R1–R5 criteria have passed,
 applicable independent review findings are resolved, and the evidence identifies
 the tested code/build, environment, provider, commands, outcomes and limitations.
 An agent rating, merge, test count, health response or Graph acceptance alone
@@ -138,7 +143,7 @@ Keep the live task position in CURRENT rather than duplicating a changing queue 
 - **Result:** implementation not started; verification not run. Independent R3 work
   is eligible while an R1/R2 external dependency or owner decision is pending.
 
-### R4 — Final acceptance and closure
+### R4 — Final functional acceptance
 
 - **Problem/evidence:** existing evidence spans different dates/builds; the latest
   full browser suite used a stand-in, and the review found gaps after green CI.
@@ -157,8 +162,39 @@ Keep the live task position in CURRENT rather than duplicating a changing queue 
   are explicit; implementation and deployment verification are recorded separately;
   CURRENT/HANDOFF identify the boundary. A blocked required provider check leaves
   that criterion and milestone closure open while eligible work continues.
-- **Result:** implementation not started; verification not run. Stop after recovery;
-  no Phase 9 completion tag, new phase or customer rollout is implied.
+- **Result:** implementation not started; verification not run. R5 follows this
+  functional acceptance; its changes require the affected checks on the final tree.
+  No Phase 9 completion tag, new phase or customer rollout is implied.
+
+### R5 — Finish Ziyrak naming and branding
+
+- **Problem/evidence:** user-requested final cleanup (2026-10-14). Owly names remain
+  in visible UI/assets, documentation, package/deployment names and internal keys.
+- **Scope/exclusions:** one bounded inventory and rename pass after R4. Search
+  case-insensitively for `owly` and the whole word `owl` in tracked text and filenames;
+  inspect referenced logos/icons as well. Update active product text, metadata,
+  translations, owned assets, examples and safe internal identifiers to Ziyrak,
+  updating all callers/references together. Do not rewrite historical evidence,
+  third-party code, required copyright/license attribution or Git history.
+- **Required behavior:** current Ziyrak surfaces consistently show the Ziyrak name
+  and intended assets. Treat persisted/integration identifiers (cookies, storage
+  keys, database/volume names, queue/cache prefixes, webhook headers, deployed
+  service/chart names and public URLs) as compatibility changes, not blind text
+  replacement. Document a safe transition or an explicit retained compatibility
+  exception; do not rename a live database, move this checkout, lose data/sessions,
+  or break external consumers as part of a cosmetic cleanup.
+- **Verification:** repeat the text/filename scan and inspect visible affected pages
+  and assets. Run checks required by the actual touched contracts under the existing
+  policy, including auth/session, persistence, deployment-reference or browser
+  regressions if those are affected. Branding alone requires no real Meta send;
+  a changed provider-facing identifier uses the normal boundary-verification gate.
+- **Completion criteria:** no unintended Owly/Owl branding remains in active product
+  surfaces; all retained matches are explained as attribution, history, third-party
+  provenance or required compatibility. Links/assets/configuration remain valid and
+  affected checks pass on the final candidate. This is the last recovery task;
+  preserve R4 evidence and rerun any checks invalidated by the rename before closure.
+- **Result:** implementation not started; verification not run. Stop at recovery
+  completion; no new product features, account redesign or deployment is implied.
 
 ## Verification selection and external blockers
 
@@ -3267,7 +3303,7 @@ This section makes `PLAN.md` directly usable as an operating manual by future Cl
 
 **1. Read `PLAN.md` first, every session.** Before touching code, an engineering session reads this document — at minimum the phase it has been assigned (§46.x), that phase's dependencies, and the architectural sections it references. A session that has not done this has not met the bar for starting work, regardless of how confident it is about the codebase from other context.
 
-**2. Scope discipline: work only the explicitly selected phase, module, or task.** The approved recovery milestone is a selected scope: `continue` advances through eligible R1–R4 tasks without asking to reauthorize routine steps. Respect dependencies, product decisions and external-action boundaries; stop at milestone closure. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
+**2. Scope discipline: work only the explicitly selected phase, module, or task.** The approved recovery milestone is a selected scope: `continue` advances through eligible R1–R5 tasks without asking to reauthorize routine steps. Respect dependencies, product decisions and external-action boundaries; stop at milestone closure. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
 
 **3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 14, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
 

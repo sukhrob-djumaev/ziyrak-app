@@ -1,49 +1,48 @@
 # Latest session handoff
 
-Session: 2026-10-14 — owner-approved documentation and continuation reset.
+Session: 2026-10-14 — final branding task added; product-account discussion.
 
-## Changes
+## Changes and scope
 
-- Rewrote README for current Ziyrak, safe isolated setup, web/worker topology,
-  test layers and limitations; removed stale upstream roadmap/test-count claims.
-- PLAN now starts with current status, the approved R1–R4 quality recovery milestone,
-  explicit completion criteria, and risk-based provider testing. Architecture and
-  original numbered phase requirements remain. Old implementation logs and obsolete
-  starting instructions moved to `docs/implementation-history.md` with references.
-- Preserved the October 11 second-number delivery waiver and deferred enterprise
-  storage. Neither is described as passed. Corrected current browser instructions
-  to use existing approvals/policy UI and per-connection Meta secrets.
-- AGENTS defines continuation within the approved milestone, separate implementation
-  and verification status, and progress on independent work while a provider check
-  is blocked. CLAUDE keeps its shared `@AGENTS.md` import.
-- No product code, services, credentials, dependencies, databases or tags changed.
+- Added owner-requested **R5: Finish Ziyrak naming and branding** after R4 in PLAN;
+  the approved recovery milestone is now R1–R5. R1 remains the next implementation task.
+- R5 inventories visible branding, assets, text, filenames and safe identifiers.
+  It preserves attribution/history and handles persisted/external names through
+  explicit compatibility transitions. It must reverify affected R4 evidence before
+  milestone closure. No rename was executed in this session.
+- README and CURRENT reflect the extra task. Previous documentation restructuring
+  is in `d7c106fc78faa10db80c0093618f60896eecd6d8`; prior product assessment is in
+  `docs/status-review-2026-10-14.md`.
+- The owner confirmed that registering users are business customers creating
+  their own private workspace. Their proposed platform super admin, scoped
+  admins/users and centrally managed AI remain a product discussion; clarify who
+  the scoped admins represent. No access/security or AI provisioning change is
+  approved or implemented here.
+
+## Findings for that discussion
+
+Source inspection, not a new runtime test: `/api/auth` signup atomically creates a
+Business, User, owner Membership, placement/config and tool policies. The wizard
+then presents provider/model/key configuration. Existing roles are business-wide;
+request context selects the earliest membership, without a workspace switcher.
+`isPlatformAdmin` exists, but does not grant automatic access to tenant data or
+provide a platform administration console. Current plan §§9/10/15 must be reconciled
+before implementing the proposed managed-service account model.
 
 ## Verification
 
-- `git diff --check` and Prettier checks passed for README, AGENTS, CLAUDE and
-  state files. PLAN/history parse successfully as Markdown; their retained original
-  text was not broadly reformatted.
-- Checked 40 local links/anchors, preserved 13 archived source blocks exactly, and
-  compared all 10 original phase requirement blocks unchanged. CLAUDE still imports AGENTS.
-- A fresh-context independent read-only agent correctly resumed R1 conceptually
-  from repository files alone. It found a lost J04 indexing assertion and an old
-  instruction forcing live AI whenever credentials exist; both were fixed and
-  rechecked. Its final review reported no unresolved documentation/process findings.
-  This was not an independent product security audit or an actual implementation run.
-- No application tests, build, browser journeys, live sends or runtime probes ran.
-  Earlier runtime/CI evidence remains historical.
+Passed: Prettier checks for README/CURRENT/HANDOFF, Markdown parsing for PLAN,
+`git diff --check`, local-link/anchor checks and recovery-sequence consistency.
+Original numbered architecture and phase sections are unchanged in this edit.
+No product code, assets, credentials, dependencies, processes, databases or tags
+changed; no application tests, build, browser journeys or live-provider calls ran.
+This small additive documentation change is reviewed by the lead, not a new
+independent security review. Prior review and runtime evidence remain historical.
 
 ## Continue
 
-Start **R1 delivery reliability**, following PLAN's contracts and acceptance criteria,
-in an isolated worktree. Turn both review reproductions into durable failing
-regressions before fixes. Distinguish delivery retry from replaying AI/tool effects;
-resolve any significant contract deviation under rule 11. Proceed to eligible work
-within R1–R4; do not start a new phase or wait on Meta for unrelated development.
-
-R2 needs a concrete escalation/evaluation proposal before an owner policy decision.
-An external blocker leaves its required criterion open; independent R2 preparation
-or R3 work can continue. This session stops after the requested documentation update
-and discussion, without starting implementation. Runtime boundaries and dated
-observations are in CURRENT. The next commit containing this handoff records the
-change; do not invent its hash in this file.
+Resume R1 from PLAN/CURRENT in an isolated worktree. Follow eligible R1–R5 work;
+R5 is final and does not authorize an account redesign or a live infrastructure
+rename. Preserve all current runtime, database and protected-port boundaries.
+If the product discussion later selects a new architecture/scope, record the actual
+owner decision and affected contracts before changing this continuation target.

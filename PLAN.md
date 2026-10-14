@@ -277,9 +277,15 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   target workspace, scope, reason and lifetime. P3 supplies the shared invitation
   lifecycle; until then use secured operator provisioning, never public role assignment.
 - **Result (2026-10-15):** explicit permission contract and tests-first team/connection
-  slice in isolated P1 worktree; initial regressions7failed/1passed, targeted
-  checks21passed after fixes. Full final run underway; platform/scope/lifecycle
-  foundation and required browser/security acceptance remain open.
+  slice1322b03 plus foundation524fc17 in isolated P1 worktrees. Foundation full
+  141files1253passed/23optional skips; signup-seeded73files751passed; type/strict lint
+  and independent source/security/privacy rechecks passed after confirmed repairs.
+  Runtime ddfb28b/buildwGZWKxtJLXDsM9Bpq5mC2: fresh all17 browser journeys passed;
+  native Chrome owner/viewer workspace choice/switch and viewer Settings denial passed.
+  Second viewer membership was a synthetic DB prerequisite, not invitation evidence.
+  Owned topology stopped; live main product unchanged. New stream/delegated authority,
+  platform bootstrap/support grant lifecycle and full actual-role matrix remain open.
+  No P1 closure or real-provider claim. See [P1 evidence](docs/p1-access-implementation-2026-10-15.md).
 
 ### P2 — Managed AI and usage limits
 

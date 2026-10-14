@@ -1,26 +1,36 @@
 # Latest session handoff
 
-2026-10-15 overnight, approved through08:00 Asia/Kuala_Lumpur.
-R1 checkpoint c894b63 locally complete; all17 browser scripts passed on63247f6,
-owned topology stopped. Real-provider boundary remains R4; no deployment.
+2026-10-15 overnight authorized through08:00 KL. Main docs checkpoint9a604f5;
+live product/deps/providers/services unchanged. R1 locally verified c894b63;
+R3 code2adfc1b (integrated086f659), residual owner decision pending, not waived.
 
-R3 candidate in `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`:
-five targeted overrides; automatic browser provisioning defaults off, Docker
-copies config before install and into runtime; CI pins both DB URLs. Baseline
-merge/parser regressions failed, patched passed. get-uri FTP compatibility and
-passive-host denial pass. Full132files/1183passed/23optional Redis skips;
-Redis132files/1205passed/1 intentional fallback skip; type/lint pass; actual
-Node22 Docker build and network-disabled nonroot consumed-version/config/security
-probe pass. Independent source/security review reports no confirmed new finding.
-Docker image1fa65810446e0721e8e8796f4e0dbb5ac3156eecd386f632c27ac739261bfd52.
+P1 first slice1322b03 integrated to runtime80b5f33; buildwLh2ej40gDoE5_A4LJVCH
+and fresh full17 browser suite passed. Owned topology stopped; manifest under
+R1 candidate `.work/p1-slice-20261015`. No real-provider claim.
 
-R3 safety baseline verified; closure pending owner decision on unpatched archive
-extractor/braces. Concrete controls/evidence in docs/r3-remediation-2026-10-15.md;
-async question sent, no answer yet. No silent acceptance; remote exact-commit CI
-required before any separately authorized merge. No live dependency changes.
+Active P1 tree `/Users/sukhrob/.codex/worktrees/p1-workspace-access/owly` has a
+foundation checkpoint: explicit workspace entry/UI, normalized scope/schema,
+API-key issuer ceiling, related query/reference restrictions and monotonic work
+retirement. Full141files1253pass/23optional skips; signup-seeded73files751pass on
+separate isolated DB; lifecycle22pass; type/strict lint pass. Earlier concurrent
+full/seeded runs exhausted DB connections and are not acceptance. Use sequential
+bounded workers. Three migrations applied only to P1 test/signup-test databases.
+Independent security/privacy source rechecks found no further confirmed issue in
+the foundation after repairs; reviewers did not execute tests. See P1 evidence doc.
 
-Next eligible P1 work: explicit permission/model contract, tests-first team
-privilege/global-identity and same-contact connection regressions, then scoped
-workspace/platform foundation. Read-only investigation complete; no P1 code yet.
-R3 owns separate deps/test DB, task-owned Redis6381 (recorded exact ID/tasklabel);
-R1 tree clean, dependencies not integrated. Protected main/live services unchanged.
+Foundation commit524fc17 integrated as runtime ddfb28b, production build
+wGZWKxtJLXDsM9Bpq5mC2 and fresh full17 browser journeys passed. Native Chrome
+private-window owner/viewer login/choice/switch/Settings denial passed; second viewer
+membership was a synthetic DB prerequisite (P3 invitation still pending).
+Owned topology/private window stopped; no real-provider claim.
+
+Next: fresh stream/delegated authority, secured platform/support roles/grants/UI.
+Stream slice dirty against524fc17;15 tests-first failures repaired, reviewer envelope
+and retirement races reproduced then repaired; related63pass. Final independent
+recheck/broad checks/build/browser pending for newer source. Tool-only followup
+targets need durable parent binding. Partial candidate not live-ready; no platform
+bootstrap/console exposed. Dedicated migration quiescence remains required.
+
+Paired isolated DB URLs; owned Redis6381 exactIDfile/tasklabel retained. No name
+kills, live main product/deps/environment/7700/tunnel/DB changes, push/merge/deploy,
+release or new milestone. Preserve owner/provider boundaries at morning cutoff.

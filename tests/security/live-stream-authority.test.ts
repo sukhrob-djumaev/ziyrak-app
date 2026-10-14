@@ -27,11 +27,13 @@ import { ToolRegistry } from "@/lib/tools/registry";
 import { emitNotification } from "@/lib/realtime/realtime";
 import * as projection from "@/lib/identity/stream-event-projection";
 import * as conversations from "@/lib/conversations/service";
+import * as scoped from "@/lib/tenancy/scoped-prisma";
 import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { generateToken, revokeToken } from "@/lib/identity/auth";
 import { encryptChannelCredential } from "@/lib/identity/channel-credential-auth";
 import { GET as dashboardStream } from "@/app/api/realtime/route";
+import { GET as widgetMessages } from "@/app/api/channels/webchat/[connectionId]/messages/route";
 import { GET as widgetStream } from "@/app/api/channels/webchat/[connectionId]/stream/route";
 let business: SeededBusiness, foreign: SeededBusiness;
 const aborts: AbortController[] = [];
@@ -383,6 +385,129 @@ async function widget(
   return widgetStream(req, { params: Promise.resolve({ connectionId: f.conn.id }) });
 }
 describe("widget stream visitor and lifecycle authority, real Postgres", () => {
+  function poll(f: Awaited<ReturnType<typeof widgetFixture>>, after = "") {
+    const req = request(
+      `/api/channels/webchat/${f.conn.id}/messages?token=${encodeURIComponent(f.token)}&conversationId=${f.c.id}&visitorId=${encodeURIComponent(f.c.customerContact!)}&after=${after}`
+    );
+    req.headers.set("origin", f.origin);
+    return widgetMessages(req, { params: Promise.resolve({ connectionId: f.conn.id }) });
+  }
+  it("polling does not expose a legacy body retired after the parent read", async () => {
+    const f = await widgetFixture();
+    await prisma.message.create({
+      data: {
+        businessId: business.businessId,
+        conversationId: f.c.id,
+        role: "assistant",
+        content: "Unredacted retired legacy body",
+      },
+    });
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>((r) => {
+      entered = r;
+    });
+    const hold = new Promise<void>((r) => {
+      release = r;
+    });
+    const original = scoped.getScopedPrisma;
+    const spy = vi.spyOn(scoped, "getScopedPrisma").mockImplementationOnce((ctx) => {
+      const db = original(ctx);
+      return new Proxy(db, {
+        get(target, prop) {
+          if (prop !== "conversation") return Reflect.get(target, prop);
+          return new Proxy(target.conversation, {
+            get(delegate, method) {
+              if (method !== "findUnique") return Reflect.get(delegate, method);
+              return async (...args: Parameters<typeof delegate.findUnique>) => {
+                const row = await delegate.findUnique(...args);
+                entered();
+                await hold;
+                return row;
+              };
+            },
+          });
+        },
+      });
+    });
+    try {
+      const pending = poll(f);
+      await ready;
+      await prisma.conversation.update({ where: { id: f.c.id }, data: { retiredAt: new Date() } });
+      release();
+      const response = await pending;
+      expect(await response.text()).not.toContain("Unredacted retired legacy body");
+    } finally {
+      release();
+      spy.mockRestore();
+    }
+  });
+  it("internal message IDs cannot act as public polling cursors", async () => {
+    const f = await widgetFixture();
+    const start = Date.now() - 10_000;
+    const before = await prisma.message.create({
+      data: {
+        businessId: business.businessId,
+        conversationId: f.c.id,
+        role: "customer",
+        content: "Public before",
+        createdAt: new Date(start),
+      },
+    });
+    const internal = await prisma.message.create({
+      data: {
+        businessId: business.businessId,
+        conversationId: f.c.id,
+        role: "system",
+        content: "Private marker",
+        createdAt: new Date(start + 1000),
+      },
+    });
+    const after = await prisma.message.create({
+      data: {
+        businessId: business.businessId,
+        conversationId: f.c.id,
+        role: "assistant",
+        content: "Public after",
+        createdAt: new Date(start + 2000),
+      },
+    });
+    const ignored = await (await poll(f, internal.id)).json();
+    expect(ignored.messages.map((m: { id: string }) => m.id)).toEqual([before.id, after.id]);
+    const valid = await (await poll(f, before.id)).json();
+    expect(valid.messages.map((m: { id: string }) => m.id)).toEqual([after.id]);
+  });
+  it.each([
+    ["stream", "wrong-channel"],
+    ["poll", "wrong-channel"],
+    ["stream", "retired"],
+    ["poll", "retired"],
+  ])("initial %s admission denies a %s conversation", async (route, condition) => {
+    const f = await widgetFixture();
+    await prisma.message.create({
+      data: {
+        businessId: business.businessId,
+        conversationId: f.c.id,
+        role: "assistant",
+        content: "Synthetic private legacy body",
+      },
+    });
+    await prisma.conversation.update({
+      where: { id: f.c.id },
+      data: condition === "retired" ? { retiredAt: new Date() } : { channel: "email" },
+    });
+    if (route === "stream") expect((await widget(f)).status).toBe(404);
+    else {
+      const req = request(
+        `/api/channels/webchat/${f.conn.id}/messages?token=${encodeURIComponent(f.token)}&conversationId=${f.c.id}&visitorId=${encodeURIComponent(f.c.customerContact!)}`
+      );
+      req.headers.set("origin", f.origin);
+      const response = await widgetMessages(req, {
+        params: Promise.resolve({ connectionId: f.conn.id }),
+      });
+      expect(response.status).toBe(404);
+    }
+  });
+
   it("revocation during the second private projection prevents output", async () => {
     const f = await widgetFixture(),
       response = await widget(f),

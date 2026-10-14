@@ -26,6 +26,12 @@ J18/J19 continuations. Initial runner failed at new harness setup; no uninterrup
 19-script command claimed. Redis web/worker frames, token rotation and UI logout
 proved. Owned topology stopped using corrected saved/current identity comparison.
 
+Polling follow-up (containing commit via Git): initial channel/retirement checks,
+current parent predicates in content/cursor reads, public cursor roles. Tests first
+5failed regressions, focused58/full1283 (23optional), type/lint and independent
+source recheck passed. Fresh production/full19 rerun pending; prior build excludes
+this follow-up. Evidence: docs/p1-widget-poll-authority-2026-10-15.md.
+
 Next: secured platform bootstrap/recovery/operator assignments/support grants
 (contract drafted/design reviewed), then delayed authority and complete role UI.
 Tool-only followup targets require durable parent binding. No platform provisioning

@@ -66,6 +66,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   if (
     !conversation ||
+    conversation.channel !== "webchat" ||
     owningConnectionId !== connectionId ||
     conversation.customerContact !== visitorId ||
     conversation.retiredAt

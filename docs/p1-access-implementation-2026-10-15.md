@@ -35,7 +35,7 @@ internal API continuation through a tenant-scoped lookup. Unknown/foreign IDs404
 First slice code1322b03 was integrated into isolated runtime candidate80b5f33.
 Production buildwLh2ej40gDoE5_A4LJVCH and all17 browser journeys passed on the fresh
 `ziyrak_acceptance_p1_slice_20261015` database; manifest/evidence are under
-`.work/p1-slice-20261015` in the R1 candidate checkout. Owned topology stopped and
+`scripts/acceptance/.work/p1-slice-20261015` in the R1 candidate checkout. Owned topology stopped and
 identity verification found no remaining owned process. These results apply to
 that first slice, not the later uncommitted foundation. Provider fixtures
 prove local routing/persistence, not real recipient delivery. R4 retains affected
@@ -111,7 +111,7 @@ runtime candidate ddfb28bc7b218e4953bacf7334cba2fc9d1a6d22. Production build
 wGZWKxtJLXDsM9Bpq5mC2 and fresh all17 browser journeys passed on
 `ziyrak_acceptance_p1_foundation_20261015`; source digest
 7364792ea1f6a5f5c5aa568914dfa945c82d83f8fed89d29081b6270981d06dc.
-Manifest/evidence: R1 candidate `.work/p1-foundation-20261015`; browser log
+Manifest/evidence: R1 candidate `scripts/acceptance/.work/p1-foundation-20261015`; browser log
 `/private/tmp/ziyrak-p1-foundation-browser.log`.
 
 Native Chrome exploratory run (private window, local production app) verified:

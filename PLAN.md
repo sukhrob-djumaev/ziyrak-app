@@ -285,7 +285,16 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   Second viewer membership was a synthetic DB prerequisite, not invitation evidence.
   Owned topology stopped; live main product unchanged. New stream/delegated authority,
   platform bootstrap/support grant lifecycle and full actual-role matrix remain open.
-  No P1 closure or real-provider claim. See [P1 evidence](docs/p1-access-implementation-2026-10-15.md).
+  Stream slice92ae475/runtime b4a317f: full143files1277passed/23optional skips,
+  signup74files770passed, type/lint and independent source recheck passed. Production
+  build5Wsu11zRYbUiAIFjLzkmu/frozen digestf72cadf...ef64 covered all19 journeys through
+  first17 and corrected J18/J19 continuations; first runner failed at new harness
+  setup, not claimed as an uninterrupted19-script pass. Real Redis web/worker frames,
+  widget visitor binding/token rotation, workspace choice/revocation and UI logout
+  were verified. Saved/current PID/birth/cwd checks confirmed owned topology stopped.
+  Platform/support, delayed authority and full role matrix remain open. No P1 closure
+  or real-provider claim. See [P1 evidence](docs/p1-access-implementation-2026-10-15.md)
+  and [stream evidence](docs/p1-stream-authority-2026-10-15.md).
 
 ### P2 — Managed AI and usage limits
 

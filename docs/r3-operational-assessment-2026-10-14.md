@@ -1,9 +1,14 @@
 # R3 initial operational assessment
 
-Status: **assessment only; safety fixes and rehearsal not implemented**.
+Status: **historical initial assessment**. Targeted remediation and assembled
+rehearsal are now recorded in the [October15 evidence](r3-remediation-2026-10-15.md);
+R3 closure still requires the explicit residual-risk decision.
 Source baseline `551f9cd1d5146ed13368fda1e2ed85610f4fba21`, product baseline
-`c20513d78421816ac0096eff1cf3dbb0d6c9aa55`. No dependency version, operational
-script, database, live process or provider configuration changed.
+`c20513d78421816ac0096eff1cf3dbb0d6c9aa55`. The initial assessment below is historical.
+Later isolated harness repairs and test/acceptance migrations are recorded in the
+[R1 implementation evidence](r1-delivery-implementation-2026-10-14.md).
+No live dependency, process/database or provider configuration changed.
+The initial no-dependency-change statement applies only to the assessment below.
 
 ## Isolation used in this session
 
@@ -51,7 +56,7 @@ limits, not a penetration test or residual-risk acceptance. No forced audit fix
 or package upgrade was run. Safe patch proposals need actual compatibility checks;
 only remaining unresolved risks need an owner decision after that work.
 
-## Acceptance harness gaps found by inspection
+## Initial acceptance harness gaps found by inspection
 
 1. `start-all.sh` sets child `DATABASE_URL` but not `DIRECT_DATABASE_URL`.
    `prisma.config.ts` and `src/lib/jobs/queue.ts` prefer the direct URL. An inherited direct
@@ -81,13 +86,19 @@ Installed Next.js CLI documentation was read at
 production `next start` requires a build and allows an explicit port/hostname.
 No Next.js code/API change was made.
 
-## Remaining R3 verification
+## Harness repairs and remaining R3 verification
 
-Audit execution is complete; dependency remediation, independent security review,
-isolated startup/stop/recovery rehearsal, build identity and exact-commit CI are
-**not run**. R3 remains open. Do not run the old full acceptance startup/cleanup
-unchanged merely to produce evidence. Add desired-behavior safety regressions
-first, fix the listed harness boundaries, and rehearse in a separate throwaway
-topology before R1 durability/browser verification. Preserve backup/restore gates
-for selected migration work. No migration or deployment permission is inferred
-from this assessment or the historical standing-permission note.
+The initial gaps are repaired: exact paired DB URLs and PG endpoint; canonical
+isolated worktree/build/run manifest; no name-based browser kill/lock removal;
+PID/birth/cwd checks; free-port startup; recorded child cleanup after failures;
+listener ownership before journeys; source-independent owned-process shutdown.
+Seven safety fixtures pass, including real test-owned child process checks.
+Independent source review found no remaining concrete harness safety finding.
+The build-staleness assertion now calls manifest directly so missing topology
+cannot accidentally satisfy that separate check.
+
+Dependency remediation and assembled build/start/stop/recovery rehearsal remain
+open. Synthetic builder/process fixtures do not prove actual Next/Chromium
+startup. R3 remains open. Exact-commit CI must be checked before any authorized
+merge; no push/merge/deploy is authorized. Preserve backup/restore gates for any
+selected migration work, and keep the live checkout/provider state isolated.

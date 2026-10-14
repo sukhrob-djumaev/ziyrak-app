@@ -9,8 +9,8 @@ Updated 2026-10-14. This plan owns architecture, acceptance criteria and work sc
 The owner approved **managed-service readiness** on 2026-10-14: finish the quality
 recovery work and add the account, access and managed-AI product direction below.
 The planning session changed documentation only. The October 14 continuation
-started R1 regression work and R3 assessment; R1 now awaits the rule 11 contract
-decision linked below. `continue` advances through eligible tasks in the live
+started R1 and R3. The owner approved the rule 11 delivery correction; durable
+recovery and harness safeguards are being implemented and verified. `continue` advances through eligible tasks in the live
 plan, without routine reapproval, while preserving necessary decision boundaries.
 This does not authorize deployment, live account/provider changes or a new channel.
 
@@ -31,9 +31,9 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
-| 1 | **R1 — Delivery reliability** | In progress (regressions only) / pre-fix failures confirmed; acceptance open | Rule 11 delivery contract proposal awaits owner decision. Safe environment prerequisites apply before implementation. |
-| 2 | **R3 — Operational safety** | In progress (assessment only) / fresh audit executed; remediation and rehearsal not run | Dependency and harness findings recorded; safe operations remain open. |
-| 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
+| 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
+| 2 | **R3 — Operational safety** | Implementation/local verification passed; residual owner decision pending | Verified isolated safety baseline;5high production/10high full advisories remain. |
+| 3 | **P1 — Platform and workspace access** | In progress; foundation and full acceptance open | Explicit contract; tests-first team and connection boundary slice under review. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
@@ -211,13 +211,14 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   Document unavoidable provider-side uncertainty and operator recovery. If the
   existing exactly-once language (§31.2) cannot be met without a contract change,
   propose the smallest correction under rule 11 before implementing that deviation.
-- **Result (2026-10-14 continuation):** implementation in progress, permanent
-  regressions only; product source unchanged. Desired-behavior fixture ran with
-  mocked dependencies: 5 failed/1 passed against the unchanged product baseline.
-  Independent architecture investigation confirms the external-send crash/timeout
-  contract gap. [Rule 11 proposal](docs/r1-delivery-contract-proposal-2026-10-14.md)
-  awaits owner decision before implementing its deviation. Durable Postgres/queue,
-  security and browser acceptance remain not run; R1 is not complete.
+- **Result (2026-10-14 continuation):** owner approved the
+  [rule 11 correction](docs/r1-delivery-contract-proposal-2026-10-14.md).
+  Durable operations, saved responses, conservative uncertainty and audited human
+  recovery are implemented and locally verified in the isolated worktree. All17
+  browser scripts passed on candidate63247f6; affected real Meta verification
+  remains a separate R4 requirement. No deployment or milestone closure.
+  [Current evidence](docs/r1-delivery-implementation-2026-10-14.md) separates
+  mocked regressions, real Postgres/pg-boss, review and browser/provider layers.
 
 ### R3 — Operational safety
 
@@ -238,14 +239,15 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   safe commands and build identification documented; exact-commit CI checked before
   any authorized merge. Deployment requires separate authorization and observed
   web, worker and end-to-end checks; a health endpoint alone is insufficient.
-- **Result (2026-10-14 continuation):** assessment in progress; fresh production
-  audit reports 16 high, full audit 21 high/1 low. No versions or scripts changed.
-  [Operational assessment](docs/r3-operational-assessment-2026-10-14.md) records
-  dependency reachability limits and acceptance-harness DB/process gaps.
-  Remediation, independent security review and startup/stop/recovery rehearsal
-  remain not run. Independent R3 work is eligible while R1 is externally blocked.
-  Its environment safeguards apply before any R1 product work; completing R3 is
-  not permission to risk the live checkout.
+- **Result (2026-10-15 continuation):** verified isolated safety baseline:
+  ownership-safe harness/recovery and all17 assembled browser scripts passed.
+  Five targeted dependency overrides reduce fresh audits to5high production and
+  10high full. Redis-backed full suite1205passed/1 intentional skip, strict
+  type/lint and Node22 Docker build/probes passed; independent candidate security
+  review found no confirmed new issue. [Remediation evidence and concrete residual
+  decision](docs/r3-remediation-2026-10-15.md) record unpatched extract-zip/braces
+  exposure and controls. Owner decision pending; R3 not closed. P1 preparation and
+  implementation may use the verified isolated safety baseline; no live changes.
 
 ### P1 — Platform and workspace access
 
@@ -274,7 +276,10 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   retain legitimate access without gaining privilege. Support access records actor,
   target workspace, scope, reason and lifetime. P3 supplies the shared invitation
   lifecycle; until then use secured operator provisioning, never public role assignment.
-- **Result:** implementation not started; verification not run.
+- **Result (2026-10-15):** explicit permission contract and tests-first team/connection
+  slice in isolated P1 worktree; initial regressions7failed/1passed, targeted
+  checks21passed after fixes. Full final run underway; platform/scope/lifecycle
+  foundation and required browser/security acceptance remain open.
 
 ### P2 — Managed AI and usage limits
 
@@ -2549,9 +2554,21 @@ Every "must fix before multiple app replicas" item in §30.1 is already behind a
 
 - **AI provider calls:** one bounded retry for retryable `AIProviderError`s (§21.3), then the existing graceful fallback message.
 - **Webhook delivery:** unchanged 3-attempt/backoff *policy*, moved onto pg-boss's durable retry mechanism instead of `setTimeout` (§25.2) so a retry survives a process restart.
-- **Channel sends:** `ChannelAdapter.sendMessage()` implementations should surface a typed `SendResult` (`{ success: boolean; retryable: boolean; error?: string }`) so callers (e.g., the campaign-send job, §25.2) can apply a bounded retry via the job queue's own retry policy rather than each adapter reinventing retry logic.
+- **Channel sends:** `ChannelAdapter.sendMessage()` implementations should surface a typed `SendResult` (`{ success: boolean; outcome?: "accepted" | "rejected" | "unknown"; retryable?: boolean; providerMessageId?: string; error?: string }`) so callers (e.g., the campaign-send job, §25.2) can apply a bounded retry via the job queue's own retry policy rather than each adapter reinventing retry logic.
 
 ### 31.2 Idempotency — exactly-once effect under retry (revised per review concern 10, §24.4)
+
+**2026-10-14 approved R1 qualification.** Exactly-once local effects retain
+transaction/unique-key guarantees. External provider sends cannot share an atomic
+commit with Postgres: save the completed response, claim dispatch durably, skip
+recorded acceptance, and retry only a refusal proven to have produced no effect.
+Unknown sends and interrupted preparation block automatic replay and require an
+audited authorized human decision; explicit resend acknowledges duplicate risk.
+Acceptance is not recipient delivery. This qualification governs the external-send
+wording in §§17–19, 24–25, 31, 33.4 item 6, 34.3 item 5 and 46.6 without
+waiving their retry, restart, routing, isolation or browser checks. Outbound webhook
+uncertainty has the same limitation; its redesign is outside R1. See the approved
+[contract and evidence](docs/r1-delivery-contract-proposal-2026-10-14.md).
 
 Covered in depth at §24.4 for tool/action execution — an attempt-scoped key (`toolCallId` for AI-initiated calls, a client-supplied key for API/manual actions), never a hash of arguments. The same principle extends to job handlers generally: every `JobQueue.enqueue`/`schedule` call that corresponds to a user-visible or business-visible effect (sending a message, creating a ticket) carries an `idempotencyKey`, and a job-queue-level retry (distinct from, and in addition to, the retries in §31.1) re-executing the same key must observe the already-recorded `ActionExecution` result rather than re-running the side effect — this is what makes §33/§34's mandatory "worker retry executes exactly once" test (review concern 20) a meaningful, checkable property rather than an aspiration.
 

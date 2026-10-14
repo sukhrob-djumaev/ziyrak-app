@@ -1,8 +1,8 @@
-# R1 delivery recovery: contract correction for owner review
+# R1 delivery recovery: approved contract correction
 
-Status: **proposed, not approved or implemented**. Product baseline
+Status: **approved by the owner on 2026-10-14 ("Ok, do"); implementation active**. Product baseline
 `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; session started at
-`551f9cd1d5146ed13368fda1e2ed85610f4fba21`. Product source is unchanged.
+`551f9cd1d5146ed13368fda1e2ed85610f4fba21`. Implementation and fresh evidence are tracked in [the R1 record](r1-delivery-implementation-2026-10-14.md).
 
 ## Why a decision is required
 
@@ -94,7 +94,7 @@ qualification applies to outbound webhooks, without silently expanding R1 into
 a webhook redesign. Phase 5–7 routing, ACK, deduplication and isolation remain
 regression obligations, and historical tags/waivers retain their recorded scope.
 
-R1 completion criteria, unchanged pending approval:
+R1 completion criteria, retained after approval:
 
 > both reproduced defects are resolved; retries and recovery satisfy the
 > documented delivery contract; tenant isolation and required browser journeys
@@ -136,10 +136,10 @@ post-send write failure sent twice; refused inbound receipt was processed; repla
 called AI twice; uncertain transport outcome sent twice; recovery of an injected
 running state dispatched again. These failures do not prove a real worker kill,
 database durability, tool execution or provider incident. The computation spy
-proves entry-point replay only. The tests remain deliberately red and the
-worktree is not a merge/release candidate; do not skip them to report a pass.
+proves entry-point replay only. This paragraph records the pre-fix run. The regressions now pass after implementation;
+current durability and acceptance results are in the R1 record.
 
-After approval: turn these regressions green; add real isolated Postgres/pg-boss
+Approved verification path: turn these regressions green; add real isolated Postgres/pg-boss
 tests for tenant/connection ownership, concurrency, refusal, persistence failure,
 replay and process restart. Exercise the actual operator recovery UI and Web Chat,
 then run the full 16-script browser suite because worker/channel behavior changes.
@@ -152,7 +152,6 @@ confirmed the crash/timeout contract gap, post-send ordering, inbound receipt
 bug and earlier AI/tool replay window. It recommended conservative unknown and
 interrupted-preparation recovery. This is not an implementation security signoff.
 
-**Owner decision requested:** approve the external-effect qualification and
-conservative review states above, including interrupted preparation, or require
-a larger resumable-computation/provider-reconciliation design. Production policy,
+**Owner decision recorded:** approved the external-effect qualification and
+conservative review states, including interrupted preparation. Production policy,
 deployment and new provider/account changes are not part of this approval.

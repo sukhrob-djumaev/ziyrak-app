@@ -1,44 +1,10 @@
 #!/bin/sh
-# Start the acceptance topology against an ISOLATED database. Usage: start-all.sh [web|worker|llm|hosts|all]
-# Requires: ACC_DB (postgres URL of a throwaway database with migrations applied) and a production build
-# made with NEXT_PUBLIC_APP_URL=http://localhost:3100 (Next inlines it at build time).
-#
-# Real-model acceptance: set ACC_REAL_AI=1 to run against a real, configured AIProvider instead of
-# the local stand-in — no application code changes, only env vars (this script and j01-signup.cjs
-# read them). With ACC_REAL_AI=1: the stand-in is not started, OPENAI_BASE_URL is not set (so
-# OpenAIProvider's SDK client falls through to the real https://api.openai.com/v1 — AnthropicProvider
-# always talks to the real Anthropic API regardless), and j01-signup.cjs types
-# ACC_REAL_AI_KEY (required) into the wizard instead of a fake key, with ACC_REAL_AI_PROVIDER
-# (openai|anthropic, default openai) and ACC_REAL_AI_MODEL (default gpt-4o-mini /
-# claude-sonnet-5-5, the Ziyrak Anthropic default) selecting the model. Secrets are never echoed by this script.
-set -e
+# Isolated acceptance topology only. Build with NEXT_PUBLIC_APP_URL=http://localhost:3100,
+# use runtime.cjs build (it records the source/build identity). ACC_DB must name a fresh ziyrak_acceptance_<run> DB.
+set -eu
+: "${ACC_DB:?set ACC_DB to the fresh acceptance database URL}"
+[ "${DATABASE_URL:-$ACC_DB}" = "$ACC_DB" ] || { echo "DATABASE_URL disagrees with ACC_DB" >&2; exit 1; }
+[ "${DIRECT_DATABASE_URL:-$ACC_DB}" = "$ACC_DB" ] || { echo "DIRECT_DATABASE_URL disagrees with ACC_DB" >&2; exit 1; }
+export DATABASE_URL="$ACC_DB" DIRECT_DATABASE_URL="$ACC_DB"
 here="$(cd "$(dirname "$0")" && pwd)"
-work="${ACC_WORK_DIR:-$here/.work}"; mkdir -p "$work"
-# host-sites.cjs reads ACC_WORK_DIR itself to serve the snippets written by
-# J05. Export the resolved default as well as a caller-supplied directory so
-# the customer sites and the browser journeys always use the same snippets.
-export ACC_WORK_DIR="$work"
-: "${ACC_DB:?set ACC_DB to the throwaway acceptance database URL}"
-cd "$here/../.."
-what="${1:-all}"
-if [ "$what" = all ] || [ "$what" = llm ]; then
-  if [ "${ACC_REAL_AI:-0}" != "1" ]; then (nohup node "$here/llm-standin.cjs" >> "$work/llm.log" 2>&1 &); fi
-fi
-if [ "$what" = all ] || [ "$what" = hosts ]; then (nohup node "$here/host-sites.cjs" >> "$work/hosts.log" 2>&1 &); fi
-if [ "$what" = all ] || [ "$what" = web ]; then
-  if [ "${ACC_REAL_AI:-0}" = "1" ]; then
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" nohup npx next start -p 3100 >> "$work/web.log" 2>&1 &)
-  else
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" OPENAI_BASE_URL=http://127.0.0.1:4010/v1 nohup npx next start -p 3100 >> "$work/web.log" 2>&1 &)
-  fi
-fi
-if [ "$what" = all ] || [ "$what" = worker ]; then
-  # The worker's exact PID is recorded so a journey can stop THIS worker and nothing else. (A pattern kill such as
-  # `pkill -f src/worker.ts` also kills any other worker on the machine — including a live one — and did.)
-  # `node --import tsx` is what `npm run worker` runs, minus the npm wrapper process that would own the PID.
-  if [ "${ACC_REAL_AI:-0}" = "1" ]; then
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" nohup node --import tsx src/worker.ts >> "$work/worker.log" 2>&1 & echo $! > "$work/worker.pid")
-  else
-    (NODE_ENV=production DATABASE_URL="$ACC_DB" OPENAI_BASE_URL=http://127.0.0.1:4010/v1 nohup node --import tsx src/worker.ts >> "$work/worker.log" 2>&1 & echo $! > "$work/worker.pid")
-  fi
-fi
+exec node "$here/runtime.cjs" start "${1:-all}"

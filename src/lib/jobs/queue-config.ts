@@ -1,4 +1,10 @@
-import { PROCESS_INBOUND_MESSAGE_JOB, DELIVER_WEBHOOK_JOB, INDEX_KNOWLEDGE_ENTRY_JOB } from "./job-types";
+import {
+  PROCESS_INBOUND_MESSAGE_JOB,
+  SEND_FOLLOWUP_JOB,
+  RETRY_DELIVERY_JOB,
+  DELIVER_WEBHOOK_JOB,
+  INDEX_KNOWLEDGE_ENTRY_JOB,
+} from "./job-types";
 
 export interface JobQueueConfig {
   policy?: "standard" | "short" | "key_strict_fifo";
@@ -58,7 +64,14 @@ export const INDEX_KNOWLEDGE_ENTRY_MAX_ATTEMPTS = 5;
 export const PROCESS_INBOUND_HEARTBEAT_SECONDS = 30;
 
 export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
-  [PROCESS_INBOUND_MESSAGE_JOB]: { policy: "key_strict_fifo", heartbeatSeconds: PROCESS_INBOUND_HEARTBEAT_SECONDS },
+  [PROCESS_INBOUND_MESSAGE_JOB]: {
+    policy: "key_strict_fifo",
+    heartbeatSeconds: PROCESS_INBOUND_HEARTBEAT_SECONDS,
+    retryLimit: 5,
+    retryDelay: 10,
+  },
+  [SEND_FOLLOWUP_JOB]: { heartbeatSeconds: 30, retryLimit: 5, retryDelay: 10 },
+  [RETRY_DELIVERY_JOB]: { heartbeatSeconds: 30, retryLimit: 5, retryDelay: 10 },
   [DELIVER_WEBHOOK_JOB]: {
     retryLimit: DELIVER_WEBHOOK_MAX_ATTEMPTS - 1,
     retryBackoff: true,
@@ -74,7 +87,9 @@ export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
   },
 };
 
-export function resolveQueueConfig(jobType: string): Omit<JobQueueConfig, "policy"> & { policy: "standard" | "short" | "key_strict_fifo" } {
+export function resolveQueueConfig(
+  jobType: string
+): Omit<JobQueueConfig, "policy"> & { policy: "standard" | "short" | "key_strict_fifo" } {
   const config = QUEUE_CONFIG[jobType] ?? {};
   return { policy: config.policy ?? "standard", ...config };
 }

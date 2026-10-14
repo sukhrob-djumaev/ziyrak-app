@@ -9,8 +9,8 @@ Updated 2026-10-14. This plan owns architecture, acceptance criteria and work sc
 The owner approved **managed-service readiness** on 2026-10-14: finish the quality
 recovery work and add the account, access and managed-AI product direction below.
 The planning session changed documentation only. The October 14 continuation
-started R1 regression work and R3 assessment; R1 now awaits the rule 11 contract
-decision linked below. `continue` advances through eligible tasks in the live
+started R1 and R3. The owner approved the rule 11 delivery correction; durable
+recovery and harness safeguards are being implemented and verified. `continue` advances through eligible tasks in the live
 plan, without routine reapproval, while preserving necessary decision boundaries.
 This does not authorize deployment, live account/provider changes or a new channel.
 
@@ -31,8 +31,8 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
-| 1 | **R1 — Delivery reliability** | In progress (regressions only) / pre-fix failures confirmed; acceptance open | Rule 11 delivery contract proposal awaits owner decision. Safe environment prerequisites apply before implementation. |
-| 2 | **R3 — Operational safety** | In progress (assessment only) / fresh audit executed; remediation and rehearsal not run | Dependency and harness findings recorded; safe operations remain open. |
+| 1 | **R1 — Delivery reliability** | In progress / focused regression, Postgres and queue retry checks passed; browser closure open | Rule 11 contract approved; saved-response retries and audited human recovery. |
+| 2 | **R3 — Operational safety** | In progress / audit and seven harness regressions executed; assembled rehearsal open | Harness repairs implemented; dependency remediation remains open. |
 | 3 | **P1 — Platform and workspace access** | Not started / not run | R3 safety baseline; super admin, assigned operators, workspace roles and channel scope. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
@@ -211,13 +211,12 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   Document unavoidable provider-side uncertainty and operator recovery. If the
   existing exactly-once language (§31.2) cannot be met without a contract change,
   propose the smallest correction under rule 11 before implementing that deviation.
-- **Result (2026-10-14 continuation):** implementation in progress, permanent
-  regressions only; product source unchanged. Desired-behavior fixture ran with
-  mocked dependencies: 5 failed/1 passed against the unchanged product baseline.
-  Independent architecture investigation confirms the external-send crash/timeout
-  contract gap. [Rule 11 proposal](docs/r1-delivery-contract-proposal-2026-10-14.md)
-  awaits owner decision before implementing its deviation. Durable Postgres/queue,
-  security and browser acceptance remain not run; R1 is not complete.
+- **Result (2026-10-14 continuation):** owner approved the
+  [rule 11 correction](docs/r1-delivery-contract-proposal-2026-10-14.md).
+  Durable operations, saved responses, conservative uncertainty and audited human
+  recovery are implemented in the isolated worktree; acceptance remains open.
+  [Current evidence](docs/r1-delivery-implementation-2026-10-14.md) separates
+  mocked regressions, real Postgres/pg-boss, review and browser/provider layers.
 
 ### R3 — Operational safety
 
@@ -238,14 +237,13 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   safe commands and build identification documented; exact-commit CI checked before
   any authorized merge. Deployment requires separate authorization and observed
   web, worker and end-to-end checks; a health endpoint alone is insufficient.
-- **Result (2026-10-14 continuation):** assessment in progress; fresh production
-  audit reports 16 high, full audit 21 high/1 low. No versions or scripts changed.
+- **Result (2026-10-14 continuation):** fresh production audit reports 16 high,
+  full audit 21 high/1 low; no dependency versions changed yet.
   [Operational assessment](docs/r3-operational-assessment-2026-10-14.md) records
-  dependency reachability limits and acceptance-harness DB/process gaps.
-  Remediation, independent security review and startup/stop/recovery rehearsal
-  remain not run. Independent R3 work is eligible while R1 is externally blocked.
-  Its environment safeguards apply before any R1 product work; completing R3 is
-  not permission to risk the live checkout.
+  reachability and harness findings. Isolated target/build/process ownership
+  safeguards and seven regressions pass. Assembled startup/stop rehearsal and
+  dependency remediation remain open. Independent R3 work is eligible while R1
+  is externally blocked; no live checkout changes are authorized by these checks.
 
 ### P1 — Platform and workspace access
 
@@ -2549,9 +2547,21 @@ Every "must fix before multiple app replicas" item in §30.1 is already behind a
 
 - **AI provider calls:** one bounded retry for retryable `AIProviderError`s (§21.3), then the existing graceful fallback message.
 - **Webhook delivery:** unchanged 3-attempt/backoff *policy*, moved onto pg-boss's durable retry mechanism instead of `setTimeout` (§25.2) so a retry survives a process restart.
-- **Channel sends:** `ChannelAdapter.sendMessage()` implementations should surface a typed `SendResult` (`{ success: boolean; retryable: boolean; error?: string }`) so callers (e.g., the campaign-send job, §25.2) can apply a bounded retry via the job queue's own retry policy rather than each adapter reinventing retry logic.
+- **Channel sends:** `ChannelAdapter.sendMessage()` implementations should surface a typed `SendResult` (`{ success: boolean; outcome?: "accepted" | "rejected" | "unknown"; retryable?: boolean; providerMessageId?: string; error?: string }`) so callers (e.g., the campaign-send job, §25.2) can apply a bounded retry via the job queue's own retry policy rather than each adapter reinventing retry logic.
 
 ### 31.2 Idempotency — exactly-once effect under retry (revised per review concern 10, §24.4)
+
+**2026-10-14 approved R1 qualification.** Exactly-once local effects retain
+transaction/unique-key guarantees. External provider sends cannot share an atomic
+commit with Postgres: save the completed response, claim dispatch durably, skip
+recorded acceptance, and retry only a refusal proven to have produced no effect.
+Unknown sends and interrupted preparation block automatic replay and require an
+audited authorized human decision; explicit resend acknowledges duplicate risk.
+Acceptance is not recipient delivery. This qualification governs the external-send
+wording in §§17–19, 24–25, 31, 33.4 item 6, 34.3 item 5 and 46.6 without
+waiving their retry, restart, routing, isolation or browser checks. Outbound webhook
+uncertainty has the same limitation; its redesign is outside R1. See the approved
+[contract and evidence](docs/r1-delivery-contract-proposal-2026-10-14.md).
 
 Covered in depth at §24.4 for tool/action execution — an attempt-scoped key (`toolCallId` for AI-initiated calls, a client-supplied key for API/manual actions), never a hash of arguments. The same principle extends to job handlers generally: every `JobQueue.enqueue`/`schedule` call that corresponds to a user-visible or business-visible effect (sending a message, creating a ticket) carries an `idempotencyKey`, and a job-queue-level retry (distinct from, and in addition to, the retries in §31.1) re-executing the same key must observe the already-recorded `ActionExecution` result rather than re-running the side effect — this is what makes §33/§34's mandatory "worker retry executes exactly once" test (review concern 20) a meaningful, checkable property rather than an aspiration.
 

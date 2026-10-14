@@ -70,13 +70,23 @@ export async function registerInboundEvent(
 }
 
 /** Reloads the normalized event a receipt was created with — the job handler's only way to recover it (see module header). */
-export async function loadReceiptEvent(ctx: TenantContext, receiptId: string): Promise<ZiyrakEvent> {
+export async function loadReceiptEvent(
+  ctx: TenantContext,
+  receiptId: string
+): Promise<ZiyrakEvent> {
   const db = getScopedPrisma(ctx);
   const receipt = await db.inboundEventReceipt.findUniqueOrThrow({ where: { id: receiptId } });
   return receipt.eventPayload as unknown as ZiyrakEvent;
 }
 
-export async function markReceiptProcessed(ctx: TenantContext, receiptId: string, status: "processed" | "failed"): Promise<void> {
+export async function markReceiptProcessed(
+  ctx: TenantContext,
+  receiptId: string,
+  status: "processed" | "failed" | "needs_review" | "enqueued"
+): Promise<void> {
   const db = getScopedPrisma(ctx);
-  await db.inboundEventReceipt.update({ where: { id: receiptId }, data: { processingStatus: status } });
+  await db.inboundEventReceipt.update({
+    where: { id: receiptId },
+    data: { processingStatus: status },
+  });
 }

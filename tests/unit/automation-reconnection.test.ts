@@ -19,9 +19,20 @@ import type { TenantContext } from "@/lib/tenancy/context";
 
 let business: SeededBusiness;
 let ctx: TenantContext;
+let connectionId: string;
 
 beforeAll(async () => {
   business = await seedBusiness("automation-reconnect");
+  connectionId = (
+    await rawClient.channelConnection.create({
+      data: {
+        businessId: business.businessId,
+        type: "sms",
+        name: "Synthetic automation channel",
+        isActive: true,
+      },
+    })
+  ).id;
   ctx = {
     businessId: business.businessId,
     role: null,
@@ -38,7 +49,7 @@ function inboundEvent(text: string, contact: string) {
   return buildMessageReceivedEvent({
     businessId: business.businessId,
     channel: "sms",
-    connectionId: "test-connection",
+    connectionId,
     payload: { text, customerName: "Automation Test Customer", customerContact: contact },
   });
 }
@@ -57,7 +68,10 @@ describe("Automation reconnection into processInboundMessage (§46.6 task 6)", (
       },
     });
 
-    const result = await processInboundMessage(ctx, inboundEvent("This is urgent, please help", "+15550001"));
+    const result = await processInboundMessage(
+      ctx,
+      inboundEvent("This is urgent, please help", "+15550001")
+    );
 
     const tags = await rawClient.conversationTag.findMany({
       where: { conversationId: result.conversationId },
@@ -79,11 +93,16 @@ describe("Automation reconnection into processInboundMessage (§46.6 task 6)", (
       },
     });
 
-    const result = await processInboundMessage(ctx, inboundEvent("What are your hours?", "+15550002"));
+    const result = await processInboundMessage(
+      ctx,
+      inboundEvent("What are your hours?", "+15550002")
+    );
 
     expect(result.response).toBe("We are open 9am-5pm, Mon-Fri.");
 
-    const messages = await rawClient.message.findMany({ where: { conversationId: result.conversationId, role: "assistant" } });
+    const messages = await rawClient.message.findMany({
+      where: { conversationId: result.conversationId, role: "assistant" },
+    });
     expect(messages.some((m) => m.content === "We are open 9am-5pm, Mon-Fri.")).toBe(true);
   });
 
@@ -100,7 +119,10 @@ describe("Automation reconnection into processInboundMessage (§46.6 task 6)", (
       },
     });
 
-    const result = await processInboundMessage(ctx, inboundEvent("dormant-trigger test message", "+15550003"));
+    const result = await processInboundMessage(
+      ctx,
+      inboundEvent("dormant-trigger test message", "+15550003")
+    );
 
     // No AI provider is configured for this business, so the real chat()
     // fallback ("AI is not configured...") proves the rule was skipped —
@@ -121,7 +143,10 @@ describe("Automation reconnection into processInboundMessage (§46.6 task 6)", (
       },
     });
 
-    const result = await processInboundMessage(ctx, inboundEvent("inactive-trigger test message", "+15550004"));
+    const result = await processInboundMessage(
+      ctx,
+      inboundEvent("inactive-trigger test message", "+15550004")
+    );
     expect(result.response).not.toBe("Should not fire either.");
   });
 });

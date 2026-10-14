@@ -6,8 +6,20 @@ import { evaluateRules, applyAutomationActions } from "@/lib/automations/automat
 import { createNewConversation } from "@/lib/conversations/conversation-service";
 import type { ZiyrakEvent, MessageReceivedPayload } from "@/lib/events/types";
 import { loadReceiptEvent, markReceiptProcessed } from "@/lib/events/inbound-receipt";
-import { jobQueue, PROCESS_INBOUND_MESSAGE_JOB, type ProcessInboundMessagePayload } from "@/lib/jobs/queue";
-import { getChannelAdapter } from "@/lib/channels/registry";
+import {
+  jobQueue,
+  PROCESS_INBOUND_MESSAGE_JOB,
+  type ProcessInboundMessagePayload,
+} from "@/lib/jobs/queue";
+import {
+  ensureDelivery,
+  prepareDelivery,
+  dispatchDelivery,
+  DeliveryBusyError,
+  DeliveryRefusedError,
+  projectDeliveryStatus,
+} from "./delivery";
+import { NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 import { logActivity } from "@/lib/observability/activity";
 import { emitNewConversation } from "@/lib/realtime/realtime";
@@ -15,6 +27,7 @@ import { emitNewConversation } from "@/lib/realtime/realtime";
 export interface OutboundResult {
   conversationId: string;
   response: string;
+  deliveryStatus?: string;
 }
 
 /**
@@ -68,7 +81,10 @@ export class ConversationIdUnavailableError extends Error {
   }
 }
 
-export async function resolveOrCreateConversation(ctx: TenantContext, event: ZiyrakEvent<MessageReceivedPayload>) {
+export async function resolveOrCreateConversation(
+  ctx: TenantContext,
+  event: ZiyrakEvent<MessageReceivedPayload>
+) {
   const db = getScopedPrisma(ctx);
 
   if (event.conversationId && event.source.channel === "webchat") {
@@ -79,8 +95,12 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
       // independent check (a job replayed from an older receipt, or a future
       // caller that skips the adapter) so a client-supplied conversation id
       // can never route a message into another connection's/visitor's thread.
-      const owningConnectionId = (existing.metadata as Record<string, unknown> | null)?.channelConnectionId;
-      if (owningConnectionId !== event.source.connectionId || existing.customerContact !== event.payload.customerContact) {
+      const owningConnectionId = (existing.metadata as Record<string, unknown> | null)
+        ?.channelConnectionId;
+      if (
+        owningConnectionId !== event.source.connectionId ||
+        existing.customerContact !== event.payload.customerContact
+      ) {
         throw new Error("Web Chat conversation does not belong to this connection/visitor");
       }
       return existing;
@@ -97,7 +117,12 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     // channel, via customer-resolver.ts's webchat case (metadata-based
     // match, since Customer has no dedicated webchat column).
     const customerId = event.payload.customerContact
-      ? await resolveCustomer(ctx, event.source.channel, event.payload.customerContact, event.payload.customerName)
+      ? await resolveCustomer(
+          ctx,
+          event.source.channel,
+          event.payload.customerContact,
+          event.payload.customerName
+        )
       : undefined;
 
     // `metadata.channelConnectionId` is what the public stream route
@@ -107,8 +132,8 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     // requirement, tighter than plain businessId scoping).
     // This business has no such conversation (the lookup above is tenant-scoped), so a
     // primary-key collision here means the id belongs to another business.
-    const created = await db
-      .conversation.create({
+    const created = await db.conversation
+      .create({
         data: {
           id: event.conversationId,
           businessId: ctx.businessId,
@@ -120,10 +145,19 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
         },
       })
       .catch((error: unknown) => {
-        if ((error as { code?: string } | null)?.code === "P2002") throw new ConversationIdUnavailableError();
+        if ((error as { code?: string } | null)?.code === "P2002")
+          throw new ConversationIdUnavailableError();
         throw error;
       });
-    await logActivity(ctx, "conversation.created", "conversation", created.id, `New webchat conversation started by ${event.payload.customerName}`, undefined, { channel: "webchat" });
+    await logActivity(
+      ctx,
+      "conversation.created",
+      "conversation",
+      created.id,
+      `New webchat conversation started by ${event.payload.customerName}`,
+      undefined,
+      { channel: "webchat" }
+    );
     emitNewConversation(ctx.businessId, created.id, { channel: "webchat" });
     return created;
   }
@@ -136,7 +170,15 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
   const { customerContact, customerName } = event.payload;
 
   if (!customerContact) {
-    return createNewConversation(ctx, channel, customerName, customerContact, undefined, undefined, event.source.connectionId);
+    return createNewConversation(
+      ctx,
+      channel,
+      customerName,
+      customerContact,
+      undefined,
+      undefined,
+      event.source.connectionId
+    );
   }
 
   const customerId = await resolveCustomer(ctx, channel, customerContact, customerName);
@@ -149,7 +191,18 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
     },
   });
 
-  return existing ?? (await createNewConversation(ctx, channel, customerName, customerContact, customerId, undefined, event.source.connectionId));
+  return (
+    existing ??
+    (await createNewConversation(
+      ctx,
+      channel,
+      customerName,
+      customerContact,
+      customerId,
+      undefined,
+      event.source.connectionId
+    ))
+  );
 }
 
 /**
@@ -171,56 +224,133 @@ export async function resolveOrCreateConversation(ctx: TenantContext, event: Ziy
  */
 export async function processInboundMessage(
   ctx: TenantContext,
-  event: ZiyrakEvent<MessageReceivedPayload>
+  event: ZiyrakEvent<MessageReceivedPayload>,
+  runtime?: { receiptId: string }
 ): Promise<OutboundResult> {
-  const conversation = await resolveOrCreateConversation(ctx, event);
-
-  // PLAN.md §44.2/§46.6 task 6 — automation's reconnection point. Runs for
-  // every inbound message, real side effects (tag/route/alert) applied
-  // immediately; a matched auto_reply, if any, short-circuits the AI call
-  // below via chat()'s overrideResponse option.
-  const matchedActions = await evaluateRules(
-    ctx,
-    { content: event.payload.text, channel: event.source.channel, customerName: event.payload.customerName },
-    { id: conversation.id, channel: event.source.channel, customerName: event.payload.customerName }
-  );
-  const overrideResponse = await applyAutomationActions(ctx, conversation, matchedActions);
-
-  const response = await chat(ctx, conversation.id, event.payload.text, overrideResponse ? { overrideResponse } : undefined);
-
-  const adapter = getChannelAdapter(event.source.channel);
-  const to = event.payload.customerContact;
-  if (adapter && to) {
-    const sendResult = await adapter.sendMessage(ctx, event.source.connectionId, to, { text: response, metadata: event.metadata });
-    if (!sendResult.success) {
-      logger.error("[processInboundMessage] failed to deliver reply via channel adapter", {
-        businessId: ctx.businessId,
+  if (event.businessId !== ctx.businessId) throw new NotFoundError("Inbound event");
+  const prepare = async (recordConversation?: (id: string) => Promise<void>) => {
+    const conversation = await resolveOrCreateConversation(ctx, event);
+    if (recordConversation) await recordConversation(conversation.id);
+    const matchedActions = await evaluateRules(
+      ctx,
+      {
+        content: event.payload.text,
         channel: event.source.channel,
-        connectionId: event.source.connectionId,
-        conversationId: conversation.id,
-        error: sendResult.error,
-      });
-    }
-  }
-
-  return { conversationId: conversation.id, response };
+        customerName: event.payload.customerName,
+      },
+      {
+        id: conversation.id,
+        channel: event.source.channel,
+        customerName: event.payload.customerName,
+      }
+    );
+    const overrideResponse = await applyAutomationActions(ctx, conversation, matchedActions);
+    const response = await chat(
+      ctx,
+      conversation.id,
+      event.payload.text,
+      overrideResponse ? { overrideResponse } : undefined
+    );
+    return { conversationId: conversation.id, response };
+  };
+  // The internal API receives the completed response directly and has no external send.
+  if (event.source.channel === "api") return prepare();
+  const op = await ensureDelivery(ctx, {
+    operationKey: runtime ? "receipt:" + runtime.receiptId : "event:" + event.id,
+    kind: "inbound",
+    receiptId: runtime?.receiptId,
+    channel: event.source.channel,
+    connectionId: event.source.connectionId,
+    recipient: event.payload.customerContact,
+    metadata: event.metadata,
+  });
+  const prepared = await prepareDelivery(ctx, op, prepare);
+  const result = await dispatchDelivery(ctx, prepared.id);
+  if (result.status === "rejected" && result.retryable) throw new DeliveryRefusedError(true);
+  return {
+    conversationId: result.conversationId ?? event.conversationId ?? "",
+    response: result.response ?? "",
+    deliveryStatus: result.status,
+  };
 }
 
-export async function handleProcessInboundMessage(ctx: TenantContext, payload: ProcessInboundMessagePayload): Promise<void> {
+export async function handleProcessInboundMessage(
+  ctx: TenantContext,
+  payload: ProcessInboundMessagePayload
+): Promise<void> {
+  if (payload.businessId !== ctx.businessId) throw new NotFoundError("Inbound event");
+  const db = getScopedPrisma(ctx);
+  const receipt = await db.inboundEventReceipt.findUnique({ where: { id: payload.receiptId } });
+  if (receipt?.processingStatus === "processed" || receipt?.processingStatus === "cancelled")
+    return;
   const event = await loadReceiptEvent(ctx, payload.receiptId);
   try {
-    await processInboundMessage(ctx, event as ZiyrakEvent<MessageReceivedPayload>);
-    await markReceiptProcessed(ctx, payload.receiptId, "processed");
+    const result = await processInboundMessage(ctx, event as ZiyrakEvent<MessageReceivedPayload>, {
+      receiptId: payload.receiptId,
+    });
+    const op = await db.deliveryOperation.findUnique({
+      where: {
+        businessId_operationKey: {
+          businessId: ctx.businessId,
+          operationKey: "receipt:" + payload.receiptId,
+        },
+      },
+    });
+    if (op) await projectDeliveryStatus(ctx, op.id);
+    else
+      await markReceiptProcessed(
+        ctx,
+        payload.receiptId,
+        result.deliveryStatus ? "failed" : "processed"
+      );
   } catch (error) {
-    await markReceiptProcessed(ctx, payload.receiptId, "failed");
     if (error instanceof ConversationIdUnavailableError) {
-      // Permanent: retrying cannot succeed. Record it and finish the job instead of burning retries.
-      logger.warn("[processInboundMessage] dropped a message whose conversation id is not available", { businessId: payload.businessId, receiptId: payload.receiptId });
+      const op = await db.deliveryOperation.findUnique({
+        where: {
+          businessId_operationKey: {
+            businessId: ctx.businessId,
+            operationKey: "receipt:" + payload.receiptId,
+          },
+        },
+      });
+      if (op)
+        await db.deliveryOperation.updateMany({
+          where: { id: op.id, status: "preparation_interrupted", updatedAt: op.updatedAt },
+          data: {
+            status: "rejected",
+            retryable: false,
+            claimToken: null,
+            leaseUntil: null,
+            errorMessage: "The supplied conversation is unavailable.",
+          },
+        });
+      if (op) await projectDeliveryStatus(ctx, op.id);
+      else await markReceiptProcessed(ctx, payload.receiptId, "failed");
+      logger.warn("Inbound conversation id unavailable", {
+        businessId: ctx.businessId,
+        receiptId: payload.receiptId,
+      });
       return;
     }
-    logger.error("[processInboundMessage] job failed", { businessId: payload.businessId, receiptId: payload.receiptId, error });
+    const op = await db.deliveryOperation.findUnique({
+      where: {
+        businessId_operationKey: {
+          businessId: ctx.businessId,
+          operationKey: "receipt:" + payload.receiptId,
+        },
+      },
+    });
+    if (op) await projectDeliveryStatus(ctx, op.id);
+    else
+      await markReceiptProcessed(
+        ctx,
+        payload.receiptId,
+        error instanceof DeliveryBusyError ? "enqueued" : "failed"
+      );
     throw error;
   }
 }
-
-jobQueue.registerHandler<ProcessInboundMessagePayload>(PROCESS_INBOUND_MESSAGE_JOB, handleProcessInboundMessage);
+jobQueue.registerHandler<ProcessInboundMessagePayload>(
+  PROCESS_INBOUND_MESSAGE_JOB,
+  handleProcessInboundMessage
+);

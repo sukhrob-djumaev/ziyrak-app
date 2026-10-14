@@ -29,10 +29,15 @@ import type { TenantContext } from "@/lib/tenancy/context";
 const TEST_CHANNEL = "test-followup-channel";
 const TEST_DATABASE_URL = process.env.DATABASE_URL!;
 
-async function waitUntil(predicate: () => boolean, timeoutMs: number, intervalMs = 100): Promise<void> {
+async function waitUntil(
+  predicate: () => boolean,
+  timeoutMs: number,
+  intervalMs = 100
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!predicate()) {
-    if (Date.now() > deadline) throw new Error(`waitUntil: condition not met within ${timeoutMs}ms`);
+    if (Date.now() > deadline)
+      throw new Error(`waitUntil: condition not met within ${timeoutMs}ms`);
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 }
@@ -46,7 +51,13 @@ beforeAll(async () => {
 
   const fakeAdapter: ChannelAdapter = {
     type: TEST_CHANNEL,
-    capabilities: { supportsMedia: false, supportsTemplates: false, supportsTypingIndicator: false, supportsDeliveryReceipts: false, supportsMultipleConnections: false },
+    capabilities: {
+      supportsMedia: false,
+      supportsTemplates: false,
+      supportsTypingIndicator: false,
+      supportsDeliveryReceipts: false,
+      supportsMultipleConnections: false,
+    },
     async validateInbound() {
       return { kind: "rejected", reason: "not used in this test" };
     },
@@ -76,11 +87,22 @@ function aiCtx(conversationId: string): TenantContext {
 }
 
 async function seedConversation(marker: string) {
-  await rawClient.channelConnection.create({
-    data: { businessId: business.businessId, type: TEST_CHANNEL, name: `conn-${marker}`, isActive: true },
+  const connection = await rawClient.channelConnection.create({
+    data: {
+      businessId: business.businessId,
+      type: TEST_CHANNEL,
+      name: `conn-${marker}`,
+      isActive: true,
+    },
   });
   return rawClient.conversation.create({
-    data: { businessId: business.businessId, channel: TEST_CHANNEL, customerName: "Follow-up Customer", customerContact: `+1555${marker}` },
+    data: {
+      businessId: business.businessId,
+      channel: TEST_CHANNEL,
+      customerName: "Follow-up Customer",
+      customerContact: `+1555${marker}`,
+      metadata: { channelConnectionId: connection.id },
+    },
   });
 }
 
@@ -114,7 +136,11 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     expect(requested.status).toBe("scheduled");
 
     const actionRow = await rawClient.actionExecution.findFirst({
-      where: { businessId: business.businessId, tool: "schedule_followup", idempotencyKey: `${business.businessId}:tc-followup-happy` },
+      where: {
+        businessId: business.businessId,
+        tool: "schedule_followup",
+        idempotencyKey: `${business.businessId}:tc-followup-happy`,
+      },
     });
     expect(actionRow?.status).toBe("scheduled");
 
@@ -123,9 +149,14 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     const finalRow = await rawClient.actionExecution.findUnique({ where: { id: actionRow!.id } });
     expect(finalRow?.status).toBe("succeeded");
     expect(sentMessages).toHaveLength(1);
-    expect(sentMessages[0]).toEqual({ to: conversation.customerContact, text: "Just checking in!" });
+    expect(sentMessages[0]).toEqual({
+      to: conversation.customerContact,
+      text: "Just checking in!",
+    });
 
-    const savedMessage = await rawClient.message.findFirst({ where: { conversationId: conversation.id, role: "assistant" } });
+    const savedMessage = await rawClient.message.findFirst({
+      where: { conversationId: conversation.id, role: "assistant" },
+    });
     expect(savedMessage?.content).toBe("Just checking in!");
   });
 
@@ -148,7 +179,9 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
 
     expect(requested.status).toBe("scheduled");
     await (jobQueue as unknown as FakeJobQueue).__drainForTests();
-    expect(sentMessages).toEqual([{ to: conversation.customerContact, text: "Following up as promised" }]);
+    expect(sentMessages).toEqual([
+      { to: conversation.customerContact, text: "Following up as promised" },
+    ]);
   });
 
   it("ignores a model-supplied conversationId when a runtime conversation exists (an AI cannot aim a follow-up elsewhere)", async () => {
@@ -156,7 +189,12 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
     sendBehavior = () => ({ success: true });
     const conversation = await seedConversation("guessedid");
     const other = await rawClient.conversation.create({
-      data: { businessId: business.businessId, channel: TEST_CHANNEL, customerName: "Someone Else", customerContact: "+15559999999" },
+      data: {
+        businessId: business.businessId,
+        channel: TEST_CHANNEL,
+        customerName: "Someone Else",
+        customerContact: "+15559999999",
+      },
     });
 
     const requested = await toolRegistry.execute(
@@ -168,7 +206,9 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
 
     expect(requested.status).toBe("scheduled");
     await (jobQueue as unknown as FakeJobQueue).__drainForTests();
-    expect(sentMessages).toEqual([{ to: conversation.customerContact, text: "Following up as promised" }]);
+    expect(sentMessages).toEqual([
+      { to: conversation.customerContact, text: "Following up as promised" },
+    ]);
   });
 
   it("fails honestly when neither the model nor the runtime supplies a conversation", async () => {
@@ -184,7 +224,12 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
 
   it("fails honestly when no active connection exists for the conversation's channel", async () => {
     const conversation = await rawClient.conversation.create({
-      data: { businessId: business.businessId, channel: "no-connection-channel", customerName: "No Conn", customerContact: "+15550000" },
+      data: {
+        businessId: business.businessId,
+        channel: "no-connection-channel",
+        customerName: "No Conn",
+        customerContact: "+15550000",
+      },
     });
 
     const result = await toolRegistry.execute(
@@ -206,7 +251,13 @@ describe("send-followup job handler — exactly once under retry (§31.2/§33.4 
     let attempts = 0;
     sendBehavior = () => {
       attempts++;
-      if (attempts === 1) return { success: false, error: "simulated transient failure" };
+      if (attempts === 1)
+        return {
+          success: false,
+          outcome: "rejected",
+          retryable: true,
+          error: "simulated transient refusal",
+        };
       return { success: true };
     };
 
@@ -219,14 +270,16 @@ describe("send-followup job handler — exactly once under retry (§31.2/§33.4 
         businessId: business.businessId,
         tool: "schedule_followup",
         status: "scheduled",
-        input: { conversationId: conversation.id },
+        input: { conversationId: conversation.id, message: "Retry me" },
         conversationId: conversation.id,
         requestedBy: "ai",
         idempotencyKey,
       },
     });
 
-    const queue = new PgBossJobQueue(TEST_DATABASE_URL);
+    const queue = new PgBossJobQueue(TEST_DATABASE_URL, {
+      schema: "followup_retry_" + process.pid,
+    });
     try {
       queue.registerHandler(SEND_FOLLOWUP_JOB, handleSendFollowup);
       await queue.start();
@@ -234,24 +287,27 @@ describe("send-followup job handler — exactly once under retry (§31.2/§33.4 
       await queue.enqueue<SendFollowupPayload>(SEND_FOLLOWUP_JOB, {
         businessId: business.businessId,
         conversationId: conversation.id,
-        connectionId: "unused-connection-id",
+        connectionId: (conversation.metadata as { channelConnectionId: string })
+          .channelConnectionId,
         channel: TEST_CHANNEL,
         to: conversation.customerContact,
         message: "Retry me",
         idempotencyKey,
       });
 
-      await waitUntil(() => sentMessages.length >= 1 && attempts >= 2, 15000);
+      await waitUntil(() => sentMessages.length >= 1 && attempts >= 2, 35000);
       await new Promise((resolve) => setTimeout(resolve, 3000)); // watch for a stray duplicate delivery
 
       expect(attempts).toBe(2);
       expect(sentMessages).toHaveLength(1); // the failed attempt never actually "sent" anything real
       expect(sentMessages[0].text).toBe("Retry me");
 
-      const finalRow = await rawClient.actionExecution.findFirst({ where: { businessId: business.businessId, idempotencyKey } });
+      const finalRow = await rawClient.actionExecution.findFirst({
+        where: { businessId: business.businessId, idempotencyKey },
+      });
       expect(finalRow?.status).toBe("succeeded");
     } finally {
       await queue.stop();
     }
-  }, 25000);
+  }, 45000);
 });

@@ -47,7 +47,9 @@ export class PgBossJobQueue implements JobQueue {
    * suites use their own so workers cannot take each other's jobs.
    */
   constructor(connectionString: string, options?: { schema?: string }) {
-    this.boss = new PgBoss(options?.schema ? { connectionString, schema: options.schema } : { connectionString });
+    this.boss = new PgBoss(
+      options?.schema ? { connectionString, schema: options.schema } : { connectionString }
+    );
     this.boss.on("error", (error) => logger.error("[PgBossJobQueue] error", error));
   }
 
@@ -58,7 +60,8 @@ export class PgBossJobQueue implements JobQueue {
     // in its source, attorney.js) — a key present with value `undefined`
     // still fails validation, so unset options must be omitted entirely,
     // never passed through as `undefined`.
-    const { policy, retryLimit, retryBackoff, retryDelay, expireInSeconds, heartbeatSeconds } = resolveQueueConfig(jobType);
+    const { policy, retryLimit, retryBackoff, retryDelay, expireInSeconds, heartbeatSeconds } =
+      resolveQueueConfig(jobType);
     const options: Parameters<PgBoss["createQueue"]>[1] = { policy };
     if (retryLimit !== undefined) options.retryLimit = retryLimit;
     if (retryBackoff !== undefined) options.retryBackoff = retryBackoff;
@@ -66,14 +69,23 @@ export class PgBossJobQueue implements JobQueue {
     if (expireInSeconds !== undefined) options.expireInSeconds = expireInSeconds;
     if (heartbeatSeconds !== undefined) options.heartbeatSeconds = heartbeatSeconds;
     await this.boss.createQueue(jobType, options);
-    // createQueue is ON CONFLICT DO NOTHING, so a queue created before the
-    // heartbeat existed (every deployed one) keeps its old settings; apply it
-    // explicitly. Jobs already `active` keep the value they were sent with.
-    if (heartbeatSeconds !== undefined) await this.boss.updateQueue(jobType, { heartbeatSeconds });
+    // createQueue leaves existing queues unchanged. Apply configured mutable
+    // settings explicitly so an upgrade gets the same bounded retry/heartbeat
+    // contract as a fresh queue. Existing jobs retain their sent settings.
+    const updates: Parameters<PgBoss["updateQueue"]>[1] = {};
+    if (retryLimit !== undefined) updates.retryLimit = retryLimit;
+    if (retryBackoff !== undefined) updates.retryBackoff = retryBackoff;
+    if (retryDelay !== undefined) updates.retryDelay = retryDelay;
+    if (expireInSeconds !== undefined) updates.expireInSeconds = expireInSeconds;
+    if (heartbeatSeconds !== undefined) updates.heartbeatSeconds = heartbeatSeconds;
+    if (Object.keys(updates).length) await this.boss.updateQueue(jobType, updates);
     this.ensuredQueues.add(jobType);
   }
 
-  registerHandler<T>(jobType: string, handler: (ctx: TenantContext, payload: T) => Promise<void>): void {
+  registerHandler<T>(
+    jobType: string,
+    handler: (ctx: TenantContext, payload: T) => Promise<void>
+  ): void {
     this.handlers.set(jobType, handler as Handler);
   }
 
@@ -109,11 +121,18 @@ export class PgBossJobQueue implements JobQueue {
     await this.ensureQueue(jobType);
     const singletonKey = opts.singletonKey ?? opts.idempotencyKey;
     const id = await this.boss.send(jobType, payload, { startAfter: opts.runAt, singletonKey });
-    if (!id) throw new Error(`PgBossJobQueue: send("${jobType}", { startAfter }) did not return a job id.`);
+    if (!id)
+      throw new Error(
+        `PgBossJobQueue: send("${jobType}", { startAfter }) did not return a job id.`
+      );
     return id;
   }
 
-  async scheduleRecurring(jobType: string, cronExpression: string, payloadFactory: () => Promise<unknown>): Promise<void> {
+  async scheduleRecurring(
+    jobType: string,
+    cronExpression: string,
+    payloadFactory: () => Promise<unknown>
+  ): Promise<void> {
     await this.ensureQueue(jobType);
     const payload = (await payloadFactory()) as object | null;
     await this.boss.schedule(jobType, cronExpression, payload ?? {});
@@ -138,14 +157,20 @@ export class PgBossJobQueue implements JobQueue {
     await this.boss.start();
     for (const [jobType, handler] of this.handlers) {
       await this.ensureQueue(jobType);
-      await this.boss.work(jobType, { localConcurrency: WORKER_LOCAL_CONCURRENCY }, async (jobs: Job<{ businessId?: string }>[]) => {
-        for (const job of jobs) {
-          await this.runJob(jobType, job, handler);
+      await this.boss.work(
+        jobType,
+        { localConcurrency: WORKER_LOCAL_CONCURRENCY },
+        async (jobs: Job<{ businessId?: string }>[]) => {
+          for (const job of jobs) {
+            await this.runJob(jobType, job, handler);
+          }
         }
-      });
+      );
     }
     this.started = true;
-    logger.info(`[PgBossJobQueue] started, working ${this.handlers.size} job type(s)`, { jobTypes: Array.from(this.handlers.keys()) });
+    logger.info(`[PgBossJobQueue] started, working ${this.handlers.size} job type(s)`, {
+      jobTypes: Array.from(this.handlers.keys()),
+    });
   }
 
   /**
@@ -159,10 +184,15 @@ export class PgBossJobQueue implements JobQueue {
    * this constructs a placeholder, unscoped `ctx` for that case rather than
    * resolving a placement that doesn't exist.
    */
-  private async runJob(jobType: string, job: Job<{ businessId?: string }>, handler: Handler): Promise<void> {
+  private async runJob(
+    jobType: string,
+    job: Job<{ businessId?: string }>,
+    handler: Handler
+  ): Promise<void> {
     // PLAN.md §46.8 — opt-in (JOB_TRACE=1) per-job line so a multi-replica
     // load test can attribute each job to the worker process that ran it.
-    if (process.env.JOB_TRACE === "1") logger.info("[PgBossJobQueue] job", { jobType, jobId: job.id });
+    if (process.env.JOB_TRACE === "1")
+      logger.info("[PgBossJobQueue] job", { jobType, jobId: job.id });
     if (!job.data.businessId) {
       const platformCtx: TenantContext = {
         businessId: "",

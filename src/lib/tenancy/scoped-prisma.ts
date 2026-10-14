@@ -21,6 +21,7 @@ import { prisma as sharedClient } from "@/lib/prisma/raw-client";
 export const TENANT_SCOPED_MODELS = [
   "membership",
   "inboundEventReceipt",
+  "deliveryOperation",
   "toolPolicy",
   "actionExecution",
   "customer",
@@ -119,7 +120,10 @@ function withTenantData<A extends { data?: unknown }>(
       data: data.map((d) => withTenantCreateData(model, d as Record<string, unknown>, businessId)),
     };
   }
-  return { ...args, data: withTenantCreateData(model, data as Record<string, unknown> | undefined, businessId) };
+  return {
+    ...args,
+    data: withTenantCreateData(model, data as Record<string, unknown> | undefined, businessId),
+  };
 }
 
 /** A tenant's own businessId can never be changed by an update payload. */
@@ -170,15 +174,23 @@ export function getScopedPrisma(ctx: TenantContext | undefined) {
   const controlPlane = buildScopedClient(sharedClient, resolved.businessId);
   return new Proxy(scoped, {
     get(target, prop, receiver) {
-      if (typeof prop === "string" && CONTROL_PLANE_RESIDENT_SET.has(prop)) return Reflect.get(controlPlane, prop);
+      if (typeof prop === "string" && CONTROL_PLANE_RESIDENT_SET.has(prop))
+        return Reflect.get(controlPlane, prop);
       return Reflect.get(target, prop, receiver);
     },
   }) as typeof scoped;
 }
 
 function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, businessId: string) {
-
-  const whereScoped = async ({ model, args, query }: { model: string; args: WhereArgs; query: (args: WhereArgs) => Promise<unknown> }) => {
+  const whereScoped = async ({
+    model,
+    args,
+    query,
+  }: {
+    model: string;
+    args: WhereArgs;
+    query: (args: WhereArgs) => Promise<unknown>;
+  }) => {
     if (!isTenantScopedModel(model)) return query(args);
     return query(withTenantWhere(args, businessId));
   };

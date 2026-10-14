@@ -9,11 +9,27 @@ import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 // PII patterns for detection and redaction
 const PII_PATTERNS = [
-  { name: "credit_card", pattern: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, replacement: "[CARD REDACTED]" },
+  {
+    name: "credit_card",
+    pattern: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
+    replacement: "[CARD REDACTED]",
+  },
   { name: "ssn", pattern: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: "[SSN REDACTED]" },
-  { name: "email", pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: "[EMAIL REDACTED]" },
-  { name: "phone", pattern: /\b\+?\d{1,3}[\s-]?\(?\d{1,4}\)?[\s-]?\d{1,4}[\s-]?\d{1,9}\b/g, replacement: "[PHONE REDACTED]" },
-  { name: "ip_address", pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, replacement: "[IP REDACTED]" },
+  {
+    name: "email",
+    pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    replacement: "[EMAIL REDACTED]",
+  },
+  {
+    name: "phone",
+    pattern: /\b\+?\d{1,3}[\s-]?\(?\d{1,4}\)?[\s-]?\d{1,4}[\s-]?\d{1,9}\b/g,
+    replacement: "[PHONE REDACTED]",
+  },
+  {
+    name: "ip_address",
+    pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+    replacement: "[IP REDACTED]",
+  },
 ];
 
 /**
@@ -57,6 +73,7 @@ export async function exportCustomerData(
       conversations: {
         include: {
           messages: true,
+          deliveryOperations: { select: { response: true, status: true, createdAt: true } },
           tickets: {
             select: {
               id: true,
@@ -104,6 +121,7 @@ export async function exportCustomerData(
         date: m.createdAt,
       })),
       tickets: c.tickets,
+      deliveryRecovery: c.deliveryOperations,
     })),
   };
 }
@@ -117,61 +135,108 @@ export async function deleteCustomerData(
   customerId: string,
   hardDelete = false
 ): Promise<{ success: boolean; deletedRecords: number }> {
-  const db = getScopedPrisma(ctx);
-  const customer = await db.customer.findUnique({
-    where: { id: customerId },
-    include: { conversations: { select: { id: true } } },
-  });
-
-  if (!customer) return { success: false, deletedRecords: 0 };
-
-  let deletedRecords = 0;
-
-  if (hardDelete) {
-    // Full deletion - cascading
-    for (const conv of customer.conversations) {
-      await db.message.deleteMany({ where: { conversationId: conv.id } });
-      await db.internalNote.deleteMany({ where: { conversationId: conv.id } });
-      await db.conversationTag.deleteMany({ where: { conversationId: conv.id } });
-      await db.ticket.deleteMany({ where: { conversationId: conv.id } });
-      deletedRecords += 5;
-    }
-    await db.conversation.deleteMany({ where: { customerId } });
-    await db.customerNote.deleteMany({ where: { customerId } });
-    await db.customer.delete({ where: { id: customerId } });
-    deletedRecords += customer.conversations.length + 2;
-  } else {
-    // Anonymization - preserve structure but remove PII
-    for (const conv of customer.conversations) {
-      await db.message.updateMany({
-        where: { conversationId: conv.id },
-        data: { content: "[REDACTED - GDPR]" },
-      });
-      deletedRecords++;
-    }
-
-    await db.conversation.updateMany({
-      where: { customerId },
-      data: {
-        customerName: "Deleted User",
-        customerContact: "",
-        customerId: null,
-      },
+  return getScopedPrisma(ctx).$transaction(async (db) => {
+    const customer = await db.customer.findUnique({
+      where: { id: customerId },
+      include: { conversations: { select: { id: true } } },
     });
 
-    await db.customerNote.deleteMany({ where: { customerId } });
-    await db.customer.delete({ where: { id: customerId } });
-    deletedRecords += 2;
-  }
+    if (!customer) return { success: false, deletedRecords: 0 };
 
-  logger.info("GDPR data deletion completed", {
-    businessId: ctx.businessId,
-    customerId,
-    hardDelete,
-    deletedRecords,
+    let deletedRecords = 0;
+
+    // Cancel before transcript erasure so a queued recovery cannot restore cached PII.
+    const conversationIds = customer.conversations.map((c) => c.id);
+    if (conversationIds.length) {
+      await db.actionExecution.updateMany({
+        where: { conversationId: { in: conversationIds }, tool: "schedule_followup" },
+        data: { status: "cancelled", input: {}, result: {}, errorMessage: null },
+      });
+      await db.deliveryOperation.updateMany({
+        where: { conversationId: { in: conversationIds }, status: { not: "accepted" } },
+        data: { status: "cancelled", claimToken: null, leaseUntil: null },
+      });
+      await db.deliveryOperation.updateMany({
+        where: { conversationId: { in: conversationIds } },
+        data: {
+          response: "[REDACTED - GDPR]",
+          recipient: "",
+          metadata: {},
+          recoveryLog: [],
+          errorMessage: null,
+        },
+      });
+      // Recovery locks the operation before inserting its audit. Read audits only
+      // after those locks, so a concurrent committed private reason is included.
+      const operations = await db.deliveryOperation.findMany({
+        where: { conversationId: { in: conversationIds } },
+        select: { id: true },
+      });
+      const audits = await db.activityLog.findMany({
+        where: {
+          entity: "delivery",
+          entityId: { in: operations.map((op) => op.id) },
+          action: "delivery.recovered",
+        },
+      });
+      for (const audit of audits)
+        await db.activityLog.update({
+          where: { id: audit.id },
+          data: {
+            metadata: {
+              ...(audit.metadata as Record<string, string>),
+              reason: "[REDACTED - GDPR]",
+            },
+          },
+        });
+    }
+
+    if (hardDelete) {
+      // Full deletion - cascading
+      for (const conv of customer.conversations) {
+        await db.message.deleteMany({ where: { conversationId: conv.id } });
+        await db.internalNote.deleteMany({ where: { conversationId: conv.id } });
+        await db.conversationTag.deleteMany({ where: { conversationId: conv.id } });
+        await db.ticket.deleteMany({ where: { conversationId: conv.id } });
+        deletedRecords += 5;
+      }
+      await db.conversation.deleteMany({ where: { customerId } });
+      await db.customerNote.deleteMany({ where: { customerId } });
+      await db.customer.delete({ where: { id: customerId } });
+      deletedRecords += customer.conversations.length + 2;
+    } else {
+      // Anonymization - preserve structure but remove PII
+      for (const conv of customer.conversations) {
+        await db.message.updateMany({
+          where: { conversationId: conv.id },
+          data: { content: "[REDACTED - GDPR]" },
+        });
+        deletedRecords++;
+      }
+
+      await db.conversation.updateMany({
+        where: { customerId },
+        data: {
+          customerName: "Deleted User",
+          customerContact: "",
+          customerId: null,
+        },
+      });
+
+      await db.customerNote.deleteMany({ where: { customerId } });
+      await db.customer.delete({ where: { id: customerId } });
+      deletedRecords += 2;
+    }
+
+    logger.info("GDPR data deletion completed", {
+      businessId: ctx.businessId,
+      customerId,
+      hardDelete,
+      deletedRecords,
+    });
+
+    return { success: true, deletedRecords };
   });
-
-  return { success: true, deletedRecords };
 }
 
 /**

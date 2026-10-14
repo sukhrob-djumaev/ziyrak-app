@@ -12,11 +12,16 @@ const schema = z.object({
   // have no runtime conversation (e.g. a human or API client) and is ignored
   // whenever one exists, so an AI can never aim a follow-up at another
   // conversation.
-  conversationId: z.string().optional().describe("Leave empty. The current conversation is used automatically."),
+  conversationId: z
+    .string()
+    .optional()
+    .describe("Leave empty. The current conversation is used automatically."),
   message: z.string().describe("The follow-up message to send"),
   delayHours: z
     .number()
-    .describe("Hours to wait before sending the follow-up. Decimal values are allowed: 1 minute is 0.0167 hours."),
+    .describe(
+      "Hours to wait before sending the follow-up. Decimal values are allowed: 1 minute is 0.0167 hours."
+    ),
 });
 
 /**
@@ -40,19 +45,38 @@ export const scheduleFollowupTool: ToolDefinition = {
     const { message, delayHours } = parsed;
     const conversationId = runtimeCtx.conversationId ?? parsed.conversationId;
     if (!conversationId) {
-      return { success: false, status: "failed", message: "No conversation to schedule the follow-up in." };
+      return {
+        success: false,
+        status: "failed",
+        message: "No conversation to schedule the follow-up in.",
+      };
     }
     const db = getScopedPrisma(ctx);
 
     const conversation = await db.conversation.findUnique({ where: { id: conversationId } });
     if (!conversation) {
-      return { success: false, status: "failed", message: `Conversation ${conversationId} not found.` };
+      return {
+        success: false,
+        status: "failed",
+        message: `Conversation ${conversationId} not found.`,
+      };
     }
     if (!conversation.customerContact) {
-      return { success: false, status: "failed", message: "This conversation has no customer contact to send a follow-up to." };
+      return {
+        success: false,
+        status: "failed",
+        message: "This conversation has no customer contact to send a follow-up to.",
+      };
     }
 
-    const connection = await db.channelConnection.findFirst({ where: { type: conversation.channel, isActive: true } });
+    const owner = (conversation.metadata as Record<string, unknown> | null)?.channelConnectionId;
+    const connection = await db.channelConnection.findFirst({
+      where: {
+        type: conversation.channel,
+        isActive: true,
+        ...(typeof owner === "string" ? { id: owner } : {}),
+      },
+    });
     if (!connection) {
       return {
         success: false,

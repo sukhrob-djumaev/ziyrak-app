@@ -45,6 +45,10 @@ export interface OutboundContent {
 export interface SendResult {
   success: boolean;
   error?: string;
+  /** Legacy false/transport exceptions are uncertain unless explicitly classified. */
+  outcome?: "accepted" | "rejected" | "unknown";
+  retryable?: boolean;
+  providerMessageId?: string;
 }
 
 /** The provider-agnostic shape a webhook route hands an HTTP-based adapter (SMS, Phone, Telegram, WebChat). */
@@ -62,7 +66,13 @@ export interface NormalizedInboundRequest {
 }
 
 export type ValidateInboundResult =
-  | { kind: "new"; ctx: TenantContext; connectionId: string; event: ZiyrakEvent<MessageReceivedPayload>; receiptId: string }
+  | {
+      kind: "new";
+      ctx: TenantContext;
+      connectionId: string;
+      event: ZiyrakEvent<MessageReceivedPayload>;
+      receiptId: string;
+    }
   | { kind: "duplicate" }
   | {
       kind: "rejected";
@@ -86,7 +96,12 @@ export interface ChannelAdapter<TInboundRequest = NormalizedInboundRequest> {
    * to `persistAndEnqueueInboundEvent`/`processInboundMessage`.
    */
   validateInbound(request: TInboundRequest): Promise<ValidateInboundResult>;
-  sendMessage(ctx: TenantContext, connectionId: string, to: string, content: OutboundContent): Promise<SendResult>;
+  sendMessage(
+    ctx: TenantContext,
+    connectionId: string,
+    to: string,
+    content: OutboundContent
+  ): Promise<SendResult>;
   getStatus(ctx: TenantContext, connectionId: string): Promise<ChannelStatus>;
   /** Only for session-based channels (WhatsApp Web). Stateless HTTP channels don't implement this — they are "always connected" once credentials exist. */
   connect?(ctx: TenantContext, connectionId: string): Promise<void>;

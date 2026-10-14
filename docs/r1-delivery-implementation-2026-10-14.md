@@ -1,0 +1,46 @@
+# R1 implementation and verification
+
+Approved scope: PLAN R1 and the October 14 delivery-contract correction.
+All product work runs in the isolated attached worktree; live main services,
+provider configuration and the `owly` database were not changed.
+
+## Implemented, acceptance still open
+
+- Tenant-scoped durable delivery operations, composite tenant foreign keys,
+  saved replies and preparation/dispatch leases.
+- Retry a known refusal using the saved response; accepted and uncertain sends
+  are never automatically replayed. Interrupted preparation requires review.
+- Signed-in owner/admin/supervisor recovery in Approvals, strict destination/body
+  boundaries, actual-actor auditing and compare-and-set decisions.
+- Typed Meta outcomes and bounded transport timeout; provider acceptance remains
+  separate from recipient delivery.
+- GDPR cancellation/redaction includes queued follow-ups and recovery reasons.
+- Acceptance scripts pin paired isolated database URLs, track source/build/run
+  identity, verify listener ownership and signal only recorded owned processes.
+
+## Executed evidence (October 14, candidate working tree)
+
+Product baseline: `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`.
+Pre-fix regression checkpoint: `7aa004f530a4cbbbea7ae95b6bbb582191da959c`.
+The containing implementation commit will identify this candidate through Git.
+Paired database URLs target `ziyrak_r1_test_20261014`; no acceptance/user DB cleanup.
+
+| Criterion/layer                                | Status                   | New evidence and limits                                                                                                                                                                                              |
+| ---------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Original failures and replay contract          | Passed                   | Six mocked regressions; five failed/one control passed before source changes.                                                                                                                                        |
+| Recovery auth/tenant/FK boundaries             | Passed                   | Eight tests with real Postgres and actual route authentication, including current role/revocation and foreign-tenant listing.                                                                                        |
+| Independent review regressions                 | Passed                   | Seven real-DB regressions failed before fixes: connection ownership, delayed erasure, recovery reason redaction/concurrent audit, stale parent projection and two terminal-cancellation races.                       |
+| Existing integration behavior                  | Passed                   | Combined six-file run: 29 tests, including actual pg-boss refusal/retry (synthetic provider).                                                                                                                        |
+| Persistence/concurrency/preparation durability | Passed                   | Four real-DB tests: saved reply reuse, acceptance followed by failing transcript transaction, completed side effect preserved without replay, competing worker claims.                                               |
+| Harness safety fixtures                        | Passed                   | Seven tests; real owned child processes, synthetic build identity. Missing topology regression failed before fix.                                                                                                    |
+| Actual worker crash/restart                    | Passed                   | Actual test-owned child SIGKILL and replacement worker with real pg-boss; natural heartbeat/lease expiry, one external submission, human-review state. Took 73.4 seconds; no live worker signal.                     |
+| Typecheck/lint/build/full regression           | Passed tests; build open | Updated final full run:128 files/1175 passed,23 optional Redis skips. Signup-seeded:63 files/680 passed before final queue settings fix; updated queue upgrade/full coverage passes. Type/lint green; build pending. |
+| Independent implementation review              | Passed                   | Independent read-only security review rechecked all confirmed delivery and harness findings as resolved in source. Executed evidence is from the lead, not the reviewer.                                             |
+| Existing queue upgrade                         | Passed                   | Real pg-boss existing-queue retry limit/delay regression failed before fix; mutable configured settings now applied on upgrade. Existing active jobs retain sent settings.                                           |
+| Meta outcome contract                          | Passed                   | Eight deterministic mocked Graph checks classify rejection/uncertainty, timeout, acceptance reference and ownership preflight; no real Graph call.                                                                   |
+| Operator recovery UI and full browser suite    | Not run                  | Required before R1 closure; fresh isolated acceptance DB reserved.                                                                                                                                                   |
+| Affected real Meta boundary                    | Not run                  | Separate R4 requirement; no stand-in or local persistence proves live recipient delivery.                                                                                                                            |
+
+Provider faults and customer content in tests are synthetic. Real Postgres and
+pg-boss establish those boundaries only; no production delivery/rollout claim.
+Dependency risk remains R3 work, with the fresh audit recorded separately.

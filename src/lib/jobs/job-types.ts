@@ -30,6 +30,12 @@ export interface SweepRetentionPayload {
   businessId: string;
 }
 
+export const RETRY_DELIVERY_JOB = "retry-delivery";
+export interface RetryDeliveryPayload {
+  businessId: string;
+  deliveryId: string;
+}
+
 export const SEND_FOLLOWUP_JOB = "send-followup";
 export interface SendFollowupPayload {
   businessId: string;

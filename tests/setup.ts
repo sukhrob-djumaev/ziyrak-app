@@ -10,7 +10,8 @@ process.env.JWT_SECRET = "test-secret-key-for-testing-only";
 // reachable database; matches CI's own owly_test database/credentials
 // (.github/workflows/ci.yml) but only as a default, so a differently
 // configured environment isn't overridden.
-process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
+process.env.DATABASE_URL ??=
+  "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
 process.env.NODE_ENV = "test";
 // PLAN.md §46.8 — when the suite runs with `REDIS_URL` set (Redis-backed
 // adapters selected), every test file gets its own key namespace: files run
@@ -154,6 +155,7 @@ function createMockPrismaClient() {
     "flow",
     "aIInteractionLog",
     "inboundEventReceipt",
+    "deliveryOperation",
     "toolPolicy",
     "actionExecution",
   ];

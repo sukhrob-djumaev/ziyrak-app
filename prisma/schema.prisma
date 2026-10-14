@@ -57,6 +57,7 @@ model Business {
   inboundEventReceipts InboundEventReceipt[]
   toolPolicies         ToolPolicy[]
   actionExecutions     ActionExecution[]
+  deliveryOperations   DeliveryOperation[]
 }
 
 model Membership {
@@ -247,8 +248,46 @@ model InboundEventReceipt {
   correlationId    String
   eventPayload     Json     @default("{}")
 
+  deliveryOperations DeliveryOperation[]
+
+  @@unique([businessId, id])
   @@unique([businessId, source, externalEventId])
   @@index([businessId, processingStatus])
+}
+
+// Durable preparation and outbound recovery. Connection IDs refer to the control
+// plane and are revalidated through its scoped repository before dispatch.
+model DeliveryOperation {
+  id                String               @id @default(uuid())
+  businessId        String
+  business          Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  operationKey      String
+  kind              String
+  receiptId         String?
+  receipt           InboundEventReceipt? @relation(fields: [businessId, receiptId], references: [businessId, id], onDelete: Cascade)
+  conversationId    String?
+  conversation      Conversation?        @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: Cascade)
+  actionId          String?
+  action            ActionExecution?     @relation(fields: [businessId, actionId], references: [businessId, id], onDelete: Cascade)
+  channel           String
+  connectionId      String
+  recipient         String
+  response          String?
+  metadata          Json                 @default("{}")
+  status            String               @default("pending")
+  retryable         Boolean              @default(false)
+  providerMessageId String?
+  claimToken        String?
+  leaseUntil        DateTime?
+  attempts          Int                  @default(0)
+  errorMessage      String?
+  recoveryLog       Json                 @default("[]")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([businessId, operationKey])
+  @@index([businessId, status])
+  @@index([businessId, conversationId])
 }
 
 // ==================== SETTINGS ====================
@@ -384,27 +423,28 @@ model TeamMember {
 // ==================== CONVERSATIONS ====================
 
 model Conversation {
-  id                String             @id @default(uuid())
-  businessId        String
-  business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  channel           String
-  customerName      String             @default("Unknown")
-  customerContact   String             @default("")
-  customerId        String?
+  id                 String              @id @default(uuid())
+  businessId         String
+  business           Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  channel            String
+  customerName       String              @default("Unknown")
+  customerContact    String              @default("")
+  customerId         String?
   // §8.4 composite FK — a Conversation can never reference another business's Customer.
-  customer          Customer?          @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: SetNull)
-  status            String             @default("active")
-  satisfaction      Int?
-  summary           String             @default("")
-  metadata          Json               @default("{}")
-  messages          Message[]
-  tickets           Ticket[]
-  tags              ConversationTag[]
-  notes             InternalNote[]
-  callLogs          CallLog[]
-  aiInteractionLogs AIInteractionLog[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  customer           Customer?           @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: SetNull)
+  status             String              @default("active")
+  satisfaction       Int?
+  summary            String              @default("")
+  metadata           Json                @default("{}")
+  messages           Message[]
+  deliveryOperations DeliveryOperation[]
+  tickets            Ticket[]
+  tags               ConversationTag[]
+  notes              InternalNote[]
+  callLogs           CallLog[]
+  aiInteractionLogs  AIInteractionLog[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([businessId, id]) // §8.4 composite FK target — Message/Ticket/InternalNote/ConversationTag/CallLog/AIInteractionLog.conversationId
   @@index([channel])
@@ -878,6 +918,9 @@ model ActionExecution {
   updatedAt      DateTime  @updatedAt
   completedAt    DateTime?
 
+  deliveryOperations DeliveryOperation[]
+
+  @@unique([businessId, id])
   @@unique([businessId, idempotencyKey])
   @@index([businessId, status])
   @@index([businessId, conversationId])

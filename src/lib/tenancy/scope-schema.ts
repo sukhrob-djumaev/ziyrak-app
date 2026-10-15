@@ -755,6 +755,7 @@ export const SCOPE_SCHEMA: Record<
       },
     },
     scalars: [
+      "retiredAt",
       "id",
       "businessId",
       "channel",

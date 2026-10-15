@@ -349,8 +349,9 @@ The live board above owns ordering and status; CURRENT points to the next eligib
 - **Grant management continuation:** code4e38f9a adds safe actor-self grant metadata,
   explicit issue/revoke API/UI and reason/expiry/audit. RealPG/Redis52, full1349 with
   23 optional skips, signup831, type/lint and independent source reviews passed.
-  Matching runtime56bed6c/buildIXJigGX3F97tgWvfsptnv/digest15a3efb1...67b7a4 is
-  running a fresh complete22browser with expanded J22; result pending. No tenant
+  Matching runtime56bed6c/buildIXJigGX3F97tgWvfsptnv/digest15a3efb1...67b7a4
+  passed a fresh complete22browser with expanded J22 uninterrupted/exit0; actual
+  recorded/revoked screens also visually inspected. No tenant
   support context/selection/streams/jobs activated; no P1 closure. See
   `docs/p1-support-grant-console-2026-10-15.md`.
 - **Delayed lifetime decision (2026-10-15, owner selected):** recorded schedules
@@ -367,6 +368,13 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   source review passed. No TenantContext, queue authority, provider origin or
   operation/snapshot producer/dispatch integration yet. See
   `docs/p1-deferred-identity-foundation-2026-10-15.md`.
+
+- **Provider-origin foundation:** strict internal receipt/operation/conversation/
+  connection capture/refresh onf2c0262 (containing commit). Sending false denial
+  reproduced then fixed; conversation lifecycle projection inventory repaired.
+  Full1367/23optional, signup849, combined Redis18, type/lint and independent source
+  recheck passed. No queue/dispatch integration yet. See provider-foundation evidence
+  and `docs/p1-followup-dispatch-contract-2026-10-15.md` for the next public seam.
 
 ### P2 — Managed AI and usage limits
 

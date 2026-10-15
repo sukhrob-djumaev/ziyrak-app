@@ -94,3 +94,11 @@ export async function readDeferredIdentity(
     return { origin, role: key.role, scope };
   });
 }
+
+/** Active shared control-plane destination metadata; never credentials or tenant data. */
+export async function readDeferredProviderConnection(businessId: string, connectionId: string) {
+  return prisma.channelConnection.findFirst({
+    where: { id: connectionId, businessId, isActive: true, business: { status: "active" } },
+    select: { id: true, type: true },
+  });
+}

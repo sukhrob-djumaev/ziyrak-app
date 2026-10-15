@@ -118,3 +118,17 @@ remainingOwned=[] verified; failed database/profiles retained, never reset. Next
 repair in non-serving development, independent harness source review, coherent new
 candidate/build and fresh full24, screenshots and exact-owned cleanup. Earlier focused
 and automated results retain their separately identified boundaries. P1 stays open.
+
+## Fresh full24 after J18 repair
+
+Development repair 72873e3 (assertion text only), cherry-picked into the frozen runtime
+as 897fdff. Harness review was lead-only (2-line diff checked against the Settings page
+denial text); no independent reviewer. Product digest unchanged (45f6b5e...47d3), new
+build bJsO0xiUf7E8wvd83Irjm, fresh EMPTY ziyrak_acceptance_p1_settings_j18_20261015
+(Business count 0), workdir p1-settings-j18-20261015. run-all.sh: all 24 journeys PASSED
+(J18 4s, J24 16s). Log /private/tmp/ziyrak-p1-settings-j18-browser.log. Exact owned
+stop: every recorded web/worker/llm/hosts/browser PID gone, nothing on 3100/4010.
+Stand-in topology only; no real provider. DB/profiles retained.
+OPEN: screenshots NOT inspected (reads outside the working dir blocked). Settings
+browser acceptance is therefore recorded as passed-by-assertions with screenshot
+inspection pending (shots under the workdir above, j18-*/j24-*).

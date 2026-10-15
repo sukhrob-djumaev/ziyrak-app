@@ -41,3 +41,5 @@ and no promise of recall after the final checked snapshot. Contract/tests still 
 Update: J18 repair committed in development worktree as 72873e3 (assertion text only,
 syntax/format checked). Pending: independent harness review, new candidate/build,
 fresh full24. Acceptance still open; no run claimed.
+
+Update2: fresh full24 on runtime 897fdff/build bJsO0xiUf7E8wvd83Irjm, unchanged product digest, empty DB ziyrak_acceptance_p1_settings_j18_20261015: 24/24 PASSED, exact owned stop verified. OPEN: screenshot inspection (needs /add-dir of the workdir); harness review lead-only. Next: support text-message read, tests first.

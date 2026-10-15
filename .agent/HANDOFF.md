@@ -29,3 +29,5 @@ waits for/asserts "Access denied" (2 lines; node --check and prettier pass). No
 product code changed; no browser run, independent harness review, or full24 rerun
 yet, so Settings browser acceptance stays OPEN. Next: independent harness review of
 72873e3, frozen candidate/build, fresh empty-DB full24, screenshots, exact-owned stop.
+
+J18 repair (72873e3/897fdff) rerun: full24 24/24 passed, log /private/tmp/ziyrak-p1-settings-j18-browser.log, topology stopped. Limits: screenshots uninspected, lead-only harness review. Next: support text-message read contract + tests.

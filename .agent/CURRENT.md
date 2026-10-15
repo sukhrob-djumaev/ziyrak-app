@@ -26,31 +26,37 @@ See enrollment/role-browser/stream/widget/foundation evidence docs. Runtime prod
 matched through acceptance; topology stopped with exact remainingOwned[]. A later
 runtime Git checkpoint requires rebuilding before startup; no stale build reuse.
 
-## Active continuation: operator assignments
+## Active P1 continuation
 
-New operator/assignment service and super-admin UI/API implemented on91c301c in
-this isolated checkout; containing commit identifies the candidate. Shared
-normalized username reservation repairs independently confirmed public/workspace/
-operator creation races (two realPG desired assertions failed before fix).
-Full144files1319passed/23optional, signup75files812passed, focused34realPG and
-same34with Redis, type/strict lint passed. Independent source-only security recheck
-clear; fresh expanded22browser suite running, not yet a pass.
-Runtime parentc2a4562/buildM_rq0OTQsJstuUKedMRia/digest
+Operator code21c269f: full144files1319passed/23optional, signup812, focused34
+realPG/Redis, type/lint/source security recheck passed. First expanded22browser
+runner passed21then failed a J22 network-idle harness wait after a complete403.
+Separate actual denied UI/noforms/API403 diagnostic and corrected focusedJ22 passed.
+Fresh complete22rerun is running; do not call the first run a full22pass.
+Runtime remains parentc2a4562/buildM_rq0OTQsJstuUKedMRia/digest
 bd9c2ba6a6d8ff59da394077c548cb9292cb6b112d7751246674ffe8381ee94b.
-Fresh own operator acceptance topology is currently running; stop only its recorded
-identities after collection. See docs/p1-operator-assignments-2026-10-15.md.
+Current private rerun env /private/tmp/ziyrak-p1-operators-rerun-acceptance.env;
+owned runtime workdir scripts/acceptance/.work/p1-operators-rerun-20261015.
 
-Next: collect/review browser result, fix confirmed failures and stop exact owned
-services. Then explicit support grant issue/resolve/audit/expiry/revocation,
-delegated delayed authority and remaining restricted-resource UI acceptance.
-Support activation remains closed. Existing Administration shell/control presentation
-is still open; protected rows/actions deny. Missing delayed lineage/provenance is
-investigated, not a newly proven retired-target send bypass. P1 remains incomplete.
+Internal grant issue/revoke/admission module added on21c269f, containing commit
+identifies source. Exact scoped actor-self/replay/audit/current ceiling/session and
+expiry boundary checks; no tenant context, routes, streams or jobs are wired.
+Support activation remains closed. Source review findings UUID casing/expiry wait
+and lead logout-wait finding reproduced with realPG before fixes. Final50focused
+with Redis, full1335/23optional, signup828, type/strict lint and independent source
+recheck passed. This module is excluded from the frozen operator browser build.
+See docs/p1-support-grant-admission-2026-10-15.md and operator evidence.
+
+Next: collect complete operator rerun and stop exact recorded services, checkpoint
+evidence; implement delayed action lineage/origin snapshots and fresh execution,
+then grant selection/tenant/stream integration and restricted UI/browser acceptance.
+Existing denied Administration shell remains open; protected data/actions deny.
+P1 incomplete; P2 not eligible. R3 residual decision remains pending, not waived.
 
 ## Boundaries
 
 Main is docs-only. No live code/deps/env/7700/tunnel/provider/user-DB changes.
-Own operator acceptance services/Redis6381 are running for the pending browser suite.
+Own operator rerun services/Redis6381 are running for the pending complete browser suite.
 Use own worktrees/deps, paired isolated DB URLs and fresh acceptance DB/build.
 Never kill by name/delete profile locks, push/merge/deploy/release or select new
 milestone/phase. R3 risk decision and P1 remaining acceptance are not waived.

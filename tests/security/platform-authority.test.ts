@@ -7,6 +7,11 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { generateToken, revokeToken } from "@/lib/identity/auth";
 import * as audit from "@/lib/platform/access/audit";
 import {
+  issueSupportGrant,
+  revokeSupportGrant,
+  authorizeSupportUse,
+} from "@/lib/platform/access/grants";
+import {
   provisionOperator,
   removeOperator,
   assignOperator,
@@ -1029,4 +1034,542 @@ describe("operator names share the public/workspace identity namespace", () => {
         spy.mockRestore();
       }
     });
+});
+
+const grantRequest = (businessId: string, connectionId: string, assignmentId?: string) => ({
+  businessId,
+  ...(assignmentId ? { assignmentId } : {}),
+  requestId: randomUUID(),
+  allowedOperations: ["conversations:read", "messages:read"],
+  scope: { kind: "connections", connectionIds: [connectionId], customerProfileAccess: "none" },
+  reason: "Synthetic explicit support grant",
+  expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+});
+describe("explicit support grant lifecycle, admission remains unavailable", () => {
+  it("requires explicit actor/workspace/scope/reason/lifetime and creates no membership", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace();
+    const request = grantRequest(x.workspace.id, x.channel.id);
+    const grant = await issueSupportGrant(a.token, request);
+    expect(grant).toMatchObject({
+      actorUserId: a.user.id,
+      businessId: x.workspace.id,
+      assignmentId: null,
+      allowedOperations: request.allowedOperations,
+      scopeMode: "connections",
+      customerProfileAccess: "none",
+      reason: request.reason,
+    });
+    expect(grant.connectionScopes).toEqual([{ connectionId: x.channel.id }]);
+    expect(await prisma.membership.count({ where: { userId: a.user.id } })).toBe(0);
+    const auditRows = await prisma.platformAccessAudit.findMany({ where: { grantId: grant.id } });
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({
+      actorUserId: a.user.id,
+      businessId: x.workspace.id,
+      workspaceId: x.workspace.id,
+      action: "support.issue",
+      reason: request.reason,
+    });
+    expect(auditRows[0].details).toMatchObject({
+      grantId: grant.id,
+      allowedOperations: request.allowedOperations,
+      expiresAt: request.expiresAt,
+    });
+    expect(JSON.stringify(grant)).not.toContain(a.token);
+  });
+  it("operator issuance requires a current exact assignment and cannot widen its operations/scope/profile/lifetime", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      x = await assignmentWorkspace(),
+      y = await assignmentWorkspace();
+    const assignment = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const request = grantRequest(x.workspace.id, x.channel.id, assignment.id);
+    for (const extra of [
+      { assignmentId: undefined },
+      { assignmentId: randomUUID() },
+      { businessId: y.workspace.id },
+      { allowedOperations: ["tickets:read"] },
+      { scope: { kind: "workspace", customerProfileAccess: "none" } },
+      { scope: { ...request.scope, customerProfileAccess: "read" } },
+      { scope: { ...request.scope, connectionIds: [y.channel.id] } },
+      { expiresAt: new Date(assignment.expiresAt!.getTime() + 1000).toISOString() },
+    ])
+      await expect(issueSupportGrant(op.token, { ...request, ...extra })).rejects.toMatchObject({
+        statusCode: 403,
+      });
+    expect(await prisma.supportGrant.count({ where: { actorUserId: op.user.id } })).toBe(0);
+    const grant = await issueSupportGrant(op.token, request);
+    expect(grant.assignmentId).toBe(assignment.id);
+    expect(grant.actorUserId).toBe(op.user.id);
+    await expect(issueSupportGrant(a.token, request)).rejects.toMatchObject({ statusCode: 403 });
+  });
+  it("denies foreign channels, inactive workspace, unknown operation/scope and invalid lifetime", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace(),
+      y = await assignmentWorkspace();
+    const request = grantRequest(x.workspace.id, x.channel.id);
+    await expect(
+      issueSupportGrant(a.token, {
+        ...request,
+        scope: { ...request.scope, connectionIds: [y.channel.id] },
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    for (const extra of [
+      { actorUserId: a.user.id },
+      { reason: " " },
+      { expiresAt: "invalid" },
+      { expiresAt: new Date(0).toISOString() },
+      { expiresAt: new Date(Date.now() + 25 * 3600_000).toISOString() },
+      { allowedOperations: ["admin:create"] },
+      { allowedOperations: ["messages:create"] },
+      { scope: { kind: "unclassified", customerProfileAccess: "none" } },
+      { scope: { kind: "connections", customerProfileAccess: "none", connectionIds: [] } },
+    ])
+      await expect(issueSupportGrant(a.token, { ...request, ...extra })).rejects.toMatchObject({
+        statusCode: 400,
+      });
+    await prisma.business.update({ where: { id: x.workspace.id }, data: { status: "suspended" } });
+    await expect(issueSupportGrant(a.token, request)).rejects.toMatchObject({ statusCode: 404 });
+  });
+  it("identical UUID replay is idempotent and changed payload conflicts without extending the grant", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace(),
+      request = grantRequest(x.workspace.id, x.channel.id);
+    const first = await issueSupportGrant(a.token, request);
+    const replay = await issueSupportGrant(a.token, {
+      ...request,
+      allowedOperations: ["messages:read", "conversations:read", "messages:read"],
+    });
+    expect(replay.id).toBe(first.id);
+    expect(replay.expiresAt).toEqual(first.expiresAt);
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { grantId: first.id, action: "support.issue" },
+      })
+    ).toBe(1);
+    for (const extra of [
+      { reason: "Changed reason" },
+      { allowedOperations: ["conversations:read"] },
+      { expiresAt: new Date(Date.parse(request.expiresAt) + 1000).toISOString() },
+      { scope: { kind: "workspace", customerProfileAccess: "none" } },
+    ])
+      await expect(issueSupportGrant(a.token, { ...request, ...extra })).rejects.toMatchObject({
+        statusCode: 409,
+      });
+  });
+  it("concurrent exact UUID issuance has one grant and one issuance audit", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace(),
+      request = grantRequest(x.workspace.id, x.channel.id);
+    const [first, second] = await Promise.all([
+      issueSupportGrant(a.token, request),
+      issueSupportGrant(a.token, request),
+    ]);
+    expect(first.id).toBe(second.id);
+    expect(
+      await prisma.supportGrant.count({
+        where: { actorUserId: a.user.id, requestId: request.requestId },
+      })
+    ).toBe(1);
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { grantId: first.id, action: "support.issue" },
+      })
+    ).toBe(1);
+  });
+  it("audit failure rolls back issuance and revocation; an unrelated operator cannot revoke", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      other = await operator(a.token),
+      x = await assignmentWorkspace();
+    const assignment = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const request = grantRequest(x.workspace.id, x.channel.id, assignment.id);
+    vi.spyOn(audit, "writePlatformAudit").mockRejectedValueOnce(
+      new Error("Synthetic grant audit failure")
+    );
+    await expect(issueSupportGrant(op.token, request)).rejects.toThrow(
+      "Synthetic grant audit failure"
+    );
+    expect(await prisma.supportGrant.count({ where: { actorUserId: op.user.id } })).toBe(0);
+    const grant = await issueSupportGrant(op.token, request);
+    await expect(
+      revokeSupportGrant(other.token, { grantId: grant.id, reason: "Synthetic foreign revoke" })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    vi.spyOn(audit, "writePlatformAudit").mockRejectedValueOnce(
+      new Error("Synthetic revoke audit failure")
+    );
+    await expect(
+      revokeSupportGrant(op.token, { grantId: grant.id, reason: "Synthetic revoke" })
+    ).rejects.toThrow("Synthetic revoke audit failure");
+    expect(
+      (await prisma.supportGrant.findUniqueOrThrow({ where: { id: grant.id } })).revokedAt
+    ).toBeNull();
+    await revokeSupportGrant(op.token, { grantId: grant.id, reason: "Synthetic actor revoke" });
+    const retired = await prisma.supportGrant.findUniqueOrThrow({ where: { id: grant.id } });
+    expect(retired.revokedAt).not.toBeNull();
+    await revokeSupportGrant(a.token, {
+      grantId: grant.id,
+      reason: "Synthetic super repeat revoke",
+    });
+    expect(
+      (await prisma.supportGrant.findUniqueOrThrow({ where: { id: grant.id } })).revokedAt
+    ).toEqual(retired.revokedAt);
+    await expect(issueSupportGrant(op.token, request)).rejects.toMatchObject({ statusCode: 409 });
+  });
+  it("revoked or expired assignments cannot issue grants and expired grant UUIDs cannot revive", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      x = await assignmentWorkspace();
+    const row = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const request = grantRequest(x.workspace.id, x.channel.id, row.id);
+    const grant = await issueSupportGrant(op.token, request);
+    await prisma.supportGrant.update({ where: { id: grant.id }, data: { expiresAt: new Date(0) } });
+    await expect(
+      issueSupportGrant(op.token, { ...request, expiresAt: new Date(0).toISOString() })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    await prisma.platformAssignment.update({
+      where: { id: row.id },
+      data: { expiresAt: new Date(0) },
+    });
+    await expect(
+      issueSupportGrant(op.token, { ...request, requestId: randomUUID() })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await revokeAssignment(a.token, {
+      assignmentId: row.id,
+      reason: "Synthetic retire assignment",
+    });
+    await expect(
+      issueSupportGrant(op.token, { ...request, requestId: randomUUID() })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe("support UUID normalization", () => {
+  it("treats case variants as one request and cannot bypass replay conflicts or revocation", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace();
+    const request = {
+      ...grantRequest(x.workspace.id, x.channel.id),
+      requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    };
+    const first = await issueSupportGrant(a.token, request);
+    const replay = await issueSupportGrant(a.token, {
+      ...request,
+      requestId: request.requestId.toUpperCase(),
+    });
+    expect(replay.id).toBe(first.id);
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { actorUserId: a.user.id, action: "support.issue" },
+      })
+    ).toBe(1);
+    await expect(
+      issueSupportGrant(a.token, {
+        ...request,
+        requestId: request.requestId.toUpperCase(),
+        reason: "Changed case replay reason",
+      })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    await revokeSupportGrant(a.token, { grantId: first.id, reason: "Synthetic replay revocation" });
+    await expect(
+      issueSupportGrant(a.token, { ...request, requestId: request.requestId.toUpperCase() })
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe("fresh support use admission, not connected to tenant routes", () => {
+  it("requires exact actor/workspace/operation and audits admission rather than completed work", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      x = await assignmentWorkspace(),
+      y = await assignmentWorkspace();
+    const assignment = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const grant = await issueSupportGrant(
+      op.token,
+      grantRequest(x.workspace.id, x.channel.id, assignment.id)
+    );
+    const use = { grantId: grant.id, businessId: x.workspace.id, operation: "conversations:read" };
+    await expect(authorizeSupportUse(a.token, use)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(
+      authorizeSupportUse(op.token, { ...use, businessId: y.workspace.id })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    await expect(
+      authorizeSupportUse(op.token, { ...use, operation: "tickets:read" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      authorizeSupportUse(op.token, { ...use, operation: "settings:read" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    const admission = await authorizeSupportUse(op.token, use);
+    expect(admission).toMatchObject({
+      userId: op.user.id,
+      businessId: x.workspace.id,
+      grantId: grant.id,
+      scope: { kind: "connections", connectionIds: [x.channel.id], customerProfileAccess: "none" },
+      allowedOperations: ["conversations:read", "messages:read"],
+    });
+    expect(admission).not.toHaveProperty("role");
+    const rows = await prisma.platformAccessAudit.findMany({
+      where: { grantId: grant.id, action: "support.authorize" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      actorUserId: op.user.id,
+      businessId: x.workspace.id,
+      workspaceId: x.workspace.id,
+      reason: grant.reason,
+    });
+    expect(rows[0].details).toMatchObject({
+      decision: "allowed",
+      operation: "conversations:read",
+      grantId: grant.id,
+      assignmentId: assignment.id,
+    });
+    expect(JSON.stringify(rows)).not.toContain(op.token);
+  });
+  it("fails closed when the use audit cannot commit", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace();
+    const grant = await issueSupportGrant(a.token, grantRequest(x.workspace.id, x.channel.id));
+    vi.spyOn(audit, "writePlatformAudit").mockRejectedValueOnce(
+      new Error("Synthetic use audit failure")
+    );
+    await expect(
+      authorizeSupportUse(a.token, {
+        grantId: grant.id,
+        businessId: x.workspace.id,
+        operation: "conversations:read",
+      })
+    ).rejects.toThrow("Synthetic use audit failure");
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { grantId: grant.id, action: "support.authorize" },
+      })
+    ).toBe(0);
+  });
+  it("freshly intersects assignment restrictions and cannot expand the issued grant", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      x = await assignmentWorkspace();
+    const second = await prisma.channelConnection.create({
+      data: { businessId: x.workspace.id, type: "webchat", name: "Other assigned connection" },
+    });
+    const assignment = await assignOperator(a.token, {
+      ...assignmentInput(op.user.id, x.workspace.id, x.channel.id),
+      scope: { kind: "workspace", customerProfileAccess: "read" },
+    });
+    const grant = await issueSupportGrant(op.token, {
+      ...grantRequest(x.workspace.id, x.channel.id, assignment.id),
+      scope: {
+        kind: "connections",
+        connectionIds: [x.channel.id, second.id],
+        customerProfileAccess: "read",
+      },
+    });
+    const use = { grantId: grant.id, businessId: x.workspace.id, operation: "conversations:read" };
+    await prisma.platformAssignment.update({
+      where: { id: assignment.id },
+      data: {
+        scopeMode: "connections",
+        customerProfileAccess: "none",
+        allowedOperations: ["conversations:read"],
+      },
+    });
+    await prisma.assignmentConnectionScope.create({
+      data: {
+        businessId: x.workspace.id,
+        operatorUserId: op.user.id,
+        assignmentId: assignment.id,
+        connectionId: x.channel.id,
+      },
+    });
+    const narrow = await authorizeSupportUse(op.token, use);
+    expect(narrow.scope).toEqual({
+      kind: "connections",
+      connectionIds: [x.channel.id],
+      customerProfileAccess: "none",
+    });
+    expect(narrow.allowedOperations).toEqual(["conversations:read"]);
+    await expect(
+      authorizeSupportUse(op.token, { ...use, operation: "messages:read" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await prisma.platformAssignment.update({
+      where: { id: assignment.id },
+      data: {
+        scopeMode: "workspace",
+        customerProfileAccess: "write",
+        allowedOperations: ["conversations:read", "messages:read", "tickets:read"],
+      },
+    });
+    const wide = await authorizeSupportUse(op.token, use);
+    expect(wide.scope).toEqual({
+      kind: "connections",
+      connectionIds: [x.channel.id, second.id].sort(),
+      customerProfileAccess: "read",
+    });
+    expect(wide.allowedOperations).toEqual(["conversations:read", "messages:read"]);
+    await expect(
+      authorizeSupportUse(op.token, { ...use, operation: "tickets:read" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+  it("fresh use denies revoked grant/assignment/session, removed operator, inactive workspace and deleted scopes", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      x = await assignmentWorkspace();
+    const assignment = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const grant = await issueSupportGrant(
+      op.token,
+      grantRequest(x.workspace.id, x.channel.id, assignment.id)
+    );
+    const use = { grantId: grant.id, businessId: x.workspace.id, operation: "conversations:read" };
+    expect(await authorizeSupportUse(op.token, use)).toHaveProperty("grantId", grant.id);
+    await prisma.business.update({ where: { id: x.workspace.id }, data: { status: "suspended" } });
+    await expect(authorizeSupportUse(op.token, use)).rejects.toMatchObject({ statusCode: 404 });
+    await prisma.business.update({ where: { id: x.workspace.id }, data: { status: "active" } });
+    await revokeToken(op.token);
+    await expect(authorizeSupportUse(op.token, use)).rejects.toMatchObject({ statusCode: 401 });
+    const active = generateToken(op.user.id);
+    await prisma.channelConnection.delete({ where: { id: x.channel.id } });
+    await expect(authorizeSupportUse(active, use)).rejects.toMatchObject({ statusCode: 403 });
+    await revokeAssignment(a.token, {
+      assignmentId: assignment.id,
+      reason: "Synthetic assignment end",
+    });
+    await expect(authorizeSupportUse(active, use)).rejects.toMatchObject({ statusCode: 403 });
+    await removeOperator(a.token, { operatorUserId: op.user.id, reason: "Synthetic operator end" });
+    await expect(authorizeSupportUse(active, use)).rejects.toMatchObject({ statusCode: 403 });
+  });
+  it("checks expiry each time and a revoked super grant cannot be admitted", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace();
+    const grant = await issueSupportGrant(a.token, grantRequest(x.workspace.id, x.channel.id));
+    const use = { grantId: grant.id, businessId: x.workspace.id, operation: "conversations:read" };
+    await prisma.supportGrant.update({ where: { id: grant.id }, data: { expiresAt: new Date(0) } });
+    await expect(authorizeSupportUse(a.token, use)).rejects.toMatchObject({ statusCode: 403 });
+    const second = await issueSupportGrant(a.token, grantRequest(x.workspace.id, x.channel.id));
+    await revokeSupportGrant(a.token, {
+      grantId: second.id,
+      reason: "Synthetic super grant revoke",
+    });
+    await expect(
+      authorizeSupportUse(a.token, { ...use, grantId: second.id })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe("support admission time boundary", () => {
+  for (const expiry of ["grant", "session"] as const)
+    it(`denies when ${expiry} expiry passes while mandatory audit is awaiting completion`, async () => {
+      const a = await superAccount(),
+        x = await assignmentWorkspace();
+      const grant = await issueSupportGrant(a.token, grantRequest(x.workspace.id, x.channel.id));
+      const token =
+        expiry === "session"
+          ? jwt.sign({ userId: a.user.id }, process.env.JWT_SECRET!, {
+              expiresIn: 30,
+              jwtid: randomUUID(),
+            })
+          : a.token;
+      const original = audit.writePlatformAudit;
+      let entered!: () => void, release!: () => void;
+      const ready = new Promise<void>((r) => {
+          entered = r;
+        }),
+        hold = new Promise<void>((r) => {
+          release = r;
+        });
+      const spy = vi.spyOn(audit, "writePlatformAudit").mockImplementationOnce(async (...args) => {
+        const row = await original(...args);
+        entered();
+        await hold;
+        return row;
+      });
+      try {
+        const pending = authorizeSupportUse(token, {
+          grantId: grant.id,
+          businessId: x.workspace.id,
+          operation: "conversations:read",
+        });
+        const outcome = pending.then(
+          (admission) => ({ admission }),
+          (error) => ({ error })
+        );
+        await ready;
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(Date.now() + (expiry === "grant" ? 3600_000 : 60_000));
+        release();
+        expect(await outcome).toMatchObject({
+          error: { statusCode: expiry === "session" ? 401 : 403 },
+        });
+        const rows = await prisma.platformAccessAudit.findMany({
+          where: { grantId: grant.id, action: { in: ["support.authorize", "support.deny"] } },
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ action: "support.deny", details: { decision: "denied" } });
+      } finally {
+        release();
+        vi.useRealTimers();
+        spy.mockRestore();
+      }
+    });
+});
+
+describe("support admission session revocation boundary", () => {
+  it("denies logout committed while mandatory admission audit is pending", async () => {
+    const a = await superAccount(),
+      x = await assignmentWorkspace();
+    const grant = await issueSupportGrant(a.token, grantRequest(x.workspace.id, x.channel.id));
+    const original = audit.writePlatformAudit;
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>((r) => {
+        entered = r;
+      }),
+      hold = new Promise<void>((r) => {
+        release = r;
+      });
+    const spy = vi.spyOn(audit, "writePlatformAudit").mockImplementationOnce(async (...args) => {
+      const row = await original(...args);
+      entered();
+      await hold;
+      return row;
+    });
+    try {
+      const pending = authorizeSupportUse(a.token, {
+        grantId: grant.id,
+        businessId: x.workspace.id,
+        operation: "conversations:read",
+      });
+      const outcome = pending.then(
+        (admission) => ({ admission }),
+        (error) => ({ error })
+      );
+      await ready;
+      await revokeToken(a.token);
+      release();
+      expect(await outcome).toMatchObject({ error: { statusCode: 401 } });
+      const rows = await prisma.platformAccessAudit.findMany({
+        where: { grantId: grant.id, action: { in: ["support.authorize", "support.deny"] } },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].action).toBe("support.deny");
+    } finally {
+      release();
+      spy.mockRestore();
+    }
+  });
 });

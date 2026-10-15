@@ -1,30 +1,30 @@
-# P1 operator continuation checkpoint
+# P1 continuation: operators and internal support admission
 
-Implementation candidate is the containing commit on91c301c. New secured operator
-provisioning, named read-operation/workspace/connection ceilings, atomic audited
-revocation and operator removal, safe management metadata and denied-state UI.
-No implicit membership/grant/customer access; support activation remains closed.
+Operator code21c269f implemented safe super-only new operator provisioning, named
+immutable assignments/revocation/removal and atomic audit. Shared name reservation
+repairs two reproduced cross-creation races. Full1319/23optional, signup812,
+realPG/Redis34, type/lint and independent source review passed.
 
-Independent security review confirmed cross-path case-variant identity races.
-Controlled actual signup/workspace race tests failed desired409 assertions, then
-passed after shared normalized-name transaction reservation across all application
-identity creators. Existing credentials/roles are never overwritten. Source recheck
-clear; reviewer did not execute checks. Harness review fixed target selection and
-strengthened exact operations/side-effects/audit assertions before run.
+First22browser runner passed21then failed J22 at a network-idle harness wait after 403. Same-session complete403body in51ms; actual denied document200/noforms/API403
+visually verified. Corrected J22 waits for explicit denial state and passed focused.
+Fresh complete22rerun is RUNNING on original operator product/build (no new full22
+pass yet). Runtime parentc2a4562/buildM_rq0OTQsJstuUKedMRia/digestbd9c2ba6...e94b.
+Current private env /private/tmp/ziyrak-p1-operators-rerun-acceptance.env; workdir
+runtime scripts/acceptance/.work/p1-operators-rerun-20261015. Previous topology stopped
+exactly, remainingOwned[]; databases retained. Old failed script may finish its
+non-browser Node timer drain; no owned browsers remain from it.
 
-Full1319/23optional; signup812; realPG34 and Redis34; type/strict lint passed.
-Expanded22browser runner IN PROGRESS on fresh isolated DB, production web/separate
-worker/Redis/local stand-in, synthetic proofs/accounts. Runtime parentc2a4562,
-buildM_rq0OTQsJstuUKedMRia, digestbd9c2ba6...e94b. Dev/runtime product digests match.
-Evidence/logs: docs/p1-operator-assignments-2026-10-15.md. No new provider claim.
+Internal grant module on21c269f (containing commit) issues/revokes and audits fresh
+admission facts. No public routes, tenant context, streams or queue integration;
+support activation remains closed. UUID casing, expiry while audit waits and logout
+while audit waits regressions reproduced before fixes. Final50focused Redis,
+full1335/23optional, signup828, type/strict lint, independent source recheck passed.
+Frozen operator browser run does not verify this new internal module.
+Evidence: docs/p1-operator-assignments-2026-10-15.md and
+p1-support-grant-admission-2026-10-15.md. No real provider/support/invitation claim.
 
-Collect/fix browser result before acceptance; exact owned services currently running,
-Redis container ziyrak-p1-operators-redis-20261015, task labelp1-operators-20261015;
-private ID file /private/tmp/ziyrak-p1-operators-redis.id. Stop only verified recorded
-identities, preserve DBs. No name-based kill/reset/profile-lock cleanup.
-
-Next eligible implementation: explicit audited support grant lifecycle and fresh
-resolver, then delayed-origin authority/streams and restricted UI. Existing denied
-Administration shell remains open. R3 residual decision pending, not waived. Main
-live product/dependencies/env/7700/tunnel/accounts untouched. No P1 closure/push/
-merge/deploy/new milestone.
+Next: collect/fix complete rerun, stop exact owned web/worker/hosts/LLM/browsers and
+Redis ID+label; then delayed lineage/provenance/authority, grant selection/tenant/
+stream integration and restricted UI acceptance. R3 risk decision pending; P1
+incomplete. Main live product/deps/env/7700/tunnel/accounts untouched. No push,
+merge/deploy/release/new milestone, no kill-by-name/reset/profile-lock cleanup.

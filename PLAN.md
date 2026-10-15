@@ -33,7 +33,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | --- | --- | --- | --- |
 | 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
 | 2 | **R3 — Operational safety** | Implementation/local verification passed; residual owner decision pending | Verified isolated safety baseline;5high production/10high full advisories remain. |
-| 3 | **P1 — Platform and workspace access** | In progress; foundation and full acceptance open | Explicit contract; tests-first team and connection boundary slice under review. |
+| 3 | **P1 — Platform and workspace access** | In progress; full acceptance open | Workspace/resource boundaries and secured operators; support/delayed integration remains open. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
@@ -316,6 +316,49 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   page shell/control presentation remains open; protected rows/actions denied.
   No live enrollment, operator/support activation or P1 closure. See
   `docs/p1-platform-enrollment-2026-10-15.md` and role-browser evidence.
+
+- **Operator continuation (2026-10-15):** code21c269f and harnessfe49561 add
+  super-only new operator provisioning and named immutable assignments/revocation,
+  mandatory audit and denied-state UI, with no implicit tenant membership/grant.
+  Two cross-creation username races reproduced then repaired across all application
+  identity creators. Full1319/23optional, signup812, realPG/Redis34 and type/lint
+  passed; independent source security recheck clear. First22browser command passed21
+  then failed J22 network-idle harness wait after a complete403; corrected focusedJ22
+  and actual denied UI/noforms/API checks passed. Fresh complete22rerun passed
+  uninterrupted with exit0 on the original operator build; the initial failed run
+  remains recorded. See `docs/p1-operator-assignments-2026-10-15.md`.
+- **Internal grant continuation:** code6b5e3d7 implements explicit actor-self
+  issuance/revocation and current scoped admission facts with mandatory allowed/
+  denied audit. UUID casing, expiry-during-audit and logout-during-audit regressions
+  reproduced before fixes. Full1335/23optional, signup828, Redis50platform cases,
+  type/lint and independent source recheck passed. No tenant context/routes/streams/
+  jobs wired; support activation remains closed. Frozen operator browser does not
+  verify this module. See `docs/p1-support-grant-admission-2026-10-15.md`.
+- **Follow-up lineage continuation:** codef84e423 normalizes the authoritative
+  parent before action/cache admission, binds approval/cache to the recorded tool/
+  parent and refuses unbound worker submission. Nine realPG desired failures
+  reproduced before fixes. Full1346/23optional, signup828, Redis18follow-up cases,
+  focused60, type/lint and independent source recheck passed. Identified
+  build5egIm5D0_uNGgsVhKKb7v/runtime027455c
+  passed the fresh uninterrupted complete22browser suite/exit0 with stronger J09/J10
+  visitor/queue/action parent assertions. Synthetic local topology; no provider claim.
+  Saved origin/authority checks, other
+  delayed paths, support integration, restricted UI and legacy cutover remain open;
+  no live queue changes or P1 closure. See `docs/p1-followup-lineage-2026-10-15.md`.
+
+- **Grant management continuation:** code4e38f9a adds safe actor-self grant metadata,
+  explicit issue/revoke API/UI and reason/expiry/audit. RealPG/Redis52, full1349 with
+  23 optional skips, signup831, type/lint and independent source reviews passed.
+  Matching runtime56bed6c/buildIXJigGX3F97tgWvfsptnv/digest15a3efb1...67b7a4 is
+  running a fresh complete22browser with expanded J22; result pending. No tenant
+  support context/selection/streams/jobs activated; no P1 closure. See
+  `docs/p1-support-grant-console-2026-10-15.md`.
+- **Delayed lifetime decision (2026-10-15, owner selected):** recorded schedules
+  survive requester logout/session expiry. Before sending/retrying, recheck exact
+  current membership or key authority, permissions, active workspace and saved
+  resource ceilings; removed/recreated membership cannot revive old work. This
+  does not extend support-session/grant lifetime. Implementation is pending; see
+  `docs/p1-delayed-authority-policy-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits
 

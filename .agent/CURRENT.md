@@ -1,78 +1,55 @@
 # Current task
 
-PLAN governs selected MS-2026-10-14 order R1→R3→P1→P2→P3→R2→R4→R5.
-P1 remains incomplete. P2 is ineligible; no milestone/phase/deployment closure.
-Main is docs-only; development is /Users/sukhrob/.codex/worktrees/p1-workspace-access/owly.
+PLAN governs MS-2026-10-14: R1→R3→P1→P2→P3→R2→R4→R5.
+P1 remains incomplete; P2 is ineligible. Main is docs-only.
+Development: /Users/sukhrob/.codex/worktrees/p1-workspace-access/owly.
 
-## Verified checkpoints
+## Coherent product checkpoint
 
-R1 localc894b63/delivery63247f6; R4 real-provider boundary open. R3 safeguards
-2adfc1b/integration086f659 passed locally; extract-zip/braces owner decision still
-pending. Risks explained; explanation is not acceptance. No live rollout authorized.
+Deferred identityf2c0262/provider0bfe1ae are locally verified internal facts only.
+Owner chose schedules surviving logout/session expiry, with fresh current authority
+before send. Grant-console4e38f9a/runtime56bed6c full22browser passed; this is not
+verification of later product changes. See the corresponding P1 evidence docs.
 
-P1 access/foundation/streams/polling/enrollment implemented. Operators21c269f,
-internal grants6b5e3d7 and follow-up lineagef84e423 are locally verified. Fresh
-lineage full22 browser passed uninterrupted/exit0 on runtime027455c,
-build5egIm5D0_uNGgsVhKKb7v/digest4be90fce...9b6e, including actual visitor/queue/
-action parent and stream revocation. Operator earlier first failed J22 harness run
-remains recorded separately from the later uninterrupted22 pass.
+Support-query prerequisite and scoped repository surface code c78a1ff: explicit scalar
+GET conversation-list profile, model/query/mutation denial,
+private FieldRef/provenance checks and root/model/transaction client-escape repair.
+No support tenant auth/SSR/routes/streams/jobs activated. Independent candidate on
+0bfe1ae in /Users/sukhrob/.codex/worktrees/p1-support-query/owly passed focused37,
+full148files1426/1Redis-disabled control skip, signup79files886, type and strict lint.
+Independent final security source review clear; reviewers did not run tests.
+See docs/p1-support-query-implementation-2026-10-15.md. Matching runtimec24277b
+buildfF41LTQ5Z5NPbD7hoWtuQ/digestdd921cbc...a0712e is running fresh full22browser;
+no pass claimed. Env /private/tmp/ziyrak-p1-support-query-acceptance.env, isolated
+runtime workdir scripts/acceptance/.work/p1-support-query-20261015.
 
-Grant-management API/UI4e38f9a passed full22 uninterrupted/exit0 on runtime56bed6c,
-buildIXJigGX3F97tgWvfsptnv/digest15a3efb1be69774e61d5b4844256a4e41ef967e2076e6eba33c0e1a0f467b7a4.
-Actual issue/revoke/actor/scope/expiry/audit/denial; supplementary focused visual
-rerun passed and full-page recorded/revoked screenshots inspected. Grant issuance
-is not tenant activation. Own topology stopped exactly, remainingOwned[]; DBs retained.
-Env /private/tmp/ziyrak-p1-grant-console-acceptance.env; browser/visual logs matching
-prefix; runtime workdir scripts/acceptance/.work/p1-grant-console-20261015.
+## Separate incomplete dispatch integration
 
-Deferred identity foundationf2c0262: exact current membership/key/issuer facts and
-saved ceiling; no bearer/session authority or TenantContext. Owner selected schedules
-surviving logout/session expiry while current permissions are rechecked before send.
-Provider foundation0bfe1ae: strict receipt/operation/parent/
-active connection lineage; no bare-AI inference/fallback. Sending-state regression
-reproduced then fixed; inventory's missing conversation.retiredAt corrected after
-source review. Final18combined Redis cases, full146files1367passed/23optional,
-signup77files849passed, type/lint and independent final source recheck passed.
-Neither helper authorizes an operation or is wired into queue/dispatch.
+Uncommitted Registry snapshot, pickup/retry authorizers and delivery callback remain
+in development. They are excluded from the coherent support-query candidate.
+Actual desired final-check races: policy disable, conversation retirement/removal
+and key expiry still permit synthetic submission (original13:3failed/10passed).
+Later18-case full working run:1404passed/1skip/3failed; signup19-case working run:
+865passed/3failed. After repository repair, current19focused cases:16pass/3same
+fail; type/lint pass. Real pg-boss membership-loss retry passed separately. These are
+not acceptance passes. No build/browser run of this incomplete integration.
+Do not commit it as complete or deploy.
 
-## Dispatch integration in progress (not verified)
+Rule11 docs/p1-followup-admission-proposal-2026-10-15.md awaits owner decision:
+coherent short checks/claim, explicit cancellation cutoff, honest retired outcomes.
+No admission-gate deviation implemented. R3 extract-zip/braces acceptance also
+remains pending; explaining the risks was not owner acceptance.
 
-Development has uncommitted snapshot/Registry admission, explicit job authorizers and
-fail-closed delivery wiring on0bfe1ae. Ten focused realPG cases passed after fixing
-malformed callback authority, accepted legacy checkpoint projection and membership
-change during destination lookup. Three further desired tests now fail: tool policy
-disable, conversation retirement/removal and key expiry during the final identity
-wait each still allow synthetic submission. Log
-/private/tmp/ziyrak-p1-followup-authority-admission-red.log:3failed/10passed.
-Do not treat this integration as complete or browser-verified.
+## Next action and boundaries
 
-Independent architecture investigation recommends coherent locked checks plus the
-durable sending claim, transport after locks release. Concrete rule11 proposal
-docs/p1-followup-admission-proposal-2026-10-15.md awaits owner decision on cancellation
-cutoff and in-flight erasure behavior. No gate/contract deviation implemented.
-Eight affected files/61tests passed, including actual pg-boss crash/restart and
-retry; typecheck passed. Independent fixture review preserved original transport/
-erasure assertions and found minor synthetic origin labels to correct. Existing
-regressions excluding the new known-red file are running after global fixture changes.
-P1 remains open.
+Finish the frozen full22browser and stop only its exact owned topology, then
+record actual outcome. Eligible P1 support identity/query exposure work may continue independently while cutoff decision waits.
+After approval, complete follow-up coherent admission and its real race/retry checks.
+Recovery/campaign/manual-webhook origins, support activation and restricted UI remain.
 
-## Next eligible work
-
-After the owner decides the admission proposal, complete the dispatch contract:
-server-owned
-admission mode, immutable exact snapshot before enqueue, tools-owned fresh policy/
-identity/provider authority, explicit per-call delivery authorizer default-denying
-missing guards, pickup/preclaim/pre-adapter/retry checks and known unsent failures.
-Keep queue adapters generic. Include real pg-boss revocation/restart, independent
-security review and fresh full browser after wiring. Then recovery requester,
-campaign/manual webhook origins, support identity/projection/stream activation and
-restricted UI acceptance. P1 remains open; see evidence docs for exact boundaries.
-
-## Boundaries
-
-No main product/deps/env/7700/tunnel/providers/accounts/user-DB changes. Use isolated
-paired DB URLs; never test-clean acceptance/user DBs. Runtime owned worktree
-/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly is clean and stopped.
-Task Redis6381 retained for next local verification; shared Postgres untouched.
-Exact PID/birth/cwd ownership before stop; no kill-by-name/profile-lock deletion.
+Main product/deps/env/live7700/tunnel/providers/accounts/user DB untouched. Runtime
+/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly currently clean/frozen,
+running the owned browser topology;
+Redis6381 retained and shared Postgres untouched. Pair isolated DB URLs; never clean
+acceptance/user DBs. Stop only PID/birth/cwd-verified owned processes.
 No push/merge/deploy/release/tag/new milestone, reset or history rewrite.

@@ -382,6 +382,16 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   and its cancellation cutoff need the documented rule11 clarification before
   implementation. See [proposal](docs/p1-followup-admission-proposal-2026-10-15.md).
 
+- **Support query prerequisite (2026-10-15):** code c78a1ff: explicit scalar
+  conversation-list
+  profile and scoped root/model/transaction facade deny unsupported models, private
+  predicates, mutations and raw client escape. Tests-first actualPG failures repaired;
+  focused37, independent candidate full148files1426/1mode skip, signup79files886,
+  type/lint and independent security source recheck passed. Support auth/routes/SSR/
+  streams/jobs remain unactivated. Matching runtimec24277b fresh
+  full22browser running; no P1 closure. See
+  `docs/p1-support-query-implementation-2026-10-15.md`.
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

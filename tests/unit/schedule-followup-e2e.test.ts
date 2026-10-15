@@ -144,6 +144,7 @@ describe("schedule_followup — end-to-end via the tool (§24.3/§34.3 item 5)",
       },
     });
     expect(actionRow?.status).toBe("scheduled");
+    expect(actionRow?.conversationId).toBe(conversation.id);
 
     await (jobQueue as unknown as FakeJobQueue).__drainForTests();
 
@@ -311,4 +312,418 @@ describe("send-followup job handler — exactly once under retry (§31.2/§33.4 
       await queue.stop();
     }
   }, 45000);
+});
+
+describe("P1 authoritative follow-up lineage", () => {
+  it("does not redirect an AI actor when runtime binding is omitted and the model supplies a different target", async () => {
+    const a = await seedConversation("bound-ai"),
+      b = await seedConversation("other-ai");
+    const schedule = vi.spyOn(jobQueue, "schedule").mockResolvedValueOnce("paused-lineage-fixture");
+    try {
+      const result = await toolRegistry.execute(
+        aiCtx(a.id),
+        "schedule_followup",
+        { conversationId: b.id, message: "Bound only to A", delayHours: 1 },
+        { toolCallId: "lineage-ai-fallback" }
+      );
+      expect(result.status).toBe("scheduled");
+      expect(schedule).toHaveBeenCalledWith(
+        SEND_FOLLOWUP_JOB,
+        expect.objectContaining({ conversationId: a.id, to: a.customerContact }),
+        expect.anything()
+      );
+      expect(
+        await rawClient.actionExecution.findFirst({
+          where: {
+            businessId: business.businessId,
+            idempotencyKey: `${business.businessId}:lineage-ai-fallback`,
+          },
+        })
+      ).toMatchObject({ conversationId: a.id });
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("rejects disagreement between actual AI/work/runtime parents before recording or queuing", async () => {
+    const a = await seedConversation("conflict-ai"),
+      b = await seedConversation("conflict-runtime");
+    const schedule = vi.spyOn(jobQueue, "schedule").mockResolvedValue("paused-conflict-fixture");
+    try {
+      const result = await toolRegistry.execute(
+        aiCtx(a.id),
+        "schedule_followup",
+        { message: "Must not redirect", delayHours: 1 },
+        { toolCallId: "lineage-conflicting-runtime", conversationId: b.id }
+      );
+      expect(result.success).toBe(false);
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await rawClient.actionExecution.count({
+          where: {
+            businessId: business.businessId,
+            idempotencyKey: `${business.businessId}:lineage-conflicting-runtime`,
+          },
+        })
+      ).toBe(0);
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("binds a direct human argument only after scoped authorization, and rejects an excluded target", async () => {
+    const a = await seedConversation("human-target"),
+      b = await seedConversation("excluded-human-target");
+    const human: TenantContext = {
+      ...business.ctx,
+      resourceScope: {
+        kind: "connections",
+        connectionIds: [(a.metadata as { channelConnectionId: string }).channelConnectionId],
+        customerProfileAccess: "none",
+      },
+    };
+    const schedule = vi.spyOn(jobQueue, "schedule").mockResolvedValue("paused-human-fixture");
+    try {
+      const allowed = await toolRegistry.execute(
+        human,
+        "schedule_followup",
+        { conversationId: a.id, message: "Scoped target", delayHours: 1 },
+        { idempotencyKey: "lineage-human" }
+      );
+      expect(allowed.status).toBe("scheduled");
+      expect(
+        await rawClient.actionExecution.findFirst({
+          where: { businessId: business.businessId, idempotencyKey: "lineage-human" },
+        })
+      ).toMatchObject({ conversationId: a.id });
+      schedule.mockClear();
+      const denied = await toolRegistry.execute(
+        human,
+        "schedule_followup",
+        { conversationId: b.id, message: "Excluded target", delayHours: 1 },
+        { idempotencyKey: "lineage-human-excluded" }
+      );
+      expect(denied.success).toBe(false);
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await rawClient.actionExecution.count({
+          where: { businessId: business.businessId, idempotencyKey: "lineage-human-excluded" },
+        })
+      ).toBe(0);
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("retirement discovers and redacts an action created without explicit runtime conversation", async () => {
+    const conversation = await seedConversation("retire-bound");
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValueOnce("paused-retirement-fixture");
+    try {
+      const result = await toolRegistry.execute(
+        aiCtx(conversation.id),
+        "schedule_followup",
+        { conversationId: conversation.id, message: "Synthetic private follow-up", delayHours: 1 },
+        { toolCallId: "lineage-retirement" }
+      );
+      expect(result.status).toBe("scheduled");
+      const row = await rawClient.actionExecution.findFirstOrThrow({
+        where: {
+          businessId: business.businessId,
+          idempotencyKey: `${business.businessId}:lineage-retirement`,
+        },
+      });
+      const { remove } = await import("@/lib/conversations/service");
+      await remove(business.ctx, conversation.id);
+      const retired = await rawClient.actionExecution.findUniqueOrThrow({ where: { id: row.id } });
+      expect(retired).toMatchObject({ input: {}, status: "cancelled", conversationId: null });
+      expect(retired.retiredAt).not.toBeNull();
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("does not dispatch an old scheduled action with no persisted conversation parent", async () => {
+    const conversation = await seedConversation("unbound-old-action"),
+      idempotencyKey = "lineage-unbound-job";
+    sentMessages = [];
+    sendBehavior = () => ({ success: true });
+    await rawClient.actionExecution.create({
+      data: {
+        businessId: business.businessId,
+        tool: "schedule_followup",
+        status: "scheduled",
+        input: { conversationId: conversation.id, message: "Unbound must not send" },
+        conversationId: null,
+        requestedBy: "ai",
+        idempotencyKey,
+      },
+    });
+    const handler = handleSendFollowup(
+      {
+        businessId: business.businessId,
+        role: null,
+        actor: { kind: "system_job", jobId: "lineage-old-job", jobType: SEND_FOLLOWUP_JOB },
+        dataConnection: "shared-default",
+      },
+      {
+        businessId: business.businessId,
+        conversationId: conversation.id,
+        connectionId: (conversation.metadata as { channelConnectionId: string })
+          .channelConnectionId,
+        channel: TEST_CHANNEL,
+        to: conversation.customerContact!,
+        message: "Unbound must not send",
+        idempotencyKey,
+      }
+    );
+    const outcome = await handler.then(
+      () => ({ completed: true }),
+      (error) => ({ error })
+    );
+    expect(outcome).toMatchObject({ error: { statusCode: 404 } });
+    expect(sentMessages).toEqual([]);
+  });
+});
+
+describe("P1 follow-up attempt binding", () => {
+  it("does not return another parent's cached result when a client reuses an attempt key", async () => {
+    const a = await seedConversation("cached-parent-a"),
+      b = await seedConversation("cached-parent-b");
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValue("paused-cache-parent-fixture");
+    try {
+      const first = await toolRegistry.execute(
+        business.ctx,
+        "schedule_followup",
+        { conversationId: a.id, message: "A only", delayHours: 1 },
+        { idempotencyKey: "lineage-shared-attempt" }
+      );
+      expect(first.status).toBe("scheduled");
+      schedule.mockClear();
+      const replay = await toolRegistry.execute(
+        business.ctx,
+        "schedule_followup",
+        { conversationId: a.id, message: "A only", delayHours: 1 },
+        { idempotencyKey: "lineage-shared-attempt" }
+      );
+      expect(replay.success).toBe(true);
+      expect(replay.status).toBe("scheduled");
+      expect(schedule).not.toHaveBeenCalled();
+      const second = await toolRegistry.execute(
+        business.ctx,
+        "schedule_followup",
+        { conversationId: b.id, message: "B cannot reuse A", delayHours: 1 },
+        { idempotencyKey: "lineage-shared-attempt" }
+      );
+      expect(second.success).toBe(false);
+      expect(second.status).toBe("failed");
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await rawClient.actionExecution.count({
+          where: { businessId: business.businessId, idempotencyKey: "lineage-shared-attempt" },
+        })
+      ).toBe(1);
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+});
+
+describe("P1 follow-up approval and admission edges", () => {
+  it("refuses a legacy unbound approval before claiming it or enqueueing", async () => {
+    const conversation = await seedConversation("legacy-approval");
+    const record = await rawClient.actionExecution.create({
+      data: {
+        businessId: business.businessId,
+        tool: "schedule_followup",
+        status: "pending_approval",
+        input: {
+          conversationId: conversation.id,
+          message: "Legacy unbound approval",
+          delayHours: 1,
+        },
+        conversationId: null,
+        requestedBy: "ai",
+        idempotencyKey: "lineage-unbound-approval",
+      },
+    });
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValueOnce("paused-legacy-approval-fixture");
+    try {
+      const outcome = await toolRegistry.approve(business.ctx, record.id).then(
+        (result) => ({ result }),
+        (error) => ({ error })
+      );
+      expect(outcome).toMatchObject({ error: { statusCode: 409 } });
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        (await rawClient.actionExecution.findUniqueOrThrow({ where: { id: record.id } })).status
+      ).toBe("pending_approval");
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("an approval-gated call without runtime binds and approves exactly the persisted parent", async () => {
+    const conversation = await seedConversation("bound-approval");
+    const previous = await rawClient.toolPolicy.findUnique({
+      where: { businessId_tool: { businessId: business.businessId, tool: "schedule_followup" } },
+    });
+    await rawClient.toolPolicy.upsert({
+      where: { businessId_tool: { businessId: business.businessId, tool: "schedule_followup" } },
+      create: {
+        businessId: business.businessId,
+        tool: "schedule_followup",
+        enabledForTenant: true,
+        allowedForAI: true,
+        allowedForHumanRoles: ["owner"],
+        requiresHumanApproval: true,
+      },
+      update: { requiresHumanApproval: true },
+    });
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValueOnce("paused-bound-approval-fixture");
+    try {
+      expect(
+        (
+          await toolRegistry.execute(
+            aiCtx(conversation.id),
+            "schedule_followup",
+            { message: "Approved bound target", delayHours: 1 },
+            { toolCallId: "lineage-bound-approval" }
+          )
+        ).status
+      ).toBe("pending_approval");
+      const record = await rawClient.actionExecution.findFirstOrThrow({
+        where: {
+          businessId: business.businessId,
+          idempotencyKey: `${business.businessId}:lineage-bound-approval`,
+        },
+      });
+      expect(record.conversationId).toBe(conversation.id);
+      expect((await toolRegistry.approve(business.ctx, record.id)).status).toBe("scheduled");
+      expect(schedule).toHaveBeenCalledWith(
+        SEND_FOLLOWUP_JOB,
+        expect.objectContaining({ conversationId: conversation.id }),
+        expect.anything()
+      );
+    } finally {
+      schedule.mockRestore();
+      if (previous)
+        await rawClient.toolPolicy.update({
+          where: { id: previous.id },
+          data: { requiresHumanApproval: previous.requiresHumanApproval },
+        });
+      else
+        await rawClient.toolPolicy.delete({
+          where: {
+            businessId_tool: { businessId: business.businessId, tool: "schedule_followup" },
+          },
+        });
+    }
+  });
+  it("cannot reuse another tool's cached result for a follow-up", async () => {
+    const conversation = await seedConversation("cached-other-tool");
+    await rawClient.actionExecution.create({
+      data: {
+        businessId: business.businessId,
+        tool: "create_ticket",
+        status: "succeeded",
+        input: {},
+        result: { success: true, message: "Other tool result" },
+        conversationId: conversation.id,
+        requestedBy: "ai",
+        idempotencyKey: "lineage-other-tool-attempt",
+      },
+    });
+    const result = await toolRegistry.execute(
+      business.ctx,
+      "schedule_followup",
+      { conversationId: conversation.id, message: "No cross-tool cache", delayHours: 1 },
+      { idempotencyKey: "lineage-other-tool-attempt" }
+    );
+    expect(result.success).toBe(false);
+    expect(result.message).not.toBe("Other tool result");
+  });
+  it("checks workBinding against actual AI/runtime parent and rejects before enqueue", async () => {
+    const a = await seedConversation("work-parent-a"),
+      b = await seedConversation("work-parent-b");
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValueOnce("paused-work-parent-fixture");
+    try {
+      const result = await toolRegistry.execute(
+        { ...aiCtx(a.id), workBinding: { conversationId: b.id } },
+        "schedule_followup",
+        { message: "Conflicting actual parents", delayHours: 1 },
+        { conversationId: a.id, toolCallId: "lineage-work-parent-conflict" }
+      );
+      expect(result.success).toBe(false);
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await rawClient.actionExecution.count({
+          where: {
+            businessId: business.businessId,
+            idempotencyKey: `${business.businessId}:lineage-work-parent-conflict`,
+          },
+        })
+      ).toBe(0);
+    } finally {
+      schedule.mockRestore();
+    }
+  });
+  it("retirement between preflight and admission leaves no action payload or queued job", async () => {
+    const conversation = await seedConversation("retire-after-preflight");
+    const tool = toolRegistry.get("schedule_followup")!,
+      original = tool.resolveConversationId!;
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>((r) => {
+        entered = r;
+      }),
+      hold = new Promise<void>((r) => {
+        release = r;
+      });
+    const binding = vi
+      .spyOn(tool, "resolveConversationId")
+      .mockImplementationOnce(async (...args) => {
+        const id = await original(...args);
+        entered();
+        await hold;
+        return id;
+      });
+    const schedule = vi
+      .spyOn(jobQueue, "schedule")
+      .mockResolvedValueOnce("paused-retired-admission-fixture");
+    try {
+      const pending = toolRegistry.execute(
+        aiCtx(conversation.id),
+        "schedule_followup",
+        { message: "Private retired-before-admission", delayHours: 1 },
+        { toolCallId: "lineage-retire-before-admission" }
+      );
+      const outcome = pending.then(
+        (result) => ({ result }),
+        (error) => ({ error })
+      );
+      await ready;
+      const { remove } = await import("@/lib/conversations/service");
+      await remove(business.ctx, conversation.id);
+      release();
+      const value = await outcome;
+      expect("error" in value || value.result?.success === false).toBe(true);
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await rawClient.actionExecution.count({
+          where: {
+            businessId: business.businessId,
+            idempotencyKey: `${business.businessId}:lineage-retire-before-admission`,
+          },
+        })
+      ).toBe(0);
+    } finally {
+      release();
+      binding.mockRestore();
+      schedule.mockRestore();
+    }
+  });
 });

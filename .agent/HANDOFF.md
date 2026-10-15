@@ -23,8 +23,16 @@ Frozen operator browser run does not verify this new internal module.
 Evidence: docs/p1-operator-assignments-2026-10-15.md and
 p1-support-grant-admission-2026-10-15.md. No real provider/support/invitation claim.
 
+Lineage onfe49561 (containing commit): normalized preflight parent, tool/parent cache
+binding, approval preflight and null-parent worker refusal. Nine desired realPG
+failures reproduced/fixed; full1346/23optional, signup828, Redis18, focused60,
+type/strict lint and independent source recheck passed. No snapshot/revocation
+integration yet. Current operator browser run cannot accept this newer worker.
+See docs/p1-followup-lineage-2026-10-15.md.
+
 Next: collect/fix complete rerun, stop exact owned web/worker/hosts/LLM/browsers and
-Redis ID+label; then delayed lineage/provenance/authority, grant selection/tenant/
+Redis ID+label; fresh build/full browser for lineage, then delayed provenance/
+authority, grant selection/tenant/
 stream integration and restricted UI acceptance. R3 risk decision pending; P1
 incomplete. Main live product/deps/env/7700/tunnel/accounts untouched. No push,
 merge/deploy/release/new milestone, no kill-by-name/reset/profile-lock cleanup.

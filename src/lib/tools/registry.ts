@@ -129,6 +129,17 @@ export class ToolRegistry {
       };
     }
 
+    if (tool.resolveConversationId) {
+      try {
+        runtimeCtx = {
+          ...runtimeCtx,
+          conversationId: await tool.resolveConversationId(ctx, parsed.data, runtimeCtx),
+        };
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        return { success: false, status: "failed", message: error.message };
+      }
+    }
     const idempotencyKey = computeIdempotencyKey(ctx, runtimeCtx);
     const db = getScopedPrisma(ctx);
 
@@ -136,6 +147,15 @@ export class ToolRegistry {
       where: { businessId_idempotencyKey: { businessId: ctx.businessId, idempotencyKey } },
     });
     if (existing) {
+      if (
+        existing.tool !== name ||
+        (tool.resolveConversationId && existing.conversationId !== runtimeCtx.conversationId)
+      )
+        return {
+          success: false,
+          status: "failed",
+          message: "This attempt key belongs to different tool work.",
+        };
       if (existing.status === "pending_approval") {
         return {
           success: true,
@@ -227,6 +247,28 @@ export class ToolRegistry {
     if (!tool)
       throw new Error(`Unknown tool "${record.tool}" referenced by ActionExecution ${record.id}.`);
 
+    const runtimeCtx = {
+      conversationId: record.conversationId ?? undefined,
+      idempotencyKey: record.idempotencyKey,
+    };
+    if (tool.resolveConversationId) {
+      // Never infer a legacy action's missing parent from old model input.
+      if (!record.conversationId)
+        throw new AppError(
+          409,
+          "UNBOUND_ACTION",
+          "This action has no authoritative conversation parent"
+        );
+      const input = tool.schema.safeParse(record.input);
+      if (!input.success)
+        throw new AppError(
+          409,
+          "INVALID_ACTION_INPUT",
+          "This action requires a new validated request"
+        );
+      if ((await tool.resolveConversationId(ctx, input.data, runtimeCtx)) !== record.conversationId)
+        throw new AppError(409, "CONFLICTING_PARENT", "Action conversation parents disagree");
+    }
     const claimed = await db.actionExecution.updateMany({
       where: { id: record.id, status: "pending_approval" },
       data: { status: "requested" },
@@ -238,10 +280,7 @@ export class ToolRegistry {
         "Another person already handled this action."
       );
 
-    return this.runAndRecord(ctx, tool, record.id, record.input, {
-      conversationId: record.conversationId ?? undefined,
-      idempotencyKey: record.idempotencyKey,
-    });
+    return this.runAndRecord(ctx, tool, record.id, record.input, runtimeCtx);
   }
 
   /** Rejects a `pending_approval` action — no side effect ever ran, so this is purely a status transition. */

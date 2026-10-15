@@ -32,7 +32,7 @@ export async function handleSendFollowup(
     if (action.status === "succeeded" || action.status === "cancelled") return null;
     if (action.status === "running")
       throw new DeliveryBusyError("Scheduling is not yet recorded as complete.");
-    if (action.conversationId && action.conversationId !== payload.conversationId)
+    if (!action.conversationId || action.conversationId !== payload.conversationId)
       throw new NotFoundError("Follow-up");
     const input = action.input as Record<string, unknown>;
     if (input.message !== payload.message) throw new NotFoundError("Follow-up");

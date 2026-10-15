@@ -4,6 +4,7 @@ import { jobQueue } from "@/lib/jobs/queue";
 import { SEND_FOLLOWUP_JOB, type SendFollowupPayload } from "@/lib/jobs/job-types";
 import { computeIdempotencyKey } from "../idempotency";
 import type { ToolDefinition } from "../types";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 
 const schema = z.object({
   // The model is never told its conversation's id (the prompt does not contain
@@ -40,6 +41,29 @@ export const scheduleFollowupTool: ToolDefinition = {
   name: "schedule_followup",
   description: "Schedule a follow-up message to the customer after a specified time.",
   schema,
+  async resolveConversationId(ctx, args, runtimeCtx) {
+    const parsed = schema.parse(args);
+    const parents = [
+      runtimeCtx.conversationId,
+      ctx.workBinding?.conversationId,
+      ...(ctx.actor.kind === "ai_agent" ? [ctx.actor.conversationId] : []),
+    ].filter((value) => value !== undefined);
+    if (parents.some((value) => typeof value !== "string" || !value || value.length > 128))
+      throw new AppError(400, "INVALID_PARENT", "A valid conversation parent is required");
+    if (new Set(parents).size > 1)
+      throw new AppError(403, "CONFLICTING_PARENT", "Conversation work parents disagree");
+    // Actual server/AI parents win. A model argument is redundant and ignored,
+    // preserving the established runtime-bound tool contract.
+    const conversationId = parents[0] ?? parsed.conversationId;
+    if (!conversationId)
+      throw new AppError(400, "INVALID_PARENT", "No conversation to schedule the follow-up in.");
+    const conversation = await getScopedPrisma(ctx).conversation.findFirst({
+      where: { id: conversationId, retiredAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundError("Conversation");
+    return conversation.id;
+  },
   async execute(ctx, args, runtimeCtx) {
     const parsed = schema.parse(args);
     const { message, delayHours } = parsed;

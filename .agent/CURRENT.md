@@ -47,8 +47,16 @@ with Redis, full1335/23optional, signup828, type/strict lint and independent sou
 recheck passed. This module is excluded from the frozen operator browser build.
 See docs/p1-support-grant-admission-2026-10-15.md and operator evidence.
 
+Lineage onfe49561 (containing commit): optional tool parent preflight, exact bound
+cache/approval, worker nonnull parent; nine realPG desired failures reproduced then
+repaired. Focused8files60, Redis18, full1346/23optional, signup828, type/strict lint
+and independent source-only recheck passed. No origin snapshot/fresh delayed auth
+implemented. Operator browser uses older source and cannot verify this integration.
+See docs/p1-followup-lineage-2026-10-15.md.
+
 Next: collect complete operator rerun and stop exact recorded services, checkpoint
-evidence; implement delayed action lineage/origin snapshots and fresh execution,
+evidence; build/verify lineage candidate in fresh full browser suite, then origin
+snapshots and fresh delayed execution,
 then grant selection/tenant/stream integration and restricted UI/browser acceptance.
 Existing denied Administration shell remains open; protected data/actions deny.
 P1 incomplete; P2 not eligible. R3 residual decision remains pending, not waived.

@@ -47,3 +47,10 @@ Work only in non-serving p1-support-identity/owly based893cb41. Separate frozen
 runtimeafcab4e/buildOxGeKpu78acIcGaW740sU currently runs Administration full23; do not
 edit its source/HEAD/deps/build/harness or share browser fixtures concurrently. Main
 docs-only, paired isolated test databases. No deployment or new milestone. P1 open.
+
+Independent source review also identified inherited legacy display-mask overwrite.
+Actual synthetic UI/PG nonsecret edit confirmed two stored passwords overwritten
+with masks before repair. Omit secret operands equal to fresh loaded/saved display
+baselines (masked or empty), preserving explicit replacements/clears and later edits.
+Actual browser/PG regression must prove preservation and updates without secret output.
+No server/schema/provider contract change; this belongs to the same Settings boundary.

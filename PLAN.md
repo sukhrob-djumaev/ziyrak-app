@@ -423,15 +423,19 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   no real-provider claim. Settings continuation remains separate; P1 closure open. See
   `docs/p1-administration-ui-implementation-2026-10-15.md`.
 
-- **Settings UI continuation (2026-10-15, not yet accepted):** isolated code based893cb41
+- **Settings UI continuation (2026-10-15, not yet accepted):** code7fc5dab
   adds server/nav/capability/context gating, workspace-bound requests, known-denial
   clearing and fresh legacy read/Retry. Real SSR12initial8red/4positive, affected53/type/
   strictlint pass. Actual Chrome/PG red→green six checks include cross-tab wrong-write,
   denied credential retention and inherited mask-overwrite repair; preserved secrets on
   nonsecret edits, explicit replacement/clear. Independent security source closure clear,
   no reviewer execution. Full150files1476+1Redis-mode skip/signup81files936 passed exit0.
-  Exact owned3200probe stopped/absent. New J21Settings/J24/source review/fresh all24
-  browser acceptance remain open; no P1/P2 closure/provider claim. See
+  Exact owned3200probe stopped/absent. Independent harness source closure clear after
+  CDP URL string correction, no execution. Prior92focusedJ21passed; J24 browserstartup failure then loginselector timing
+  gap fixed in harness504d08e. Matching runtime58e9ff3 building correctedJ24 on new
+  original-fixture clone2; correctedJ24passed exit0, screenshotschecked/exactownedstopnone.
+  Sourceproduct unchanged. Fresh empty full24build underway, notpass. New browser
+  acceptance remains open; no P1/P2 closure/provider claim. See
   `docs/p1-settings-context-implementation-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits

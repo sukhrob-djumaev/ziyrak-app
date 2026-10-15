@@ -1,17 +1,14 @@
-# Latest P1 checkpoint
+# Corrected Settings acceptance run
 
-Administration code893cb41/runtimeafcab4e/buildOxGeKpu78acIcGaW740sU fresh23 and
-supplementary actualusercross-tab green passed exit0; screenshots checked; exact owned
-topology stopped/none verified. Existing protected role/key/support behavior retained.
-This is Administration slice acceptance, not P1 closure. Implementation doc has identity.
+Code504d08e(product7fc5dab); matching frozen runtime58e9ff3/buildPd7JxJEi0zqIn_436mr1v
+correctedJ24 passed exit0 on new original-fixture clone2; screenshots checked/exactstopnone. Prior92J21passed, J24 startupfailure
+then missingloginselector; explicitwait fixed/reviewed. Exact prior topology stopped/
+none; failedfixtures retained. Next new full24build underway on freshEMPTY/recheckedBusiness0 target. Settings
+browser acceptance OPEN; next start/freeze/runall24/screenshots/exactownedstopnone.
 
-Current dev893cb41 + uncommitted Settings wrapper/nav/context/deny/read-order, transient
-Retry and legacy mask preservation. SSR8red4positive→green53, type/strictlint passed.
-Independent security source closure clear. Actual private3200/PG6green cases exit0,
-exact server/browser stopped/absent. Full1476+1Redis-mode skip/signup936passed exit0; newJ21Settings/J24harness
-source review and real focused/full24 open. Next finish checks/review, coherent commit,
-matching runtimebuild, new isolated acceptance. Runtimeafcab remains stopped/unchanged.
-
-Main docs-only/P1 open/P2 ineligible. Follow-up3races excluded, logout scheduleapproved,
-cutoff/R3 decisions pending. No live/provider/account/userDB/deploy changes. PairedDB/
-exact ownership only; sharedPG/taskRedis retained. See CURRENT/Settings contract.
+Affected53/full1476+1mode skip/signup936/type/lint and independent source reviews passed;
+actual3200/PG6green exit0/exactstopnone. Administrationfresh23/supplementusergreenpassed
+on earlieridentified89/afcab source, exactstopnone. CURRENT/docs identify exact paths.
+P1open/P2ineligible. Follow-up3races excluded; logout scheduleapproved, cutoff/R3pending.
+Eligible independentnext safe support text-message read; restrictedmemberactivation
+waits lifecycle. Main docs-only, no live/provider/userDB/deploy changes. Redis/PGretained.

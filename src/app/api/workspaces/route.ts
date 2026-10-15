@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { resolveHumanContext } from "@/lib/identity/route-auth";
-import { workspaceCookie } from "@/lib/identity/workspace-cookie";
+import { workspaceCookie, clearWorkspaceCookie } from "@/lib/identity/workspace-cookie";
 import { listAccountWorkspaces } from "@/lib/platform/workspaces";
 import { toErrorResponse } from "@/lib/observability/errors";
 
@@ -42,4 +42,27 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return toErrorResponse(error);
   }
+}
+
+/** Explicit reversible selection change; no grant or customer membership created. */
+export async function DELETE(request: NextRequest) {
+  const privateResponse = (response: NextResponse) => {
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  };
+  const account = await requireAccountAuth(request);
+  if (!isAccountAuthenticated(account)) return privateResponse(account);
+  if (
+    request.headers.get("origin") !== request.nextUrl.origin ||
+    request.headers.get("sec-fetch-site") === "cross-site"
+  )
+    return privateResponse(
+      NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "A same-origin request is required" } },
+        { status: 403 }
+      )
+    );
+  const response = privateResponse(NextResponse.json({ success: true }));
+  response.cookies.set(clearWorkspaceCookie());
+  return response;
 }

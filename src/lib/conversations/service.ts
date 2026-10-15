@@ -50,6 +50,41 @@ export async function list(ctx: TenantContext, params: ListConversationsParams) 
   return { conversations, total };
 }
 
+/** Separate support DTO: no message previews, relations, shared profile or
+ * implicit projection. The repository enforces the exact support query profile.
+ */
+export async function listSupportSummary(ctx: TenantContext, params: ListConversationsParams) {
+  const db = getScopedPrisma(ctx),
+    where: Record<string, unknown> = {};
+  if (params.channel && params.channel !== "all") where.channel = params.channel;
+  if (params.status && params.status !== "all") where.status = params.status;
+  if (params.search?.trim())
+    where.OR = [
+      { customerName: { contains: params.search.trim(), mode: "insensitive" } },
+      { customerContact: { contains: params.search.trim(), mode: "insensitive" } },
+    ];
+  const [conversations, total] = await Promise.all([
+    db.conversation.findMany({
+      where,
+      skip: params.skip,
+      take: params.take,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        businessId: true,
+        channel: true,
+        customerName: true,
+        customerContact: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    db.conversation.count({ where }),
+  ]);
+  return { conversations, total };
+}
+
 export interface CreateConversationInput {
   channel: string;
   customerName?: string;

@@ -1,5 +1,5 @@
 // After J20: actual super-admin UI provisioning and assignment lifecycle.
-// Synthetic accounts only; grant management is separate from tenant access activation.
+// Synthetic accounts/data only; explicit grant permits only the scalar list profile.
 const L = require("./lib.cjs");
 const creds = require("./creds.json");
 const { randomUUID } = require("node:crypto");
@@ -41,8 +41,8 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
     await page.goto(L.BASE + "/platform/operators", { waitUntil: "networkidle0" });
     await page.waitForSelector("#operatorUsername");
     L.assert(
-      (await L.text(page)).includes("Customer workspace access will be available"),
-      "UI states support access is unavailable"
+      (await L.text(page)).includes("requires an explicit support grant"),
+      "UI explains explicit support grant requirement"
     );
     await page.type("#operatorUsername", username);
     await page.type("#operatorName", "Synthetic support operator");
@@ -203,8 +203,8 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
     );
     await operator.waitForSelector(`[data-grant="${grant.id}"]`);
     L.assert(
-      (await L.text(operator)).includes("Workspace access is not available yet"),
-      "Grant management does not claim tenant activation"
+      (await L.text(operator)).includes("limited conversation list"),
+      "Grant management describes the bounded conversation view"
     );
     await L.shot(operator, "j22-support-grant-recorded");
     L.assert(
@@ -217,20 +217,256 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
           ).status,
         { id: knownConversation, businessId: workspace.id, grantId: grant.id }
       )) === 403,
-      "An issued grant does not silently activate tenant access"
+      "Explicit scalar list grant does not permit conversation details"
     );
-    await operator.type("#supportRevokeReason", "Synthetic UI support grant end");
+    // Controlled synthetic rows establish included/excluded resources and paging;
+    // grants and all access actions use the actual product UI and handler.
+    const prefix = "J22-list-" + suffix;
+    const hiddenConnection = randomUUID();
+    L.sql(
+      'INSERT INTO "ChannelConnection" (id,"businessId",type,name,"updatedAt") VALUES (' +
+        [hiddenConnection, workspace.id, connection.type, "Synthetic excluded support source"]
+          .map(quote)
+          .join(",") +
+        ",now())"
+    );
+    const seedConversation = (businessId, source, name) => {
+      const id = randomUUID();
+      L.sql(
+        'INSERT INTO "Conversation" (id,"businessId",channel,"customerName",summary,metadata,"updatedAt") VALUES (' +
+          [
+            id,
+            businessId,
+            connection.type,
+            name,
+            "Synthetic secret summary",
+            JSON.stringify({ channelConnectionId: source, private: "Synthetic secret metadata" }),
+          ]
+            .map(quote)
+            .join(",") +
+          ",now())"
+      );
+      return id;
+    };
+    const included = Array.from({ length: 12 }, (_, i) =>
+      seedConversation(workspace.id, connection.id, prefix + " included " + i)
+    );
+    const excludedId = seedConversation(workspace.id, hiddenConnection, prefix + " excluded");
+    const foreignWorkspaceId = L.sql('SELECT id FROM "Business" WHERE name=' + quote(creds.B.biz));
+    // Intentionally malformed cross-workspace metadata names the ALLOWED source:
+    // absence must depend on business isolation rather than connection exclusion.
+    const foreignId = seedConversation(foreignWorkspaceId, connection.id, prefix + " foreign");
+    const listResponse = () =>
+      operator.waitForResponse(
+        (r) =>
+          new URL(r.url()).pathname === "/api/conversations" &&
+          r.request().headers()["x-support-grant-id"] === grant.id
+      );
+    const waitForRows = (ids) =>
+      operator.waitForFunction(
+        (ids) =>
+          JSON.stringify(
+            [...document.querySelectorAll("[data-support-conversation]")]
+              .map((el) => el.dataset.supportConversation)
+              .sort()
+          ) === JSON.stringify([...ids].sort()),
+        {},
+        ids
+      );
+    // Controlled stale cookie exercises an explicit user-visible resolution;
+    // it is a selection locator, never a membership or authority substitute.
+    await operator.browserContext().setCookie({
+      name: "ziyrak-workspace",
+      value: foreignWorkspaceId,
+      url: L.BASE,
+      httpOnly: true,
+      sameSite: "Lax",
+    });
+    let responsePending = listResponse();
+    await operator.click(`[data-grant="${grant.id}"] [data-action="view-support-list"]`);
+    L.assert(
+      (await responsePending).status() === 403,
+      "Conflicting workspace selection denies support list"
+    );
+    await operator.waitForFunction(() =>
+      document
+        .querySelector("#limitedSupportList")
+        ?.innerText.includes("Clear workspace selection and retry")
+    );
+    L.assert(
+      (await operator.$$eval("[data-support-conversation]", (rows) => rows.length)) === 0,
+      "Conflict exposes no cached rows"
+    );
+    responsePending = listResponse();
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportList button")]
+        .find((b) => b.textContent === "Clear workspace selection and retry")
+        .click()
+    );
+    const initialList = await responsePending;
+    L.assert(initialList.status() === 200, "Explicit clear selection and retry succeeds");
+    const initialBody = await initialList.json();
+    L.assert(
+      initialBody.data.every(
+        (row) =>
+          Object.keys(row).sort().join(",") ===
+          [
+            "id",
+            "businessId",
+            "channel",
+            "customerName",
+            "customerContact",
+            "status",
+            "createdAt",
+            "updatedAt",
+          ]
+            .sort()
+            .join(",")
+      ),
+      "Actual support route returns only scalar profile"
+    );
+    L.assert(
+      !JSON.stringify(initialBody).includes("Synthetic secret"),
+      "No summary or metadata in actual list response"
+    );
+    await waitForRows(initialBody.data.map((row) => row.id));
+    L.assert(
+      (await operator.$$eval("#limitedSupportList a", (rows) => rows.length)) === 0,
+      "Limited list has no detail links"
+    );
+    await operator.type("#supportListSearch", prefix);
+    responsePending = listResponse();
+    await operator.evaluate(() =>
+      document.querySelector("#limitedSupportList form").requestSubmit()
+    );
+    const searched = await (await responsePending).json();
+    await waitForRows(searched.data.map((row) => row.id));
+    L.assert(
+      searched.pagination.total === 12 && searched.data.length === 10,
+      "UI search/count/paging include exactly the twelve scoped conversations"
+    );
+    L.assert(
+      searched.data.every((row) => included.includes(row.id)) &&
+        !JSON.stringify(searched).includes(excludedId) &&
+        !JSON.stringify(searched).includes(foreignId),
+      "Same-type excluded and foreign conversation hidden"
+    );
+    await operator.waitForFunction(() =>
+      document.querySelector("#limitedSupportList")?.innerText.includes("12 conversations")
+    );
+    responsePending = listResponse();
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportList button")]
+        .find((b) => b.textContent === "Next page")
+        .click()
+    );
+    const nextPage = await (await responsePending).json();
+    await waitForRows(nextPage.data.map((row) => row.id));
+    L.assert(
+      nextPage.pagination.page === 2 && nextPage.data.length === 2,
+      "UI next page returns remaining scoped rows"
+    );
+    const allPageIds = [...searched.data, ...nextPage.data].map((row) => row.id);
+    L.assert(
+      new Set(allPageIds).size === 12 &&
+        JSON.stringify(allPageIds.sort()) === JSON.stringify([...included].sort()),
+      "Both rendered pages contain each included conversation exactly once"
+    );
+    await operator.waitForFunction(() =>
+      document.querySelector("#limitedSupportList")?.innerText.includes("Page 2 of 2")
+    );
+    await operator.$eval("#limitedSupportList", (el) => el.scrollIntoView({ block: "start" }));
+    await L.shot(operator, "j22-support-limited-list");
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportList button")]
+        .find((b) => b.textContent === "Close list")
+        .click()
+    );
+    await operator.waitForFunction(() => !document.querySelector("#limitedSupportList"));
+    responsePending = listResponse();
+    await operator.click(`[data-grant="${grant.id}"] [data-action="view-support-list"]`);
+    L.assert((await responsePending).status() === 200, "Explicit reopen rechecks support grant");
+    await operator.waitForSelector("[data-support-conversation]");
+    // A second real signed-in tab revokes while the first tab retains the view.
+    // The actual Refresh action must discard previously displayed rows/count.
+    const revokeTab = await operatorBrowser.newPage();
+    await revokeTab.goto(L.BASE + "/platform/support", { waitUntil: "load" });
+    await revokeTab.waitForSelector(`[data-grant="${grant.id}"]`);
+    await revokeTab.type("#supportRevokeReason", "Synthetic UI support grant end");
     await clickMutation(
-      operator,
-      `[data-grant="${grant.id}"] button`,
-      "Support grant revocation",
+      revokeTab,
+      `[data-grant="${grant.id}"] [data-action="revoke-support-grant"]`,
+      "Second-tab support grant revocation",
       "/api/platform/support-grants"
     );
+    responsePending = listResponse();
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportList button")]
+        .find((b) => b.textContent === "Refresh list")
+        .click()
+    );
+    L.assert((await responsePending).status() === 403, "Refresh observes revoked grant");
+    await operator.waitForFunction(() =>
+      document.querySelector('#limitedSupportList [role="alert"]')
+    );
+    L.assert(
+      (await operator.$$eval("[data-support-conversation]", (rows) => rows.length)) === 0,
+      "Revoked refresh clears old rows"
+    );
+    L.assert(
+      !(await operator.$eval("#limitedSupportList", (el) => el.innerText)).includes(
+        "conversations · Page"
+      ),
+      "Revoked refresh clears old count"
+    );
+    await operator.$eval("#limitedSupportList", (el) => el.scrollIntoView({ block: "start" }));
+    await L.shot(operator, "j22-support-list-revoked");
+    await revokeTab.close();
+    await operator.reload({ waitUntil: "load" });
+    await operator.waitForSelector(`[data-grant="${grant.id}"]`);
     await operator.waitForFunction(
       (id) => document.querySelector(`[data-grant="${id}"]`)?.innerText.includes("Revoked"),
       {},
       grant.id
     );
+    for (const [action, decision, minimum] of [
+      ["support.authorize", "allowed", 8],
+      ["support.deny", "denied", 1],
+    ]) {
+      const grantReference = '"grantId"=' + quote(grant.id) + " AND action=" + quote(action);
+      const actualReference =
+        '"actorUserId"=' +
+        quote(user.id) +
+        ' AND "workspaceId"=' +
+        quote(workspace.id) +
+        ' AND "businessId"=' +
+        quote(workspace.id) +
+        " AND reason=" +
+        quote("Synthetic UI scoped support request") +
+        " AND details->>'operation'='conversations:read' AND details->>'decision'=" +
+        quote(decision);
+      L.assert(
+        Number(
+          L.sql(
+            'SELECT count(*) FROM "PlatformAccessAudit" WHERE ' +
+              grantReference +
+              " AND " +
+              actualReference
+          )
+        ) >= minimum,
+        "Read audit persists actual actor/workspace/grant/operation/reason for " + decision
+      );
+      L.assert(
+        L.sql(
+          'SELECT count(*) FROM "PlatformAccessAudit" WHERE ' +
+            grantReference +
+            " AND (" +
+            actualReference +
+            ") IS NOT TRUE"
+        ) === "0",
+        "No mismatched read audit for " + decision
+      );
+    }
     L.assert(
       L.sql(
         'SELECT count(*) FROM "SupportGrant" WHERE id=' +
@@ -363,9 +599,9 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
       workspaceId: workspace.id,
       connectionId: connection.id,
       checks:
-        "real UI create/login/assign/revoke/remove, self-escalation denial, no implicit customer access, mandatory audits",
+        "real UI create/login/assign/revoke/remove; limited list conflict clear/search/rendered paging/close/reopen/revoked refresh; scope isolation, no implicit/detail access, actual actor read and management audits",
       limitations:
-        "synthetic accounts; grant management proved, tenant support activation unavailable",
+        "synthetic accounts/data; audited limited scalar list only; no support detail/stream/job or real-provider claim",
     });
   } finally {
     for (const b of browsers.reverse()) await b.close();

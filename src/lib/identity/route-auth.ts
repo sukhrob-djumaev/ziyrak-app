@@ -1,3 +1,4 @@
+import { requireSupportContext, SUPPORT_GRANT_HEADER } from "./support-request";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyActiveToken } from "@/lib/identity/auth";
@@ -125,6 +126,9 @@ export async function requireAuth(
   request: NextRequest,
   permission?: Permission
 ): Promise<TenantContext | NextResponse> {
+  // A chosen support locator is a distinct identity path. Any denial must not
+  // fall back to a wider membership/key, even on an account that has one.
+  if (request.headers.has(SUPPORT_GRANT_HEADER)) return requireSupportContext(request, permission);
   // Try API key auth first
   const apiKey = request.headers.get("x-api-key");
   if (apiKey) {

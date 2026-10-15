@@ -3,6 +3,7 @@ import { randomUUID, createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { NextRequest } from "next/server";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
+vi.mock("@/lib/identity/route-auth", async (original) => original());
 import { prisma } from "@/lib/prisma/raw-client";
 import { generateToken, revokeToken } from "@/lib/identity/auth";
 import * as audit from "@/lib/platform/access/audit";
@@ -1686,4 +1687,429 @@ describe("support grant management metadata and HTTP boundary", () => {
       })
     ).toBe(1);
   });
+});
+
+// Same singleton ownership hooks as the existing platform lifecycle tests. These
+// route tests use actual platform services/JWT/Postgres, not the default auth mock.
+async function limitedSupportFixture(asOperator = false, member = false) {
+  const superUser = await superAccount();
+  const actor = asOperator ? await operator(superUser.token) : superUser;
+  const x = await assignmentWorkspace(),
+    y = await assignmentWorkspace();
+  const second = await prisma.channelConnection.create({
+    data: {
+      businessId: x.workspace.id,
+      type: "webchat",
+      name: "Excluded same-type source",
+      isActive: true,
+    },
+  });
+  const assignment = asOperator
+    ? await assignOperator(
+        superUser.token,
+        assignmentInput(actor.user.id, x.workspace.id, x.channel.id)
+      )
+    : null;
+  const grant = await issueSupportGrant(
+    actor.token,
+    grantRequest(x.workspace.id, x.channel.id, assignment?.id)
+  );
+  const visible = await prisma.conversation.create({
+    data: {
+      businessId: x.workspace.id,
+      channel: "webchat",
+      customerName: "Visible support visitor",
+      customerContact: "visible-synthetic-contact",
+      summary: "private-summary-never-in-support-list",
+      metadata: { channelConnectionId: x.channel.id, private: "private-metadata-never-in-list" },
+    },
+  });
+  await prisma.message.create({
+    data: {
+      businessId: x.workspace.id,
+      conversationId: visible.id,
+      role: "user",
+      content: "private-message-never-in-support-list",
+    },
+  });
+  const excluded = await prisma.conversation.create({
+    data: {
+      businessId: x.workspace.id,
+      channel: "webchat",
+      customerName: "Excluded support visitor",
+      metadata: { channelConnectionId: second.id },
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      businessId: x.workspace.id,
+      channel: "webchat",
+      customerName: "Unstamped support visitor",
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      businessId: y.workspace.id,
+      channel: "webchat",
+      customerName: "Foreign support visitor",
+      metadata: { channelConnectionId: y.channel.id },
+    },
+  });
+  if (member)
+    await prisma.membership.create({
+      data: { businessId: x.workspace.id, userId: actor.user.id, role: "owner" },
+    });
+  return { superUser, actor, x, y, second, assignment, grant, visible, excluded };
+}
+function limitedSupportRequest(
+  fixture: Awaited<ReturnType<typeof limitedSupportFixture>>,
+  options: {
+    path?: string;
+    method?: string;
+    grantId?: string;
+    workspaceId?: string;
+    cookieWorkspace?: string;
+    apiKey?: string;
+    token?: string;
+  } = {}
+) {
+  const req = new NextRequest("http://localhost:3000" + (options.path ?? "/api/conversations"), {
+    method: options.method ?? "GET",
+    headers: {
+      "x-support-grant-id": options.grantId ?? fixture.grant.id,
+      "x-workspace-id": options.workspaceId ?? fixture.x.workspace.id,
+      ...(options.apiKey !== undefined ? { "x-api-key": options.apiKey } : {}),
+    },
+  });
+  req.cookies.set("owly-token", options.token ?? fixture.actor.token);
+  if (options.cookieWorkspace) req.cookies.set("ziyrak-workspace", options.cookieWorkspace);
+  return req;
+}
+async function afterSupportRows(callback: () => Promise<void>) {
+  const scoped = await import("@/lib/tenancy/scoped-prisma");
+  const original = scoped.getScopedPrisma;
+  let used = false;
+  vi.spyOn(scoped, "getScopedPrisma").mockImplementation((ctx) => {
+    const db = original(ctx);
+    return new Proxy(db, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver);
+        if (key !== "conversation") return value;
+        return new Proxy(value, {
+          get(model, operation, modelReceiver) {
+            const method = Reflect.get(model, operation, modelReceiver);
+            if (operation !== "findMany") return method;
+            return async (...args: unknown[]) => {
+              const rows = await Reflect.apply(method, model, args);
+              if (!used) {
+                used = true;
+                await callback();
+              }
+              return rows;
+            };
+          },
+        });
+      },
+    });
+  });
+}
+describe("P1 request-local limited support list and exposure authority", () => {
+  it("returns only explicit scalar rows/count for a current own operator grant without membership", async () => {
+    const x = await limitedSupportFixture(true);
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(limitedSupportRequest(x));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const body = await response.json();
+    expect(body.pagination.total).toBe(1);
+    expect(body.data.map((row: { id: string }) => row.id)).toEqual([x.visible.id]);
+    expect(Object.keys(body.data[0]).sort()).toEqual(
+      [
+        "id",
+        "businessId",
+        "channel",
+        "customerName",
+        "customerContact",
+        "status",
+        "createdAt",
+        "updatedAt",
+      ].sort()
+    );
+    expect(JSON.stringify(body)).not.toMatch(/private-|Excluded|Unstamped|Foreign/);
+    const rows = await prisma.platformAccessAudit.findMany({
+      where: { grantId: x.grant.id, action: "support.authorize" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.every(
+        (row) => row.actorUserId === x.actor.user.id && row.businessId === x.x.workspace.id
+      )
+    ).toBe(true);
+  });
+  it("searches/counts only included ownership and ignores caller attempts to select fields", async () => {
+    const x = await limitedSupportFixture();
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(
+      limitedSupportRequest(x, {
+        path: "/api/conversations?search=Excluded&include=messages&select=summary",
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: [], pagination: { total: 0 } });
+  });
+  it("never falls back to an actual owner membership after invalid, foreign or revoked grant selection", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const foreign = await operator(x.superUser.token);
+    const assignment = await assignOperator(
+      x.superUser.token,
+      assignmentInput(foreign.user.id, x.x.workspace.id, x.x.channel.id)
+    );
+    const foreignGrant = await issueSupportGrant(
+      foreign.token,
+      grantRequest(x.x.workspace.id, x.x.channel.id, assignment.id)
+    );
+    const { GET } = await import("@/app/api/conversations/route");
+    for (const grantId of ["", randomUUID(), foreignGrant.id]) {
+      const response = await GET(limitedSupportRequest(x, { grantId }));
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(await response.json())).not.toContain(x.visible.customerName);
+    }
+    await revokeSupportGrant(x.actor.token, {
+      grantId: x.grant.id,
+      reason: "Synthetic revoked selection",
+    });
+    expect((await GET(limitedSupportRequest(x))).status).toBe(403);
+  });
+  it("requires the exact request path/method/permission and rejects empty API-key headers", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const { requireAuth, isAuthenticated } = await import("@/lib/identity/route-auth");
+    for (const [path, method, permission] of [
+      ["/api/conversations", "GET", undefined],
+      ["/api/conversations", "HEAD", "conversations:read"],
+      ["/api/conversations", "POST", "conversations:create"],
+      ["/api/conversations/" + x.visible.id, "GET", "conversations:read"],
+      ["/api/knowledge/test", "POST", "knowledge:read"],
+      ["/api/campaigns", "GET", "campaigns:read"],
+      ["/api/realtime", "GET", "conversations:read"],
+    ] as const) {
+      const response = await requireAuth(
+        limitedSupportRequest(x, { path, method }),
+        permission as never
+      );
+      expect(isAuthenticated(response)).toBe(false);
+      if (!isAuthenticated(response)) expect(response.status).toBe(403);
+    }
+    const response = await requireAuth(
+      limitedSupportRequest(x, { apiKey: "" }),
+      "conversations:read"
+    );
+    expect(isAuthenticated(response)).toBe(false);
+    if (!isAuthenticated(response)) expect(response.status).toBe(403);
+  });
+  it("rejects a conflicting selected workspace without silently clearing it", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(limitedSupportRequest(x, { cookieWorkspace: x.y.workspace.id }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: { code: "WORKSPACE_SELECTION_CONFLICT" },
+    });
+    expect(response.cookies.get("ziyrak-workspace")).toBeUndefined();
+  });
+  it("discards loaded rows/count when the grant is revoked after the query", async () => {
+    const x = await limitedSupportFixture(false, true);
+    await afterSupportRows(() =>
+      revokeSupportGrant(x.actor.token, {
+        grantId: x.grant.id,
+        reason: "Synthetic post-query revoke",
+      }).then(() => {})
+    );
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(limitedSupportRequest(x));
+    expect(response.status).toBe(403);
+    expect(JSON.stringify(await response.json())).not.toContain(x.visible.customerName);
+  });
+  it("discards loaded rows/count when the same signed session is revoked after the query", async () => {
+    const x = await limitedSupportFixture(false, true);
+    await afterSupportRows(() => revokeToken(x.actor.token));
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(limitedSupportRequest(x));
+    expect(response.status).toBe(401);
+    expect(JSON.stringify(await response.json())).not.toContain(x.visible.customerName);
+  });
+  it("denies exposure if the final mandatory admission audit fails", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const actual = audit.writePlatformAudit;
+    let uses = 0;
+    vi.spyOn(audit, "writePlatformAudit").mockImplementation(async (...args) => {
+      if (args[1].action === "support.authorize" && ++uses === 2)
+        throw new Error("Synthetic final exposure audit fault");
+      return actual(...args);
+    });
+    const { GET } = await import("@/app/api/conversations/route");
+    const response = await GET(limitedSupportRequest(x));
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain(x.visible.customerName);
+  });
+  it.each(["grant", "session"] as const)(
+    "rechecks %s after the final awaited placement lookup",
+    async (loss) => {
+      const x = await limitedSupportFixture(false, true);
+      const placement = await import("@/lib/platform/tenant-placement");
+      const actual = placement.resolveTenantPlacement;
+      let calls = 0;
+      vi.spyOn(placement, "resolveTenantPlacement").mockImplementation(async (...args) => {
+        const result = await actual(...args);
+        if (++calls === 2) {
+          if (loss === "grant")
+            await revokeSupportGrant(x.actor.token, {
+              grantId: x.grant.id,
+              reason: "Synthetic final-placement revoke",
+            });
+          else await revokeToken(x.actor.token);
+        }
+        return result;
+      });
+      const { GET } = await import("@/app/api/conversations/route");
+      const response = await GET(limitedSupportRequest(x));
+      expect(calls).toBe(2);
+      expect(response.status).toBe(loss === "session" ? 401 : 403);
+      expect(await response.json()).not.toHaveProperty("data");
+    }
+  );
+  it("retains ordinary membership list behavior without a support selection", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const { GET } = await import("@/app/api/conversations/route");
+    const request = new NextRequest("http://localhost:3000/api/conversations", {
+      headers: { "x-workspace-id": x.x.workspace.id },
+    });
+    request.cookies.set("owly-token", x.actor.token);
+    const response = await GET(request);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.pagination.total).toBe(3);
+    expect(
+      body.data.find((row: { id: string }) => row.id === x.visible.id).messages[0].content
+    ).toBe("private-message-never-in-support-list");
+  });
+  it("clears only selected workspace through an explicit signed same-origin action", async () => {
+    const x = await limitedSupportFixture(false, true);
+    const route = await import("@/app/api/workspaces/route");
+    expect(typeof route.DELETE).toBe("function");
+    const request = new NextRequest("http://localhost:3000/api/workspaces", {
+      method: "DELETE",
+      headers: { origin: "http://localhost:3000" },
+    });
+    request.cookies.set("owly-token", x.actor.token);
+    request.cookies.set("ziyrak-workspace", x.x.workspace.id);
+    const response = await route.DELETE(request);
+    expect(response.status).toBe(200);
+    expect(response.cookies.get("ziyrak-workspace")?.value).toBe("");
+    expect(response.cookies.get("owly-token")).toBeUndefined();
+  });
+  it.each(["assignment", "platform", "workspace", "expiry", "audit"] as const)(
+    "denies initial support access after %s loss without owner fallback",
+    async (loss) => {
+      const x = await limitedSupportFixture(true, true);
+      if (loss === "assignment")
+        await revokeAssignment(x.superUser.token, {
+          assignmentId: x.assignment!.id,
+          reason: "Synthetic ended assignment",
+        });
+      if (loss === "platform")
+        await prisma.user.update({ where: { id: x.actor.user.id }, data: { platformRole: null } });
+      if (loss === "workspace")
+        await prisma.business.update({
+          where: { id: x.x.workspace.id },
+          data: { status: "suspended" },
+        });
+      if (loss === "expiry")
+        await prisma.supportGrant.update({
+          where: { id: x.grant.id },
+          data: { expiresAt: new Date(Date.now() - 1000) },
+        });
+      if (loss === "audit")
+        vi.spyOn(audit, "writePlatformAudit").mockRejectedValue(
+          new Error("Synthetic initial support audit failure")
+        );
+      const { GET } = await import("@/app/api/conversations/route");
+      const response = await GET(limitedSupportRequest(x));
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(await response.json()).not.toHaveProperty("data");
+      expect(response.headers.get("cache-control")).toContain("no-store");
+    }
+  );
+  it.each(["assignment", "platform", "workspace", "scope"] as const)(
+    "discards all rows and count after post-query %s change",
+    async (loss) => {
+      const x = await limitedSupportFixture(true, true);
+      if (loss === "scope") {
+        await prisma.grantConnectionScope.create({
+          data: { businessId: x.x.workspace.id, grantId: x.grant.id, connectionId: x.second.id },
+        });
+        await prisma.assignmentConnectionScope.create({
+          data: {
+            businessId: x.x.workspace.id,
+            operatorUserId: x.actor.user.id,
+            assignmentId: x.assignment!.id,
+            connectionId: x.second.id,
+          },
+        });
+      }
+      await afterSupportRows(async () => {
+        if (loss === "assignment")
+          await revokeAssignment(x.superUser.token, {
+            assignmentId: x.assignment!.id,
+            reason: "Synthetic post-query assignment loss",
+          });
+        if (loss === "platform")
+          await prisma.user.update({
+            where: { id: x.actor.user.id },
+            data: { platformRole: null },
+          });
+        if (loss === "workspace")
+          await prisma.business.update({
+            where: { id: x.x.workspace.id },
+            data: { status: "suspended" },
+          });
+        if (loss === "scope")
+          await prisma.assignmentConnectionScope.deleteMany({
+            where: { assignmentId: x.assignment!.id, connectionId: x.second.id },
+          });
+      });
+      const { GET } = await import("@/app/api/conversations/route");
+      const response = await GET(limitedSupportRequest(x));
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      const body = await response.json();
+      expect(body).not.toHaveProperty("data");
+      expect(body).not.toHaveProperty("pagination");
+      expect(JSON.stringify(body)).not.toContain(x.visible.customerName);
+    }
+  );
+  it.each(["anonymous", "api-key", "foreign-origin", "missing-origin", "cross-site"] as const)(
+    "does not clear workspace for %s requests",
+    async (kind) => {
+      const x = await limitedSupportFixture(false, true);
+      const { DELETE } = await import("@/app/api/workspaces/route");
+      const req = new NextRequest("http://localhost:3000/api/workspaces", {
+        method: "DELETE",
+        headers: {
+          ...(kind === "missing-origin"
+            ? {}
+            : {
+                origin:
+                  kind === "foreign-origin" ? "https://elsewhere.example" : "http://localhost:3000",
+              }),
+          ...(kind === "api-key" ? { "x-api-key": "" } : {}),
+          ...(kind === "cross-site" ? { "sec-fetch-site": "cross-site" } : {}),
+        },
+      });
+      if (kind !== "anonymous") req.cookies.set("owly-token", x.actor.token);
+      req.cookies.set("ziyrak-workspace", x.x.workspace.id);
+      const response = await DELETE(req);
+      expect(response.status).toBe(kind === "anonymous" ? 401 : 403);
+      expect(response.cookies.get("ziyrak-workspace")).toBeUndefined();
+      expect(response.headers.get("cache-control")).toContain("no-store");
+    }
+  );
 });

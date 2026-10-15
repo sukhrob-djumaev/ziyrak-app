@@ -138,8 +138,8 @@ export default function OperatorsPage() {
       ) : (
         <>
           <p className="mt-3">
-            Create operator accounts and assign their support limits. Customer workspace access will
-            be available when the support-access workflow is ready.
+            Create operator accounts and assign their support limits. Reading customer conversations
+            requires an explicit support grant in Support grants.
           </p>
           {data.truncated && (
             <p role="status">Showing up to 200 entries per list. Some entries are not shown.</p>

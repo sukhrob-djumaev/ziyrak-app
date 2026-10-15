@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import LimitedSupportList from "./limited-list";
 
 type Scope = {
   scopeMode: string;
@@ -48,13 +49,16 @@ export default function SupportPage() {
     [expiry, setExpiry] = useState(""),
     [revokeReason, setRevokeReason] = useState("");
   const pending = useRef<{ signature: string; requestId: string } | null>(null);
+  const [viewGrant, setViewGrant] = useState<Grant | null>(null);
   async function accept(response: Response) {
     if (response.status === 401) {
+      setViewGrant(null);
       setData(null);
       router.replace("/login");
       return;
     }
     if (response.status === 403) {
+      setViewGrant(null);
       setData(null);
       setDenied(true);
       return;
@@ -88,6 +92,7 @@ export default function SupportPage() {
   }, [router]);
   async function mutate(payload: object, success: string) {
     if (busy) return false;
+    setViewGrant(null);
     setBusy(true);
     setError("");
     setMessage("");
@@ -145,7 +150,7 @@ export default function SupportPage() {
         <>
           <p className="mt-3">
             Record the workspace, permitted reads, reason and expiry for your support request.
-            Workspace access is not available yet.
+            Grants that permit reading conversations can open a limited conversation list.
           </p>
           {data.truncated && (
             <p role="status">Showing up to 200 entries per list. Some entries are not shown.</p>
@@ -178,7 +183,7 @@ export default function SupportPage() {
               if (
                 await mutate(
                   { action: "issue", ...input, requestId: pending.current.requestId },
-                  "Support grant recorded. Workspace access is not available yet."
+                  "Support grant recorded. Use View limited conversation list for permitted conversation reads."
                 )
               ) {
                 pending.current = null;
@@ -199,6 +204,7 @@ export default function SupportPage() {
               required
               disabled={busy}
               onChange={(e) => {
+                setViewGrant(null);
                 setTarget(e.target.value);
                 setConnections([]);
                 setOperations([]);
@@ -383,6 +389,21 @@ export default function SupportPage() {
                   </p>
                   <button
                     className={button}
+                    data-action="view-support-list"
+                    disabled={
+                      busy ||
+                      !!g.revokedAt ||
+                      !g.expiresAt ||
+                      Date.parse(g.expiresAt) <= Date.parse(data.evaluatedAt) ||
+                      !g.allowedOperations.includes("conversations:read")
+                    }
+                    onClick={() => setViewGrant(g)}
+                  >
+                    View limited conversation list
+                  </button>
+                  <button
+                    className={button}
+                    data-action="revoke-support-grant"
                     disabled={busy || !!g.revokedAt || !revokeReason.trim()}
                     onClick={async () => {
                       if (
@@ -400,6 +421,13 @@ export default function SupportPage() {
               ))}
             </ul>
           </div>
+          {viewGrant && (
+            <LimitedSupportList
+              key={viewGrant.id}
+              grant={viewGrant}
+              onClose={() => setViewGrant(null)}
+            />
+          )}
         </>
       )}
       {error && (

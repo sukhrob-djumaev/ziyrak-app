@@ -1,7 +1,7 @@
 # P1 support query and scoped repository checkpoint
 
-Product baseline `0bfe1ae`; this bounded implementation is identified by its
-containing local commit. Follow-up dispatch integration remains separate uncommitted
+Product baseline `0bfe1ae`; bounded implementation `c78a1ff`. Follow-up dispatch
+integration remains separate uncommitted
 work with three known admission races; it is excluded from this verified candidate.
 
 ## Change and module contract
@@ -43,12 +43,20 @@ Normal tenant and dedicated database behavior retain the existing contracts.
 - Clean isolated candidate in /Users/sukhrob/.codex/worktrees/p1-support-query/owly
   contains only these changes on0bfe1ae. Full148files **1426passed/1optional skip**,
   type and strict lint passed. Full suite includes real dedicated database/RLS and
-  pg-boss worker-restart regressions. Signup-seeded79files **886passed**. The single full skip is the mutually exclusive
+  pg-boss worker-restart regressions. Signup-seeded79files **886passed**. The single
+  full skip is the mutually exclusive
   no-Redis placement-cache control, since this run uses real Redis.
 - Independent final source review found no remaining confirmed finding. Reviewers
   did not execute tests; all execution counts above are lead runs.
-- Fresh build/full browser is pending; do not reuse the previous grant-console22pass
-  as verification of the new repository facade.
+- Matching runtimec24277b built successfully: buildfF41LTQ5Z5NPbD7hoWtuQ,
+  digestdd921cbcb4f265ab74fa2f852a5c2c23cfd005597fba8d3d8791c20155a0712e.
+  Fresh complete22browser **passed (exit0)** on 2026-10-15. The exact owned
+  web/worker/stand-in/host topology was stopped; remainingOwned=[] verified. Environment:
+  /private/tmp/ziyrak-p1-support-query-acceptance.env; isolated fresh database
+  ziyrak_acceptance_p1_support_query_20261015, runtime workdir
+  scripts/acceptance/.work/p1-support-query-20261015. Build/browser logs use the
+  /private/tmp/ziyrak-p1-support-query- prefix. Historical grant-console pass does
+  not verify this facade.
 
 Sanitized logs: /private/tmp/ziyrak-p1-support-query-{red,identity-red,review-red,
 args-red,getter-red,final-focused2,isolated-full,isolated-signup,isolated-type,
@@ -57,8 +65,9 @@ The first focused green35preceded two added argument controls; the final result 
 
 ## Continuation and limits
 
-Freeze a coherent local candidate and run the fresh complete
-browser suite before calling this slice verified across the application boundary.
+The query/facade slice has passed the complete local browser application boundary.
+This used the local AI stand-in, trusted installed Chrome, isolated real Postgres and
+standalone worker; it makes no new real-model/Meta/recipient-visible claim.
 Support activation still needs exact method/path admission, fresh audited grant/
 session checks before exposure, safe route/service DTOs, explicit UI, streams and
 negative paid-work/SSR/other-operation coverage. The existing conversation list's

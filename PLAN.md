@@ -388,8 +388,9 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   predicates, mutations and raw client escape. Tests-first actualPG failures repaired;
   focused37, independent candidate full148files1426/1mode skip, signup79files886,
   type/lint and independent security source recheck passed. Support auth/routes/SSR/
-  streams/jobs remain unactivated. Matching runtimec24277b fresh
-  full22browser running; no P1 closure. See
+  streams/jobs remain unactivated by this slice. Matching runtimec24277b
+  fresh full22browser passed (exit0), exact owned topology stopped and verified
+  remainingOwned=[]. Local stand-in/realPG/standalone worker; no P1 closure. See
   `docs/p1-support-query-implementation-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits

@@ -50,7 +50,8 @@ Normal tenant and dedicated database behavior retain the existing contracts.
   did not execute tests; all execution counts above are lead runs.
 - Matching runtimec24277b built successfully: buildfF41LTQ5Z5NPbD7hoWtuQ,
   digestdd921cbcb4f265ab74fa2f852a5c2c23cfd005597fba8d3d8791c20155a0712e.
-  Fresh complete22browser is running, not yet a pass. Environment:
+  Fresh complete22browser **passed (exit0)** on 2026-10-15. The exact owned
+  web/worker/stand-in/host topology was stopped; remainingOwned=[] verified. Environment:
   /private/tmp/ziyrak-p1-support-query-acceptance.env; isolated fresh database
   ziyrak_acceptance_p1_support_query_20261015, runtime workdir
   scripts/acceptance/.work/p1-support-query-20261015. Build/browser logs use the
@@ -64,8 +65,9 @@ The first focused green35preceded two added argument controls; the final result 
 
 ## Continuation and limits
 
-Freeze a coherent local candidate and run the fresh complete
-browser suite before calling this slice verified across the application boundary.
+The query/facade slice has passed the complete local browser application boundary.
+This used the local AI stand-in, trusted installed Chrome, isolated real Postgres and
+standalone worker; it makes no new real-model/Meta/recipient-visible claim.
 Support activation still needs exact method/path admission, fresh audited grant/
 session checks before exposure, safe route/service DTOs, explicit UI, streams and
 negative paid-work/SSR/other-operation coverage. The existing conversation list's

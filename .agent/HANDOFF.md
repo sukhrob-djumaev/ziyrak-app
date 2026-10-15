@@ -1,33 +1,22 @@
 # Latest P1 checkpoint
 
-Support query/repository slice c78a1ff, independently checked on
-0bfe1ae without incomplete dispatch wiring: initial20cases18desired failures/2passes;
-private FieldRef, copied support/identity and actual foreign workspace parent-client
-queries reproduced before fixes. Final37 passed. Full148files1426/1Redis-disabled
-control skip, signup79files886, type/strict lint passed; independent source security
-closure clear. Native-promise allowlisted repository facades prevent Prisma parent/
-private/descriptor escapes. Support scalar list/count profile is query enforcement
-only; no identity/SSR/routes/streams/jobs activation. See implementation/contract docs.
-Matching runtimec24277b/buildfF41LTQ5Z5NPbD7hoWtuQ/digestdd921cbc...a0712e
-fresh full22browser running; no pass claimed. Earlier grant-console pass does not
-cover this. See new evidence doc for private env/workdir/log pointers.
+Query/facade code c78a1ff has complete local verification: focused37, full148files
+1426/1mode skip, signup79files886, type/strictlint and independent security source
+closure; fresh runtimec24277b/buildfF41LTQ5Z5NPbD7hoWtuQ/digestdd921cbc...a0712e
+full22browser passed exit0. Stopped exact owned runtime, remainingOwned=[] checked.
+Local stand-in/realPG/standaloneworker/trustedChrome only. See query evidence doc.
 
-Separate P1 development WIP: immutable Registry follow-up snapshot and composed
-pickup/preclaim/pre-adapter/retry authorizers. Three realPG desired final-check races
-still FAIL (policy disable, removal/retirement, key expiry). Full working18-case run
-1404pass/1skip/3fail; signup19-case run865pass/3fail, separate actual pg-boss retry
-revocation passed. Those broad runs predate the new repository slice; current
-post-repair focused19
-is16pass/3same failures, type/lint pass. No acceptance closure.
-Fixtures retain R1 refusal/fault/restart/erasure assertions; controlled origins and
-mock-only authority stand-in are labeled. Product WIP stays unstaged/incomplete.
+Active independent limited-list activation is uncommitted in p1-support-identity/owly
+atc78a1ff. Contract doc prepared before code. Real route first10tests9desiredfailures;
+new final-placement revocation reproductions2desiredfailures repaired by moving
+placement before final audited authorization. Complete platform file78passed, type/
+strictlint passed; independent security source recheck clear (reviewer ran no tests).
+Console limited list and J22 extensions implemented; full regressions running,
+new UI/browser not run. Next finish checks/review and freeze fresh complete browser
+candidate. Preserve stopped runtime source until preparing the next identified build.
 
-Owner approved schedule lifetime after logout; did not yet decide the concrete
-rule11 admission/cancellation/retired-outcome proposal or R3 residual-risk acceptance.
-No gate deviation implemented. Continue independent P1 work; P2 remains ineligible.
-
-Next: finish frozen full22browser and record outcome/stop exact owned topology;
-continue eligible independent P1 work while owner decision waits. Main docs-only;
-paired test DBs and exact process
-ownership required. No live main product/deps/env/worker/provider/account/user-DB
-changes, push/merge/deploy/release/tag/new milestone. Redis6381 retained.
+Follow-up WIP remains separately uncommitted in p1-workspace-access/owly,19focused
+16pass/3same real admission-race failures. Owner chose schedule-after-logout policy;
+rule11 final cutoff proposal and R3 risk acceptance remain undecided. No gate change.
+P1 incomplete, P2 ineligible. Main docs-only; no live/provider/account/userDB changes,
+push/merge/deploy/release/tag/newphase, reset/clean. Retain task Redis6381/sharedPG.

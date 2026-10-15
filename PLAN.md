@@ -406,16 +406,18 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   remains open for the next candidate. No support details/SSR/
   streams/jobs or P1 closure. See `docs/p1-support-list-implementation-2026-10-15.md`.
 
-- **Administration UI continuation (2026-10-15):** code533201c adds server page/
-  nav/capability gating, immutable owner controls, context-lifetime reset, per-resource
-  read supersession, denied-state clearing/error text and correct safe key fields.
-  Actual SSR12initial9desiredfailures3positives; reviewed refresh/read races reproduced
-  with real Chrome/PG before fixes and supplementary green probe passed. Final
-  affected32/full149files1464+1Redis-mode skip/signup80files924/type/strictlint passed;
-  full precedes final field-only correction, affected32 follows it. Independent
-  security/harness source closure clear, no reviewer execution. Frozen matching
-  runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW running focused J21/J23 and new fresh full23; no new browser
-  acceptance or P1 closure yet. Support-table visual polish included. See
+- **Administration UI continuation (2026-10-15):** code533201c/45bab35 adds server/
+  nav/capability gating, immutable owner controls, context/read-order resets, denied
+  clearing/error text, correct safe key fields and J21/J23. Tests-first SSR12initial9red;
+  actual Chrome/PG scope/read races red→green. Corrected focused runtime1208d3d/
+  buildHNDaRpVjWn1UcaZjB6MWy/digeste62c7bf9...a9b1c J23/J22passed exit0 on synthetic
+  clone2, screenshots checked, exact owned stop/none. J21passed on prior9ef; initial
+  J23 fixture boolean/schema failures corrected. Actual cross-tab Aform→Bswitch POST201
+  wrong-B persistence led to code893cb41 rendered-workspace request binding and actual
+  two-tab J23 regression. Independent security/harness source closure clear; no reviewer
+  execution. Final affected32/full149files1464+1Redis-mode skip/signup80files924/type/
+  strictlint passed. Matching runtimeafcab4e building fresh empty DB full23; new full
+  browser acceptance/P1 closure open. See
   `docs/p1-administration-ui-implementation-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits

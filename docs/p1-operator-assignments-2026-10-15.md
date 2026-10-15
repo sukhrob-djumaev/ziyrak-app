@@ -57,7 +57,7 @@ restricted-resource UI acceptance pass. No invitation lifecycle is claimed.
 - Initial tests-first service run failed at the missing new module (no behavioral
   assertion executed); this is distinguished from the two later namespace-race
   regressions, which failed their desired409 assertions against actual dual commits.
-  -34focused realPG platform cases passed, including HTTP/person/key/Origin denial,
+- 34 focused realPG platform cases passed, including HTTP/person/key/Origin denial,
   hashing/duplicate protection, audit rollback, scope/foreign refs, removal/revocation,
   competing case variants, recovery/session revocation during hashing, and dedicated
   placement control-plane validation. The same34passed with real Redis selected.
@@ -69,7 +69,13 @@ restricted-resource UI acceptance pass. No invitation lifecycle is claimed.
   fixed an ambiguous no-workspace probe by explicitly selecting the assigned target;
   neither reviewer executed checks or accepted the broader P1 boundary.
 - Fresh production browser suite expanded to22sequential journeys, adding J21
-  actual five-role checks and J22 operator UI lifecycle. Running; no pass claimed yet.
+  actual five-role checks and J22 operator UI lifecycle. The first command passed
+  21 then failed a J22 network-idle wait after a complete403. A same-session
+  diagnostic verified document200, visible Access denied, no forms and API403
+  (body completed in51ms); screenshot inspected. Only the harness changed to
+  wait for explicit denial state. Corrected focusedJ22 passed actual create/login/
+  assign/deny/revoke/remove and exact-actor/target/reason audits. Its screenshots
+  were inspected. Fresh complete22 rerun is running; no full22 pass claimed yet.
   Runtime parentc2a4562, buildM_rq0OTQsJstuUKedMRia, product digest
   bd9c2ba6a6d8ff59da394077c548cb9292cb6b112d7751246674ffe8381ee94b.
   Development/runtime product digests match. Local LLM stand-in, synthetic accounts

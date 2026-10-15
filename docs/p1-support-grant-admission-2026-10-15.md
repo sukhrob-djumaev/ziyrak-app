@@ -1,6 +1,6 @@
 # P1 internal support-grant lifecycle and admission
 
-Based on operator candidate21c269f in isolated P1. Internal service only: there is
+Code6b5e3d7 on operator candidate21c269f in isolated P1. Internal service only: there is
 no HTTP route, selected-grant cookie, tenant-context resolver, stream integration or
 job integration. Support activation remains closed. PLAN P1/§15.2 and the existing
 platform-support contract govern; this checkpoint does not complete those criteria.

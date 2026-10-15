@@ -116,7 +116,7 @@ async function clickMutation(page, selector, label) {
       entry.role === "operator" && entry.account.id === user.id,
       "New operator signs in using its actual provisioned credential"
     );
-    await operator.goto(L.BASE + "/platform/operators", { waitUntil: "networkidle0" });
+    await operator.goto(L.BASE + "/platform/operators", { waitUntil: "load" });
     await operator.waitForFunction(() => document.body.innerText.includes("Access denied."));
     L.assert(
       !(await operator.$("#createOperator")) && !(await operator.$("#createAssignment")),
@@ -160,7 +160,7 @@ async function clickMutation(page, selector, label) {
     const ordinaryBrowser = await L.launch(creds.A.profile);
     browsers.push(ordinaryBrowser);
     const ordinary = await ordinaryBrowser.newPage();
-    await ordinary.goto(L.BASE + "/platform/operators", { waitUntil: "networkidle0" });
+    await ordinary.goto(L.BASE + "/platform/operators", { waitUntil: "load" });
     await ordinary.waitForFunction(() => document.body.innerText.includes("Access denied."));
     L.assert(
       !(await ordinary.$("#operatorPassword")),

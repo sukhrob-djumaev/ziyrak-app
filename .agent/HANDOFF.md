@@ -1,5 +1,21 @@
 # Latest P1 checkpoint
 
+## Current incomplete work
+
+Uncommitted dispatch integration on0bfe1ae: Registry-owned snapshot, pickup/retry
+and explicit delivery callback; not complete or browser-verified. Ten focused cases
+passed; three further realPG desired regressions FAIL (policy disable, conversation
+retirement/removal, key expiry during final identity wait). Sanitized log:
+/private/tmp/ziyrak-p1-followup-authority-admission-red.log. Coherent admission has
+not been implemented. Rule11 proposal docs/p1-followup-admission-proposal-2026-10-15.md
+awaits owner decision on cutoff/retired outcome semantics. Independent architecture
+and security source reviews integrated. Do not implement the deviation before decision.
+
+Eight affected files/61tests passed, including real pg-boss retry and crash/restart;
+typecheck passed. Fixture review preserved original assertions; minor controlled
+origin labels are being aligned. Broader existing regressions excluding the known-red
+new authority file are running; that exclusion is not a full acceptance pass.
+
 Grant management code4e38f9a: new actor-self API/UI, safe assignment metadata,
 mandatory audit and explicit no-tenant-activation state. Full1349/23optional,
 signup831, PG/Redis52, type/lint and independent source reviews passed. Fresh full22

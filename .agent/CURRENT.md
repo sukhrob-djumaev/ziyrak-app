@@ -35,9 +35,31 @@ source review. Final18combined Redis cases, full146files1367passed/23optional,
 signup77files849passed, type/lint and independent final source recheck passed.
 Neither helper authorizes an operation or is wired into queue/dispatch.
 
+## Dispatch integration in progress (not verified)
+
+Development has uncommitted snapshot/Registry admission, explicit job authorizers and
+fail-closed delivery wiring on0bfe1ae. Ten focused realPG cases passed after fixing
+malformed callback authority, accepted legacy checkpoint projection and membership
+change during destination lookup. Three further desired tests now fail: tool policy
+disable, conversation retirement/removal and key expiry during the final identity
+wait each still allow synthetic submission. Log
+/private/tmp/ziyrak-p1-followup-authority-admission-red.log:3failed/10passed.
+Do not treat this integration as complete or browser-verified.
+
+Independent architecture investigation recommends coherent locked checks plus the
+durable sending claim, transport after locks release. Concrete rule11 proposal
+docs/p1-followup-admission-proposal-2026-10-15.md awaits owner decision on cancellation
+cutoff and in-flight erasure behavior. No gate/contract deviation implemented.
+Eight affected files/61tests passed, including actual pg-boss crash/restart and
+retry; typecheck passed. Independent fixture review preserved original transport/
+erasure assertions and found minor synthetic origin labels to correct. Existing
+regressions excluding the new known-red file are running after global fixture changes.
+P1 remains open.
+
 ## Next eligible work
 
-Implement docs/p1-followup-dispatch-contract-2026-10-15.md tests first: server-owned
+After the owner decides the admission proposal, complete the dispatch contract:
+server-owned
 admission mode, immutable exact snapshot before enqueue, tools-owned fresh policy/
 identity/provider authority, explicit per-call delivery authorizer default-denying
 missing guards, pickup/preclaim/pre-adapter/retry checks and known unsent failures.

@@ -376,6 +376,12 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   recheck passed. No queue/dispatch integration yet. See provider-foundation evidence
   and `docs/p1-followup-dispatch-contract-2026-10-15.md` for the next public seam.
 
+- **Dispatch integration finding (2026-10-15):** isolated uncommitted wiring has
+  three reproduced final-check races (policy disable, resource retirement and key
+  expiry): desired realPG result3failed/10passed. P1 remains open; coherent admission
+  and its cancellation cutoff need the documented rule11 clarification before
+  implementation. See [proposal](docs/p1-followup-admission-proposal-2026-10-15.md).
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

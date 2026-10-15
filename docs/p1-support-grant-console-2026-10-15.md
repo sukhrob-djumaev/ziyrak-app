@@ -37,8 +37,8 @@ them. The full P1 support role/resource/stream/browser matrix remains required.
   without controls. Enrollment links actual platform accounts to the screen.
 - J22 is extended to issue/revoke through the actual operator UI, inspect persisted
   actor/workspace/assignment/operations/scope/expiry and audit, and verify that a
-  recorded grant does not silently grant tenant access. This new harness still
-  needs execution on its matching build.
+  recorded grant does not silently grant tenant access. This new harness passed
+  on its matching production build in the complete22 suite.
 
 ## Verification
 
@@ -47,7 +47,18 @@ entry points (not a reproduced behavioral exploit). Then 52 real isolated PG
 platform cases passed, including the new foreign-actor revocation and metadata/
 credential exclusions. The same 52 passed with real Redis selected. Full regression
 144 files / 1349 passed / 23 optional skips; type and strict lint passed. Signup-seeded
-75 files / 831 passed. New-candidate browser acceptance remains pending.
+75 files / 831 passed. Matching fresh uninterrupted complete22browser suite passed with exit0 on
+runtime56bed6c/buildIXJigGX3F97tgWvfsptnv/product digest
+15a3efb1be69774e61d5b4844256a4e41ef967e2076e6eba33c0e1a0f467b7a4.
+Fresh isolated database ziyrak_acceptance_p1_grant_console_20261015, production
+web/separate worker, real Postgres/Redis and local LLM stand-in. Actual operator
+UI issue/revoke, exact actor/workspace/assignment/operations/scope/expiry/audits,
+ordinary-account denial and no implicit tenant activation passed. Supplementary
+focused J22 visual rerun passed; recorded/revoked full-page screenshots inspected.
+Exact owned topology stopped with remainingOwned[]; database evidence retained.
+Private env /private/tmp/ziyrak-p1-grant-console-acceptance.env and browser/visual
+logs /private/tmp/ziyrak-p1-grant-console-{browser,visual}.log; workdir
+scripts/acceptance/.work/p1-grant-console-20261015. No real provider claim.
 Independent source-only security review found no confirmed issue in this management
 slice. Separate source-only harness review requested stronger exact operation,
 expiry and persisted-revocation assertions; added. Neither review claims execution.

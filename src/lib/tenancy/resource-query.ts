@@ -1,3 +1,4 @@
+import { prepareSupportQuery } from "./support-query";
 import { CrossTenantWriteError } from "./write-error";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "./context";
@@ -574,6 +575,7 @@ export function createResourceGuard(
     return result;
   }
   async function prepare(model: string, operation: string, args: RecordArgs): Promise<RecordArgs> {
+    args = prepareSupportQuery(ctx, model, operation, args);
     if (CP.has(model))
       throw new AppError(403, "FORBIDDEN", "Platform resources require platform authorization");
     if (!SCOPE_SCHEMA[model]) throw new AppError(403, "INVALID_SCOPE", "Unknown resource contract");

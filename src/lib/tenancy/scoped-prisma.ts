@@ -149,6 +149,66 @@ export function getScopedPrisma(ctx: TenantContext | undefined) {
   }) as typeof scoped;
 }
 
+const REPOSITORY_METHODS = new Set([
+  ...MUTATIONS,
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirst",
+  "findFirstOrThrow",
+  "findMany",
+  "count",
+  "aggregate",
+  "groupBy",
+]);
+const DENIED_RAW_METHODS = new Set([
+  "$queryRaw",
+  "$queryRawUnsafe",
+  "$executeRaw",
+  "$executeRawUnsafe",
+]);
+/** Never proxy a Prisma object as the public target: its parent/private aliases
+ * and property descriptors can expose the pre-extension client. Methods return
+ * native promises, not Prisma's fluent delegate/request objects.
+ */
+function repositorySurface(
+  invoke: (model: string, operation: string, args: Record<string, unknown>) => Promise<unknown>,
+  transaction?: (input: unknown, options?: Record<string, unknown>) => Promise<unknown>
+) {
+  const denied = (): never => {
+    throw new AppError(403, "FORBIDDEN", "Unscoped repository operations are unavailable");
+  };
+  const models = new Map<string, object>();
+  return new Proxy(Object.freeze(Object.create(null)), {
+    get(_target, key) {
+      if (key === "then") return undefined;
+      if (typeof key === "symbol")
+        return key === Symbol.toStringTag ? "TenantRepository" : undefined;
+      if (key === "$transaction") return transaction ?? denied();
+      if (DENIED_RAW_METHODS.has(key)) return async () => denied();
+      if (!SCOPED_SET.has(key) && !(CONTROL_PLANE_ONLY_MODELS as readonly string[]).includes(key))
+        return denied();
+      if (!models.has(key)) {
+        const methods = new Map<string, (args?: Record<string, unknown>) => Promise<unknown>>();
+        models.set(
+          key,
+          new Proxy(Object.freeze(Object.create(null)), {
+            get(_modelTarget, operation) {
+              if (operation === "then") return undefined;
+              if (typeof operation === "symbol")
+                return operation === Symbol.toStringTag ? "TenantModel" : undefined;
+              if (!REPOSITORY_METHODS.has(operation)) return denied();
+              if (!methods.has(operation))
+                methods.set(operation, async (args = {}) => invoke(key, operation, args));
+              return methods.get(operation);
+            },
+          })
+        );
+      }
+      return models.get(key);
+    },
+  });
+}
+
 function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, ctx: TenantContext) {
   effectiveResourceScope(ctx); // Synchronous fail-closed boundary for missing human scope.
   const guard = createResourceGuard(ctx, client, sharedClient);
@@ -197,81 +257,54 @@ function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, ctx: T
       },
     },
   });
-  return new Proxy(extended, {
-    get(target, property, receiver) {
-      if (property === "$extends")
+  return repositorySurface(
+    async (model, operation, args) => {
+      const delegate = Reflect.get(extended, model);
+      return Reflect.apply(Reflect.get(delegate, operation), delegate, [args]);
+    },
+    (input: unknown, options?: Record<string, unknown>) => {
+      if (typeof input !== "function")
+        throw new AppError(403, "FORBIDDEN", "Tenant transactions require a guarded callback");
+      if (options?.isolationLevel && options.isolationLevel !== "ReadCommitted")
         throw new AppError(
           403,
           "FORBIDDEN",
-          "Tenant repositories cannot expose unguarded extension clients"
+          "Tenant writes require fresh committed lifecycle checks"
         );
-      if (property === "$transaction") {
-        return (input: unknown, options?: Record<string, unknown>) => {
-          if (typeof input !== "function")
-            throw new AppError(403, "FORBIDDEN", "Tenant transactions require a guarded callback");
-          if (options?.isolationLevel && options.isolationLevel !== "ReadCommitted")
-            throw new AppError(
-              403,
-              "FORBIDDEN",
-              "Tenant writes require fresh committed lifecycle checks"
-            );
-          return client.$transaction(
-            async (transaction) => {
-              await lockTenantWrites(transaction, ctx.businessId);
-              const transactionGuard = createResourceGuard(
-                ctx,
-                transaction,
-                client === sharedClient ? transaction : sharedClient
-              );
-              const wrapped = new Proxy(transaction, {
-                get(tx, key, txReceiver) {
-                  if (typeof key === "string" && key.startsWith("$"))
-                    throw new AppError(
-                      403,
-                      "FORBIDDEN",
-                      "Unscoped transaction operations are unavailable"
-                    );
-                  if (typeof key !== "string") return Reflect.get(tx, key, txReceiver);
-                  const isControl = CONTROL_PLANE_RESIDENT_SET.has(key);
-                  const delegate =
-                    isControl && client !== sharedClient
-                      ? Reflect.get(sharedClient, key)
-                      : Reflect.get(tx, key, txReceiver);
-                  if (!delegate || typeof delegate !== "object") return delegate;
-                  return new Proxy(delegate, {
-                    get(modelDelegate, operation, modelReceiver) {
-                      const method = Reflect.get(modelDelegate, operation, modelReceiver);
-                      if (typeof method !== "function") return method;
-                      return async (args: Record<string, unknown> = {}) => {
-                        if (typeof operation !== "string")
-                          throw new AppError(403, "INVALID_SCOPE", "Unknown repository operation");
-                        if (
-                          isControl &&
-                          client !== sharedClient &&
-                          !operation.startsWith("find") &&
-                          !["count", "aggregate", "groupBy"].includes(operation)
-                        )
-                          throw new AppError(
-                            403,
-                            "FORBIDDEN",
-                            "Operation requires a separate authorized context"
-                          );
-                        const prepared = await transactionGuard.prepare(key, operation, args);
-                        return Reflect.apply(method, modelDelegate, [prepared]);
-                      };
-                    },
-                  });
-                },
-              });
-              return (input as (tx: typeof transaction) => Promise<unknown>)(wrapped);
-            },
-            { ...options, isolationLevel: "ReadCommitted" } as never
+      return client.$transaction(
+        async (transaction) => {
+          await lockTenantWrites(transaction, ctx.businessId);
+          const transactionGuard = createResourceGuard(
+            ctx,
+            transaction,
+            client === sharedClient ? transaction : sharedClient
           );
-        };
-      }
-      return Reflect.get(target, property, receiver);
-    },
-  });
+          const wrapped = repositorySurface(async (key, operation, args) => {
+            const isControl = CONTROL_PLANE_RESIDENT_SET.has(key);
+            if (
+              isControl &&
+              client !== sharedClient &&
+              !operation.startsWith("find") &&
+              !["count", "aggregate", "groupBy"].includes(operation)
+            )
+              throw new AppError(
+                403,
+                "FORBIDDEN",
+                "Operation requires a separate authorized context"
+              );
+            const delegate =
+              isControl && client !== sharedClient
+                ? Reflect.get(sharedClient, key)
+                : Reflect.get(transaction, key);
+            const prepared = await transactionGuard.prepare(key, operation, args);
+            return Reflect.apply(Reflect.get(delegate, operation), delegate, [prepared]);
+          });
+          return (input as (tx: typeof transaction) => Promise<unknown>)(wrapped);
+        },
+        { ...options, isolationLevel: "ReadCommitted" } as never
+      );
+    }
+  ) as typeof extended;
 }
 
 export type ScopedPrisma = ReturnType<typeof getScopedPrisma>;

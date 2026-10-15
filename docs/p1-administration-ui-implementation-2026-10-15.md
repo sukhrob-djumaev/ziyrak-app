@@ -108,3 +108,34 @@ Exact owned focused topology stopped; remainingOwned=[] verified. Focus logs use
 /private/tmp/ziyrak-p1-administration-focused-{j21,j23,build}.log; DB/profiles retained.
 Next fresh clone of ORIGINAL stopped support-list fixtures for corrected J23, then
 new empty database complete23. Prior cloned database must not be reset/cleaned.
+
+## Corrected focused run and cross-tab finding
+
+Runtime1208d3d/buildHNDaRpVjWn1UcaZjB6MWy, unchanged product
+digeste62c7bf9594f6eca3286c0888e1937c2fd8aa7b02d753747c81c7100ceea9b1c:
+corrected J23 and J22 both passed exit0 on the second clone of original stopped
+support-list fixtures. No fresh-full claim. Inspected limited-list and workspace-reset
+screenshots: padded table readable within keyboard-scroll region; B rows replace A
+and old key form absent. Exact owned topology stopped; remainingOwned=[] verified.
+
+Before stopping that frozen candidate, actual two-tab browser regression reproduced
+a new wrong-workspace intent defect: admin legitimately in A and B opened A user
+form, used actual second-tab workspace selector to choose B, then original UI POST
+returned201 and persisted one membership in B. No workspace header was sent. This
+is not backend permission bypass. Synthetic actor provisioned through authenticated
+API; second membership is a controlled DB prerequisite. Private probe
+/private/tmp/ziyrak-p1-admin-workspace-probe.cjs and -red.log contain sanitized outcome.
+Initial probe logged its desired assertion failure but omitted harness finish(), so
+its process exit0 is not a test pass; corrected finish before green execution.
+
+Small repair passes fresh server businessId to AdminClient and overwrites
+x-workspace-id in its sole fetch wrapper, covering all users/keys reads/mutations.
+Existing server cookie/header conflict403 performs rejection before mutation; existing
+client invalidation clears rows/forms/password/key and refreshes context. The header
+is not authority. Independent security source review clear; no reviewer execution.
+J23 now uses real second-tab workspace UI before old key form submission, requires
+403, original A header, zero matching keys across either workspace and context reset.
+Independent harness source recheck clear. Focused four files32passed, type/strictlint
+passed. Final same-source full149files1464passed/1Redis-mode skip and signup80files924passed, both exit0. Fresh23 browser pending at this checkpoint.
+Prepared -full.env target ziyrak_acceptance_p1_administration_20261015 created fresh,
+migrated, Businesscount0 verified. No resets, live/provider/user DB actions.

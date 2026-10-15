@@ -101,7 +101,13 @@ function errorText(body: unknown, fallback: string): string {
     return (error as { message: string }).message;
   return fallback;
 }
-export default function AdminClient({ capabilities }: { capabilities: AdminCapabilities }) {
+export default function AdminClient({
+  capabilities,
+  workspaceId,
+}: {
+  capabilities: AdminCapabilities;
+  workspaceId: string;
+}) {
   const router = useRouter();
   const [denied, setDenied] = useState(false);
   const authority = useRef({ active: true, blocked: false, revision: 0 });
@@ -196,8 +202,13 @@ export default function AdminClient({ capabilities }: { capabilities: AdminCapab
         (!read || readers.get(url) === controller) &&
         !controller.signal.aborted;
       try {
+        // Cookies are shared across tabs. Bind every read/mutation to the
+        // workspace that rendered this form so a second tab cannot retarget it.
+        const headers = new Headers(init?.headers);
+        headers.set("x-workspace-id", workspaceId);
         const response = await fetch(url, {
           ...init,
+          headers,
           cache: "no-store",
           signal: controller.signal,
         });
@@ -215,7 +226,7 @@ export default function AdminClient({ capabilities }: { capabilities: AdminCapab
         controllers.current.delete(controller);
       }
     },
-    [deny]
+    [deny, workspaceId]
   );
   useEffect(() => {
     const state = authority.current,

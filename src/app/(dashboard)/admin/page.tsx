@@ -40,6 +40,7 @@ export default async function AdminPage() {
   return (
     <AdminClient
       key={contextKey}
+      workspaceId={ctx.businessId}
       capabilities={{
         manageUsers:
           human &&

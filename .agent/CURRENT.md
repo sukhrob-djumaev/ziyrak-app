@@ -1,30 +1,31 @@
 # Current P1 task
 
-MS-2026-10-14/P1 incomplete, P2 ineligible. Active Administration UI changes based
-onc199376 in this isolated non-serving checkout. Contracts/evidence:
-docs/p1-administration-ui-{contract,implementation}-2026-10-15.md.
-Server gate/capability UI, context-reset/read-order fixes, explicit denied nav and
-key-field correction implemented. Actual SSR12initial9red/3positive; focused20green.
-Independent review found context+read races; actual dedicated3200 Chrome/PG red→green
-passed, exact owned probe stopped/absent. Full149files1464/1mode skip passed before
-final display-field correction; signup80files924passed and final type/lint passed.
-Independent security/J21-J23 harness source closure clear, no reviewer execution.
+MS-2026-10-14/P1 incomplete; P2 ineligible. Main docs-only. This isolated development
+checkout owns Administration UI follow-up; containing commit identifies code.
+Contract/evidence docs/p1-administration-ui-{contract,implementation}-2026-10-15.md.
 
-Final affected4files32passed after display correction. Next freeze coherent candidate; focused J21/J23 on isolated clone of
-owned prior acceptance fixtures if useful, then fresh full23browser. Fresh build/source
-identity, exact owned topology, screenshots required. Support table padding/keyboard
-horizontal scroll included, visual check still open. No source/deps/build serving here.
-Dependencies now independent APFS copy; no lock/version changes.
+Corrected focused J23/J22 passed exit0 on runtime1208d3d/buildHNDaRpVjWn1UcaZjB6MWy,
+product digeste62c7bf9...a9b1c; synthetic cloned fixtures only. Screenshots inspected.
+Exact owned topology stopped and remainingOwned=[] verified. Prior9ef focusedJ21pass;
+initialJ23 had corrected boolean/schema harness failures, no product failure inferred.
 
-Prior support-list c199376/runtimee85dc4e/buildQdF756rE7IdlnyaEb39sR/digest e6e1e102...6885
-full22passed exit0, actual J22list/search/paging/conflict/revoke/read audits verified.
-Owned runtime stopped/none. Main docs-only. No provider/delivery or P1 closure claim.
-Separate original p1-workspace-access/owly follow-up WIP19focused16pass3fail remains;
-owner chose schedule-after-logout. Cutoff and R3 acceptance pending. Continue eligible
-P1 independent work. No live7700/provider/account/userDB/deployment/newphase actions;
-paired isolatedDBs/exact PIDbirthcwd only; retain taskRedis6381/sharedPG.
+Additional actual second-tab workspace selector reproduced old A user form POST201
+persisting membershipB. Fixed all Admin requests with server-rendered workspace header;
+existing conflict403 denies/clears/refreshes. J23 now checks actual two-tab key conflict,
+no key persistence and state reset. Independent security/harness source reviews clear;
+reviewers ran no tests. Final affected4files32/full149files1464+1Redis-mode skip/
+signup80files924/type/strictlint passed. Supplementary green user/full23 browser OPEN.
 
-First runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW focusedJ21 passed; J23 failed two
-harness false-vs-f assertions + nonexistent Membership.updatedAt fixture column.
-Harness corrected; no product change. Owned focused topology stopped/none verified.
-Next new runtime checkpoint/new original-fixture clone for correctedJ23, then fresh23.
+Next freeze matching runtime candidate, build with /private/tmp/ziyrak-p1-administration-full.env.
+Exact fresh target ziyrak_acceptance_p1_administration_20261015 already created/migrated,
+Businesscount0 checked; do not reset. Fresh workdir p1-administration-20261015. Start
+owned topology, run all23 and supplementary actual two-tab user probe; inspect new
+screenshots, exact owned stop/absence. Runtime source/HEAD/build/deps/harness frozen
+while serving. This development checkout has independent APFS deps and is not serving.
+
+Separate original p1-workspace-access/owly follow-upWIP19focused16pass3real admission
+races; excluded from coherent candidate. Owner chose schedules survive logout, fresh
+authority at send. Rule11 final cutoff/R3 residual-risk decisions pending; no waivers.
+Continue independent eligible P1; next identified Settings permission/context task.
+No live7700/product/deps/env/provider/account/userDB/deploy/newphase actions. Paired
+isolatedDB/exactPIDbirthcwd only; retain taskRedis6381/sharedPG. No push/merge/tag/reset.

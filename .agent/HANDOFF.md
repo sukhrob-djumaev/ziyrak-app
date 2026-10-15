@@ -1,22 +1,17 @@
-# Administration UI candidate preparation
+# Latest P1 checkpoint
 
-New Admin server/client/nav/capability lifetime changes on c199376 uncommitted.
-SSR12initial9red/3positive, focused20green. Two source-review races reproduced actual
-Chrome/PG before fix; green3200probe passed (scope reset + user read ordering), exact
-owned probe stopped/absent. Context key/per-resource GET supersession and denial
-clearing reviewed clear. Full149files1464+1mode skip passed; signup80files924passed; final
-safe-prefix/lastUsedAt display correction has type/lint passed. J21/J23
-source harness closure clear, no reviewer execution. See implementation doc.
+Administration original533201c + SQL harness correction45bab35. Runtime1208d3d focused
+correctedJ23/J22 passed exit0; screenshot checked; exact owned topology stopped/none.
+Current containing commit adds rendered workspace header to all Admin requests after
+actual oldAform/secondTabBselection POST201 wrong-B persistence. Independent security
+and harness source reviews clear, no reviewer execution. Affected32/full1464+1mode
+skip/signup924/type/strictlint pass. Fresh all23 and supplementary users green OPEN.
 
-Final affected4files32passed after display correction. Next coherent commit, optional focused J21/J23 on clone of own old
-acceptance fixtures, then fresh full23 matching build/source and screenshot review.
-Support-table minwidth/padding scroll polish included, unverified visually. Old
-supportc199376/runtimee85dc4e full22pass/stopped evidence does not cover new product.
-P1 incomplete. Separate follow-up WIP19cases16pass3fail awaits cutoff; owner selected
-logout-surviving schedule, R3 acceptance pending. No live/provider/account/userDB/
-deploy/newphase actions. Exact process ownership/paired testDBs; Redis/PG retained.
+Next apply this coherent delta to stopped isolated runtime, build exact -full.env,
+start/run-all23, then supplementary private admin-workspace-probe. Fresh DB already
+created/migrated, emptyBusiness verified; never reset. Freeze serving checkout while
+running. See CURRENT and Administration evidence docs for exact paths/boundaries.
 
-First runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW focusedJ21 passed; J23 failed two
-harness false-vs-f assertions + nonexistent Membership.updatedAt fixture column.
-Harness corrected; no product change. Owned focused topology stopped/none verified.
-Next new runtime checkpoint/new original-fixture clone for correctedJ23, then fresh23.
+P1 incomplete/P2 ineligible. Original follow-up WIP3admission races excluded; schedule
+survives logout approved, final cutoff/R3 acceptance pending. Main docs-only, live7700/
+providers/accounts/userDB untouched. Redis/PG retained; exact-owned process cleanup.

@@ -436,28 +436,54 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await second.page.waitForSelector(
       'input[placeholder="e.g. Production API, Webhook Integration"]'
     );
+    const staleKeyName = "Synthetic old workspace form " + suffix;
     await second.page.type(
       'input[placeholder="e.g. Production API, Webhook Integration"]',
-      "Synthetic old workspace form"
+      staleKeyName
     );
     L.sql(
       'INSERT INTO "Membership" (id,"businessId","userId",role,"scopeMode","customerProfileAccess") VALUES (' +
         [randomUUID(), b, restricted.userId, "admin", "workspace", "write"].map(quote).join(",") +
         ")"
     );
-    const selected = await second.page.evaluate(
-      async (workspaceId) =>
-        (
-          await fetch("/api/workspaces", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ workspaceId }),
-          })
-        ).status,
-      b
+    // The second tab changes the shared cookie through the actual workspace UI.
+    // Do not refresh the original A form before trying its mutation.
+    const switcher = await restrictedBrowser.newPage();
+    await switcher.goto(L.BASE + "/workspaces", { waitUntil: "networkidle0" });
+    const targetWorkspace = L.sql('SELECT name FROM "Business" WHERE id=' + quote(b));
+    await switcher.waitForFunction(
+      (name) =>
+        [...document.querySelectorAll("button")].some((button) =>
+          button.textContent.includes(name)
+        ),
+      {},
+      targetWorkspace
     );
-    L.assert(selected === 200, "Actual signed workspace selector admits current B membership");
-    await refreshContext(second.page);
+    await Promise.all([
+      switcher.waitForNavigation({ waitUntil: "load" }),
+      switcher.evaluate(
+        (name) =>
+          [...document.querySelectorAll("button")]
+            .find((button) => button.textContent.includes(name))
+            .click(),
+        targetWorkspace
+      ),
+    ]);
+    const rejected = await mutation(
+      second.page,
+      "/api/admin/api-keys",
+      "POST",
+      () => L.clickLast(second.page, "button", "Generate Key"),
+      403
+    );
+    L.assert(
+      rejected.request().headers()["x-workspace-id"] === a,
+      "Old form request remains bound to rendered A despite shared B cookie"
+    );
+    L.assert(
+      L.sql('SELECT count(*) FROM "ApiKey" WHERE name=' + quote(staleKeyName)) === "0",
+      "Cross-tab workspace conflict creates no key in either workspace"
+    );
     await second.page.waitForFunction(
       (username) =>
         [...document.querySelectorAll("table tbody tr")].some((row) =>
@@ -488,6 +514,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       scopedKey,
       scopeRefreshClearsDialog: true,
       workspaceRefreshClearsRowsAndForm: true,
+      crossTabWorkspaceRejectsWithoutMutation: true,
       demotionRejectsAndClears: true,
       nestedErrorText: true,
       limitations:

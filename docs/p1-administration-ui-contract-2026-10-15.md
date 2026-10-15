@@ -52,3 +52,14 @@ Current runtimee85dc4e/buildQdF756rE7IdlnyaEb39sR is frozen/running the limited-
 full22suite; do not edit or use its product/build/harness/browser/DB. This task stays
 in non-serving p1-support-identity/owly on c199376. Paired isolated testDB only. P1
 incomplete, P2 ineligible; no live main/provider/account/deployment changes.
+
+Continuation: bind every Administration request to the server-rendered workspace
+using the existing x-workspace-id conflict guard. Shared cookies can change in a
+second tab without refreshing the original form. Real Chrome/PG on frozen1208d3d
+confirmed old A user form POST201 created one membership in B after actual second-tab
+workspace UI selection. Current actor genuinely administered both: wrong-workspace
+intent, not backend permission bypass. Header is a locator, never authorization;
+fresh existing server checks remain mandatory. No architecture deviation. Browser
+regression must reject403 without persistence in either workspace, discard old form
+and replace context; normal same-workspace user/key flows remain positive. J23 adds
+actual second-tab key-form regression; separate actual-user probe covers users.

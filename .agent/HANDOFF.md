@@ -1,15 +1,17 @@
-# Limited support-list candidate
+# Administration UI candidate preparation
 
-Implemented exact GET support identity + scalar list/count + final audited exposure
-(after awaited placement), explicit same-origin selection clear and bounded console.
-Initial9desired route failures/1positive; finalplacement actualgrant/JTI revokes2red
-repaired. Platform78/full148files1452+1mode skip/signup79files912/type/strictlint pass.
-Independent security source recheck clear (no reviewer-executed tests). Harness review
-findings corrected; final recheck pending. J22/new full browser not run.
+New Admin server/client/nav/capability lifetime changes on c199376 uncommitted.
+SSR12initial9red/3positive, focused20green. Two source-review races reproduced actual
+Chrome/PG before fix; green3200probe passed (scope reset + user read ordering), exact
+owned probe stopped/absent. Context key/per-resource GET supersession and denial
+clearing reviewed clear. Full149files1464+1mode skip passed; signup80files924passed; final
+safe-prefix/lastUsedAt display correction has type/lint passed. J21/J23
+source harness closure clear, no reviewer execution. See implementation doc.
 
-Next freeze current containing commit, prepare fresh identified runtime/database/build,
-run full22 including extended actual UIJ22 and inspect list/revoked screenshots, then
-stop exact owned topology. Older queryc78a1ff/runtimec24277b22pass is separate evidence.
-P1 incomplete. Separate follow-up WIP19cases16pass3fail stays in original dev checkout;
-owner selected logout-surviving schedule but cutoff/R3 decisions remain pending.
-No main product/live/provider/account/userDB/deploy/newmilestone actions.
+Final affected4files32passed after display correction. Next coherent commit, optional focused J21/J23 on clone of own old
+acceptance fixtures, then fresh full23 matching build/source and screenshot review.
+Support-table minwidth/padding scroll polish included, unverified visually. Old
+supportc199376/runtimee85dc4e full22pass/stopped evidence does not cover new product.
+P1 incomplete. Separate follow-up WIP19cases16pass3fail awaits cutoff; owner selected
+logout-surviving schedule, R3 acceptance pending. No live/provider/account/userDB/
+deploy/newphase actions. Exact process ownership/paired testDBs; Redis/PG retained.

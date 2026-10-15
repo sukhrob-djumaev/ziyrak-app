@@ -158,8 +158,13 @@ export default function LimitedSupportList({
             {result.pagination.total} conversations · Page {result.pagination.page} of{" "}
             {Math.max(1, result.pagination.totalPages)}
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div
+            className="overflow-x-auto"
+            role="region"
+            aria-label="Limited support conversations"
+            tabIndex={0}
+          >
+            <table className="min-w-[40rem] w-full text-left [&_th]:px-3 [&_th]:py-2 [&_th]:whitespace-nowrap [&_td]:px-3 [&_td]:py-2">
               <thead>
                 <tr>
                   <th>Customer</th>

@@ -157,7 +157,14 @@ async function api(page, path) {
         statuses.foreignConversation === 404,
         `${role}: known foreign conversation remains hidden`
       );
+      const protectedRequests = [];
+      const watchAdmin = (request) => {
+        if (new URL(request.url()).pathname.startsWith("/api/admin/"))
+          protectedRequests.push(request.url());
+      };
+      page.on("request", watchAdmin);
       await page.goto(L.BASE + "/admin", { waitUntil: "networkidle0" });
+      page.off("request", watchAdmin);
       L.assert(
         statuses.ownerDemotion === 403,
         `${role}: generic team management cannot demote the owner`
@@ -169,14 +176,43 @@ async function api(page, path) {
         permittedAdmin ? rows.some((row) => row.includes(creds.A.user)) : rows.length === 0,
         `${role}: actual Administration table exposes protected rows only with permission`
       );
-      // The existing direct page shell is accessible; data/API denial is recorded
-      // separately instead of misreporting a 403 document response or full UI gate.
+      const presentation = await page.evaluate(() => ({
+        denied: document.body.innerText.includes("Access denied"),
+        controls: [...document.querySelectorAll("button")].some((button) =>
+          ["Add User", "API Keys", "Generate New Key"].includes(button.textContent.trim())
+        ),
+        navigation: !!document.querySelector('nav a[href="/admin"]'),
+      }));
+      L.assert(
+        permittedAdmin
+          ? presentation.controls && presentation.navigation && !presentation.denied
+          : presentation.denied && !presentation.controls && !presentation.navigation,
+        `${role}: actual page controls/navigation match server permission`
+      );
+      if (!permittedAdmin)
+        L.assert(
+          protectedRequests.length === 0,
+          `${role}: denied page never mounts protected list requests`
+        );
+      if (permittedAdmin)
+        L.assert(
+          await page.$$eval(
+            "table tbody tr",
+            (rows, username) => {
+              const row = rows.find((row) => row.textContent.includes(username));
+              return !!row && row.querySelectorAll("button").length === 0;
+            },
+            creds.A.user
+          ),
+          `${role}: owner row exposes no generic mutation control`
+        );
+      // This is explicit denial UI, not an HTTP403 document claim.
       results.push({
         role,
         statuses,
         administrationPage: permittedAdmin
           ? "authorized rows visible"
-          : "page shell without protected rows",
+          : "explicit denial without protected client, rows, controls or navigation",
       });
       await L.shot(page, "j21-" + role);
     }

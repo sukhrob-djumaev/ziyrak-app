@@ -1,23 +1,25 @@
-# Current independent P1 task
+# Current P1 task
 
-MS-2026-10-14, P1 incomplete/P2 ineligible. This isolated checkout owns limited
-request-local support conversation-list activation on c78a1ff; containing commit
-identifies current source. Contract and implementation docs:
-docs/p1-support-list-{activation-contract,implementation}-2026-10-15.md.
+MS-2026-10-14/P1 incomplete, P2 ineligible. Active Administration UI changes based
+onc199376 in this isolated non-serving checkout. Contracts/evidence:
+docs/p1-administration-ui-{contract,implementation}-2026-10-15.md.
+Server gate/capability UI, context-reset/read-order fixes, explicit denied nav and
+key-field correction implemented. Actual SSR12initial9red/3positive; focused20green.
+Independent review found context+read races; actual dedicated3200 Chrome/PG red→green
+passed, exact owned probe stopped/absent. Full149files1464/1mode skip passed before
+final display-field correction; signup80files924passed and final type/lint passed.
+Independent security/J21-J23 harness source closure clear, no reviewer execution.
 
-Implemented server admission/scalar service/final exposure/explicit cookie clear and
-limited console UI;26new route cases. Final-placement real grant/JTI race reproduced
-and fixed; complete platform78, full148files1452/1Redis-mode skip, signup79files912,
-type/strictlint passed. Independent security source review clear; reviewers ran no
-tests. Harness review fixes integrated; recheck pending. UI/new browser not run yet.
+Final affected4files32passed after display correction. Next freeze coherent candidate; focused J21/J23 on isolated clone of
+owned prior acceptance fixtures if useful, then fresh full23browser. Fresh build/source
+identity, exact owned topology, screenshots required. Support table padding/keyboard
+horizontal scroll included, visual check still open. No source/deps/build serving here.
+Dependencies now independent APFS copy; no lock/version changes.
 
-Next: freeze candidate and prepare fresh realPG+separateworker+localstand-in/trusted
-Chrome build. Full22browser with extendedJ22, screenshots, exact identity and owned
-cleanup required. Earlier query runtimec24277b/buildfF41LTQ5Z5NPbD7hoWtuQ passed22
-and stopped with remainingOwned=[]; it does not prove this new UI/identity flow.
-
-Separate p1-workspace-access/owly retains uncommitted follow-up integration,19focused
-16pass/3real admission races. Do not import it. Owner chose schedule-after-logout;
-rule11 cutoff and R3 risk acceptance pending. Continue eligible P1 independent work.
-Main docs-only, live7700/provider/account/userDB untouched. Paired isolatedDBs,
-exactPID/birth/cwd ownership, no push/merge/deploy/release/tag/newphase/reset/clean.
+Prior support-list c199376/runtimee85dc4e/buildQdF756rE7IdlnyaEb39sR/digest e6e1e102...6885
+full22passed exit0, actual J22list/search/paging/conflict/revoke/read audits verified.
+Owned runtime stopped/none. Main docs-only. No provider/delivery or P1 closure claim.
+Separate original p1-workspace-access/owly follow-up WIP19focused16pass3fail remains;
+owner chose schedule-after-logout. Cutoff and R3 acceptance pending. Continue eligible
+P1 independent work. No live7700/provider/account/userDB/deployment/newphase actions;
+paired isolatedDBs/exact PIDbirthcwd only; retain taskRedis6381/sharedPG.

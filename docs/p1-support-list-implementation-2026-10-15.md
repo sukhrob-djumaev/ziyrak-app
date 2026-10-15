@@ -51,8 +51,10 @@ only selection, not person session and creates no customer membership.
 - Independent harness review identified weak page2/rendered-ID assertions, missing
   read-audit assertions and a foreign fixture hidden by an unrelated predicate.
   Harness now checks exact rendered page IDs/unique union, actual-actor allowed/denied
-  read audits and adversarial foreign metadata naming the allowed source. Source
-  recheck requested. J22/new full browser **not run yet**; no UI acceptance pass.
+  read audits and adversarial foreign metadata naming the allowed source. Independent source recheck closed those findings; its null-safe SQL follow-up
+  was integrated by the lead. Reviewers ran no browser/tests. Fresh full22browser
+  passed exit0 on runtimee85dc4e. Exact owned topology stopped; remainingOwned=[]
+  verified. Functional list/search/paging/conflict/revocation/audit acceptance passed.
 
 Sanitized logs: /private/tmp/ziyrak-p1-support-list-{red,placement-red,platform-final,
 full,signup,type,lint-final}.log. Initial expanded platform run77pass/1fixture error
@@ -70,3 +72,26 @@ P1 complete: other support operations/streams, delayed origins, restricted UI an
 follow-up final admission remain open. Owner selected schedule lifetime after logout;
 rule11 admission cutoff and R3 residual-risk acceptance are still undecided.
 No deployment/real-provider/account/userDB or new milestone action.
+
+## Browser run identity
+
+Implementation c199376; runtimee85dc4e6794d801f9a7aa35948417960abac61eb has identical
+product/test/harness trees (staged comparison empty). BuildQdF756rE7IdlnyaEb39sR,
+digeste6e1e10241e6b9107e3c50a25861f5317967338983b211e7756730d18f336885.
+Fresh migrated DB ziyrak_acceptance_p1_support_list_20261015 (Business count0 before
+signup), private env /private/tmp/ziyrak-p1-support-list-acceptance.env, runtime
+workdir scripts/acceptance/.work/p1-support-list-20261015.
+Logs /private/tmp/ziyrak-p1-support-list-{migrations,build,browser}.log. Build passed,
+Complete22browser passed exit0; exact owned web/worker/stand-in/hosts stopped,
+remainingOwned=[] verified. Local stand-in, realPG/Redis, separate worker/trustedChrome;
+no real-model/Meta/recipient-visible claim. A mistakenly referenced nonexistent
+wait-ready.cjs startup helper failed; the actual runner proceeded and its built-in
+per-journey topology verification and additional direct runtime verify passed. Do
+not claim the nonexistent helper succeeded. Runtime source/HEAD/build/harness frozen
+until exit and exact owned cleanup.
+
+Screenshots j22-support-limited-list.png and j22-support-list-revoked.png inspected.
+Revoked view contains no old rows/count. Narrow-console table columns appear cramped;
+visual polish remains open and will join the subsequent Administration candidate
+before claiming the list UI visually complete. Functional J22/full-suite pass remains
+valid for the identified build, not for later product changes.

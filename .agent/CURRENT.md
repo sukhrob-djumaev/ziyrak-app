@@ -10,13 +10,15 @@ independent security/harness source closure clear, reviewers ran no checks. Own3
 Runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly58e9ff3.
 Focused2 buildPd7JxJEi0zqIn_436mr1v J24passed exit0, screenshots inspected; exactowned
 stop/remainingOwned=[] verified. Same productdigest above. Full -settings-full.env
-freshEMPTY ziyrak_acceptance_p1_settings_20261015 recheckedBusiness0; full24 running,
-build96ITzoFyBUJCwB4Dut7X8, unchanged product digest above. Seven journeys completed;
-J09/J10/worker-restart assertions passed but process exit pending at this checkpoint.
-Log /private/tmp/ziyrak-p1-settings-full-browser.log; tool session88489. Not acceptance.
-Workdirp1-settings-20261015. Next collect full24 exit/screenshots/exactownedstop/none.
-Freeze runtime source/HEAD/deps/build/harness while
-serving. Focusclone2/original fixtures retained, never reset.
+freshEMPTY ziyrak_acceptance_p1_settings_20261015 recheckedBusiness0; full24 FAILED
+exit1 on build96ITzoFyBUJCwB4Dut7X8, unchanged product digest above. Seventeen journeys
+passed; J18 timed out at line82 waiting for obsolete Settings text "Insufficient
+permissions"; current server denial says "Access denied". Six later journeys not run.
+This is a confirmed source/assertion mismatch, not a new product acceptance pass.
+Log /private/tmp/ziyrak-p1-settings-full-browser.log; session88489 exit1 collected.
+Workdirp1-settings-20261015. Exact owned stop/remainingOwned=[] verified. Failed DB/
+profiles retained, never reset. Next repair J18 assertion in NON-serving development,
+independent harness review, new candidate/build/fresh full24 and exact cleanup.
 
 Prior92/buildJ-\_zhfIwE6uMJRaeusp8r J21actual5Settingsroles passed exit0. J24 first
 browserTargetclosed beforefixtures (rootcauseunknown), retrymissingloginselector fixed

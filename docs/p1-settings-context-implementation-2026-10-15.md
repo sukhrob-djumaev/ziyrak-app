@@ -1,7 +1,8 @@
 # P1 Settings permission and request context evidence
 
 Status: product7fc5dab plus harness504d08e committed in isolated p1-support-identity/owly;
-new focused/full24 browser acceptance pending. Main docs-only. Governed by
+corrected focused J24 passed; fresh full24 failed at an obsolete J18 denial-text
+assertion after17journeys passed. Repair/rerun pending. Main docs-only. Governed by
 [contract](p1-settings-context-contract-2026-10-15.md) and PLAN P1. No P2 managed-AI
 ownership, provider/API/schema changes, external calls or release authorization.
 
@@ -102,3 +103,18 @@ demotion-denial and legacy-recovery screenshots. Exact owned topology stopped,
 remainingOwned=[] verified. Focused2 fixtures/profiles retained, original clone source
 unchanged. Full fresh empty target recheckedBusiness0; new full24 build underway,
 not yet a pass. Log /private/tmp/ziyrak-p1-settings-focused2-j24.log.
+
+## Fresh full24 regression outcome
+
+Runtime58e9ff3/build96ITzoFyBUJCwB4Dut7X8, unchanged productdigest45f6b5e...47d3,
+fresh ziyrak_acceptance_p1_settings_20261015/workdirp1-settings-20261015:17journeys
+passed, J18 failed exit1 at line82 after30s waiting for "Insufficient permissions".
+Current Settings server denial explicitly renders "Access denied. Current workspace
+settings permission is required." This source/assertion mismatch needs a harness
+repair and actual rerun; it is not a pass or proof of a new product defect. Six later
+journeys did not run. Full suite exit1 collected from session88489. Log
+/private/tmp/ziyrak-p1-settings-full-browser.log. Exact owned topology stopped and
+remainingOwned=[] verified; failed database/profiles retained, never reset. Next:
+repair in non-serving development, independent harness source review, coherent new
+candidate/build and fresh full24, screenshots and exact-owned cleanup. Earlier focused
+and automated results retain their separately identified boundaries. P1 stays open.

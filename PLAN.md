@@ -434,8 +434,12 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   CDP URL string correction, no execution. Prior92focusedJ21passed; J24 browserstartup failure then loginselector timing
   gap fixed in harness504d08e. Matching runtime58e9ff3 building correctedJ24 on new
   original-fixture clone2; correctedJ24passed exit0, screenshotschecked/exactownedstopnone.
-  Sourceproduct unchanged. Fresh empty full24build underway, notpass. New browser
-  acceptance remains open; no P1/P2 closure/provider claim. See
+  Sourceproduct unchanged. Fresh empty full24 runtime58e9ff3/build96ITzoFyBUJCwB4Dut7X8
+  failed exit1 after17journeys passed: J18 waited obsolete denial text "Insufficient
+  permissions" at line82; current server renders "Access denied". Six later journeys
+  not run. Source/assertion mismatch confirmed; repair and fresh full24 still required.
+  Exact owned topology stopped/remainingOwned=[] verified, failed fixtures retained.
+  Browser acceptance remains open; no P1/P2 closure/provider claim. See
   `docs/p1-settings-context-implementation-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits

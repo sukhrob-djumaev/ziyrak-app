@@ -16,27 +16,31 @@ uninterrupted on buildM_rq0OTQsJstuUKedMRia/digestbd9c2ba6...e94b; first failed 
 network-idle run remains recorded. Runtimec2a4562 topology stopped exactly afterward.
 
 Lineage candidate runtime027455c/build5egIm5D0_uNGgsVhKKb7v/digest
-4be90fce88a3d2955e6ba294240586cec6eaf6664e8346e643e7a55d469e9b6e is running
-fresh complete22 browser with strengthened J09/J10 actual visitor/queue/action parent
-assertions. Those and J19 stream assertions passed; whole-command completion pending.
+4be90fce88a3d2955e6ba294240586cec6eaf6664e8346e643e7a55d469e9b6e passed
+fresh uninterrupted complete22 browser/exit0, including strengthened J09/J10 parent
+assertions and J19 stream revocation. Exact owned topology stopped, remainingOwned[].
 Env/private logs /private/tmp/ziyrak-p1-lineage-acceptance.env and lineage-browser.log;
 owned runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly,
-workdir scripts/acceptance/.work/p1-lineage-20261015. Do not mutate this build/source.
+historical workdir scripts/acceptance/.work/p1-lineage-20261015; runtime has advanced
+to the separately built grant candidate below.
 
-Grant management API/UI (containing commit onf84e423) records/revokes actor-self
+Grant management API/UI4e38f9a records/revokes actor-self
 grants and shows safe assignment metadata. No tenant support context/selection/
 streams/jobs are activated. RealPG52 and Redis52, full144files1349passed/23optional,
 signup75files831passed, type/strict lint passed. Independent source security and
-harness reviews clear; matching new build/full browser still required. Existing
-lineage browser uses older product/J22 and cannot verify this new UI.
+harness reviews clear; matching new full22 browser is running on runtime56bed6c/buildIXJigGX3F97tgWvfsptnv,
+digest15a3efb1be69774e61d5b4844256a4e41ef967e2076e6eba33c0e1a0f467b7a4.
+Env /private/tmp/ziyrak-p1-grant-console-acceptance.env; matching browser log under
+/private/tmp/ziyrak-p1-grant-console-browser.log. Current runtime workdir
+scripts/acceptance/.work/p1-grant-console-20261015. Whole-command result pending.
 See docs/p1-{operator-assignments,support-grant-admission,support-grant-console,
 followup-lineage}-2026-10-15.md; test layers/build identities are separate.
 
 ## Next
 
-Collect lineage full22 exit; stop exact owned topology, sync/rebuild grant-management
-candidate on a fresh isolated database/workdir, run complete22 with expanded J22,
-inspect screenshots. Retain database evidence. Then deferred authority and support
+Collect grant-management full22 exit and inspect screenshots; preserve frozen
+runtime source/build until completion. New internal deferred identity helper is
+implemented and locally verified in development, not wired into jobs. Retain database evidence. Then deferred authority and support
 activation behind explicit route/model/projection/stream gates; restricted UI remains
 open. See support contract and delayed-authority-policy documents.
 
@@ -51,3 +55,13 @@ No main product/deps/env/7700/tunnel/provider/user-DB changes. Own dev worktree
 Paired isolated DB URLs; no test cleanup against acceptance/user DBs. Exact PID/birth/
 cwd ownership before stop; no kill-by-name/profile-lock deletion. No push, merge,
 deploy, release, tag or new milestone. R3 and P1 remaining criteria are not waived.
+
+Deferred identity foundation (containing commit on4e38f9a): strict v1 capture/refresh,
+exact membership/user and API key/classification/issuer identity, fresh role/scope
+facts with saved-ceiling intersection. No bearer/session authority, TenantContext or
+operation/queue admission. Initial7 failed at missing module; initial implementation
+6passed/one invalid fixture, corrected. Final9 targeted Redis, full145files1358passed/
+23optional, signup76files840passed, type/strict lint and independent source review
+passed. New tests cover reviewer gaps; no browser/worker integration claim. See
+p1-deferred-identity-foundation-2026-10-15.md. Next provider-origin lineage, then
+snapshot producer, fixed operation policy and independent dispatch/retry rechecks.

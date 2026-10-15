@@ -2,7 +2,7 @@
 
 Implementation onfe49561 in isolated P1; containing commit identifies source. No saved authorization snapshot,
 current delayed permission check or support integration is implemented by this slice.
-No current-candidate browser acceptance, migration, deployment or P1 closure claim.
+Current-candidate browser acceptance passed; no migration, deployment or P1 closure claim.
 
 ## Contract and exact selected acceptance
 
@@ -56,9 +56,18 @@ remaining confirmed material issue in this bounded lineage slice; reviewer did n
 execute checks. Final full144files/1346passed with23optional skips; signup75files/828passed;
 type/strict lint and Redis-selected18follow-up cases passed. Product digest
 4be90fce88a3d2955e6ba294240586cec6eaf6664e8346e643e7a55d469e9b6e.
-A new identified production build and complete browser run are required before
-this worker/tool integration is accepted. The currently running operator22suite
-uses older frozen product and cannot verify this slice.
+Runtime027455c, production build5egIm5D0_uNGgsVhKKb7v and the same product digest
+passed the fresh uninterrupted complete22browser suite with command exit0. Strengthened
+J09/J10 verifies actual visitor conversation = queued job parent = persisted action
+parent before restart; assertions passed. Synthetic local accounts/owner proofs and
+LLM stand-in, real isolated Postgres/Redis, production web plus separate worker.
+No real-provider boundary is established. Exact owned topology was stopped afterward,
+remainingOwned[], with no stale/foreign processes signalled; DB evidence retained.
+Runtime later advanced to a separate grant-management candidate, so this source/build
+identity remains the lineage evidence, not the newer grant screen's acceptance.
+Private env /private/tmp/ziyrak-p1-lineage-acceptance.env; database
+ziyrak_acceptance_p1_lineage_20261015; workdir scripts/acceptance/.work/p1-lineage-20261015;
+whole-command log /private/tmp/ziyrak-p1-lineage-browser.log.
 
 Logs: /private/tmp/ziyrak-p1-followup-lineage-red.log,
 /private/tmp/ziyrak-p1-lineage-approval-cache-red.log,

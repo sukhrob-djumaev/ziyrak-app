@@ -79,8 +79,8 @@ async function choose(page, name) {
       "Selected-workspace cookie is B and HttpOnly/Secure/SameSite Lax"
     );
     await page.goto(L.BASE + "/settings", { waitUntil: "load" });
-    await page.waitForFunction(() => document.body.innerText.includes("Insufficient permissions"));
-    out.viewerSettings = (await L.text(page)).includes("Insufficient permissions");
+    await page.waitForFunction(() => document.body.innerText.includes("Access denied"));
+    out.viewerSettings = (await L.text(page)).includes("Access denied");
     L.assert(out.viewerSettings, "Viewer's actual Settings UI denies administrator data");
     // API attack assertion supplements the real UI; no UI offers a guessed-ID action.
     out.guessedWorkspaceStatus = await page.evaluate(

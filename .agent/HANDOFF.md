@@ -1,17 +1,17 @@
 # Latest P1 checkpoint
 
-Code893cb41/runtimeafcab4e adds Admin rendered-workspace request binding after actual
-oldAform/secondTabBswitch POST201 wrong-B persistence. Existing403conflict clears state.
-Independent security/harness source reviews clear, no execution. Final affected32/
-full1464+1mode skip/signup924/type/strictlint pass. Prior1208focusJ23/J22passed exit0,
-screenshots inspected and exact owned topology stopped/none. See implementation doc.
+Administration code893cb41/runtimeafcab4e/buildOxGeKpu78acIcGaW740sU fresh23 and
+supplementary actualusercross-tab green passed exit0; screenshots checked; exact owned
+topology stopped/none verified. Existing protected role/key/support behavior retained.
+This is Administration slice acceptance, not P1 closure. Implementation doc has identity.
 
-Fresh -full.env DB created/migrated/emptyBusiness verified; runtimeafcab4e/buildOxGeKpu78acIcGaW740sU running new23
-candidate (digest in CURRENT). Next finish run-all23, supplementary private actual-user cross-tab green,
-screenshots, exact-owned stop/none. Full23 not complete. Do not edit serving runtime source/
-HEAD/build/harness/deps. Non-serving dev has independent APFS deps; next eligible P1
-Settings permission/context task. Main docs-only; see CURRENT for exact paths.
+Current dev893cb41 + uncommitted Settings wrapper/nav/context/deny/read-order, transient
+Retry and legacy mask preservation. SSR8red4positive→green53, type/strictlint passed.
+Independent security source closure clear. Actual private3200/PG6green cases exit0,
+exact server/browser stopped/absent. Full1476+1Redis-mode skip/signup936passed exit0; newJ21Settings/J24harness
+source review and real focused/full24 open. Next finish checks/review, coherent commit,
+matching runtimebuild, new isolated acceptance. Runtimeafcab remains stopped/unchanged.
 
-P1 incomplete/P2 ineligible. Separate follow-up3real admission races excluded; logout
-schedule chosen, cutoff/R3 decisions pending. No live/provider/account/userDB/deploy/
-newmilestone changes. Redis/PG retained; preserve pairedDB and exact-owned cleanup.
+Main docs-only/P1 open/P2 ineligible. Follow-up3races excluded, logout scheduleapproved,
+cutoff/R3 decisions pending. No live/provider/account/userDB/deploy changes. PairedDB/
+exact ownership only; sharedPG/taskRedis retained. See CURRENT/Settings contract.

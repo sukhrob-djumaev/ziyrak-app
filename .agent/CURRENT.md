@@ -1,32 +1,32 @@
 # Current P1 task
 
 MS-2026-10-14/P1 incomplete; P2 ineligible. Main docs-only.
-Development /Users/sukhrob/.codex/worktrees/p1-support-identity/owly clean893cb41.
-Administration server/capability/nav/owner/denial/context/read-order/safe-key UI and
-cross-tab rendered-workspace request binding implemented; docs/p1-administration-ui-\*.md.
-Final affected32/full149files1464+1Redis-mode skip/signup80files924/type/strictlint pass;
-independent security/harness source reviews clear, no reviewer execution.
+Development /Users/sukhrob/.codex/worktrees/p1-support-identity/owly HEAD893cb41,
+active uncommitted Settings permission/context and legacy-secret preservation slice.
+Contract docs/p1-settings-context-contract-2026-10-15.md. ActualPG/JWT/cookieSSR12
+final initial8desiredred/4positive; after code affected5files53/type/strictlint passed.
+Independent security source closure clear including inherited masked-secret overwrite
+repair, no reviewer execution. Actual3200/PG probe6checks green exit0 on
+buildlO08aKtMCjit61Fs2580W/digest45f6b5e938e6393a402aebdaa7ca30dc6c020bc64d1b862804162b13622147d3:
+Aform/Bswitch403/no write, demotion403clearscredential, injectedlegacy500hidespanels,
+unrelatedsave preserves secrets, replacement and explicitclear preserve othersecret.
+Exact owned probe server/browser stopped/absent. Full150files1476+1Redis-mode skip/signup81files936 passed exit0.
+New J21Settingsmatrix/J24context/read/defaultlegacy/Retry harness awaiting source review
+and real run. Next finish checks/review, coherent candidate, focused J21/J24 if useful,
+then new EMPTY DB fresh all24. No new Settings browser closure yet.
 
-Frozen runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly afcab4e,
-matching893cb41 product/tests/harness. New fresh full23 running buildOxGeKpu78acIcGaW740sU,
-digest6a4381cb48d249080ecd82b84c052c9180bdc0cc7ce54e4517ea8d3fe78f3263 using private env
-/private/tmp/ziyrak-p1-administration-full.env. Fresh target
-ziyrak_acceptance_p1_administration_20261015 created/migrated; Businesscount0 verified.
-Workdir scripts/acceptance/.work/p1-administration-20261015. Next start owned topology,
-run-all23 underway; then supplementary actual user cross-tab green, screenshots, exact owned stop.
-Freeze runtime source/HEAD/deps/build/harness while serving; full23 completion remains open.
+Administration code893cb41/runtimeafcab4e/buildOxGeKpu78acIcGaW740sU/
+digest6a4381cb48d249080ecd82b84c052c9180bdc0cc7ce54e4517ea8d3fe78f3263 fresh23passed
+exit0, screenshots checked. Supplemental actualuser403/headerA/no membership pass
+exit0. Exact owned3100 topology stopped/remainingOwned=[] verified; no runtimeactive.
+Private /private/tmp/ziyrak-p1-administration-full.env, DB
+ziyrak_acceptance_p1_administration_20261015, workdir p1-administration-20261015 retained.
+Runtimecheckout /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly frozenafcab,
+no Settings delta applied. Evidence docs/p1-administration-ui-implementation-2026-10-15.md.
 
-Prior focused runtime1208d3d/buildHNDaRpVjWn1UcaZjB6MWy/digeste62c7bf9...a9b1c
-correctedJ23/J22 passed exit0 on synthetic clone2, screenshots checked; exact owned
-stop/remainingOwned=[] verified. Old9efJ21passed; initialJ23 had corrected harness
-boolean/schema failures. Additional real second-tab Aform→Bswitch userPOST201 persistedB,
-then new893 fix. Old probe logged desired failure but exit0 omitted finish; no pass
-claim. New J23 keys403/headerA/no persistence/contextreset awaits execution.
-
-Separate original p1-workspace-access/owly retains follow-upWIP19focused16pass3real
-admission races, excluded from candidate. Owner chose schedule survives logout/session
-expiry, fresh authority before send. Rule11 send cutoff and R3 residual-risk decisions
-pending, no acceptance implied. Continue eligible independent P1, next Settings context/
-permission task. No live7700/product/deps/env/provider/account/userDB/deploy/newphase
-changes; paired isolatedDB/exactPIDbirthcwd only; taskRedis6381/sharedPG retained.
-No push/merge/release/tag/reset/clean/historyrewrite.
+Separate original p1-workspace-access/owly follow-upWIP19focused16pass3real admission
+races excluded from candidates. Owner chose schedule survives logout/session expiry,
+fresh authority before send. Final admission cutoff and R3 risk decisions pending;
+no waiver inferred. Continue other eligible P1. Live7700/product/deps/env/providers/
+accounts/userDB untouched; paired isolatedDB/exactPIDbirthcwd only. Redis6381/sharedPG
+retained. No push/merge/deploy/release/tag/newphase/reset/clean/historyrewrite.

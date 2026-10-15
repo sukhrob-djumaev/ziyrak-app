@@ -416,9 +416,23 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   wrong-B persistence led to code893cb41 rendered-workspace request binding and actual
   two-tab J23 regression. Independent security/harness source closure clear; no reviewer
   execution. Final affected32/full149files1464+1Redis-mode skip/signup80files924/type/
-  strictlint passed. Matching runtimeafcab4e building fresh empty DB full23; new full
-  browser acceptance/P1 closure open. See
+  strictlint passed. Runtimeafcab4e/buildOxGeKpu78acIcGaW740sU/
+  digest6a4381cb48d249080ecd82b84c052c9180bdc0cc7ce54e4517ea8d3fe78f3263 fresh all23
+  passed exit0; supplemental actual user-form cross-tab403/no persistence passed exit0,
+  screenshots inspected, exact owned topology stopped/none. Local stand-in/realPG,
+  no real-provider claim. Settings continuation remains separate; P1 closure open. See
   `docs/p1-administration-ui-implementation-2026-10-15.md`.
+
+- **Settings UI continuation (2026-10-15, not yet accepted):** isolated code based893cb41
+  adds server/nav/capability/context gating, workspace-bound requests, known-denial
+  clearing and fresh legacy read/Retry. Real SSR12initial8red/4positive, affected53/type/
+  strictlint pass. Actual Chrome/PG red→green six checks include cross-tab wrong-write,
+  denied credential retention and inherited mask-overwrite repair; preserved secrets on
+  nonsecret edits, explicit replacement/clear. Independent security source closure clear,
+  no reviewer execution. Full150files1476+1Redis-mode skip/signup81files936 passed exit0.
+  Exact owned3200probe stopped/absent. New J21Settings/J24/source review/fresh all24
+  browser acceptance remain open; no P1/P2 closure/provider claim. See
+  `docs/p1-settings-context-implementation-2026-10-15.md`.
 
 ### P2 — Managed AI and usage limits
 

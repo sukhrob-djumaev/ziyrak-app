@@ -1,5 +1,5 @@
 // After J20: actual super-admin UI provisioning and assignment lifecycle.
-// Synthetic account only; support activation deliberately remains unavailable.
+// Synthetic accounts only; grant management is separate from tenant access activation.
 const L = require("./lib.cjs");
 const creds = require("./creds.json");
 const { randomUUID } = require("node:crypto");
@@ -20,9 +20,9 @@ async function post(page, payload) {
     payload
   );
 }
-async function clickMutation(page, selector, label) {
+async function clickMutation(page, selector, label, endpoint = "/api/platform/operators") {
   const pending = page.waitForResponse(
-    (r) => r.url().endsWith("/api/platform/operators") && r.request().method() === "POST"
+    (r) => r.url().endsWith(endpoint) && r.request().method() === "POST"
   );
   await page.click(selector);
   const response = await pending;
@@ -157,6 +157,111 @@ async function clickMutation(page, selector, label) {
       )) === 403,
       "Assigned operator has no implicit customer data access"
     );
+    await operator.goto(L.BASE + "/platform/support", { waitUntil: "load" });
+    await operator.waitForSelector("#supportTarget");
+    await operator.select("#supportTarget", assignment.id);
+    await operator.click('[data-operation="conversations:read"]');
+    await operator.click('[data-operation="messages:read"]');
+    await operator.click(`[data-connection="${connection.id}"]`);
+    await operator.type("#supportReason", "Synthetic UI scoped support request");
+    const submittedExpiry = await operator.$eval("#supportExpiry", (input) => {
+      const date = new Date(Date.now() + 30 * 60_000);
+      date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      setter.call(input, date.toISOString().slice(0, 16));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return new Date(input.value).toISOString();
+    });
+    const grant = await clickMutation(
+      operator,
+      "#issueSupportGrant",
+      "Support grant issuance",
+      "/api/platform/support-grants"
+    );
+    L.assert(
+      grant.actorUserId === user.id &&
+        grant.businessId === workspace.id &&
+        grant.assignmentId === assignment.id,
+      "Explicit grant binds actual operator, exact workspace and assignment"
+    );
+    L.assert(
+      grant.scopeMode === "connections" &&
+        grant.connectionScopes.length === 1 &&
+        grant.connectionScopes[0].connectionId === connection.id &&
+        grant.customerProfileAccess === "none",
+      "Explicit grant preserves selected connection and profile ceiling"
+    );
+    L.assert(
+      JSON.stringify(grant.allowedOperations) ===
+        JSON.stringify(["conversations:read", "messages:read"]),
+      "Grant persists exactly selected operations"
+    );
+    L.assert(
+      grant.expiresAt === submittedExpiry && Date.parse(grant.expiresAt) > Date.now(),
+      "Grant persists the explicit future expiry"
+    );
+    await operator.waitForSelector(`[data-grant="${grant.id}"]`);
+    L.assert(
+      (await L.text(operator)).includes("Workspace access is not available yet"),
+      "Grant management does not claim tenant activation"
+    );
+    await L.shot(operator, "j22-support-grant-recorded");
+    L.assert(
+      (await operator.evaluate(
+        async ({ id, businessId, grantId }) =>
+          (
+            await fetch("/api/conversations/" + id, {
+              headers: { "x-workspace-id": businessId, "x-support-grant-id": grantId },
+            })
+          ).status,
+        { id: knownConversation, businessId: workspace.id, grantId: grant.id }
+      )) === 403,
+      "An issued grant does not silently activate tenant access"
+    );
+    await operator.type("#supportRevokeReason", "Synthetic UI support grant end");
+    await clickMutation(
+      operator,
+      `[data-grant="${grant.id}"] button`,
+      "Support grant revocation",
+      "/api/platform/support-grants"
+    );
+    await operator.waitForFunction(
+      (id) => document.querySelector(`[data-grant="${id}"]`)?.innerText.includes("Revoked"),
+      {},
+      grant.id
+    );
+    L.assert(
+      L.sql(
+        'SELECT count(*) FROM "SupportGrant" WHERE id=' +
+          quote(grant.id) +
+          ' AND "revokedAt" IS NOT NULL'
+      ) === "1",
+      "Grant revocation is persisted"
+    );
+    await L.shot(operator, "j22-support-grant-revoked");
+    for (const [action, reason] of [
+      ["support.issue", "Synthetic UI scoped support request"],
+      ["support.revoke", "Synthetic UI support grant end"],
+    ]) {
+      L.assert(
+        L.sql(
+          'SELECT count(*) FROM "PlatformAccessAudit" WHERE action=' +
+            quote(action) +
+            ' AND "actorUserId"=' +
+            quote(user.id) +
+            ' AND "grantId"=' +
+            quote(grant.id) +
+            ' AND "workspaceId"=' +
+            quote(workspace.id) +
+            " AND reason=" +
+            quote(reason)
+        ) === "1",
+        "Support audit binds real actor/workspace/grant/reason for " + action
+      );
+    }
+    await operator.goto(L.BASE + "/platform/operators", { waitUntil: "load" });
+    await operator.waitForFunction(() => document.body.innerText.includes("Access denied."));
     const ordinaryBrowser = await L.launch(creds.A.profile);
     browsers.push(ordinaryBrowser);
     const ordinary = await ordinaryBrowser.newPage();
@@ -165,6 +270,12 @@ async function clickMutation(page, selector, label) {
     L.assert(
       !(await ordinary.$("#operatorPassword")),
       "Workspace owner/displaced super cannot open management controls"
+    );
+    await ordinary.goto(L.BASE + "/platform/support", { waitUntil: "load" });
+    await ordinary.waitForFunction(() => document.body.innerText.includes("Access denied."));
+    L.assert(
+      !(await ordinary.$("#issueSupportGrant")),
+      "Ordinary owner cannot open support grant controls"
     );
     await page.type("#revocationReason", "Synthetic UI assignment revocation");
     await clickMutation(
@@ -253,7 +364,8 @@ async function clickMutation(page, selector, label) {
       connectionId: connection.id,
       checks:
         "real UI create/login/assign/revoke/remove, self-escalation denial, no implicit customer access, mandatory audits",
-      limitations: "synthetic account; support-grant flow remains unavailable",
+      limitations:
+        "synthetic accounts; grant management proved, tenant support activation unavailable",
     });
   } finally {
     for (const b of browsers.reverse()) await b.close();

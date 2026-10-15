@@ -86,9 +86,19 @@ direct URLs/API calls. Full browser rerun and independent implementation securit
 review remain required. Synthetic local proofs/accounts are test evidence, not
 production bootstrap or permission to alter live accounts/secret configuration.
 
-Independent read-only design review verified fit with PLAN and supplied these
-race/audit tests. It is not implementation security signoff. Bootstrap/recovery
-authority and its enrollment API/UI are now implemented in the
-isolated P1 worktree; the broader operator/assignment/support contracts above
-remain unimplemented. Their admission, streams and delayed-work integration must
-pass before support activation. P1 remains incomplete.
+Independent read-only design review verified fit with PLAN. Bootstrap/recovery,
+secured operator provisioning and named assignments are implemented and locally
+verified; the fresh uninterrupted operator22browser rerun passed. Internal grant
+issue/revoke/admission is implemented and independently source-reviewed, without
+tenant activation. Grant-management API/UI is now implemented in isolated P1;
+local checks/review and matching browser verification are tracked separately in
+`p1-support-grant-console-2026-10-15.md`.
+
+Before tenant activation, enforce an exact support-safe method/path allowlist,
+explicit operation at identity admission and model/root/related projection/count/
+filter gates. Generic dashboard SSR cannot use permissionless support context.
+Knowledge-test POST performs paid AI work under a read permission; campaign reads
+also need a distinct contract. Workspace-scope support must still deny mutations,
+configuration, credentials, identity/team, tools/actions and recovery. Fresh audit
+must precede response/frame exposure. No operation-name-only route bypass.
+P1 remains incomplete; full support/stream/delayed acceptance remains open.

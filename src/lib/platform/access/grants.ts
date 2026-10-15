@@ -375,3 +375,88 @@ export async function authorizeSupportUse(token: string, input: unknown) {
   if (result.failure) throw result.failure;
   return result.admission!;
 }
+
+/** Safe management metadata only; this does not select or activate tenant access. */
+export async function readSupportConsole(token: string) {
+  return withPlatformControl(token, "any", async (tx, actor) => {
+    const now = new Date();
+    const assignments = await tx.platformAssignment.findMany({
+      where: {
+        operatorUserId: actor.userId,
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        business: { status: "active" },
+      },
+      include: { connectionScopes: { select: { connectionId: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 201,
+    });
+    const visibleAssignments = assignments.slice(0, 200);
+    const workspaces = await tx.business.findMany({
+      where: {
+        status: "active",
+        ...(actor.role === "operator"
+          ? { id: { in: visibleAssignments.map((a) => a.businessId) } }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        channelConnections: {
+          where:
+            actor.role === "operator"
+              ? {
+                  OR: visibleAssignments.map((a) => ({
+                    businessId: a.businessId,
+                    ...(a.scopeMode === "workspace"
+                      ? {}
+                      : {
+                          id: {
+                            in:
+                              a.scopeMode === "connections"
+                                ? a.connectionScopes.map((c) => c.connectionId)
+                                : [],
+                          },
+                        }),
+                  })),
+                }
+              : {},
+          select: { id: true, name: true, type: true },
+          orderBy: { id: "asc" },
+          take: 201,
+        },
+      },
+      orderBy: { id: "asc" },
+      take: 201,
+    });
+    const grants = await tx.supportGrant.findMany({
+      where: { actorUserId: actor.userId },
+      select: projection,
+      orderBy: { createdAt: "desc" },
+      take: 201,
+    });
+    return {
+      evaluatedAt: now.toISOString(),
+      role: actor.role,
+      assignments: visibleAssignments.map((a) => ({
+        id: a.id,
+        businessId: a.businessId,
+        allowedOperations: a.allowedOperations,
+        scopeMode: a.scopeMode,
+        customerProfileAccess: a.customerProfileAccess,
+        expiresAt: a.expiresAt,
+        connectionScopes: a.connectionScopes,
+      })),
+      workspaces: workspaces
+        .slice(0, 200)
+        .map((w) => ({ ...w, channelConnections: w.channelConnections.slice(0, 200) })),
+      grants: grants.slice(0, 200),
+      allowedOperations: SUPPORT_OPERATIONS,
+      truncated:
+        assignments.length > 200 ||
+        workspaces.length > 200 ||
+        grants.length > 200 ||
+        workspaces.some((w) => w.channelConnections.length > 200),
+    };
+  });
+}

@@ -18,12 +18,44 @@ async function open(name) {
   return { b, p };
 }
 const widgetLog = (p) => p.$$eval("#ziyrak-log > div", (ds) => ds.map((d) => d.textContent));
+const quote = (value) => "'" + String(value).replaceAll("'", "''") + "'";
+async function lineage(page) {
+  const conversationId = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith("ziyrak_webchat_conversation_"));
+    return key && localStorage.getItem(key);
+  });
+  if (!/^[0-9a-f-]{36}$/.test(conversationId || ""))
+    throw Error("Widget conversation binding is missing");
+  const payload = JSON.parse(
+    sql("SELECT data FROM pgboss.job WHERE name='send-followup' ORDER BY created_on DESC LIMIT 1")
+  );
+  L.assert(
+    payload.conversationId === conversationId,
+    "Follow-up queue parent matches the actual visitor conversation"
+  );
+  const parent = sql(
+    'SELECT coalesce("conversationId",\'unbound\') FROM "ActionExecution" WHERE "businessId"=' +
+      quote(payload.businessId) +
+      ' AND "idempotencyKey"=' +
+      quote(payload.idempotencyKey)
+  );
+  L.assert(
+    parent === conversationId,
+    "Durable follow-up action binds the same actual visitor parent before pickup/restart"
+  );
+  return {
+    visitorConversationId: conversationId,
+    queueConversationId: payload.conversationId,
+    actionConversationId: parent,
+  };
+}
+
 (async () => {
   // ---------- J9: durable follow-up, worker UP ----------
   const v9 = await open("visitor-j9");
   const r9 = await L.widgetSend(v9.p, "Please follow up with me in 1 minute, thanks.");
   mark(`J9 reply: ${r9.reply}`);
-  out.j9 = { ack: r9.ack, reply: r9.reply };
+  out.j9 = { ack: r9.ack, reply: r9.reply, lineage: await lineage(v9.p) };
   out.j9.action_after_schedule = sql(
     `select tool||' | '||status||' | '||coalesce("errorMessage",'-') from "ActionExecution" where tool='schedule_followup' order by "createdAt" desc limit 1`
   );
@@ -39,7 +71,7 @@ const widgetLog = (p) => p.$$eval("#ziyrak-log > div", (ds) => ds.map((d) => d.t
   const v10 = await open("visitor-j10");
   const r10 = await L.widgetSend(v10.p, "Please follow up with me in 1 minute, thanks.");
   mark(`J10 scheduled: ${r10.reply}`);
-  out.j10 = { scheduledReply: r10.reply };
+  out.j10 = { scheduledReply: r10.reply, lineage: await lineage(v10.p) };
   out.j10.pgboss_pending = sql(
     `select state||' | start_after='||start_after from pgboss.job where name='send-followup' and state<>'completed' order by created_on desc limit 1`
   );

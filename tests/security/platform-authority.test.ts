@@ -1573,3 +1573,117 @@ describe("support admission session revocation boundary", () => {
     }
   });
 });
+
+describe("support grant management metadata and HTTP boundary", () => {
+  it("lists only the actor's grants and active assigned metadata, never excluded connections or credentials", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      other = await operator(a.token);
+    const x = await assignmentWorkspace(),
+      y = await assignmentWorkspace();
+    const excluded = await prisma.channelConnection.create({
+      data: {
+        businessId: x.workspace.id,
+        type: "email",
+        name: "Excluded connection",
+        config: { privateFixture: "hidden" },
+      },
+    });
+    const assigned = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const own = await issueSupportGrant(
+      op.token,
+      grantRequest(x.workspace.id, x.channel.id, assigned.id)
+    );
+    await issueSupportGrant(a.token, grantRequest(y.workspace.id, y.channel.id));
+    const { readSupportConsole } = await import("@/lib/platform/access/grants");
+    const result = await readSupportConsole(op.token);
+    expect(result.workspaces.map((w) => w.id)).toEqual([x.workspace.id]);
+    expect(result.workspaces[0].channelConnections.map((c) => c.id)).toEqual([x.channel.id]);
+    expect(result.grants.map((g) => g.id)).toEqual([own.id]);
+    expect(result.assignments.map((v) => v.id)).toEqual([assigned.id]);
+    expect(JSON.stringify(result)).not.toMatch(
+      /credentialRef|privateFixture|keyHash|password|Excluded connection/
+    );
+    expect(JSON.stringify(result)).not.toContain(excluded.id);
+    const empty = await readSupportConsole(other.token);
+    expect(empty.workspaces).toHaveLength(0);
+    expect(empty.grants).toHaveLength(0);
+    await revokeAssignment(a.token, { assignmentId: assigned.id, reason: "Synthetic end" });
+    expect((await readSupportConsole(op.token)).workspaces).toHaveLength(0);
+    await expect(readSupportConsole((await account()).token)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+  it("requires a signed person and same-origin JSON, issues/revokes only actor-self and never creates membership", async () => {
+    const a = await superAccount(),
+      op = await operator(a.token),
+      other = await operator(a.token),
+      x = await assignmentWorkspace();
+    const assignment = await assignOperator(
+      a.token,
+      assignmentInput(op.user.id, x.workspace.id, x.channel.id)
+    );
+    const { GET, POST } = await import("@/app/api/platform/support-grants/route");
+    const request = (
+      token?: string,
+      body: unknown = {},
+      origin = "http://localhost:3000",
+      key = false,
+      content = "application/json"
+    ) => {
+      const r = new NextRequest("http://localhost:3000/api/platform/support-grants", {
+        method: "POST",
+        headers: {
+          origin,
+          "content-type": content,
+          ...(key ? { "x-api-key": "synthetic-key" } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (token) r.cookies.set("owly-token", token);
+      return r;
+    };
+    for (const response of [await GET(request()), await POST(request())]) {
+      expect(response.status).toBe(401);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    }
+    expect((await POST(request(a.token, {}, undefined, true))).status).toBe(403);
+    expect((await POST(request(a.token, {}, "https://foreign.example.invalid"))).status).toBe(403);
+    expect((await POST(request(a.token, {}, undefined, false, "text/plain"))).status).toBe(415);
+    const input = { action: "issue", ...grantRequest(x.workspace.id, x.channel.id, assignment.id) };
+    const created = await POST(request(op.token, input));
+    expect(created.status).toBe(200);
+    expect(created.headers.get("cache-control")).toBe("private, no-store");
+    const grant = (await created.json()).result;
+    expect(grant.actorUserId).toBe(op.user.id);
+    expect(
+      (
+        await POST(
+          request(other.token, {
+            action: "revoke",
+            grantId: grant.id,
+            reason: "Synthetic foreign denial",
+          })
+        )
+      ).status
+    ).toBe(404);
+    expect(
+      (
+        await POST(
+          request(op.token, { action: "revoke", grantId: grant.id, reason: "Synthetic own end" })
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      await prisma.membership.count({ where: { businessId: x.workspace.id, userId: op.user.id } })
+    ).toBe(0);
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { grantId: grant.id, action: "support.revoke", actorUserId: op.user.id },
+      })
+    ).toBe(1);
+  });
+});

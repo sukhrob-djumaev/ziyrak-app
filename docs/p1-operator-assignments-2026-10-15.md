@@ -75,13 +75,23 @@ restricted-resource UI acceptance pass. No invitation lifecycle is claimed.
   (body completed in51ms); screenshot inspected. Only the harness changed to
   wait for explicit denial state. Corrected focusedJ22 passed actual create/login/
   assign/deny/revoke/remove and exact-actor/target/reason audits. Its screenshots
-  were inspected. Fresh complete22 rerun is running; no full22 pass claimed yet.
+  were inspected. Fresh complete22 rerun passed uninterrupted with exit0 on a second fresh
+  database; J22 passed all actual operator lifecycle/audit checks.
   Runtime parentc2a4562, buildM_rq0OTQsJstuUKedMRia, product digest
   bd9c2ba6a6d8ff59da394077c548cb9292cb6b112d7751246674ffe8381ee94b.
-  Development/runtime product digests match. Local LLM stand-in, synthetic accounts
+  Operator candidate/runtime product digests matched for this build; later grant
+  and lineage code are separate candidates. Local LLM stand-in, synthetic accounts
   and owner proofs; real Postgres and Redis, production web and separate worker.
 
 Logs: `/private/tmp/ziyrak-p1-operators-{namespace-red,namespace-green,full-final,signup,
 redis,type2,lint2,build,browser}.log`. Test DBs are distinct from fresh acceptance
 `ziyrak_acceptance_p1_operators_20261015`; both database URLs are pinned together.
 No real AI/mail/Meta delivery, support activation, P1 closure or rollout is claimed.
+
+Fresh full22 log: /private/tmp/ziyrak-p1-operators-browser-rerun.log; artifacts in
+runtime scripts/acceptance/.work/p1-operators-rerun-20261015. Original failed run
+and corrected focusedJ22 remain separately recorded. Exact saved/current process
+identity comparison confirmed owned operator web/worker/hosts/LLM/browser topology
+stopped (remainingOwned[]). Redis6381 is retained solely for the next local P1
+verification and must later be removed by its exact ID/task label. No live services
+or databases were changed.

@@ -1,38 +1,32 @@
-# P1 continuation: operators and internal support admission
+# P1 operators, grant management and lineage continuation
 
-Operator code21c269f implemented safe super-only new operator provisioning, named
-immutable assignments/revocation/removal and atomic audit. Shared name reservation
-repairs two reproduced cross-creation races. Full1319/23optional, signup812,
-realPG/Redis34, type/lint and independent source review passed.
+Operators21c269f + denied-state harnessfe49561: fresh complete22 browser rerun passed
+uninterrupted; initial21-pass/failed-J22 network-idle run remains failed. Operator
+buildM_rq0OTQsJstuUKedMRia/runtimec2a4562/digestbd9c2ba6...e94b. Topology stopped
+with exact remainingOwned[]; acceptance DBs retained.
 
-First22browser runner passed21then failed J22 at a network-idle harness wait after 403. Same-session complete403body in51ms; actual denied document200/noforms/API403
-visually verified. Corrected J22 waits for explicit denial state and passed focused.
-Fresh complete22rerun is RUNNING on original operator product/build (no new full22
-pass yet). Runtime parentc2a4562/buildM_rq0OTQsJstuUKedMRia/digestbd9c2ba6...e94b.
-Current private env /private/tmp/ziyrak-p1-operators-rerun-acceptance.env; workdir
-runtime scripts/acceptance/.work/p1-operators-rerun-20261015. Previous topology stopped
-exactly, remainingOwned[]; databases retained. Old failed script may finish its
-non-browser Node timer drain; no owned browsers remain from it.
+Internal grants6b5e3d7: lifecycle/current admission facts, audited and unwired.
+Follow-up lineagef84e423: normalized parent/cache/approval, worker refuses unbound
+parent. Full1346/23optional, signup828, Redis18 and independent source review passed.
+Current runtime027455c/build5egIm5D0_uNGgsVhKKb7v/digest4be90fce...9b6e full22
+is running. Actual visitor/queue/action parent and J19 stream assertions passed;
+collect whole-command exit before acceptance. Private env/log lineage-acceptance.env/
+lineage-browser.log under /private/tmp; runtime workdir .work/p1-lineage-20261015.
 
-Internal grant module on21c269f (containing commit) issues/revokes and audits fresh
-admission facts. No public routes, tenant context, streams or queue integration;
-support activation remains closed. UUID casing, expiry while audit waits and logout
-while audit waits regressions reproduced before fixes. Final50focused Redis,
-full1335/23optional, signup828, type/strict lint, independent source recheck passed.
-Frozen operator browser run does not verify this new internal module.
-Evidence: docs/p1-operator-assignments-2026-10-15.md and
-p1-support-grant-admission-2026-10-15.md. No real provider/support/invitation claim.
+New grant-management API/UI (containing commit): actor-self issue/revoke, safe
+operator assignment metadata, reason/expiry and explicit no-activation copy. Tests
+first failed at missing new entrypoints; then PG/Redis52, full1349/23optional,
+signup831, type/lint passed. Source security/harness reviews clear; real UI/full22
+on matching newer build still pending. Current older run cannot verify it.
 
-Lineage onfe49561 (containing commit): normalized preflight parent, tool/parent cache
-binding, approval preflight and null-parent worker refusal. Nine desired realPG
-failures reproduced/fixed; full1346/23optional, signup828, Redis18, focused60,
-type/strict lint and independent source recheck passed. No snapshot/revocation
-integration yet. Current operator browser run cannot accept this newer worker.
-See docs/p1-followup-lineage-2026-10-15.md.
+Owner chose schedules surviving logout/session expiry; exact membership/key/current
+permissions and saved ceiling recheck before sending. Policy doc records the actual
+answer. Deferred authority producer/consumer not implemented. Support activation
+needs explicit route/model/projection/filter/count/stream gates; permission name alone
+is insufficient. R3 residuals explained; owner acceptance still pending.
 
-Next: collect/fix complete rerun, stop exact owned web/worker/hosts/LLM/browsers and
-Redis ID+label; fresh build/full browser for lineage, then delayed provenance/
-authority, grant selection/tenant/
-stream integration and restricted UI acceptance. R3 risk decision pending; P1
-incomplete. Main live product/deps/env/7700/tunnel/accounts untouched. No push,
-merge/deploy/release/new milestone, no kill-by-name/reset/profile-lock cleanup.
+Next: collect lineage run, stop exact owned processes, freeze/build grant console
+candidate in fresh isolated acceptance DB, run expanded full22 and inspect screens.
+Then deferred authority/support activation/restricted UI. P1 incomplete/P2 ineligible.
+Main remains docs-only; no live accounts/queues/providers/env/deps/7700/tunnel touched.
+No push/merge/deploy/release/new milestone, reset or broad process/profile cleanup.

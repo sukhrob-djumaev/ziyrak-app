@@ -22,3 +22,10 @@ waits lifecycle. Main docs-only, no live/provider/userDB/deploy changes. Redis/P
 Independent support-message source investigation complete, no implementation: exact
 parent/text rows+counts and final audited parent/session checks required; contract and
 tests-first regressions remain due. No new architecture/recall guarantee inferred.
+
+Session update: J18 assertion repaired in the non-serving development worktree
+(commit 72873e3, parent 504d08e): scripts/acceptance/j18-workspace-choice.cjs now
+waits for/asserts "Access denied" (2 lines; node --check and prettier pass). No
+product code changed; no browser run, independent harness review, or full24 rerun
+yet, so Settings browser acceptance stays OPEN. Next: independent harness review of
+72873e3, frozen candidate/build, fresh empty-DB full24, screenshots, exact-owned stop.

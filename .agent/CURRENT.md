@@ -37,3 +37,7 @@ Support-message investigation only, no code: independent security source review
 requires exact selected-parent/text-only SQL predicates for rows+count, final parent
 verification composed inside final audited grant check before session/expiry checks,
 and no promise of recall after the final checked snapshot. Contract/tests still due.
+
+Update: J18 repair committed in development worktree as 72873e3 (assertion text only,
+syntax/format checked). Pending: independent harness review, new candidate/build,
+fresh full24. Acceptance still open; no run claimed.

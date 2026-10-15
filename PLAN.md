@@ -393,6 +393,31 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   remainingOwned=[]. Local stand-in/realPG/standalone worker; no P1 closure. See
   `docs/p1-support-query-implementation-2026-10-15.md`.
 
+- **Limited support-list integration (2026-10-15):** codec199376 activates only
+  explicit request-local GET conversation scalar list/count and bounded console,
+  current own audited grant/person/assignment/session with final exposure recheck,
+  explicit workspace-selection clear. Final-placement grant/JTI revocation2desired
+  failures reproduced and repaired. Platform78/full148files1452+1Redis-mode skip/
+  signup79files912/type/strictlint passed. Independent security/harness source findings
+  integrated; no reviewer execution. Frozen matching runtimee85dc4e/build
+  QdF756rE7IdlnyaEb39sR full22browser passed exit0; exact owned topology stopped/
+  remainingOwned=[] verified. Actual J22 UI search/paging/conflict clear/revoked
+  refresh/read audit passed. Screenshots reveal cramped table columns; visual polish
+  remains open for the next candidate. No support details/SSR/
+  streams/jobs or P1 closure. See `docs/p1-support-list-implementation-2026-10-15.md`.
+
+- **Administration UI continuation (2026-10-15):** code533201c adds server page/
+  nav/capability gating, immutable owner controls, context-lifetime reset, per-resource
+  read supersession, denied-state clearing/error text and correct safe key fields.
+  Actual SSR12initial9desiredfailures3positives; reviewed refresh/read races reproduced
+  with real Chrome/PG before fixes and supplementary green probe passed. Final
+  affected32/full149files1464+1Redis-mode skip/signup80files924/type/strictlint passed;
+  full precedes final field-only correction, affected32 follows it. Independent
+  security/harness source closure clear, no reviewer execution. Frozen matching
+  runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW running focused J21/J23 and new fresh full23; no new browser
+  acceptance or P1 closure yet. Support-table visual polish included. See
+  `docs/p1-administration-ui-implementation-2026-10-15.md`.
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

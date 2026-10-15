@@ -1,22 +1,19 @@
 # Latest P1 checkpoint
 
-Query/facade code c78a1ff has complete local verification: focused37, full148files
-1426/1mode skip, signup79files886, type/strictlint and independent security source
-closure; fresh runtimec24277b/buildfF41LTQ5Z5NPbD7hoWtuQ/digestdd921cbc...a0712e
-full22browser passed exit0. Stopped exact owned runtime, remainingOwned=[] checked.
-Local stand-in/realPG/standaloneworker/trustedChrome only. See query evidence doc.
+Admin UI code533201c clean in p1-support-identity/owly. Actual SSR12initial9red/3positive,
+review-found scope/dialog + old/new read races actual Chrome/PG red→green, exact owned
+probe stopped. Server/capability/nav gate, context key, GET supersession, denied clear,
+immutableowner/safe key fields implemented. Final affected32/full1464+1mode skip/
+signup924/type/strictlint passed (full before field-only correction). Independent
+source security/J21-J23 harness closure clear, reviewers ran no tests. New full23 notrun.
 
-Active independent limited-list activation is uncommitted in p1-support-identity/owly
-atc78a1ff. Contract doc prepared before code. Real route first10tests9desiredfailures;
-new final-placement revocation reproductions2desiredfailures repaired by moving
-placement before final audited authorization. Complete platform file78passed, type/
-strictlint passed; independent security source recheck clear (reviewer ran no tests).
-Console limited list and J22 extensions implemented; full regressions running,
-new UI/browser not run. Next finish checks/review and freeze fresh complete browser
-candidate. Preserve stopped runtime source until preparing the next identified build.
+Matching runtime9ef3e10 running focused build6mYAOG-5q19Hq9yF137wW on cloned own stopped acceptance
+fixtures/profiles (original unchanged), env /private/tmp/ziyrak-p1-administration-focused.env.
+Next focused J21/J23/screenshots/ownedstop, then fresh empty DB/full23 using -full.env.
+Freeze runtime all source/HEAD/build/harness while active. Support-table spacing also
+needs new visual check. Prior supportc199376/runtimee85dc4e fresh22passed/exactstop/none
+is separate evidence; implementation docs in main+dev. Main docs-only.
 
-Follow-up WIP remains separately uncommitted in p1-workspace-access/owly,19focused
-16pass/3same real admission-race failures. Owner chose schedule-after-logout policy;
-rule11 final cutoff proposal and R3 risk acceptance remain undecided. No gate change.
-P1 incomplete, P2 ineligible. Main docs-only; no live/provider/account/userDB changes,
-push/merge/deploy/release/tag/newphase, reset/clean. Retain task Redis6381/sharedPG.
+P1 incomplete/P2 ineligible. Original dev separate follow-up19focused16pass3fail;
+owner chose schedule-after-logout, cutoff/R3 decisions pending. No live/provider/
+account/userDB/deploy/newmilestone actions. PairedDB/exact ownership; Redis/PG retained.

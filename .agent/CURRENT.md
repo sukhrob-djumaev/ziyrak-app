@@ -10,9 +10,12 @@ independent security/harness source closure clear, reviewers ran no checks. Own3
 Runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly58e9ff3.
 Focused2 buildPd7JxJEi0zqIn_436mr1v J24passed exit0, screenshots inspected; exactowned
 stop/remainingOwned=[] verified. Same productdigest above. Full -settings-full.env
-freshEMPTY ziyrak_acceptance_p1_settings_20261015 recheckedBusiness0; new full24build
-underway, not yet acceptance. Workdirp1-settings-20261015. Next start/freeze/runall24,
-screenshots/exactownedstop/none. Freeze runtime source/HEAD/deps/build/harness while
+freshEMPTY ziyrak_acceptance_p1_settings_20261015 recheckedBusiness0; full24 running,
+build96ITzoFyBUJCwB4Dut7X8, unchanged product digest above. Seven journeys completed;
+J09/J10/worker-restart assertions passed but process exit pending at this checkpoint.
+Log /private/tmp/ziyrak-p1-settings-full-browser.log; tool session88489. Not acceptance.
+Workdirp1-settings-20261015. Next collect full24 exit/screenshots/exactownedstop/none.
+Freeze runtime source/HEAD/deps/build/harness while
 serving. Focusclone2/original fixtures retained, never reset.
 
 Prior92/buildJ-\_zhfIwE6uMJRaeusp8r J21actual5Settingsroles passed exit0. J24 first
@@ -27,3 +30,8 @@ surviving schedule approved, final cutoff/R3 acceptance pending, no waivers. Nex
 independent P1 afterSettings: safe support text-message read; restrictedmembereditor
 activation waits delayed lifecycle. Live7700/provider/account/userDB untouched. PairedDB/
 exactPIDbirthcwd only, retain Redis6381/sharedPG. No push/merge/deploy/tag/newphase/reset.
+
+Support-message investigation only, no code: independent security source review
+requires exact selected-parent/text-only SQL predicates for rows+count, final parent
+verification composed inside final audited grant check before session/expiry checks,
+and no promise of recall after the final checked snapshot. Contract/tests still due.

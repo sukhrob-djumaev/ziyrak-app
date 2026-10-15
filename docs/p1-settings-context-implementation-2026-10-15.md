@@ -68,3 +68,21 @@ Required next: finish independent J21/J24 source review, coherent commit,
 matching isolated runtime build, focused new journeys if useful, then fresh empty DB
 full24 with exact identity/screenshots/cleanup. No acceptance waiver inferred from
 schedule-survives-logout choice; follow-up cutoff/R3 decisions remain separate.
+
+## First focused browser candidate
+
+Runtime92c4793/buildJ-\_zhfIwE6uMJRaeusp8r/productdigest45f6b5e...47d3 on own
+settings-focused clone: J21 actual five-role Settings matrix passed exit0, including
+allowed profile forms and denied controls/navigation/protected fetch absence.
+J24 initial browser startup failed Target.createTarget/Targetclosed before creating
+any J24 admin/Default Business; all owned browser roots absent. One retry provisioned
+its synthetic admin, then failed because login helper typed before #username existed.
+The client login intentionally renders no form until its auth check settles. Added
+waitForSelector before typing; Node syntax/Prettier and independent source recheck
+clear. No product delta or new product failure inferred. Initial Targetclosed root
+cause unestablished. Logs use /private/tmp/ziyrak-p1-settings-focused-j24{-retry}.log.
+Exact owned topology stopped/remainingOwned=[] verified; failed DB/profiles retained.
+Next correctedJ24 on fresh clone2 of ORIGINAL stopped Administration full fixtures,
+/private/tmp/ziyrak-p1-settings-focused2.env, then newEMPTY full24. Never reset failed
+fixtures. Existing 1476/signup936/type/lint/probe6 results cover unchanged product;
+harness-only synchronization repair uses its own source/syntax and real journey checks.

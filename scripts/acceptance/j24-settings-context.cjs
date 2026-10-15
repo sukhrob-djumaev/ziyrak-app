@@ -36,6 +36,7 @@ async function login(browser, account, ip) {
   const page = await browser.newPage();
   await page.setExtraHTTPHeaders({ "X-Forwarded-For": ip });
   await page.goto(L.BASE + "/login", { waitUntil: "load" });
+  await page.waitForSelector("#username");
   await page.type("#username", account.username);
   await page.type("#password", account.password);
   await Promise.all([

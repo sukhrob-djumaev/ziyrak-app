@@ -15,10 +15,13 @@ stopped/absent verified. API/schema/provider/managed-AI ownership unchanged. New
 Settingsmatrix/J24 context/late-read/defaultlegacy/Retry/full24 browser remains OPEN.
 
 Next apply coherent delta to stopped r1-delivery-reliability/owly runtime, build/freeze.
-Focused env /private/tmp/ziyrak-p1-settings-focused.env; fresh own clone
-ziyrak_acceptance_p1_settings_focused_20261015 from stopped Administration fullDB, source
+Focused2 env /private/tmp/ziyrak-p1-settings-focused2.env; fresh own clone
+ziyrak_acceptance_p1_settings_focused2_20261015 from stopped Administration fullDB, source
 untouched; copied profiles only after owned browsers absent. No Default Business and
-shared placements checked. Run focusedJ21/J24+screenshots; exact owned stop. Then new
+shared placements checked. Prior runtime92/buildJ-\_zhfIwE6uMJRaeusp8r focusedJ21passed; J24 had startupTargetclosed
+then missing loginselector, no productfailure inferred. Added loginformwait; independent
+source/syntax reviewclear. Prior topology stopped/none, failedfixtures retained. Run
+correctedJ24+screenshots on clone2; exact owned stop. Then new
 EMPTY target ziyrak_acceptance_p1_settings_20261015 via -full.env, fresh all24. Never
 reset/reuse failed fixtures. Freeze serving source/HEAD/deps/build/harness; independent
 APFS deps here, not serving. No browser Settings closure/phase/provider claim yet.

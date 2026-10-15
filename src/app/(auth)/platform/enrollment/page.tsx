@@ -197,6 +197,11 @@ export default function PlatformEnrollmentPage() {
       <Link href="/workspaces" className="mt-6 inline-block text-owly-primary">
         Choose a workspace
       </Link>
+      {entry?.role === "super_admin" && (
+        <Link href="/platform/operators" className="mt-3 block text-owly-primary">
+          Manage platform operators
+        </Link>
+      )}
     </section>
   );
 }

@@ -26,22 +26,31 @@ See enrollment/role-browser/stream/widget/foundation evidence docs. Runtime prod
 matched through acceptance; topology stopped with exact remainingOwned[]. A later
 runtime Git checkpoint requires rebuilding before startup; no stale build reuse.
 
-## Exact next eligible work
+## Active continuation: operator assignments
 
-Secured operator provisioning and named assignments, explicit support grant issue/
-resolve/audit/expiry/revocation lifecycle, then delegated delayed authority and full
-restricted-resource UI. Contract/design packet already prepared. Support activation
-must remain closed until real lifecycle/stream/delayed gates work. Human five-role
-full-workspace matrix passed; existing Administration shell/controls still render
-for denied roles with zero protected rows. Add proper permission presentation and
-access-denied UI; do not claim a403 document gate. Read-only delayed investigation
-confirmed missing follow-up lineage/snapshot consumption, not a newly proven
-retired-target send bypass. See docs/p1-delayed-authority-investigation-2026-10-15.md.
+New operator/assignment service and super-admin UI/API implemented on91c301c in
+this isolated checkout; containing commit identifies the candidate. Shared
+normalized username reservation repairs independently confirmed public/workspace/
+operator creation races (two realPG desired assertions failed before fix).
+Full144files1319passed/23optional, signup75files812passed, focused34realPG and
+same34with Redis, type/strict lint passed. Independent source-only security recheck
+clear; fresh expanded22browser suite running, not yet a pass.
+Runtime parentc2a4562/buildM_rq0OTQsJstuUKedMRia/digest
+bd9c2ba6a6d8ff59da394077c548cb9292cb6b112d7751246674ffe8381ee94b.
+Fresh own operator acceptance topology is currently running; stop only its recorded
+identities after collection. See docs/p1-operator-assignments-2026-10-15.md.
+
+Next: collect/review browser result, fix confirmed failures and stop exact owned
+services. Then explicit support grant issue/resolve/audit/expiry/revocation,
+delegated delayed authority and remaining restricted-resource UI acceptance.
+Support activation remains closed. Existing Administration shell/control presentation
+is still open; protected rows/actions deny. Missing delayed lineage/provenance is
+investigated, not a newly proven retired-target send bypass. P1 remains incomplete.
 
 ## Boundaries
 
 Main is docs-only. No live code/deps/env/7700/tunnel/provider/user-DB changes.
-Own test services stopped; task Redis6381 cleanup is recorded in latest handoff.
+Own operator acceptance services/Redis6381 are running for the pending browser suite.
 Use own worktrees/deps, paired isolated DB URLs and fresh acceptance DB/build.
 Never kill by name/delete profile locks, push/merge/deploy/release or select new
 milestone/phase. R3 risk decision and P1 remaining acceptance are not waived.

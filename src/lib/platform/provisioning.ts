@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma/raw-client";
+import { reserveNewUsername } from "./username-reservation";
 import { Prisma } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/identity/auth";
 import { DEFAULT_TOOL_POLICIES } from "@/lib/tools/policy";
@@ -67,7 +68,8 @@ export function generateBusinessSlug(businessName: string): string {
  * rather than assuming one — a lost race must map to a clean 409, never a 500.
  */
 function isUniqueViolation(error: unknown, field: string): boolean {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002")
+    return false;
   let haystack = error.message;
   try {
     haystack += JSON.stringify(error.meta ?? {});
@@ -77,7 +79,9 @@ function isUniqueViolation(error: unknown, field: string): boolean {
   return haystack.includes(field);
 }
 
-export async function provisionBusiness(input: ProvisionBusinessInput): Promise<ProvisionedBusiness> {
+export async function provisionBusiness(
+  input: ProvisionBusinessInput
+): Promise<ProvisionedBusiness> {
   const username = input.ownerUsername.trim();
 
   // A case-insensitive pre-check (the DB constraint is case-sensitive) so
@@ -96,6 +100,7 @@ export async function provisionBusiness(input: ProvisionBusinessInput): Promise<
     const slug = generateBusinessSlug(input.businessName);
     try {
       return await prisma.$transaction(async (tx) => {
+        await reserveNewUsername(tx, username);
         const business = await tx.business.create({
           data: { slug, name: input.businessName.trim(), status: "active" },
         });
@@ -106,7 +111,9 @@ export async function provisionBusiness(input: ProvisionBusinessInput): Promise<
           data: { username, password: passwordHash, name: input.ownerName?.trim() || username },
         });
 
-        await tx.membership.create({ data: { businessId: business.id, userId: user.id, role: "owner" } });
+        await tx.membership.create({
+          data: { businessId: business.id, userId: user.id, role: "owner" },
+        });
 
         await tx.businessConfig.create({
           data: {
@@ -161,5 +168,9 @@ export async function provisionBusiness(input: ProvisionBusinessInput): Promise<
     }
   }
 
-  throw new AppError(500, "PROVISIONING_FAILED", "Could not create the business. Please try again.");
+  throw new AppError(
+    500,
+    "PROVISIONING_FAILED",
+    "Could not create the business. Please try again."
+  );
 }

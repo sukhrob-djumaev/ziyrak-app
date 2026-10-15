@@ -5,6 +5,7 @@ import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { effectiveResourceScope } from "@/lib/tenancy/resource-query";
+import { reserveNewUsername } from "../username-reservation";
 
 function assertWorkspaceDelegation(
   ctx: TenantContext,
@@ -103,8 +104,11 @@ export async function create(ctx: TenantContext, input: CreateInput) {
     : "viewer";
 
   const hashed = await hashPassword(input.password);
-  const user = await prisma.user.create({
-    data: { username, password: hashed, name: input.name?.trim() || username },
+  const user = await prisma.$transaction(async (tx) => {
+    await reserveNewUsername(tx, username);
+    return tx.user.create({
+      data: { username, password: hashed, name: input.name?.trim() || username },
+    });
   });
 
   const db = getScopedPrisma(ctx);

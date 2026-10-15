@@ -8,7 +8,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!ctx) redirect("/workspaces");
   return (
     <div className="flex h-full">
-      <Sidebar canReadAdministration={hasTenantPermission(ctx, "admin:read")} />
+      <Sidebar
+        canReadAdministration={hasTenantPermission(ctx, "admin:read")}
+        canReadSettings={hasTenantPermission(ctx, "settings:read")}
+      />
       <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
     </div>
   );

@@ -215,6 +215,41 @@ async function api(page, path) {
           : "explicit denial without protected client, rows, controls or navigation",
       });
       await L.shot(page, "j21-" + role);
+      const settingsRequests = [];
+      const watchSettings = (request) => {
+        if (new URL(request.url()).pathname.startsWith("/api/settings"))
+          settingsRequests.push(request.url());
+      };
+      page.on("request", watchSettings);
+      await page.goto(L.BASE + "/settings", { waitUntil: "networkidle0" });
+      page.off("request", watchSettings);
+      const settingsPresentation = await page.evaluate(() => ({
+        denied: document.body.innerText.includes("Access denied"),
+        form: !!document.querySelector('input[placeholder="My Business"]'),
+        save: [...document.querySelectorAll("button")].some(
+          (button) => button.textContent.trim() === "Save"
+        ),
+        navigation: !!document.querySelector('nav a[href="/settings"]'),
+      }));
+      L.assert(
+        permittedAdmin
+          ? settingsPresentation.form &&
+              settingsPresentation.save &&
+              settingsPresentation.navigation &&
+              !settingsPresentation.denied
+          : settingsPresentation.denied &&
+              !settingsPresentation.form &&
+              !settingsPresentation.save &&
+              !settingsPresentation.navigation,
+        `${role}: actual Settings page/navigation matches server permission`
+      );
+      if (!permittedAdmin)
+        L.assert(
+          settingsRequests.length === 0,
+          `${role}: denied Settings mounts no protected fetch`
+        );
+      results.at(-1).settingsPage = settingsPresentation;
+      await L.shot(page, "j21-settings-" + role);
     }
     await inspect(owner, "owner");
     for (let index = 0; index < accounts.length; index++) {

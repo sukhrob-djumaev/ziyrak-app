@@ -469,6 +469,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
         targetWorkspace
       ),
     ]);
+    await second.page.bringToFront();
     const rejected = await mutation(
       second.page,
       "/api/admin/api-keys",

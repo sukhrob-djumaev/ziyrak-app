@@ -118,7 +118,13 @@ function usePendingApprovals(): number | null {
   return count;
 }
 
-export function Sidebar({ canReadAdministration }: { canReadAdministration: boolean }) {
+export function Sidebar({
+  canReadAdministration,
+  canReadSettings,
+}: {
+  canReadAdministration: boolean;
+  canReadSettings: boolean;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const pendingApprovals = usePendingApprovals();
@@ -160,6 +166,7 @@ export function Sidebar({ canReadAdministration }: { canReadAdministration: bool
                 // Only roles allowed to review approvals get the link (the count request 403s for others).
                 .filter((item) => item.href !== APPROVALS_HREF || pendingApprovals !== null)
                 .filter((item) => item.href !== "/admin" || canReadAdministration)
+                .filter((item) => item.href !== "/settings" || canReadSettings)
                 .map((item) => {
                   const isActive =
                     pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));

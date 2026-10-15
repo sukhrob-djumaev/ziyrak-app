@@ -139,3 +139,26 @@ Independent harness source recheck clear. Focused four files32passed, type/stric
 passed. Final same-source full149files1464passed/1Redis-mode skip and signup80files924passed, both exit0. Fresh23 browser pending at this checkpoint.
 Prepared -full.env target ziyrak_acceptance_p1_administration_20261015 created fresh,
 migrated, Businesscount0 verified. No resets, live/provider/user DB actions.
+
+## Fresh Administration browser acceptance
+
+Code893cb41, runtimeafcab4ea16be63bceef5ed8d0304d47db5d1d278,
+buildOxGeKpu78acIcGaW740sU,
+digest6a4381cb48d249080ecd82b84c052c9180bdc0cc7ce54e4517ea8d3fe78f3263:
+fresh all23 journeys passed, run-all exit0. Empty migrated
+ziyrak_acceptance_p1_administration_20261015 verified before signup; private
+-full.env/workdir p1-administration-20261015. Trusted installed Chrome, separate
+worker, real isolatedPG and local AI stand-in. No real-provider/model-quality claim.
+J23 actual two-tab old A key form→Bselection returned403/headerA, zero key persistence,
+context/form/rows reset; normal/restricted key CRUD, demotion, RSC/later-read checks
+passed. J21 five roles and J22 limited support list/audits also passed. Inspected
+fresh selected-workspace-reset and limited-list screenshots. Teardown latency in
+J09/J19 resolved naturally; no process/harness intervention or root-cause claim.
+
+Supplementary actual user-form cross-tab probe passed exit0 on that same frozen
+candidate:403, headerA, createdMemberships0/createdInB0. Corrected finish() present.
+Log /private/tmp/ziyrak-p1-admin-workspace-green.log; complete browser/build/migration
+logs use /private/tmp/ziyrak-p1-administration-full-\*.log. Exact owned topology stopped,
+remainingOwned=[] verified; synthetic DB/profiles retained. Administration slice
+accepted at this boundary; P1 as a whole remains incomplete. New Settings changes
+are separate, uncommitted and not covered by this23pass.

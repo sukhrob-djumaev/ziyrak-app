@@ -92,3 +92,19 @@ acceptance stays open. Do not use old22pass for changed product.
 P1 incomplete/P2 ineligible. Separate follow-up WIP19focused16pass3fail remains;
 owner selected schedules surviving logout, rule11 send cutoff and R3 risk acceptance
 still undecided. No real provider/account/live main/userDB/deploy/newmilestone action.
+
+## First focused candidate
+
+Code533201c, runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW/
+digeste62c7bf9594f6eca3286c0888e1937c2fd8aa7b02d753747c81c7100ceea9b1c.
+Focused J21 passed exit0: five actual roles/positive rows, explicit denial/no admin
+client fetches/controls/nav for denied roles and no generic owner-row mutations.
+Focused J23 failed: two boolean evidence assertions expected psql-style f but this
+repository SQL helper returns false; later controlled extra-membership INSERT used
+a nonexistent updatedAt column. No product failure established by those errors.
+Do not call J23 passed from intermediate checks. Fixed assertion and explicit fixture
+columns/scope/profile, node --check passed. Complete affected new browser required.
+Exact owned focused topology stopped; remainingOwned=[] verified. Focus logs use
+/private/tmp/ziyrak-p1-administration-focused-{j21,j23,build}.log; DB/profiles retained.
+Next fresh clone of ORIGINAL stopped support-list fixtures for corrected J23, then
+new empty database complete23. Prior cloned database must not be reset/cleaned.

@@ -258,7 +258,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     name
   );
   L.assert(
-    L.sql('SELECT "isActive" FROM "ApiKey" WHERE id=' + quote(saved.id)) === "f",
+    L.sql('SELECT "isActive" FROM "ApiKey" WHERE id=' + quote(saved.id)) === "false",
     "Deactivated key persisted"
   );
   await mutation(page, "/api/admin/api-keys/" + saved.id, "PUT", () => clickRow("Activate"), 200);
@@ -441,9 +441,9 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       "Synthetic old workspace form"
     );
     L.sql(
-      'INSERT INTO "Membership" (id,"businessId","userId",role,"updatedAt") VALUES (' +
-        [randomUUID(), b, restricted.userId, "admin"].map(quote).join(",") +
-        ",now())"
+      'INSERT INTO "Membership" (id,"businessId","userId",role,"scopeMode","customerProfileAccess") VALUES (' +
+        [randomUUID(), b, restricted.userId, "admin", "workspace", "write"].map(quote).join(",") +
+        ")"
     );
     const selected = await second.page.evaluate(
       async (workspaceId) =>

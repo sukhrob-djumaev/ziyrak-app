@@ -23,3 +23,8 @@ Separate original p1-workspace-access/owly follow-up WIP19focused16pass3fail rem
 owner chose schedule-after-logout. Cutoff and R3 acceptance pending. Continue eligible
 P1 independent work. No live7700/provider/account/userDB/deployment/newphase actions;
 paired isolatedDBs/exact PIDbirthcwd only; retain taskRedis6381/sharedPG.
+
+First runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW focusedJ21 passed; J23 failed two
+harness false-vs-f assertions + nonexistent Membership.updatedAt fixture column.
+Harness corrected; no product change. Owned focused topology stopped/none verified.
+Next new runtime checkpoint/new original-fixture clone for correctedJ23, then fresh23.

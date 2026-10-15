@@ -15,3 +15,8 @@ supportc199376/runtimee85dc4e full22pass/stopped evidence does not cover new pro
 P1 incomplete. Separate follow-up WIP19cases16pass3fail awaits cutoff; owner selected
 logout-surviving schedule, R3 acceptance pending. No live/provider/account/userDB/
 deploy/newphase actions. Exact process ownership/paired testDBs; Redis/PG retained.
+
+First runtime9ef3e10/build6mYAOG-5q19Hq9yF137wW focusedJ21 passed; J23 failed two
+harness false-vs-f assertions + nonexistent Membership.updatedAt fixture column.
+Harness corrected; no product change. Owned focused topology stopped/none verified.
+Next new runtime checkpoint/new original-fixture clone for correctedJ23, then fresh23.

@@ -2,13 +2,24 @@ import { z } from "zod";
 import { AppError } from "@/lib/observability/errors";
 import type { TenantContext } from "./context";
 
-const profile = z
+const listProfile = z
   .object({
     method: z.literal("GET"),
     pathname: z.literal("/api/conversations"),
     operation: z.literal("conversations:read"),
   })
   .strict();
+const parentId = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+const messageProfile = z
+  .object({
+    method: z.literal("GET"),
+    pathname: z.string(),
+    operation: z.literal("messages:read"),
+    parentId,
+  })
+  .strict()
+  .refine((value) => value.pathname === `/api/conversations/${value.parentId}/messages`);
+const messageFields = new Set(["id", "conversationId", "role", "content", "createdAt"]);
 const scalarFields = new Set([
   "id",
   "businessId",
@@ -72,17 +83,21 @@ function scalar(field: string, input: unknown, depth = 0): unknown {
   }
   return result;
 }
-function fields(input: unknown, depth = 0): Record<string, unknown> {
+function fields(
+  input: unknown,
+  allowed: Set<string> = scalarFields,
+  depth = 0
+): Record<string, unknown> {
   if (depth > 16) deny();
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(object(input))) {
     if (["AND", "OR", "NOT"].includes(key)) {
       if (Array.isArray(value)) {
         if (value.length > 200) deny();
-        result[key] = value.map((part) => fields(part, depth + 1));
-      } else result[key] = fields(value, depth + 1);
+        result[key] = value.map((part) => fields(part, allowed, depth + 1));
+      } else result[key] = fields(value, allowed, depth + 1);
     } else {
-      if (!scalarFields.has(key)) deny();
+      if (!allowed.has(key)) deny();
       // Only literal operands: Prisma FieldRef values can otherwise turn an
       // allowed field into an oracle over forbidden summary/metadata fields.
       result[key] = scalar(key, value);
@@ -101,6 +116,13 @@ export function prepareSupportQuery(
   args: Record<string, unknown>
 ): Record<string, unknown> {
   const auth = ctx.authorization;
+  const messageQuery = messageProfile.safeParse(ctx.supportQuery);
+  const shape = messageQuery.success ? messageQuery.data : null;
+  const supportOperation = shape
+    ? "messages:read"
+    : listProfile.safeParse(ctx.supportQuery).success
+      ? "conversations:read"
+      : null;
   const copiedSupport =
     auth?.kind === "delegated_job" &&
     (!auth.origin || !["membership", "api_key", "provider_inbound"].includes(auth.origin.kind));
@@ -123,26 +145,56 @@ export function prepareSupportQuery(
     !auth.grantId ||
     auth.grantId.length > 128 ||
     !Array.isArray(auth.allowedOperations) ||
-    !auth.allowedOperations.includes("conversations:read") ||
-    !profile.safeParse(ctx.supportQuery).success ||
+    !supportOperation ||
+    !auth.allowedOperations.includes(supportOperation) ||
     !ctx.resourceScope ||
-    model !== "conversation" ||
-    !["findMany", "count"].includes(operation)
+    !(shape
+      ? (model === "message" && ["findMany", "count"].includes(operation)) ||
+        (model === "conversation" && operation === "count")
+      : model === "conversation" && ["findMany", "count"].includes(operation))
   )
     deny();
   const input = object(args);
+  if (shape && model === "conversation") {
+    // Parent verification only: the selected id, under the generic scope gate.
+    if (Object.getOwnPropertyNames(input).some((key) => key !== "where")) deny();
+    return {
+      where: {
+        AND: [
+          fields(input.where ?? {}, new Set(["id"])),
+          { id: shape.parentId },
+          { retiredAt: null },
+        ],
+      },
+    };
+  }
+  const allowedFields = shape ? messageFields : scalarFields;
   const keys = operation === "count" ? ["where"] : ["where", "select", "take", "skip", "orderBy"];
   if (Object.getOwnPropertyNames(input).some((key) => !keys.includes(key))) deny();
   // Capture once, validate and construct a fresh output. Inherited fields or
   // getter changes must not make validation differ from what Prisma receives.
   const { where, select: selectInput, take, skip, orderBy } = input;
   const result: Record<string, unknown> = {
-    where: { AND: [fields(where ?? {}), { retiredAt: null }] },
+    where: {
+      AND: [
+        fields(where ?? {}, allowedFields),
+        // Text-only rows of exactly the selected, unretired parent. The caller
+        // cannot widen the parent or re-admit media rows.
+        shape
+          ? {
+              conversationId: shape.parentId,
+              mediaType: null,
+              mediaUrl: null,
+              conversation: { is: { retiredAt: null } },
+            }
+          : { retiredAt: null },
+      ],
+    },
   };
   if (operation === "count") return result;
   const selection = Object.entries(object(selectInput));
   if (!selection.some(([, value]) => value === true)) deny();
-  if (selection.some(([key, value]) => !scalarFields.has(key) || typeof value !== "boolean"))
+  if (selection.some(([key, value]) => !allowedFields.has(key) || typeof value !== "boolean"))
     deny();
   result.select = Object.fromEntries(selection);
   if (!Number.isInteger(take) || Number(take) < 1 || Number(take) > 100) deny();
@@ -158,7 +210,7 @@ export function prepareSupportQuery(
       const entries = Object.entries(object(order));
       if (
         entries.some(
-          ([key, value]) => !scalarFields.has(key) || (value !== "asc" && value !== "desc")
+          ([key, value]) => !allowedFields.has(key) || (value !== "asc" && value !== "desc")
         )
       )
         deny();

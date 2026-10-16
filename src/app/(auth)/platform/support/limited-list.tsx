@@ -11,7 +11,138 @@ type Row = {
   updatedAt: string;
 };
 type Result = { data: Row[]; pagination: { page: number; total: number; totalPages: number } };
+type Message = { id: string; role: string; content: string; createdAt: string };
+type MessagePage = {
+  data: Message[];
+  pagination: { page: number; total: number; totalPages: number };
+};
 const button = "rounded border border-owly-border px-3 py-2 disabled:opacity-50";
+
+/** Text-only read of one listed conversation. Everything here is request-local:
+ * the parent unmounts it on list reload, grant change, expiry or close, and late
+ * responses from superseded requests are rejected.
+ */
+function LimitedSupportMessages({
+  grant,
+  conversationId,
+  onClose,
+}: {
+  grant: Grant;
+  conversationId: string;
+  onClose: () => void;
+}) {
+  const [result, setResult] = useState<MessagePage | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const current = useRef<{ sequence: number; controller: AbortController | null; page: number }>({
+    sequence: 0,
+    controller: null,
+    page: 1,
+  });
+  const load = useCallback(
+    async (page: number) => {
+      current.current.controller?.abort();
+      const controller = new AbortController();
+      const sequence = ++current.current.sequence;
+      current.current.controller = controller;
+      current.current.page = page;
+      const active = () => !controller.signal.aborted && current.current.sequence === sequence;
+      setResult(null);
+      setError("");
+      setBusy(true);
+      try {
+        const response = await fetch(
+          `/api/conversations/${encodeURIComponent(conversationId)}/messages?` +
+            new URLSearchParams({ page: String(page), limit: "20" }),
+          {
+            cache: "no-store",
+            signal: controller.signal,
+            headers: { "x-support-grant-id": grant.id, "x-workspace-id": grant.businessId },
+          }
+        );
+        const body = await response.json();
+        if (!active()) return;
+        if (!response.ok)
+          throw new Error(
+            response.status === 401
+              ? "Sign in again to use this support grant."
+              : body.error?.message || "These messages are unavailable."
+          );
+        setResult(body);
+      } catch (error) {
+        if (active())
+          setError(error instanceof Error ? error.message : "These messages are unavailable.");
+      } finally {
+        if (active()) setBusy(false);
+      }
+    },
+    [grant.id, grant.businessId, conversationId]
+  );
+  useEffect(() => {
+    void load(1);
+    const pending = current.current;
+    return () => {
+      pending.controller?.abort();
+      ++pending.sequence;
+    };
+  }, [load]);
+  return (
+    <div
+      id="limitedSupportMessages"
+      className="space-y-3 rounded border border-owly-border p-4"
+      aria-busy={busy}
+    >
+      <h3 className="text-lg font-semibold">Text messages</h3>
+      <p>Text only. Media, attachments and tool data are excluded from this view.</p>
+      <div className="flex flex-wrap gap-3">
+        <button className={button} disabled={busy} onClick={() => void load(current.current.page)}>
+          Refresh messages
+        </button>
+        <button className={button} onClick={onClose}>
+          Close messages
+        </button>
+      </div>
+      {busy && <p role="status">Checking support access…</p>}
+      {error && <p role="alert">{error}</p>}
+      {result && (
+        <>
+          <p role="status">
+            {result.pagination.total} text messages · Page {result.pagination.page} of{" "}
+            {Math.max(1, result.pagination.totalPages)}
+          </p>
+          <ol className="space-y-2" aria-label="Limited support text messages">
+            {result.data.map((message) => (
+              <li key={message.id} data-support-message={message.id}>
+                <strong>{message.role}</strong>{" "}
+                <time dateTime={message.createdAt}>
+                  {new Date(message.createdAt).toLocaleString()}
+                </time>
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              </li>
+            ))}
+          </ol>
+          {!result.data.length && <p>No text messages.</p>}
+          <div className="flex gap-3">
+            <button
+              className={button}
+              disabled={busy || result.pagination.page <= 1}
+              onClick={() => void load(result.pagination.page - 1)}
+            >
+              Previous messages
+            </button>
+            <button
+              className={button}
+              disabled={busy || result.pagination.page >= result.pagination.totalPages}
+              onClick={() => void load(result.pagination.page + 1)}
+            >
+              Next messages
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /** Request-local limited view. Unmount on grant change/revoke/close. */
 export default function LimitedSupportList({
@@ -26,6 +157,7 @@ export default function LimitedSupportList({
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
   const current = useRef<{ sequence: number; controller: AbortController | null }>({
     sequence: 0,
     controller: null,
@@ -39,6 +171,7 @@ export default function LimitedSupportList({
       current.current.controller = controller;
       const active = () => !controller.signal.aborted && current.current.sequence === sequence;
       setResult(null);
+      setSelected(null);
       setError("");
       setConflict(false);
       setBusy(true);
@@ -90,6 +223,7 @@ export default function LimitedSupportList({
         current.current.controller?.abort();
         ++current.current.sequence;
         setResult(null);
+        setSelected(null);
         setBusy(false);
         setConflict(false);
         setError("This support grant has expired.");
@@ -111,8 +245,8 @@ export default function LimitedSupportList({
     >
       <h2 className="text-xl font-semibold">Limited conversation list</h2>
       <p>
-        Only conversations covered by this grant are shown. Conversation details are unavailable in
-        this view.
+        Only conversations covered by this grant are shown. Only text messages can be opened;
+        conversation details, notes, media and customer profiles are unavailable in this view.
       </p>
       <div className="flex flex-wrap gap-3">
         <button
@@ -172,6 +306,7 @@ export default function LimitedSupportList({
                   <th>Channel</th>
                   <th>Status</th>
                   <th>Updated</th>
+                  <th>Messages</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,12 +317,30 @@ export default function LimitedSupportList({
                     <td>{row.channel}</td>
                     <td>{row.status}</td>
                     <td>{new Date(row.updatedAt).toLocaleString()}</td>
+                    <td>
+                      <button
+                        className={button}
+                        disabled={busy}
+                        aria-label={`View text messages for ${row.customerName || "Unnamed customer"}`}
+                        onClick={() => setSelected(row.id)}
+                      >
+                        View text messages
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {!result.data.length && <p>No conversations match this search.</p>}
+          {selected && (
+            <LimitedSupportMessages
+              key={selected}
+              grant={grant}
+              conversationId={selected}
+              onClose={() => setSelected(null)}
+            />
+          )}
           <div className="flex gap-3">
             <button
               className={button}

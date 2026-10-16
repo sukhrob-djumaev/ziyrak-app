@@ -15,22 +15,32 @@ export function privateSupportResponse(response: NextResponse): NextResponse {
 }
 const id = (value: string | null): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+type SupportRoute =
+  | { operation: "conversations:read"; pathname: "/api/conversations" }
+  | { operation: "messages:read"; pathname: string; parentId: string };
+/** Exact support-safe allowlist; a permission string alone never selects a route. */
+function supportRoute(request: NextRequest, permission: Permission | undefined) {
+  const pathname = request.nextUrl.pathname;
+  if (request.method !== "GET") return null;
+  if (permission === "conversations:read" && pathname === "/api/conversations")
+    return { operation: permission, pathname } satisfies SupportRoute;
+  const match = /^\/api\/conversations\/([A-Za-z0-9_-]{1,128})\/messages$/.exec(pathname);
+  if (permission === "messages:read" && match)
+    return { operation: permission, pathname, parentId: match[1] } satisfies SupportRoute;
+  return null;
+}
 function unavailable(): never {
   throw new AppError(403, "SUPPORT_REQUEST_UNAVAILABLE", "This support request is unavailable");
 }
 async function resolveSupportRequest(
   request: NextRequest,
   permission: Permission | undefined,
-  phase: "admission" | "exposure"
+  phase: "admission" | "exposure",
+  verify?: (fresh: TenantContext) => Promise<void>
 ): Promise<TenantContext | NextResponse> {
   try {
-    if (
-      request.method !== "GET" ||
-      request.nextUrl.pathname !== "/api/conversations" ||
-      permission !== "conversations:read" ||
-      !request.headers.has(SUPPORT_GRANT_HEADER) ||
-      request.headers.has("x-api-key")
-    )
+    const route = supportRoute(request, permission);
+    if (!route || !request.headers.has(SUPPORT_GRANT_HEADER) || request.headers.has("x-api-key"))
       unavailable();
     const account = await requireAccountAuth(request);
     if (!isAccountAuthenticated(account)) return privateSupportResponse(account);
@@ -50,7 +60,7 @@ async function resolveSupportRequest(
         "Clear the different workspace selection before using this support grant"
       );
     if (phase === "admission") {
-      const rate = await checkRateLimit(`support-list:actor:${account.user.id}`, {
+      const rate = await checkRateLimit(`support-${route.operation}:actor:${account.user.id}`, {
         maxRequests: 60,
         windowMs: 60_000,
       });
@@ -68,9 +78,28 @@ async function resolveSupportRequest(
     const facts = await authorizeSupportUse(request.cookies.get("owly-token")!.value, {
       grantId,
       businessId,
-      operation: "conversations:read",
+      operation: route.operation,
     });
     const placement = preparedPlacement ?? (await resolveTenantPlacement(facts.businessId));
+    const context: TenantContext = {
+      businessId,
+      dataConnection: placement.dataConnection,
+      role: null,
+      actor: { kind: "platform_admin", userId: facts.userId },
+      resourceScope: validateResourceScope(facts.scope),
+      authorization: {
+        kind: "support",
+        userId: facts.userId,
+        grantId,
+        allowedOperations: [route.operation],
+        sessionJti: facts.sessionJti,
+        sessionExpiresAt: facts.sessionExpiresAt,
+      },
+      supportQuery: { method: "GET", ...route },
+    };
+    // Final selected-parent verification is composed inside this audited decision
+    // and runs BEFORE the session/expiry comparisons, so time it takes is covered.
+    if (verify) await verify(context);
     if (
       facts.userId !== account.user.id ||
       facts.businessId !== businessId ||
@@ -81,26 +110,7 @@ async function resolveSupportRequest(
       facts.expiresAt.getTime() <= Date.now()
     )
       unavailable();
-    return {
-      businessId,
-      dataConnection: placement.dataConnection,
-      role: null,
-      actor: { kind: "platform_admin", userId: facts.userId },
-      resourceScope: validateResourceScope(facts.scope),
-      authorization: {
-        kind: "support",
-        userId: facts.userId,
-        grantId,
-        allowedOperations: ["conversations:read"],
-        sessionJti: facts.sessionJti,
-        sessionExpiresAt: facts.sessionExpiresAt,
-      },
-      supportQuery: {
-        method: "GET",
-        pathname: "/api/conversations",
-        operation: "conversations:read",
-      },
-    };
+    return context;
   } catch (error) {
     return privateSupportResponse(toErrorResponse(error));
   }
@@ -122,9 +132,17 @@ function scopeKey(ctx: TenantContext) {
  */
 export async function recheckSupportExposure(
   request: NextRequest,
-  ceiling: TenantContext
+  ceiling: TenantContext,
+  verify?: (fresh: TenantContext) => Promise<void>
 ): Promise<NextResponse | null> {
-  const fresh = await resolveSupportRequest(request, "conversations:read", "exposure");
+  const operation = ceiling.supportQuery?.operation;
+  if (!operation)
+    return privateSupportResponse(
+      toErrorResponse(
+        new AppError(403, "SUPPORT_REQUEST_UNAVAILABLE", "This support request is unavailable")
+      )
+    );
+  const fresh = await resolveSupportRequest(request, operation, "exposure", verify);
   if (fresh instanceof NextResponse) return fresh;
   const initial = ceiling.authorization,
     current = fresh.authorization;

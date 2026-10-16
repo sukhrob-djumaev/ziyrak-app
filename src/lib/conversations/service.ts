@@ -85,6 +85,36 @@ export async function listSupportSummary(ctx: TenantContext, params: ListConvers
   return { conversations, total };
 }
 
+/** Text-only support read of exactly one selected parent. The tenancy support
+ * profile composes the parent, text-only and retirement predicates; callers pass
+ * only paging. Missing, foreign, excluded and retired parents are one 404.
+ */
+export async function verifySupportParent(ctx: TenantContext, conversationId: string) {
+  const db = getScopedPrisma(ctx);
+  if (!(await db.conversation.count({ where: { id: conversationId } })))
+    throw new NotFoundError("Conversation");
+}
+export async function listSupportMessages(
+  ctx: TenantContext,
+  conversationId: string,
+  params: { skip: number; take: number }
+) {
+  await verifySupportParent(ctx, conversationId);
+  const db = getScopedPrisma(ctx),
+    where = { conversationId };
+  const [messages, total] = await Promise.all([
+    db.message.findMany({
+      where,
+      skip: params.skip,
+      take: params.take,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, conversationId: true, role: true, content: true, createdAt: true },
+    }),
+    db.message.count({ where }),
+  ]);
+  return { messages, total };
+}
+
 export interface CreateConversationInput {
   channel: string;
   customerName?: string;

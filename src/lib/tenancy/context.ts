@@ -53,11 +53,15 @@ export interface TenantContext {
   resourceScope?: ResourceScope;
   authorization?: AuthorizationProvenance;
   /** Exact server-selected support query shape; never identity/grant authority. */
-  supportQuery?: {
-    method: "GET";
-    pathname: "/api/conversations";
-    operation: "conversations:read";
-  };
+  supportQuery?:
+    | { method: "GET"; pathname: "/api/conversations"; operation: "conversations:read" }
+    | {
+        method: "GET";
+        pathname: string;
+        operation: "messages:read";
+        /** The one validated parent conversation selected by the request path. */
+        parentId: string;
+      };
   /** Server-created lifecycle parents, never a permission grant. */
   workBinding?: {
     conversationId?: string;

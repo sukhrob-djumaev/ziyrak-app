@@ -1785,7 +1785,7 @@ function limitedSupportRequest(
   if (options.cookieWorkspace) req.cookies.set("ziyrak-workspace", options.cookieWorkspace);
   return req;
 }
-async function afterSupportRows(callback: () => Promise<void>) {
+async function afterSupportRows(callback: () => Promise<void>, model = "conversation") {
   const scoped = await import("@/lib/tenancy/scoped-prisma");
   const original = scoped.getScopedPrisma;
   let used = false;
@@ -1794,7 +1794,7 @@ async function afterSupportRows(callback: () => Promise<void>) {
     return new Proxy(db, {
       get(target, key, receiver) {
         const value = Reflect.get(target, key, receiver);
-        if (key !== "conversation") return value;
+        if (key !== model) return value;
         return new Proxy(value, {
           get(model, operation, modelReceiver) {
             const method = Reflect.get(model, operation, modelReceiver);
@@ -2112,4 +2112,305 @@ describe("P1 request-local limited support list and exposure authority", () => {
       expect(response.headers.get("cache-control")).toContain("no-store");
     }
   );
+});
+
+async function supportMessageFixture() {
+  const x = await limitedSupportFixture(true, true);
+  // The shared list fixture owns one plain message; this contract's rows are explicit.
+  await prisma.message.deleteMany({ where: { conversationId: x.visible.id } });
+  const issueGrant = (operations: string[]) =>
+    issueSupportGrant(x.actor.token, {
+      ...grantRequest(x.x.workspace.id, x.x.channel.id, x.assignment!.id),
+      allowedOperations: operations,
+    });
+  const at = (n: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, n));
+  const add = (
+    businessId: string,
+    conversationId: string,
+    content: string,
+    n: number,
+    extra: Record<string, unknown> = {}
+  ) =>
+    prisma.message.create({
+      data: { businessId, conversationId, role: "customer", content, createdAt: at(n), ...extra },
+    });
+  const w = x.x.workspace.id;
+  const text1 = await add(w, x.visible.id, "support-text-one", 1);
+  const text2 = await add(w, x.visible.id, "support-text-two", 2, { role: "assistant" });
+  const text3 = await add(w, x.visible.id, "support-text-three", 3, {
+    role: "system",
+    toolCalls: [{ name: "private-tool-call-never-exposed" }],
+  });
+  await add(w, x.visible.id, "private-media-caption-never-exposed", 4, {
+    mediaType: "image",
+    mediaUrl: "https://private-media.invalid/never-exposed.png",
+  });
+  await add(w, x.visible.id, "private-media-type-only-never-exposed", 5, { mediaType: "audio" });
+  await add(w, x.visible.id, "private-media-url-only-never-exposed", 6, {
+    mediaUrl: "https://private-media.invalid/url-only.png",
+  });
+  await add(w, x.excluded.id, "private-excluded-connection-message", 7);
+  const foreign = await prisma.conversation.findFirstOrThrow({
+    where: { businessId: x.y.workspace.id },
+  });
+  await add(x.y.workspace.id, foreign.id, "private-foreign-workspace-message", 8);
+  return { ...x, issueGrant, foreign, text: [text1, text2, text3] };
+}
+type MessageFixture = Awaited<ReturnType<typeof supportMessageFixture>>;
+const messagesPath = (id: string, query = "") => `/api/conversations/${id}/messages${query}`;
+async function readSupportMessages(
+  x: MessageFixture,
+  conversationId = x.visible.id,
+  options: Parameters<typeof limitedSupportRequest>[1] = {}
+) {
+  const { GET } = await import("@/app/api/conversations/[id]/messages/route");
+  return GET(limitedSupportRequest(x, { path: messagesPath(conversationId), ...options }), {
+    params: Promise.resolve({ id: conversationId }),
+  });
+}
+const privateMessageText = /private-|never-exposed|Excluded|Foreign/;
+
+describe("P1 request-local support text-message read", () => {
+  it("returns only ordered scalar text rows and a text-only count for an own operator grant", async () => {
+    const x = await supportMessageFixture();
+    const response = await readSupportMessages(x);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const body = await response.json();
+    expect(body.data.map((row: { id: string }) => row.id)).toEqual(x.text.map((m) => m.id));
+    expect(body.pagination.total).toBe(3);
+    for (const row of body.data)
+      expect(Object.keys(row).sort()).toEqual(
+        ["content", "conversationId", "createdAt", "id", "role"].sort()
+      );
+    expect(JSON.stringify(body)).not.toMatch(privateMessageText);
+    const rows = await prisma.platformAccessAudit.findMany({
+      where: { grantId: x.grant.id, action: "support.authorize" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.actorUserId === x.actor.user.id)).toBe(true);
+    expect(
+      rows.every((row) => (row.details as { operation?: string }).operation === "messages:read")
+    ).toBe(true);
+  });
+  it("pages with the same text-only predicate and ignores caller field/parent/widening parameters", async () => {
+    const x = await supportMessageFixture();
+    const { GET } = await import("@/app/api/conversations/[id]/messages/route");
+    const query = `?limit=2&page=2&include=toolCalls&select=mediaUrl&conversationId=${x.excluded.id}&mediaType=image`;
+    const response = await GET(
+      limitedSupportRequest(x, { path: messagesPath(x.visible.id, query) }),
+      { params: Promise.resolve({ id: x.visible.id }) }
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.map((row: { id: string }) => row.id)).toEqual([x.text[2].id]);
+    expect(body.pagination.total).toBe(3);
+    expect(JSON.stringify(body)).not.toMatch(privateMessageText);
+  });
+  it("requires messages:read; conversations:read alone cannot read messages and the reverse", async () => {
+    const x = await supportMessageFixture();
+    const listOnly = await x.issueGrant(["conversations:read"]);
+    expect((await readSupportMessages(x, x.visible.id, { grantId: listOnly.id })).status).toBe(403);
+    const messagesOnly = await x.issueGrant(["messages:read"]);
+    const { GET } = await import("@/app/api/conversations/route");
+    expect((await GET(limitedSupportRequest(x, { grantId: messagesOnly.id }))).status).toBe(403);
+    expect((await readSupportMessages(x, x.visible.id, { grantId: messagesOnly.id })).status).toBe(
+      200
+    );
+  });
+  it("returns an identical 404 for foreign, excluded, missing and retired parents", async () => {
+    const x = await supportMessageFixture();
+    const bodies: string[] = [];
+    const retired = await prisma.conversation.create({
+      data: {
+        businessId: x.x.workspace.id,
+        channel: "webchat",
+        customerName: "Retired support visitor",
+        metadata: { channelConnectionId: x.x.channel.id },
+        retiredAt: new Date(),
+      },
+    });
+    await prisma.message.create({
+      data: {
+        businessId: x.x.workspace.id,
+        conversationId: retired.id,
+        role: "customer",
+        content: "private-retired-parent-message",
+      },
+    });
+    for (const id of [x.foreign.id, x.excluded.id, randomUUID(), retired.id]) {
+      const response = await readSupportMessages(x, id);
+      expect(response.status).toBe(404);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      bodies.push(JSON.stringify(await response.json()));
+    }
+    expect(new Set(bodies).size).toBe(1);
+    expect(bodies[0]).not.toMatch(/private-|Excluded|Foreign|Retired/);
+  });
+  it("requires the exact message path/method/permission and rejects keys and malformed ids", async () => {
+    const x = await supportMessageFixture();
+    const { requireAuth, isAuthenticated } = await import("@/lib/identity/route-auth");
+    const id = x.visible.id;
+    for (const [path, method, permission] of [
+      [messagesPath(id), "GET", undefined],
+      [messagesPath(id), "GET", "conversations:read"],
+      [messagesPath(id), "HEAD", "messages:read"],
+      [messagesPath(id), "POST", "messages:create"],
+      [messagesPath(id), "POST", "messages:read"],
+      [messagesPath(id) + "/", "GET", "messages:read"],
+      [`/api/conversations/${id}/notes`, "GET", "messages:read"],
+      [`/api/conversations/${id}`, "GET", "messages:read"],
+      [`/api/conversations/${id}/messages/extra`, "GET", "messages:read"],
+      ["/api/conversations//messages", "GET", "messages:read"],
+      ["/api/conversations/a%2Fb/messages", "GET", "messages:read"],
+      ["/api/conversations/" + "a".repeat(129) + "/messages", "GET", "messages:read"],
+      ["/api/conversations", "GET", "messages:read"],
+    ] as const) {
+      const response = await requireAuth(
+        limitedSupportRequest(x, { path, method }),
+        permission as never
+      );
+      expect(isAuthenticated(response), `${method} ${path} ${permission}`).toBe(false);
+      if (!isAuthenticated(response)) expect(response.status).toBe(403);
+    }
+    const keyed = await requireAuth(
+      limitedSupportRequest(x, { path: messagesPath(id), apiKey: "" }),
+      "messages:read"
+    );
+    expect(isAuthenticated(keyed)).toBe(false);
+    const { POST } = await import("@/app/api/conversations/[id]/messages/route");
+    const post = limitedSupportRequest(x, { path: messagesPath(id), method: "POST" });
+    expect((await POST(post, { params: Promise.resolve({ id }) })).status).toBeGreaterThanOrEqual(
+      400
+    );
+    expect(await prisma.message.count({ where: { conversationId: id } })).toBe(6);
+  });
+  it("rejects a conflicting selected workspace and never falls back to owner membership", async () => {
+    const x = await supportMessageFixture();
+    const conflict = await readSupportMessages(x, x.visible.id, {
+      cookieWorkspace: x.y.workspace.id,
+    });
+    expect(conflict.status).toBe(403);
+    expect(await conflict.json()).toMatchObject({
+      error: { code: "WORKSPACE_SELECTION_CONFLICT" },
+    });
+    for (const grantId of ["", randomUUID()]) {
+      const response = await readSupportMessages(x, x.visible.id, { grantId });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(await response.json())).not.toMatch(/support-text/);
+    }
+  });
+  it.each(["grant", "session", "parent", "scope"] as const)(
+    "discards loaded rows/count when %s changes after the message query",
+    async (loss) => {
+      const x = await supportMessageFixture();
+      await afterSupportRows(async () => {
+        if (loss === "grant")
+          await revokeSupportGrant(x.actor.token, {
+            grantId: x.grant.id,
+            reason: "Synthetic post-message revoke",
+          });
+        if (loss === "session") await revokeToken(x.actor.token);
+        if (loss === "parent")
+          await prisma.conversation.update({
+            where: { id: x.visible.id },
+            data: { retiredAt: new Date() },
+          });
+        if (loss === "scope")
+          await prisma.assignmentConnectionScope.deleteMany({
+            where: { assignmentId: x.assignment!.id, connectionId: x.x.channel.id },
+          });
+      }, "message");
+      const response = await readSupportMessages(x);
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      const body = await response.json();
+      expect(body).not.toHaveProperty("data");
+      expect(body).not.toHaveProperty("pagination");
+      expect(JSON.stringify(body)).not.toMatch(/support-text/);
+    }
+  );
+  it.each(["placement", "audit"] as const)(
+    "re-verifies the selected parent inside the final audited check after %s",
+    async (point) => {
+      const x = await supportMessageFixture();
+      const retire = () =>
+        prisma.conversation.update({
+          where: { id: x.visible.id },
+          data: { retiredAt: new Date() },
+        });
+      if (point === "placement") {
+        const placement = await import("@/lib/platform/tenant-placement");
+        const actual = placement.resolveTenantPlacement;
+        let calls = 0;
+        vi.spyOn(placement, "resolveTenantPlacement").mockImplementation(async (...args) => {
+          const result = await actual(...args);
+          if (++calls === 2) await retire();
+          return result;
+        });
+      } else {
+        const actual = audit.writePlatformAudit;
+        let uses = 0;
+        vi.spyOn(audit, "writePlatformAudit").mockImplementation(async (...args) => {
+          const result = await actual(...args);
+          if (args[1].action === "support.authorize" && ++uses === 2) await retire();
+          return result;
+        });
+      }
+      const response = await readSupportMessages(x);
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(await response.json())).not.toMatch(/support-text/);
+    }
+  );
+  it("denies exposure if the final mandatory admission audit fails", async () => {
+    const x = await supportMessageFixture();
+    const actual = audit.writePlatformAudit;
+    let uses = 0;
+    vi.spyOn(audit, "writePlatformAudit").mockImplementation(async (...args) => {
+      if (args[1].action === "support.authorize" && ++uses === 2)
+        throw new Error("Synthetic final message exposure audit fault");
+      return actual(...args);
+    });
+    const response = await readSupportMessages(x);
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toMatch(/support-text/);
+  });
+  it.each(["assignment", "platform", "workspace", "expiry"] as const)(
+    "denies initial message access after %s loss",
+    async (loss) => {
+      const x = await supportMessageFixture();
+      if (loss === "assignment")
+        await revokeAssignment(x.superUser.token, {
+          assignmentId: x.assignment!.id,
+          reason: "Synthetic ended assignment",
+        });
+      if (loss === "platform")
+        await prisma.user.update({ where: { id: x.actor.user.id }, data: { platformRole: null } });
+      if (loss === "workspace")
+        await prisma.business.update({
+          where: { id: x.x.workspace.id },
+          data: { status: "suspended" },
+        });
+      if (loss === "expiry")
+        await prisma.supportGrant.update({
+          where: { id: x.grant.id },
+          data: { expiresAt: new Date(Date.now() - 1000) },
+        });
+      const response = await readSupportMessages(x);
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(await response.json()).not.toHaveProperty("data");
+      expect(response.headers.get("cache-control")).toContain("no-store");
+    }
+  );
+  it("retains ordinary membership message behavior, including media rows, without a support selection", async () => {
+    const x = await supportMessageFixture();
+    const { GET } = await import("@/app/api/conversations/[id]/messages/route");
+    const request = new NextRequest("http://localhost:3000" + messagesPath(x.visible.id), {
+      headers: { "x-workspace-id": x.x.workspace.id },
+    });
+    request.cookies.set("owly-token", x.actor.token);
+    const response = await GET(request, { params: Promise.resolve({ id: x.visible.id }) });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body) ? body : body.data).toHaveLength(6);
+  });
 });

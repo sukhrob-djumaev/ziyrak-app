@@ -1,3 +1,11 @@
+# Latest session (2026-10-17)
+
+Reconciled stale state: dev worktree already has support text-message read tests (d1b81a4),
+implementation (2a07191), gate tests + J22 extension (bb45ed8). Verified tsc and lint pass.
+DB-backed tests blocked: Docker Postgres 5432 hangs at handshake. No code changed on main;
+only contract rate-limit-key clarification (360da65). Continue at: restore PG, run support
+tests, review, J22/full browser. Prior Settings history below.
+
 # Settings full regression failure
 
 Code504d08e(product7fc5dab); matching frozen runtime58e9ff3/buildPd7JxJEi0zqIn_436mr1v

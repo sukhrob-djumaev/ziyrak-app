@@ -1,4 +1,21 @@
-# Current P1 task
+# Current P1 task (reconciled 2026-10-17)
+
+P1 incomplete/P2 ineligible. Main docs-only. Support text-message read: contract on main
+(9de3f54, 360da65). Development worktree /Users/sukhrob/.codex/worktrees/p1-support-identity/owly
+(detached) already holds d1b81a4 failing regressions, 2a07191 implementation, bb45ed8 gate
+tests + J22 console extension (parent 72873e3). Checked this session on bb45ed8: tsc exit0,
+lint --max-warnings 0 exit0. NOT yet run: platform-authority/support-query tests on real PG,
+J22 browser, independent security review, full browser. Criteria remain NOT RUN/open.
+
+EXTERNAL BLOCKER (confirmed 2026-10-17): shared Docker Postgres localhost:5432 accepts TCP
+but pg handshake times out (8s); `docker ps/info` hang. Redis 6381 TCP open (unverified).
+Retry condition: user restarts Docker Desktop (or confirms PG healthy); then create a fresh
+DB (e.g. ziyrak_test_support_msgs_20261017), set DATABASE_URL+DIRECT_DATABASE_URL, run
+`npx vitest run tests/security/platform-authority.test.ts tests/security/support-query-profile.test.ts`,
+then affected/full suites, independent security review, J22 + fresh full browser on an
+identified candidate. Do not touch live 7700, acceptance or user DBs.
+
+--- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development
 /Users/sukhrob/.codex/worktrees/p1-support-identity/owly clean504d08e: Settings product7fc5dab

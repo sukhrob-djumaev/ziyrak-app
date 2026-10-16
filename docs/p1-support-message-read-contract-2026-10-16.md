@@ -55,7 +55,7 @@ conversation: {is: {retiredAt: null}}}`. The generic resource scope predicate
   audits are not proof of customer exposure; there is no recall promise for data
   after the final checked snapshot leaves the server. All support responses are
   `private, no-store`.
-- **Rate limit:** per actual actor, own key (`support-messages:actor:<id>`), 60/min.
+- **Rate limit:** per actual actor, per-operation key (`support-<operation>:actor:<id>`), 60/min.
 - **Console:** explicit per-row "View text messages" in the limited list, Close and
   Refresh; shows role/time/text only (text rendered as text, never HTML), a visible
   note that media/tool data is excluded. Clears rows on grant change, revocation,

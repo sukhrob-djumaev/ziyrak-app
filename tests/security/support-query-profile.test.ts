@@ -299,3 +299,170 @@ describe("P1 support scalar conversation query profile, real isolated Postgres",
     ).toMatchObject({ status: "closed" });
   });
 });
+
+function supportMessages(parentId: string, workspace = false): ProfileContext {
+  return {
+    ...support(workspace),
+    authorization: {
+      kind: "support",
+      userId: a.ownerUserId,
+      grantId: randomUUID(),
+      allowedOperations: ["messages:read"],
+    },
+    supportQuery: {
+      method: "GET",
+      pathname: `/api/conversations/${parentId}/messages`,
+      operation: "messages:read",
+      parentId,
+    },
+  };
+}
+const messageSelect = {
+  id: true,
+  conversationId: true,
+  role: true,
+  content: true,
+  createdAt: true,
+};
+const messageList = {
+  select: messageSelect,
+  take: 20,
+  skip: 0,
+  orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+};
+describe("P1 support text-message query profile, real isolated Postgres", () => {
+  let text: { id: string }[];
+  beforeEach(async () => {
+    const add = (conversationId: string, content: string, extra: Record<string, unknown> = {}) =>
+      prisma.message.create({
+        data: { businessId: a.businessId, conversationId, role: "customer", content, ...extra },
+      });
+    text = [await add(rows[0].id, "visible text one"), await add(rows[0].id, "visible text two")];
+    await add(rows[0].id, "private-media", { mediaType: "image", mediaUrl: "https://x.invalid/a" });
+    await add(rows[0].id, "private-media-type-only", { mediaType: "audio" });
+    await add(rows[0].id, "private-media-url-only", { mediaUrl: "https://x.invalid/b" });
+    await add(rows[0].id, "private-tools", { toolCalls: [{ name: "private-tool" }] });
+    await add(rows[1].id, "private-excluded-connection");
+    await prisma.message.create({
+      data: {
+        businessId: b.businessId,
+        conversationId: (
+          await prisma.conversation.findFirstOrThrow({
+            where: { businessId: b.businessId },
+          })
+        ).id,
+        role: "customer",
+        content: "private-foreign",
+      },
+    });
+  });
+  it("reads/counts only text rows of the exact selected parent with explicit scalar projection", async () => {
+    const db = getScopedPrisma(supportMessages(rows[0].id));
+    const read = await db.message.findMany(messageList);
+    expect(read.map((row: { content: string }) => row.content)).toEqual([
+      "visible text one",
+      "visible text two",
+      "private-tools",
+    ]);
+    expect(Object.keys(read[0]).sort()).toEqual(
+      ["content", "conversationId", "createdAt", "id", "role"].sort()
+    );
+    expect(await db.message.count({ where: {} })).toBe(3);
+    // Caller predicates can narrow but never re-admit media rows or another parent.
+    expect(await db.message.count({ where: { conversationId: rows[1].id } })).toBe(0);
+    expect(
+      await db.message.count({ where: { OR: [{ content: { contains: "private-media" } }] } })
+    ).toBe(0);
+    expect(await db.message.count({ where: { id: text[0].id } })).toBe(1);
+    expect(await db.conversation.count({ where: {} })).toBe(1);
+  });
+  it("selects only the supplied parent: an excluded or foreign parent has no rows or parent", async () => {
+    for (const parent of [rows[1].id, rows[2].id, randomUUID()]) {
+      const db = getScopedPrisma(supportMessages(parent));
+      expect(await db.message.findMany(messageList)).toEqual([]);
+      expect(await db.message.count({ where: {} })).toBe(0);
+      expect(await db.conversation.count({ where: {} })).toBe(0);
+    }
+    const retired = await prisma.conversation.update({
+      where: { id: rows[0].id },
+      data: { retiredAt: new Date() },
+    });
+    const db = getScopedPrisma(supportMessages(retired.id));
+    expect(await db.message.count({ where: {} })).toBe(0);
+    expect(await db.conversation.count({ where: {} })).toBe(0);
+  });
+  it("denies forbidden message projections, predicates, orderings, operands and operations", async () => {
+    const db = getScopedPrisma(supportMessages(rows[0].id, true));
+    for (const args of [
+      {},
+      { take: 20 },
+      { ...messageList, take: 101 },
+      { ...messageList, take: 0 },
+      { ...messageList, skip: -1 },
+      { ...messageList, skip: 100_001 },
+      { ...messageList, select: { id: true, toolCalls: true } },
+      { ...messageList, select: { id: true, mediaUrl: true } },
+      { ...messageList, select: { id: true, mediaType: true } },
+      { ...messageList, select: { id: true, businessId: true } },
+      { ...messageList, select: { id: true, conversation: true } },
+      { ...messageList, include: { conversation: true } },
+      { ...messageList, omit: { toolCalls: true } },
+      { ...messageList, where: { mediaType: { not: null } } },
+      { ...messageList, where: { mediaUrl: { contains: "x" } } },
+      { ...messageList, where: { toolCalls: { not: null } } },
+      { ...messageList, where: { businessId: b.businessId } },
+      { ...messageList, where: { conversation: { is: { customerName: "x" } } } },
+      { ...messageList, where: { content: { equals: { _ref: "role", _container: "Message" } } } },
+      { ...messageList, orderBy: { toolCalls: "asc" } },
+      { ...messageList, orderBy: { mediaUrl: "asc" } },
+      { ...messageList, orderBy: { conversation: { updatedAt: "desc" } } },
+    ])
+      await denied(db.message.findMany(args as never));
+    for (const args of [
+      { where: { mediaType: null } },
+      { where: { toolCalls: { not: null } } },
+      { where: {}, select: { id: true } },
+      { _count: true },
+    ])
+      await denied(db.message.count(args as never));
+    await denied(db.message.aggregate({ _count: true } as never));
+    await denied(db.message.groupBy({ by: ["role"], _count: true } as never));
+    await denied(db.message.create({ data: { content: "x" } } as never));
+    await denied(db.message.updateMany({ where: {}, data: { content: "x" } } as never));
+    await denied(db.message.deleteMany({ where: {} } as never));
+    await denied(db.conversation.findMany({ select: { id: true }, take: 5 } as never));
+    await denied(db.conversation.count({ where: {}, select: { id: true } } as never));
+    await denied(db.conversation.count({ where: { customerName: "x" } } as never));
+    await denied(db.conversation.update({ where: { id: rows[0].id }, data: {} } as never));
+  });
+  it("keeps list and message profiles mutually exclusive", async () => {
+    // A list profile cannot read messages; a message profile cannot list conversations.
+    await denied(getScopedPrisma(support()).message.findMany(messageList));
+    await denied(getScopedPrisma(support()).message.count({ where: {} }));
+    await denied(getScopedPrisma(supportMessages(rows[0].id)).conversation.findMany(list));
+    const mismatched = supportMessages(rows[0].id);
+    mismatched.authorization = {
+      kind: "support",
+      userId: a.ownerUserId,
+      grantId: randomUUID(),
+      allowedOperations: ["conversations:read"],
+    };
+    await denied(getScopedPrisma(mismatched).message.findMany(messageList));
+    const spoofed = supportMessages(rows[0].id);
+    spoofed.supportQuery = {
+      method: "GET",
+      pathname: `/api/conversations/${rows[1].id}/messages`,
+      operation: "messages:read",
+      parentId: rows[0].id,
+    };
+    await denied(getScopedPrisma(spoofed).message.findMany(messageList));
+    const extra = supportMessages(rows[0].id);
+    (extra.supportQuery as Record<string, unknown>).extra = true;
+    await denied(getScopedPrisma(extra).message.findMany(messageList));
+  });
+  it("preserves ordinary member message visibility", async () => {
+    expect(
+      await getScopedPrisma(a.ctx).message.count({ where: { conversationId: rows[0].id } })
+    ).toBe(6);
+  });
+});

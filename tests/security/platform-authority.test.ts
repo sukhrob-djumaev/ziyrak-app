@@ -2207,6 +2207,20 @@ describe("P1 request-local support text-message read", () => {
     expect(body.pagination.total).toBe(3);
     expect(JSON.stringify(body)).not.toMatch(privateMessageText);
   });
+  it("clamps oversized paging and denies unbounded offsets without exposing rows", async () => {
+    const x = await supportMessageFixture();
+    const { GET } = await import("@/app/api/conversations/[id]/messages/route");
+    const call = (query: string) =>
+      GET(limitedSupportRequest(x, { path: messagesPath(x.visible.id, query) }), {
+        params: Promise.resolve({ id: x.visible.id }),
+      });
+    const big = await call("?limit=100000");
+    expect(big.status).toBe(200);
+    expect((await big.json()).data.length).toBe(3);
+    const far = await call("?page=100000000&limit=100");
+    expect(far.status).toBeGreaterThanOrEqual(200);
+    expect(JSON.stringify(await far.json())).not.toMatch(/support-text/);
+  });
   it("requires messages:read; conversations:read alone cannot read messages and the reverse", async () => {
     const x = await supportMessageFixture();
     const listOnly = await x.issueGrant(["conversations:read"]);
@@ -2322,7 +2336,8 @@ describe("P1 request-local support text-message read", () => {
           });
       }, "message");
       const response = await readSupportMessages(x);
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBe({ grant: 403, session: 401, parent: 404, scope: 403 }[loss]);
+      expect(response.headers.get("cache-control")).toContain("no-store");
       const body = await response.json();
       expect(body).not.toHaveProperty("data");
       expect(body).not.toHaveProperty("pagination");

@@ -256,6 +256,40 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
     // Intentionally malformed cross-workspace metadata names the ALLOWED source:
     // absence must depend on business isolation rather than connection exclusion.
     const foreignId = seedConversation(foreignWorkspaceId, connection.id, prefix + " foreign");
+    // Message rows: two text rows per included conversation plus private media/tool rows that
+    // the text-only support view must never return; excluded/foreign parents hold private text.
+    const seedMessage = (businessId, conversationId, role, content, seconds, extra = {}) =>
+      L.sql(
+        'INSERT INTO "Message" (id,"businessId","conversationId",role,content,"mediaType","mediaUrl","toolCalls","createdAt") VALUES (' +
+          [randomUUID(), businessId, conversationId, role, content].map(quote).join(",") +
+          "," +
+          (extra.mediaType ? quote(extra.mediaType) : "NULL") +
+          "," +
+          (extra.mediaUrl ? quote(extra.mediaUrl) : "NULL") +
+          "," +
+          (extra.toolCalls ? quote(JSON.stringify(extra.toolCalls)) : "NULL") +
+          ",now() - interval '" +
+          seconds +
+          " seconds')"
+      );
+    included.forEach((id, i) => {
+      seedMessage(workspace.id, id, "customer", prefix + " text-a " + i, 30);
+      seedMessage(workspace.id, id, "assistant", prefix + " text-b " + i, 20, {
+        toolCalls: [{ name: "J22-private-tool-never-shown" }],
+      });
+      seedMessage(workspace.id, id, "customer", "J22-private-media-caption " + i, 10, {
+        mediaType: "image",
+        mediaUrl: "https://private-media.invalid/j22-" + i + ".png",
+      });
+    });
+    seedMessage(workspace.id, excludedId, "customer", "J22-private-excluded-message", 5);
+    seedMessage(foreignWorkspaceId, foreignId, "customer", "J22-private-foreign-message", 5);
+    const messagesResponse = () =>
+      operator.waitForResponse(
+        (r) =>
+          /^\/api\/conversations\/[^/]+\/messages$/.test(new URL(r.url()).pathname) &&
+          r.request().headers()["x-support-grant-id"] === grant.id
+      );
     const listResponse = () =>
       operator.waitForResponse(
         (r) =>
@@ -377,6 +411,90 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
     );
     await operator.$eval("#limitedSupportList", (el) => el.scrollIntoView({ block: "start" }));
     await L.shot(operator, "j22-support-limited-list");
+    // Text-only message view through the actual console for one listed conversation.
+    const openMessages = async () => {
+      const pending = messagesResponse();
+      await operator.evaluate(() =>
+        document.querySelector("[data-support-conversation] button").click()
+      );
+      return pending;
+    };
+    const firstMessages = await openMessages();
+    L.assert(firstMessages.status() === 200, "Actual console opens the text-message view");
+    const firstBody = await firstMessages.json();
+    L.assert(
+      firstMessages.headers()["cache-control"]?.includes("no-store") &&
+        firstBody.pagination.total === 2 &&
+        firstBody.data.length === 2 &&
+        firstBody.data.every(
+          (row) => Object.keys(row).sort().join(",") === "content,conversationId,createdAt,id,role"
+        ),
+      "Message route returns only the two scalar text rows with no-store"
+    );
+    L.assert(
+      !/J22-private|private-media|toolCalls|mediaUrl/.test(JSON.stringify(firstBody)),
+      "No media, tool-call or foreign/excluded text in the actual message response"
+    );
+    await operator.waitForFunction(
+      () => document.querySelectorAll("#limitedSupportMessages [data-support-message]").length === 2
+    );
+    L.assert(
+      !/J22-private/.test(await operator.$eval("#limitedSupportMessages", (el) => el.innerText)) &&
+        (await operator.$$eval("#limitedSupportMessages a", (rows) => rows.length)) === 0,
+      "Rendered message view shows text only with no links"
+    );
+    await operator.$eval("#limitedSupportMessages", (el) => el.scrollIntoView({ block: "start" }));
+    await L.shot(operator, "j22-support-text-messages");
+    // Direct probes with the same real grant: excluded/foreign/missing parents are one 404;
+    // notes, detail and send stay unavailable.
+    const probes = await operator.evaluate(
+      async ({ grantId, businessId, ids }) => {
+        const headers = { "x-workspace-id": businessId, "x-support-grant-id": grantId };
+        const get = async (path) => {
+          const r = await fetch(path, { headers, cache: "no-store" });
+          return { status: r.status, body: await r.text() };
+        };
+        const out = { parents: [] };
+        for (const id of ids) out.parents.push(await get("/api/conversations/" + id + "/messages"));
+        out.notes = (await get("/api/conversations/" + ids[0] + "/notes")).status;
+        out.detail = (await get("/api/conversations/" + ids[0])).status;
+        out.send = (
+          await fetch("/api/conversations/" + ids[0] + "/messages", {
+            method: "POST",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "Synthetic support send attempt", role: "assistant" }),
+          })
+        ).status;
+        return out;
+      },
+      {
+        grantId: grant.id,
+        businessId: workspace.id,
+        ids: [excludedId, foreignId, "00000000-0000-4000-8000-000000000000"],
+      }
+    );
+    L.assert(
+      probes.parents.every((p) => p.status === 404) &&
+        new Set(probes.parents.map((p) => p.body)).size === 1 &&
+        !/J22-private/.test(probes.parents[0].body),
+      "Excluded, foreign and missing parents return one identical 404"
+    );
+    L.assert(
+      probes.notes === 403 && probes.detail === 403 && probes.send === 403,
+      "Notes, detail and message send remain denied to support"
+    );
+    L.assert(
+      L.sql(
+        'SELECT count(*) FROM "Message" WHERE content=' + quote("Synthetic support send attempt")
+      ) === "0",
+      "Denied support send persisted nothing"
+    );
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportMessages button")]
+        .find((b) => b.textContent === "Close messages")
+        .click()
+    );
+    await operator.waitForFunction(() => !document.querySelector("#limitedSupportMessages"));
     await operator.evaluate(() =>
       [...document.querySelectorAll("#limitedSupportList button")]
         .find((b) => b.textContent === "Close list")
@@ -387,6 +505,8 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
     await operator.click(`[data-grant="${grant.id}"] [data-action="view-support-list"]`);
     L.assert((await responsePending).status() === 200, "Explicit reopen rechecks support grant");
     await operator.waitForSelector("[data-support-conversation]");
+    await openMessages();
+    await operator.waitForSelector("#limitedSupportMessages [data-support-message]");
     // A second real signed-in tab revokes while the first tab retains the view.
     // The actual Refresh action must discard previously displayed rows/count.
     const revokeTab = await operatorBrowser.newPage();
@@ -399,6 +519,25 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
       "Second-tab support grant revocation",
       "/api/platform/support-grants"
     );
+    const revokedMessages = messagesResponse();
+    await operator.evaluate(() =>
+      [...document.querySelectorAll("#limitedSupportMessages button")]
+        .find((b) => b.textContent === "Refresh messages")
+        .click()
+    );
+    L.assert((await revokedMessages).status() === 403, "Message refresh observes revoked grant");
+    await operator.waitForFunction(() =>
+      document.querySelector('#limitedSupportMessages [role="alert"]')
+    );
+    L.assert(
+      (await operator.$$eval("[data-support-message]", (rows) => rows.length)) === 0 &&
+        !(await operator.$eval("#limitedSupportMessages", (el) => el.innerText)).includes(
+          "text messages ·"
+        ),
+      "Revoked message refresh clears previously displayed messages and count"
+    );
+    await operator.$eval("#limitedSupportMessages", (el) => el.scrollIntoView({ block: "start" }));
+    await L.shot(operator, "j22-support-messages-revoked");
     responsePending = listResponse();
     await operator.evaluate(() =>
       [...document.querySelectorAll("#limitedSupportList button")]
@@ -443,7 +582,7 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
         quote(workspace.id) +
         " AND reason=" +
         quote("Synthetic UI scoped support request") +
-        " AND details->>'operation'='conversations:read' AND details->>'decision'=" +
+        " AND details->>'operation' IN ('conversations:read','messages:read') AND details->>'decision'=" +
         quote(decision);
       L.assert(
         Number(
@@ -467,6 +606,25 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
         "No mismatched read audit for " + decision
       );
     }
+    for (const [decision, minimum] of [
+      ["allowed", 4],
+      ["denied", 1],
+    ])
+      L.assert(
+        Number(
+          L.sql(
+            'SELECT count(*) FROM "PlatformAccessAudit" WHERE "grantId"=' +
+              quote(grant.id) +
+              " AND action=" +
+              quote(decision === "allowed" ? "support.authorize" : "support.deny") +
+              ' AND "actorUserId"=' +
+              quote(user.id) +
+              " AND details->>'operation'='messages:read' AND details->>'decision'=" +
+              quote(decision)
+          )
+        ) >= minimum,
+        "Message read audit persists actual actor/grant/operation for " + decision
+      );
     L.assert(
       L.sql(
         'SELECT count(*) FROM "SupportGrant" WHERE id=' +
@@ -599,9 +757,9 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
       workspaceId: workspace.id,
       connectionId: connection.id,
       checks:
-        "real UI create/login/assign/revoke/remove; limited list conflict clear/search/rendered paging/close/reopen/revoked refresh; scope isolation, no implicit/detail access, actual actor read and management audits",
+        "real UI create/login/assign/revoke/remove; limited list conflict clear/search/rendered paging/close/reopen/revoked refresh; text-only message view, identical parent denial, notes/detail/send denial, revoked message refresh; scope isolation, no implicit/detail access, actual actor read and management audits",
       limitations:
-        "synthetic accounts/data; audited limited scalar list only; no support detail/stream/job or real-provider claim",
+        "synthetic accounts/data; audited limited scalar list and text-only message view only; no support detail/stream/job or real-provider claim",
     });
   } finally {
     for (const b of browsers.reverse()) await b.close();

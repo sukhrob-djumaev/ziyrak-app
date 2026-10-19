@@ -4,19 +4,16 @@ import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { toErrorResponse } from "@/lib/observability/errors";
 import * as adminUsersService from "@/lib/platform/admin-users/service";
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireAuth(request, "admin:update");
   if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, role, password } = body;
+    const { name, role, password, scope } = body;
 
-    const user = await adminUsersService.update(ctx, id, { name, role, password });
+    const user = await adminUsersService.update(ctx, id, { name, role, password, scope });
 
     return NextResponse.json(user);
   } catch (error) {

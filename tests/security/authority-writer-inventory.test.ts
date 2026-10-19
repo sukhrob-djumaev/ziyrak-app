@@ -18,6 +18,10 @@ const FENCED = new Set([
   "lib/identity/admin-api-keys/service.ts",
   "lib/tools/policy-admin.ts",
 ]);
+/** Control-plane-resident writers that use the raw client but take the same per-workspace fence
+ * explicitly, inside the transaction and before any write. Each must say so in source.
+ */
+const RAW_FENCED = new Set(["lib/platform/admin-users/service.ts"]);
 /** Platform control plane: account/role provisioning and creation only. None of these reduces a
  * workspace-scoped saved follow-up authority; membership removal/role change, key expiry edits
  * and workspace suspension have no application writer yet and must join FENCED when added.
@@ -75,9 +79,18 @@ describe("authority-reducing writer inventory", () => {
       );
     }
   });
+  it("raw-client fenced writers take the workspace fence before writing", () => {
+    for (const file of RAW_FENCED) {
+      const text = found.get(file) ?? "";
+      expect(PLATFORM.has(file) || FENCED.has(file), file).toBe(true);
+      expect(text, file).toMatch(
+        /\$transaction\(async \(tx\) => \{\s*await lockTenantWrites\(tx, ctx\.businessId\)/
+      );
+    }
+  });
   it("has no application membership/workspace mutation outside the fenced set", () => {
     for (const [file, text] of found) {
-      if (FENCED.has(file)) continue;
+      if (FENCED.has(file) || RAW_FENCED.has(file)) continue;
       expect(text, file).not.toMatch(FORBIDDEN_FOR_EXISTING);
     }
   });

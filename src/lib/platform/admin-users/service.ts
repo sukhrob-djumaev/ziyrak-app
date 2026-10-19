@@ -5,6 +5,7 @@ import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { effectiveResourceScope } from "@/lib/tenancy/resource-query";
+import { lockTenantWrites } from "@/lib/tenancy/work-lifecycle";
 import { reserveNewUsername } from "../username-reservation";
 
 function assertWorkspaceDelegation(
@@ -129,6 +130,44 @@ export interface UpdateInput {
   name?: string;
   role?: string;
   password?: string;
+  scope?: unknown;
+}
+
+type RequestedScope =
+  | { kind: "workspace"; customerProfileAccess: "none" | "read" | "write" }
+  | {
+      kind: "connections";
+      connectionIds: string[];
+      customerProfileAccess: "none" | "read" | "write";
+    };
+
+// Exactly the shapes the editor can express; anything else (including "unclassified", unknown
+// keys and a connection list on a workspace scope) is a validation error before any write.
+function parseRequestedScope(input: unknown): RequestedScope {
+  const invalid = () => new AppError(400, "VALIDATION_ERROR", "Invalid access scope");
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
+  const raw = input as Record<string, unknown>;
+  const profile = raw.customerProfileAccess ?? "write";
+  if (profile !== "none" && profile !== "read" && profile !== "write") throw invalid();
+  const allowed =
+    raw.kind === "workspace"
+      ? ["kind", "customerProfileAccess"]
+      : ["kind", "customerProfileAccess", "connectionIds"];
+  if (Object.keys(raw).some((key) => !allowed.includes(key))) throw invalid();
+  if (raw.kind === "workspace") return { kind: "workspace", customerProfileAccess: profile };
+  if (
+    raw.kind !== "connections" ||
+    !Array.isArray(raw.connectionIds) ||
+    raw.connectionIds.length < 1 ||
+    raw.connectionIds.length > 100 ||
+    raw.connectionIds.some((id) => typeof id !== "string" || !id || id.length > 128)
+  )
+    throw invalid();
+  return {
+    kind: "connections",
+    connectionIds: [...new Set(raw.connectionIds as string[])],
+    customerProfileAccess: profile,
+  };
 }
 
 export async function update(ctx: TenantContext, membershipId: string, input: UpdateInput) {
@@ -157,6 +196,8 @@ export async function update(ctx: TenantContext, membershipId: string, input: Up
       "Account identity cannot be changed through workspace team management"
     );
   }
+  const actorUserId = ctx.actor.kind === "user" ? ctx.actor.userId : null;
+  const requestedScope = input.scope === undefined ? undefined : parseRequestedScope(input.scope);
   if (input.role !== undefined) {
     if (!ROLES.includes(input.role as (typeof ROLES)[number])) {
       throw new AppError(400, "VALIDATION_ERROR", "Unknown workspace role");
@@ -168,16 +209,58 @@ export async function update(ctx: TenantContext, membershipId: string, input: Up
         "Ownership changes require the explicit ownership transfer flow"
       );
     }
-    await db.membership
-      .update({
-        where: { id: membershipId, role: { not: "owner" } },
-        data: { role: input.role },
-      })
-      .catch((error: unknown) => {
-        if ((error as { code?: string } | null)?.code === "P2025") throw new NotFoundError("User");
-        throw error;
-      });
   }
+  // Membership and its scope rows are control-plane resident. One raw transaction under the
+  // workspace write fence (the same fence sending admission takes) re-reads the target, so role
+  // and scope change together or not at all and cannot race an admission or another editor.
+  await prisma.$transaction(async (tx) => {
+    await lockTenantWrites(tx, ctx.businessId);
+    const fresh = await tx.membership.findFirst({
+      where: { id: membershipId, businessId: ctx.businessId },
+    });
+    if (!fresh) throw new NotFoundError("User");
+    if (fresh.role === "owner")
+      throw new AppError(
+        403,
+        "FORBIDDEN",
+        "Ownership changes require the explicit ownership transfer flow"
+      );
+    if (requestedScope) {
+      if (fresh.userId === actorUserId)
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "This membership's access scope cannot be edited here"
+        );
+      if (requestedScope.kind === "connections") {
+        const known = await tx.channelConnection.count({
+          where: { businessId: ctx.businessId, id: { in: requestedScope.connectionIds } },
+        });
+        if (known !== requestedScope.connectionIds.length)
+          throw new AppError(400, "VALIDATION_ERROR", "Unknown connection for this workspace");
+      }
+      await tx.membership.update({
+        where: { id: membershipId },
+        data: {
+          scopeMode: requestedScope.kind,
+          customerProfileAccess: requestedScope.customerProfileAccess,
+        },
+      });
+      await tx.membershipConnectionScope.deleteMany({
+        where: { businessId: ctx.businessId, membershipId },
+      });
+      if (requestedScope.kind === "connections")
+        await tx.membershipConnectionScope.createMany({
+          data: requestedScope.connectionIds.map((connectionId) => ({
+            businessId: ctx.businessId,
+            membershipId,
+            connectionId,
+          })),
+        });
+    }
+    if (input.role !== undefined)
+      await tx.membership.update({ where: { id: membershipId }, data: { role: input.role } });
+  });
 
   const updated = await db.membership.findUnique({
     where: { id: membershipId },

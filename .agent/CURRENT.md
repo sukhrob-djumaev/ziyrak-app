@@ -15,6 +15,8 @@ DB (e.g. ziyrak_test_support_msgs_20261017), set DATABASE_URL+DIRECT_DATABASE_UR
 then affected/full suites, independent security review, J22 + fresh full browser on an
 identified candidate. Do not touch live 7700, acceptance or user DBs.
 
+Recheck 2026-10-19: Docker daemon not running (docker.sock absent), localhost:5432 closed. Blocker unchanged: user must start Docker Desktop and the shared PG.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

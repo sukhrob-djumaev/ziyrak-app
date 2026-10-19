@@ -58,8 +58,42 @@ async function review(page, reply) {
     const savedReply = "R1 saved reply: reviewed and sent without repeating AI or tools.";
     const values = (id, kind, response, status) =>
       `(${quote(id)},${quote(conversation.businessId)},${quote("synthetic-browser:" + id)},${quote(kind)},${quote(conversation.id)},'webchat',${quote(conversation.connectionId)},${quote(conversation.customerContact)},${response === null ? "NULL" : quote(response)},${quote(status)},now())`;
+    // A real follow-up always carries saved authority (P1 admission contract); this fixture
+    // models one for the workspace owner so recovery still reaches a legitimate send.
+    const ownerMember = JSON.parse(
+      L.sql(
+        `SELECT row_to_json(m) FROM (SELECT id AS "membershipId", "userId" FROM "Membership" WHERE "businessId"=${quote(conversation.businessId)} AND role='owner' LIMIT 1) m`
+      )
+    );
+    const actionId = randomUUID();
+    const snapshot = {
+      version: 1,
+      operation: "schedule_followup",
+      jobType: "send-followup",
+      businessId: conversation.businessId,
+      actionId,
+      conversationId: conversation.id,
+      connectionId: conversation.connectionId,
+      mode: "direct_tool",
+      identity: {
+        version: 1,
+        businessId: conversation.businessId,
+        origin: {
+          kind: "membership",
+          userId: ownerMember.userId,
+          membershipId: ownerMember.membershipId,
+        },
+        scope: { kind: "workspace", customerProfileAccess: "read" },
+      },
+    };
+    L.sql(
+      `INSERT INTO "ActionExecution" (id,"businessId",tool,status,input,"conversationId","authorizationSnapshot","requestedBy","idempotencyKey","updatedAt") VALUES (${quote(actionId)},${quote(conversation.businessId)},'schedule_followup','needs_review',${quote(JSON.stringify({ message: savedReply }))}::jsonb,${quote(conversation.id)},${quote(JSON.stringify(snapshot))}::jsonb,${quote(ownerMember.userId)},${quote("synthetic-browser:" + actionId)},now())`
+    );
     L.sql(
       `INSERT INTO "DeliveryOperation" (id,"businessId","operationKey",kind,"conversationId",channel,"connectionId",recipient,response,status,"updatedAt") VALUES ${values(unknownId, "followup", savedReply, "unknown")},${values(interruptedId, "inbound", null, "preparation_interrupted")}`
+    );
+    L.sql(
+      `UPDATE "DeliveryOperation" SET "actionId"=${quote(actionId)} WHERE id=${quote(unknownId)}`
     );
     const aBrowser = await L.launch(creds.A.profile);
     browsers.push(aBrowser);

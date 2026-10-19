@@ -771,3 +771,103 @@ describe("P1 real pg-boss follow-up retry authority", () => {
     }
   }, 35_000);
 });
+
+describe("P1 erasure racing an admitted follow-up attempt (transport held)", () => {
+  async function heldTransport(result: unknown) {
+    let release!: () => void, entered!: () => void;
+    const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      reached = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+    sent.mockImplementation(async () => {
+      entered();
+      await hold;
+      return result;
+    });
+    return { release, reached };
+  }
+  async function eraseWhileHeld(result: unknown) {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    const transport = await heldTransport(result),
+      pending = handleSendFollowup(worker(), queued[0]);
+    await Promise.race([
+      transport.reached,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Transport not reached")), 8000)
+      ),
+    ]);
+    const { remove } = await import("@/lib/conversations/service");
+    await remove(ctx, c.row.id);
+    const marker = await prisma.deliveryOperation.findFirstOrThrow({
+      where: { businessId: a.businessId, operationKey: "followup:" + scheduled.action!.id },
+    });
+    transport.release();
+    await pending.catch(() => {});
+    const settled = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: marker.id } });
+    return { c, marker, settled };
+  }
+  it("keeps a sanitized unresolved marker while transport is held, then records an accepted outcome without restoring content", async () => {
+    const { c, marker, settled } = await eraseWhileHeld({
+      success: true,
+      providerMessageId: "synthetic-late-accept",
+    });
+    expect(marker).toMatchObject({
+      status: "unknown",
+      conversationId: null,
+      actionId: null,
+      receiptId: null,
+      recipient: "",
+    });
+    expect(marker.retiredAt).not.toBeNull();
+    expect(marker.response).toBe("[REDACTED - GDPR]");
+    expect(settled.status).toBe("accepted");
+    expect(settled.providerMessageId).toBe("synthetic-late-accept");
+    expect(settled.recipient).toBe("");
+    expect(settled.claimToken).toBeNull();
+    expect(sent).toHaveBeenCalledTimes(1);
+    expect(
+      await prisma.message.count({
+        where: { businessId: a.businessId, content: { contains: "Synthetic follow-up" } },
+      })
+    ).toBe(0);
+    expect(await prisma.conversation.count({ where: { id: c.row.id } })).toBe(0);
+  });
+  it("keeps the marker unresolved when the held transport result is uncertain", async () => {
+    const { settled } = await eraseWhileHeld({ success: false, outcome: "unknown" });
+    expect(settled.status).toBe("unknown");
+    expect(settled.retiredAt).not.toBeNull();
+    expect(settled.conversationId).toBeNull();
+    expect(settled.recipient).toBe("");
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+  it("records a known refusal without retry or content after erasure", async () => {
+    const { settled } = await eraseWhileHeld({
+      success: false,
+      outcome: "rejected",
+      retryable: true,
+    });
+    expect(settled.status).toBe("rejected");
+    expect(settled.retryable).toBe(false);
+    expect(settled.recipient).toBe("");
+    expect(settled.response).toBe("[REDACTED - GDPR]");
+  });
+  it("never offers a retired marker for recovery or resend", async () => {
+    const { settled } = await eraseWhileHeld({ success: false, outcome: "unknown" });
+    const { listDeliveryRecovery, recoverDelivery } = await import("@/lib/conversations/delivery");
+    const listed = await listDeliveryRecovery(ctx);
+    expect(listed.map((row) => row.id)).not.toContain(settled.id);
+    await expect(
+      recoverDelivery(ctx, settled.id, {
+        decision: "resend",
+        reason: "synthetic recovery attempt",
+        acknowledgeDuplicateRisk: true,
+        requestId: randomUUID(),
+      })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+});

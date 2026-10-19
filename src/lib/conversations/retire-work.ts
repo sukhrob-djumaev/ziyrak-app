@@ -5,6 +5,14 @@ type WorkClient = Pick<
   ScopedPrisma,
   "actionExecution" | "deliveryOperation" | "inboundEventReceipt" | "customer" | "conversation"
 >;
+const REDACTED_OPERATION = {
+  response: "[REDACTED - GDPR]",
+  recipient: "",
+  metadata: {},
+  recoveryLog: [],
+};
+export const RETIRED_ADMITTED_MESSAGE =
+  "Retired while an admitted attempt was in flight; the outcome is unresolved.";
 /** Retire pending work before erasure, using action → operation → receipt lock order.
  * Completed effects retain their status; private payloads and obsolete references do not.
  */
@@ -127,16 +135,36 @@ export async function retireConversationWork(
     ...chunks([...new Set(receiptIds)]).map((ids) => ({ receiptId: { in: ids } })),
   ];
   for (const where of operationMatches) {
+    // An admitted attempt may already be at the provider and cannot be recalled. Keep a
+    // sanitized, nonreplayable marker (opaque ids, time, bounded status) detached from the
+    // erased parents so cascade deletion cannot remove its accountability. It is never a
+    // "cancelled" claim of non-submission; the late transport outcome settles it.
+    const admitted = await db.deliveryOperation.findMany({
+      where: { AND: [where, { status: "sending", claimToken: { not: null } }] },
+      select: { id: true, receiptId: true },
+    });
+    if (admitted.length) {
+      await db.deliveryOperation.updateMany({
+        where: { id: { in: admitted.map((op) => op.id) } },
+        data: {
+          ...REDACTED_OPERATION,
+          retiredAt,
+          status: "unknown",
+          retryable: false,
+          errorMessage: RETIRED_ADMITTED_MESSAGE,
+          conversationId: null,
+          actionId: null,
+          receiptId: null,
+        },
+      });
+      for (const op of admitted) {
+        operationIds.add(op.id);
+        if (op.receiptId) receiptIds.push(op.receiptId);
+      }
+    }
     await db.deliveryOperation.updateMany({
       where,
-      data: {
-        retiredAt,
-        response: "[REDACTED - GDPR]",
-        recipient: "",
-        metadata: {},
-        recoveryLog: [],
-        errorMessage: null,
-      },
+      data: { ...REDACTED_OPERATION, retiredAt, errorMessage: null },
     });
     await db.deliveryOperation.updateMany({
       where: { AND: [where, { status: { not: "accepted" } }] },

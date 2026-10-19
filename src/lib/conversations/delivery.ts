@@ -16,6 +16,7 @@ import { getChannelAdapter } from "@/lib/channels/registry";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 import { hasPermission } from "@/lib/rbac/rbac";
+import { retirementContext } from "@/lib/tenancy/work-lifecycle";
 
 const LEASE_MS = 60_000;
 export class DeliveryBusyError extends Error {}
@@ -374,6 +375,14 @@ export async function dispatchDelivery(
   const end = heartbeat(ctx, id, token);
   let reportedAcceptance = false;
   let acceptedProviderId: string | undefined;
+  // Erasure may retire an admitted attempt while its transport is in flight. Its row is then
+  // a sanitized marker without parents: the late outcome settles the marker, never restores
+  // content, and never makes the attempt retryable.
+  const settleRetired = (data: Prisma.DeliveryOperationUpdateManyMutationInput) =>
+    getScopedPrisma(retirementContext(ctx)).deliveryOperation.updateMany({
+      where: { id, claimToken: token, retiredAt: { not: null } },
+      data: { ...data, retryable: false, claimToken: null, leaseUntil: null },
+    });
   try {
     const result = await adapter.sendMessage(submissionCtx, op.connectionId, op.recipient, {
       text: op.response,
@@ -384,7 +393,7 @@ export async function dispatchDelivery(
       acceptedProviderId = result.providerMessageId;
       // Transaction is local only. The prior dispatch claim protects an external
       // acceptance even if this transaction cannot commit.
-      await db.$transaction(async (tx) => {
+      const checkpoint = await db.$transaction(async (tx) => {
         const accepted = await tx.deliveryOperation.updateMany({
           where: { id, status: "sending", claimToken: token },
           data: {
@@ -395,8 +404,7 @@ export async function dispatchDelivery(
             errorMessage: null,
           },
         });
-        if (!accepted.count)
-          throw new DeliveryBusyError("Acceptance checkpoint lost its dispatch claim.");
+        if (!accepted.count) return "claim_not_current" as const;
         if (op.kind === "followup" && op.conversationId) {
           await tx.message.upsert({
             where: { id },
@@ -410,10 +418,20 @@ export async function dispatchDelivery(
             update: {},
           });
         }
+        return "accepted" as const;
       });
+      if (checkpoint === "claim_not_current") {
+        const marker = await settleRetired({
+          status: "accepted",
+          providerMessageId: result.providerMessageId ?? null,
+          errorMessage: "Retired while admitted; the channel reported acceptance.",
+        });
+        if (!marker.count)
+          throw new DeliveryBusyError("Acceptance checkpoint lost its dispatch claim.");
+      }
     } else {
       const known = result.outcome === "rejected";
-      await db.deliveryOperation.updateMany({
+      const settled = await db.deliveryOperation.updateMany({
         where: { id, status: "sending", claimToken: token },
         data: {
           status: known ? "rejected" : "unknown",
@@ -424,9 +442,16 @@ export async function dispatchDelivery(
             : "The provider outcome is uncertain; automatic resend is blocked.",
         },
       });
+      if (!settled.count)
+        await settleRetired({
+          status: known ? "rejected" : "unknown",
+          errorMessage: known
+            ? "Retired while admitted; the provider refused the delivery."
+            : "Retired while admitted; the provider outcome is uncertain.",
+        });
     }
   } catch {
-    await db.deliveryOperation.updateMany({
+    const settled = await db.deliveryOperation.updateMany({
       where: { id, status: "sending", claimToken: token },
       data: {
         status: "unknown",
@@ -438,6 +463,12 @@ export async function dispatchDelivery(
           : "The provider outcome is uncertain; automatic resend is blocked.",
       },
     });
+    if (!settled.count)
+      await settleRetired({
+        status: "unknown",
+        providerMessageId: acceptedProviderId ?? null,
+        errorMessage: "Retired while admitted; the provider outcome is uncertain.",
+      });
   } finally {
     end();
   }
@@ -510,7 +541,10 @@ export async function projectDeliveryStatus(ctx: TenantContext, id: string): Pro
 export async function listDeliveryRecovery(ctx: TenantContext) {
   await expireDeliveryClaims(ctx);
   return getScopedPrisma(ctx).deliveryOperation.findMany({
-    where: { status: { in: ["unknown", "preparation_interrupted", "rejected", "ready"] } },
+    where: {
+      retiredAt: null,
+      status: { in: ["unknown", "preparation_interrupted", "rejected", "ready"] },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
@@ -551,6 +585,12 @@ export async function recoverDelivery(
   await expireDeliveryClaims(ctx);
   const op = await db.deliveryOperation.findUnique({ where: { id } });
   if (!op) throw new NotFoundError("Delivery");
+  if (op.retiredAt)
+    throw new AppError(
+      409,
+      "DELIVERY_RETIRED",
+      "This delivery was retired with its conversation; its content cannot be recovered."
+    );
   const log = Array.isArray(op.recoveryLog) ? op.recoveryLog : [];
   const prior = log.find(
     (entry) =>

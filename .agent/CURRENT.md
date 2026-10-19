@@ -116,6 +116,15 @@ delta). OPEN: owner approval to merge dev line into main; restricted member edit
 landing), campaigns/recovery requester/manual webhook retry origin integration, P1 closure, R3
 final cutoff. No push/deploy/tag.
 
+Update8 2026-10-19 (INTEGRATED + PUSHED): owner-approved merge commit e18389f brings follow-up
+admission line 9d37bc8 onto main (no conflicts; src/prisma/scripts/tests identical to 9d37bc8).
+Verified on e18389f in idle runtime worktree: tsc/lint exit0; full suite 153 files/1519 passed/
+23 skipped exit0 with DEFAULT timeouts on fresh DB ziyrak_test_merge_e18389f_20261019. Browser
+24/24 evidence is for 9d37bc8 (same product digest; docs-only delta). Owner then authorized
+`git push` of main to origin (fast-forward, origin/main had no new commits). Still OPEN: restricted
+member editor, campaigns/recovery requester/manual webhook retry origin integration, other
+support surfaces, R3 final cutoff, P1 closure. No tag/release/deploy.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

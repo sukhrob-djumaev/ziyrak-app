@@ -1,3 +1,9 @@
+# Latest session (2026-10-19, push)
+
+Follow-up admission merged to main as e18389f, verified (tsc/lint, 153 files/1519 passed) and
+pushed on the owner's instruction. Next: restricted member editor, then remaining P1 origin
+integrations. P1 stays open.
+
 # Latest session (2026-10-19, end)
 
 Follow-up sending admission implemented and verified in dev worktree p1-followup-admission

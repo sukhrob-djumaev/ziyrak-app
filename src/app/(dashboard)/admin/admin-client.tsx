@@ -312,7 +312,7 @@ export default function AdminClient({
           ? ""
           : JSON.stringify([initial.kind, [...initial.connectionIds].sort(), initial.profile]);
       setAccessForm(initial);
-      void request("/api/channels")
+      void request("/api/admin/connection-options")
         .then((result) => {
           if (result?.response.ok && result.fresh())
             setConnectionOptions(

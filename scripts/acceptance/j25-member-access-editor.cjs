@@ -43,13 +43,16 @@ async function openEdit(owner, username) {
     const kept = L.sql(
       'SELECT id FROM "ChannelConnection" WHERE "businessId"=' + quote(a) + " ORDER BY id LIMIT 1"
     );
+    // A different type from the existing connection: the legacy channel list keeps one entry per type.
+    const keptType = L.sql('SELECT type FROM "ChannelConnection" WHERE id=' + quote(kept));
+    const otherType = keptType === "sms" ? "phone" : "sms";
     const other = randomUUID();
     L.sql(
       'INSERT INTO "ChannelConnection" (id,"businessId",type,name,"updatedAt") VALUES (' +
-        [other, a, "webchat", "J25 second channel " + suffix].map(quote).join(",") +
+        [other, a, otherType, "J25 second channel " + suffix].map(quote).join(",") +
         ",now())"
     );
-    L.assert(a && kept, "Workspace and a pre-existing connection exist");
+    L.assert(a && kept && keptType, "Workspace and a pre-existing connection exist");
     // Provision a member through the real UI.
     const member = {
       username: `j25_agent_${suffix}`,
@@ -101,10 +104,13 @@ async function openEdit(owner, username) {
     await owner.waitForFunction(
       () => document.querySelectorAll('fieldset input[type="checkbox"]').length >= 2
     );
-    await owner.evaluate((id) => {
-      // pick exactly the first listed channel
-      document.querySelector('fieldset input[type="checkbox"]').click();
-    }, kept);
+    await owner.evaluate(() => {
+      // Grant exactly the second channel, picked by its visible label.
+      const label = [...document.querySelectorAll("fieldset label")].find((l) =>
+        l.textContent.includes("J25 second channel")
+      );
+      label.querySelector('input[type="checkbox"]').click();
+    });
     await owner.evaluate(() => {
       const select = document.querySelectorAll(".fixed select")[1];
       select.value = "none";
@@ -166,10 +172,11 @@ async function openEdit(owner, username) {
       return { status: r.status, body: r.ok ? await r.json() : null };
     });
     L.assert(visible.status === 200, "Restricted member can read their channel list");
-    const ids = visible.body.map((c) => c.id);
+    // The channel list pads every type with an id-less placeholder; only real connections count.
+    const ids = visible.body.map((c) => c.id).filter(Boolean);
     L.assert(
-      ids.length === 1 && ids[0] !== other,
-      "Restricted member sees only the granted channel"
+      ids.length === 1 && ids[0] === scopeRows && scopeRows === other,
+      "Restricted member sees exactly the granted real connection"
     );
     L.assert(!ids.includes(other), "Excluded channel is not visible to the restricted member");
     // Widen back through the UI and confirm the member's reach follows without code changes.
@@ -191,11 +198,13 @@ async function openEdit(owner, username) {
       member.username
     );
     const widened = await page.evaluate(async () =>
-      (await (await fetch("/api/channels", { cache: "no-store" })).json()).map((c) => c.id)
+      (await (await fetch("/api/channels", { cache: "no-store" })).json())
+        .map((c) => c.id)
+        .filter(Boolean)
     );
     L.assert(
-      widened.includes(other) && widened.length >= 2,
-      "Whole-workspace scope restores both channels"
+      widened.length > ids.length && widened.includes(other) && widened.includes(kept),
+      "Whole-workspace scope restores the member's wider channel reach"
     );
     await L.shot(owner, "j25-access-widened");
     L.assert(

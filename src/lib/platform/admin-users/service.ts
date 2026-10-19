@@ -168,6 +168,17 @@ export async function create(ctx: TenantContext, input: CreateInput) {
   return toView({ ...membership, user });
 }
 
+/** Real connection rows only (no per-type placeholders), so same-type connections are assignable. */
+export async function listConnectionOptions(ctx: TenantContext) {
+  assertWorkspaceDelegation(ctx, "admin:update");
+  const rows = await prisma.channelConnection.findMany({
+    where: { businessId: ctx.businessId },
+    orderBy: [{ type: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, type: true },
+  });
+  return rows;
+}
+
 export interface UpdateInput {
   name?: string;
   role?: string;

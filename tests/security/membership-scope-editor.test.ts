@@ -12,6 +12,7 @@ import {
 import { createRequest } from "../helpers/request";
 import { PUT } from "@/app/api/admin/users/[id]/route";
 import { GET as LIST } from "@/app/api/admin/users/route";
+import { GET as OPTIONS } from "@/app/api/admin/connection-options/route";
 import * as adminUsers from "@/lib/platform/admin-users/service";
 
 let a: SeededBusiness, b: SeededBusiness;
@@ -265,5 +266,33 @@ describe("membership scope editor (real route auth/Postgres)", () => {
       })
     ).rejects.toMatchObject({ statusCode: 403 });
     expect((await membershipOf(a.businessId, targetUserId)).scopeMode).toBe("workspace");
+  });
+  it("connection options are the workspace's real connections, same-type included, for workspace-wide admins only", async () => {
+    const dup = await prisma.channelConnection.create({
+      data: { businessId: a.businessId, type: "webchat", name: "scope-a-dup-webchat" },
+    });
+    const call = async (actor: string) =>
+      OPTIONS(
+        createRequest("/api/admin/connection-options", {
+          cookies: { "owly-token": generateToken(actor) },
+        })
+      );
+    const ok = await call(a.ownerUserId);
+    expect(ok.status).toBe(200);
+    const rows = (await ok.json()) as { id: string; name: string; type: string }[];
+    const ids = rows.map((r) => r.id);
+    expect(ids).toEqual(expect.arrayContaining([connA1, connA2, dup.id]));
+    expect(ids).not.toContain(connB);
+    expect(rows.every((r) => typeof r.id === "string" && r.id.length > 10)).toBe(true);
+    expect(Object.keys(rows[0]).sort()).toEqual(["id", "name", "type"]);
+    const agent = await addMember(a.businessId, "agent", "scope-options-agent");
+    expect((await call(agent.userId)).status).toBe(403);
+    const restricted = await addMember(a.businessId, "admin", "scope-options-restricted");
+    const rm = await membershipOf(a.businessId, restricted.userId);
+    await prisma.membership.update({ where: { id: rm.id }, data: { scopeMode: "connections" } });
+    await prisma.membershipConnectionScope.create({
+      data: { businessId: a.businessId, membershipId: rm.id, connectionId: connA1 },
+    });
+    expect((await call(restricted.userId)).status).toBe(403);
   });
 });

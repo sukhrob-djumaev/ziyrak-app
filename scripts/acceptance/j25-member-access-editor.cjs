@@ -45,9 +45,9 @@ async function openEdit(owner, username) {
     );
     const other = randomUUID();
     L.sql(
-      'INSERT INTO "ChannelConnection" (id,"businessId",type,name) VALUES (' +
+      'INSERT INTO "ChannelConnection" (id,"businessId",type,name,"updatedAt") VALUES (' +
         [other, a, "webchat", "J25 second channel " + suffix].map(quote).join(",") +
-        ")"
+        ",now())"
     );
     L.assert(a && kept, "Workspace and a pre-existing connection exist");
     // Provision a member through the real UI.

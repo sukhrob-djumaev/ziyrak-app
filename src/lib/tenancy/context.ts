@@ -42,7 +42,15 @@ export type AuthorizationProvenance =
       kind: "delegated_job";
       actorUserId?: string;
       allowedOperations: string[];
-      origin: Exclude<AuthorizationProvenance, { kind: "delegated_job" }>;
+      origin:
+        | Exclude<AuthorizationProvenance, { kind: "delegated_job" }>
+        | {
+            kind: "provider_inbound";
+            receiptId: string;
+            deliveryOperationId: string;
+            conversationId: string;
+            connectionId: string;
+          };
     };
 
 export interface TenantContext {

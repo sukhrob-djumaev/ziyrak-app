@@ -9,6 +9,10 @@ import {
   dispatchDelivery,
   recoverDelivery,
 } from "@/lib/conversations/delivery";
+import { authorizeSeededFollowup } from "../helpers/followup-fixtures";
+import { authorizeFollowupSubmission } from "@/lib/tools/followup-authority";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { SEND_FOLLOWUP_JOB } from "@/lib/jobs/job-types";
 import { registerChannelAdapter } from "@/lib/channels/registry";
 import type { SendResult } from "@/lib/channels/types";
 let business: SeededBusiness, connectionId: string;
@@ -43,6 +47,15 @@ beforeAll(async () => {
 afterAll(async () => {
   if (business) await cleanupBusiness(business.businessId);
 });
+function worker(): TenantContext {
+  return {
+    ...business.ctx,
+    role: null,
+    authorization: undefined,
+    actor: { kind: "system_job", jobId: randomUUID(), jobType: SEND_FOLLOWUP_JOB },
+  };
+}
+const dispatch = (id: string) => dispatchDelivery(worker(), id, authorizeFollowupSubmission);
 async function fixture(response?: string) {
   const conv = await prisma.conversation.create({
     data: {
@@ -52,9 +65,23 @@ async function fixture(response?: string) {
       metadata: { channelConnectionId: connectionId },
     },
   });
+  // Controlled real authority prerequisite; this suite targets transport durability.
+  const action = await prisma.actionExecution.create({
+    data: {
+      businessId: business.businessId,
+      conversationId: conv.id,
+      tool: "schedule_followup",
+      status: "scheduled",
+      requestedBy: business.ownerUserId,
+      input: { message: response ?? "Persisted reply" },
+      idempotencyKey: randomUUID(),
+    },
+  });
+  await authorizeSeededFollowup(business.ctx, action.id, conv.id, connectionId);
   const input = {
     operationKey: randomUUID(),
     kind: "followup" as const,
+    actionId: action.id,
     conversationId: conv.id,
     channel,
     connectionId,
@@ -80,11 +107,11 @@ describe("delivery durability (real Postgres, controlled synthetic provider faul
       return { conversationId: f.conv.id, response: "Persisted reply" };
     };
     await prepareDelivery(business.ctx, f.op, prepare);
-    expect((await dispatchDelivery(business.ctx, f.op.id)).status).toBe("rejected");
+    expect((await dispatch(f.op.id)).status).toBe("rejected");
     const reloaded = await ensureDelivery({ ...business.ctx }, f.input);
     await prepareDelivery({ ...business.ctx }, reloaded, prepare);
-    expect((await dispatchDelivery({ ...business.ctx }, f.op.id)).status).toBe("accepted");
-    await dispatchDelivery(business.ctx, f.op.id);
+    expect((await dispatch(f.op.id)).status).toBe("accepted");
+    await dispatch(f.op.id);
     expect(prepared).toBe(1);
     expect(attempts).toBe(2);
     expect(
@@ -108,7 +135,7 @@ describe("delivery durability (real Postgres, controlled synthetic provider faul
       `CREATE TRIGGER ${trigger} BEFORE INSERT ON "Message" FOR EACH ROW EXECUTE FUNCTION ${trigger}()`
     );
     try {
-      const result = await dispatchDelivery(business.ctx, f.op.id);
+      const result = await dispatch(f.op.id);
       expect(result.status).toBe("unknown");
       expect(result.providerMessageId).toBe("synthetic-provider-accepted");
       expect(await prisma.message.count({ where: { conversationId: f.conv.id } })).toBe(0);
@@ -116,7 +143,7 @@ describe("delivery durability (real Postgres, controlled synthetic provider faul
       await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${trigger} ON "Message"`);
       await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS ${trigger}()`);
     }
-    await dispatchDelivery(business.ctx, f.op.id);
+    await dispatch(f.op.id);
     expect(attempts).toBe(1);
     await recoverDelivery(business.ctx, f.op.id, {
       decision: "confirm_accepted",
@@ -150,7 +177,7 @@ describe("delivery durability (real Postgres, controlled synthetic provider faul
     const resumed = await prepareDelivery({ ...business.ctx }, f.op, prepare);
     expect(resumed.status).toBe("preparation_interrupted");
     expect(resumed.response).toBeNull();
-    await dispatchDelivery(business.ctx, f.op.id);
+    await dispatch(f.op.id);
     expect(preparations).toBe(1);
     expect(sends).toBe(0);
     expect(await prisma.internalNote.count({ where: { conversationId: f.conv.id } })).toBe(1);
@@ -170,10 +197,7 @@ describe("delivery durability (real Postgres, controlled synthetic provider faul
       await new Promise((resolve) => setTimeout(resolve, 100));
       return { success: true };
     };
-    const results = await Promise.allSettled([
-      dispatchDelivery(business.ctx, f.op.id),
-      dispatchDelivery(business.ctx, f.op.id),
-    ]);
+    const results = await Promise.allSettled([dispatch(f.op.id), dispatch(f.op.id)]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(attempts).toBe(1);
     expect(

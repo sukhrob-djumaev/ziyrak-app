@@ -9,6 +9,7 @@ import { getBackstopTenantContext } from "./context";
 import { getDataPlaneClient } from "@/lib/platform/tenant-placement";
 import { prisma as sharedClient } from "@/lib/prisma/raw-client";
 import { lockTenantWrites } from "./work-lifecycle";
+import type { Prisma } from "@/generated/prisma/client";
 
 const MUTATIONS = new Set([
   "create",
@@ -308,3 +309,70 @@ function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, ctx: T
 }
 
 export type ScopedPrisma = ReturnType<typeof getScopedPrisma>;
+
+/** Narrow control-plane readers bound to the admission's control transaction. */
+export type AdmissionControlReader = Pick<
+  Prisma.TransactionClient,
+  "business" | "membership" | "apiKey" | "channelConnection"
+>;
+/** Short local sending-admission session (PLAN P1 follow-up admission contract). Both
+ * workspace write fences are held for its whole life, so authority-reducing writers wait
+ * behind it. No provider call, raw SQL, client escape or nested transaction belongs here.
+ */
+export interface AdmissionSession {
+  /** Guarded repositories for `ctx`, bound to this session's transactions. */
+  repository(ctx: TenantContext): ScopedPrisma;
+  /** Control-plane readers bound to the control transaction (the same one when shared). */
+  control: AdmissionControlReader;
+}
+const ADMISSION_TX = { isolationLevel: "ReadCommitted", maxWait: 15_000, timeout: 30_000 } as never;
+/** Acquire the control-plane fence first and the data-plane fence second. For shared
+ * placement one transaction serves both (a second advisory lock would self-deadlock);
+ * for dedicated placement the control fence is retained through the data-plane commit.
+ */
+export async function withAdmissionSession<T>(
+  ctx: TenantContext,
+  run: (session: AdmissionSession) => Promise<T>
+): Promise<T> {
+  const client = getDataPlaneClient(ctx.dataConnection);
+  const dedicated = client !== sharedClient;
+  const open = (control: Prisma.TransactionClient, data: Prisma.TransactionClient) =>
+    run({
+      control,
+      repository(scoped) {
+        effectiveResourceScope(scoped);
+        if (scoped.businessId !== ctx.businessId || scoped.dataConnection !== ctx.dataConnection)
+          throw new AppError(403, "FORBIDDEN", "Admission session is bound to one workspace");
+        const guard = createResourceGuard(scoped, data, dedicated ? control : data);
+        return repositorySurface(async (key, operation, args) => {
+          const isControl = CONTROL_PLANE_RESIDENT_SET.has(key);
+          if (
+            isControl &&
+            dedicated &&
+            !operation.startsWith("find") &&
+            !["count", "aggregate", "groupBy"].includes(operation)
+          )
+            throw new AppError(
+              403,
+              "FORBIDDEN",
+              "Operation requires a separate authorized context"
+            );
+          const delegate = Reflect.get(isControl && dedicated ? control : data, key);
+          const prepared = await guard.prepare(key, operation, args);
+          return Reflect.apply(Reflect.get(delegate, operation), delegate, [prepared]);
+        }) as unknown as ScopedPrisma;
+      },
+    });
+  if (!dedicated)
+    return sharedClient.$transaction(async (tx) => {
+      await lockTenantWrites(tx, ctx.businessId);
+      return open(tx, tx);
+    }, ADMISSION_TX);
+  return sharedClient.$transaction(async (control) => {
+    await lockTenantWrites(control, ctx.businessId);
+    return client.$transaction(async (data) => {
+      await lockTenantWrites(data, ctx.businessId);
+      return open(control, data);
+    }, ADMISSION_TX);
+  }, ADMISSION_TX);
+}

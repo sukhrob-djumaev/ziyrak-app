@@ -19,8 +19,8 @@ const f = vi.hoisted(() => ({
     payload: { text: "hello", customerContact: "audit-recipient", customerName: "Audit" },
   },
 }));
-vi.mock("@/lib/tenancy/scoped-prisma", () => ({
-  getScopedPrisma: () => {
+vi.mock("@/lib/tenancy/scoped-prisma", () => {
+  const getScopedPrisma = () => {
     const matches = (row: Record<string, unknown>, where: Record<string, unknown>) =>
       Object.entries(where).every(([key, value]) => {
         if (value && typeof value === "object" && "in" in value)
@@ -124,8 +124,45 @@ vi.mock("@/lib/tenancy/scoped-prisma", () => ({
     };
     db.$transaction.mockImplementation(async (fn) => fn(db));
     return db;
-  },
-}));
+  };
+  // One local session over the same stand-in repository: this suite tests transport and
+  // persistence, not the real fences (real PG covers those elsewhere).
+  const withAdmissionSession = async (
+    _ctx: unknown,
+    run: (session: { control: object; repository: () => unknown }) => Promise<unknown>
+  ) => run({ control: {}, repository: () => getScopedPrisma() });
+  return { getScopedPrisma, withAdmissionSession };
+});
+// Controlled authority stand-in: this mock-only R1 suite tests transport and
+// persistence failures. Actual origin/revocation acceptance uses real PG elsewhere.
+vi.mock("@/lib/tools/followup-authority", () => {
+  const authorize = async (
+    worker: TenantContext,
+    binding: {
+      actionId: string;
+      conversationId: string;
+      deliveryId?: string;
+    }
+  ): Promise<{ context: TenantContext }> => ({
+    context: {
+      ...worker,
+      role: null,
+      resourceScope: { kind: "workspace", customerProfileAccess: "read" },
+      authorization: {
+        kind: "delegated_job",
+        actorUserId: "audit-user",
+        origin: { kind: "membership", userId: "audit-user", membershipId: "audit-member" },
+        allowedOperations: ["messages:create"],
+      },
+      workBinding: {
+        actionExecutionId: binding.actionId,
+        conversationId: binding.conversationId,
+        ...(binding.deliveryId ? { deliveryOperationId: binding.deliveryId } : {}),
+      },
+    },
+  });
+  return { authorizeFollowupAction: authorize, authorizeFollowupSubmission: authorize };
+});
 vi.mock("@/lib/channels/registry", () => ({ getChannelAdapter: () => ({ sendMessage: f.send }) }));
 vi.mock("@/lib/jobs/queue", () => ({
   PROCESS_INBOUND_MESSAGE_JOB: "process-inbound-message",
@@ -152,7 +189,7 @@ import { handleProcessInboundMessage } from "@/lib/conversations/inbound";
 const ctx: TenantContext = {
   businessId: "audit-business",
   role: null,
-  actor: { kind: "system_job", jobId: "audit-job" },
+  actor: { kind: "system_job", jobId: "audit-job", jobType: "send-followup" },
   dataConnection: "shared-default",
   resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };

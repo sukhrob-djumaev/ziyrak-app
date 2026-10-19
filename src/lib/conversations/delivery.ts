@@ -1,7 +1,17 @@
 import { randomUUID } from "node:crypto";
+import {
+  validFollowupProvenance,
+  type AdmittedFollowup,
+  type AuthorizeFollowupSubmission,
+} from "./delivery-authority";
+import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import type { Prisma, DeliveryOperation } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import {
+  getScopedPrisma,
+  withAdmissionSession,
+  type AdmissionSession,
+} from "@/lib/tenancy/scoped-prisma";
 import { getChannelAdapter } from "@/lib/channels/registry";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
@@ -142,9 +152,10 @@ export async function prepareDelivery(
 }
 export async function validateDeliveryDestination(
   ctx: TenantContext,
-  op: Pick<DeliveryOperation, "conversationId" | "channel" | "connectionId" | "recipient">
+  op: Pick<DeliveryOperation, "conversationId" | "channel" | "connectionId" | "recipient">,
+  session?: AdmissionSession
 ): Promise<void> {
-  const db = getScopedPrisma(ctx);
+  const db = session ? session.repository(ctx) : getScopedPrisma(ctx);
   const [conversation, connection] = await Promise.all([
     op.conversationId
       ? db.conversation.findUnique({ where: { id: op.conversationId } })
@@ -164,7 +175,11 @@ export async function validateDeliveryDestination(
   const owner = (conversation.metadata as Record<string, unknown> | null)?.channelConnectionId;
   if (owner && owner !== op.connectionId) throw new NotFoundError("Delivery destination");
 }
-export async function dispatchDelivery(ctx: TenantContext, id: string): Promise<DeliveryOperation> {
+export async function dispatchDelivery(
+  ctx: TenantContext,
+  id: string,
+  authorize?: AuthorizeFollowupSubmission
+): Promise<DeliveryOperation> {
   const db = getScopedPrisma(ctx);
   await expireDeliveryClaims(ctx);
   let op = await db.deliveryOperation.findUniqueOrThrow({ where: { id } });
@@ -178,9 +193,64 @@ export async function dispatchDelivery(ctx: TenantContext, id: string): Promise<
       "NO_SAVED_REPLY",
       "No completed reply exists; review the conversation."
     );
-  try {
-    await validateDeliveryDestination(ctx, op);
-  } catch (error) {
+  const bindingOf = (row: DeliveryOperation) => ({
+    deliveryId: row.id,
+    actionId: row.actionId!,
+    conversationId: row.conversationId!,
+    connectionId: row.connectionId,
+    channel: row.channel,
+    recipient: row.recipient,
+    response: row.response!,
+  });
+  /** Validates the composed authority; a malformed callback can never widen it. */
+  const validateAdmitted = (
+    next: AdmittedFollowup | undefined,
+    binding: ReturnType<typeof bindingOf>
+  ): TenantContext => {
+    const context = next?.context;
+    if (!context || typeof context !== "object" || !context.actor)
+      throw new AppError(403, "INVALID_FOLLOWUP_AUTHORITY", "Invalid follow-up authority");
+    const scope = validateResourceScope(context.resourceScope),
+      auth = context.authorization;
+    if (
+      context.businessId !== ctx.businessId ||
+      context.dataConnection !== ctx.dataConnection ||
+      context.role !== null ||
+      ctx.actor.kind !== "system_job" ||
+      context.actor.kind !== "system_job" ||
+      context.actor.jobId !== ctx.actor.jobId ||
+      context.actor.jobType !== ctx.actor.jobType ||
+      !validFollowupProvenance(auth, binding) ||
+      context.workBinding?.actionExecutionId !== binding.actionId ||
+      context.workBinding.conversationId !== binding.conversationId ||
+      context.workBinding.deliveryOperationId !== binding.deliveryId ||
+      (scope.kind === "connections" && !scope.connectionIds.includes(binding.connectionId))
+    )
+      throw new AppError(403, "INVALID_FOLLOWUP_AUTHORITY", "Invalid follow-up authority");
+    return context;
+  };
+  const refuseUnsent = async (error: unknown, claimToken?: string) => {
+    await db.deliveryOperation.updateMany({
+      where: {
+        id,
+        ...(claimToken
+          ? { status: "sending", claimToken }
+          : { status: op.status, updatedAt: op.updatedAt }),
+      },
+      data: {
+        status: "rejected",
+        retryable: !(error instanceof AppError),
+        claimToken: null,
+        leaseUntil: null,
+        errorMessage:
+          error instanceof AppError
+            ? "Saved follow-up authority is unavailable; review before sending."
+            : "Authority check unavailable; delivery has not been submitted.",
+      },
+    });
+    return db.deliveryOperation.findUniqueOrThrow({ where: { id } });
+  };
+  const rejectDestination = async (error: unknown): Promise<never> => {
     await db.deliveryOperation.updateMany({
       where: { id, status: op.status },
       data: {
@@ -191,36 +261,121 @@ export async function dispatchDelivery(ctx: TenantContext, id: string): Promise<
       },
     });
     throw error;
-  }
+  };
   const adapter = getChannelAdapter(op.channel);
-  if (!adapter) {
-    await db.deliveryOperation.updateMany({
-      where: { id, status: op.status, updatedAt: op.updatedAt },
+  const token = randomUUID();
+  let submissionCtx = ctx;
+  if (op.kind === "followup") {
+    if (!authorize || !op.actionId || !op.conversationId || op.response === null)
+      return refuseUnsent(
+        new AppError(403, "FOLLOWUP_AUTHORITY_REQUIRED", "Fresh follow-up authority is required")
+      );
+    // Sending admission: both workspace fences are held while fresh authority, the
+    // destination and the lifecycle are read, expiry is judged at the final decision
+    // timestamp, and the claim commits. Transport starts only after this releases; a
+    // change committed before the claim blocks sending, one after it cannot recall it.
+    const seen = op;
+    const admission = await withAdmissionSession(ctx, async (session) => {
+      const repository = session.repository(ctx);
+      const row = await repository.deliveryOperation.findUnique({ where: { id } });
+      if (
+        !row ||
+        row.status !== seen.status ||
+        row.updatedAt.getTime() !== seen.updatedAt.getTime() ||
+        row.kind !== "followup" ||
+        !row.actionId ||
+        !row.conversationId ||
+        row.response === null
+      )
+        return { kind: "busy" as const };
+      const binding = bindingOf(row);
+      let admitted: TenantContext, notAfter: Date | undefined;
+      try {
+        const next = await authorize(ctx, binding, session);
+        admitted = validateAdmitted(next, binding);
+        notAfter = next.notAfter;
+      } catch (error) {
+        return { kind: "refused" as const, error };
+      }
+      try {
+        await validateDeliveryDestination(admitted, row, session);
+      } catch (error) {
+        return { kind: "destination" as const, error };
+      }
+      if (!adapter) return { kind: "no_adapter" as const };
+      // Final decision timestamp: after every awaited read, immediately before the claim.
+      const decidedAt = new Date();
+      if (notAfter && notAfter.getTime() <= decidedAt.getTime())
+        return {
+          kind: "refused" as const,
+          error: new AppError(403, "FOLLOWUP_AUTHORITY_UNAVAILABLE", "Saved authority expired"),
+        };
+      const claimed = await repository.deliveryOperation.updateMany({
+        where: { id, status: row.status },
+        data: {
+          status: "sending",
+          claimToken: token,
+          leaseUntil: new Date(decidedAt.getTime() + LEASE_MS),
+          attempts: { increment: 1 },
+          retryable: false,
+        },
+      });
+      if (!claimed.count) return { kind: "busy" as const };
+      return { kind: "admitted" as const, context: admitted };
+    }).catch((error) => ({ kind: "unavailable" as const, error }));
+    if (admission.kind === "busy")
+      throw new DeliveryBusyError("Dispatch claim was taken by another worker.");
+    if (admission.kind === "refused") return refuseUnsent(admission.error);
+    if (admission.kind === "unavailable") return refuseUnsent(admission.error);
+    if (admission.kind === "destination") return rejectDestination(admission.error);
+    if (admission.kind === "no_adapter") {
+      await db.deliveryOperation.updateMany({
+        where: { id, status: op.status, updatedAt: op.updatedAt },
+        data: {
+          status: "rejected",
+          retryable: false,
+          errorMessage: "The configured channel is unavailable.",
+        },
+      });
+      return db.deliveryOperation.findUniqueOrThrow({ where: { id } });
+    }
+    submissionCtx = admission.context;
+  } else {
+    try {
+      await validateDeliveryDestination(submissionCtx, op);
+    } catch (error) {
+      return rejectDestination(error);
+    }
+    if (!adapter) {
+      await db.deliveryOperation.updateMany({
+        where: { id, status: op.status, updatedAt: op.updatedAt },
+        data: {
+          status: "rejected",
+          retryable: false,
+          errorMessage: "The configured channel is unavailable.",
+        },
+      });
+      return db.deliveryOperation.findUniqueOrThrow({ where: { id } });
+    }
+    const claim = await db.deliveryOperation.updateMany({
+      where: { id, status: op.status },
       data: {
-        status: "rejected",
+        status: "sending",
+        claimToken: token,
+        leaseUntil: new Date(Date.now() + LEASE_MS),
+        attempts: { increment: 1 },
         retryable: false,
-        errorMessage: "The configured channel is unavailable.",
       },
     });
-    return db.deliveryOperation.findUniqueOrThrow({ where: { id } });
+    if (!claim.count) throw new DeliveryBusyError("Dispatch claim was taken by another worker.");
   }
-  const token = randomUUID();
-  const claim = await db.deliveryOperation.updateMany({
-    where: { id, status: op.status },
-    data: {
-      status: "sending",
-      claimToken: token,
-      leaseUntil: new Date(Date.now() + LEASE_MS),
-      attempts: { increment: 1 },
-      retryable: false,
-    },
-  });
-  if (!claim.count) throw new DeliveryBusyError("Dispatch claim was taken by another worker.");
+  if (!adapter)
+    throw new AppError(409, "CHANNEL_UNAVAILABLE", "The configured channel is unavailable.");
   const end = heartbeat(ctx, id, token);
   let reportedAcceptance = false;
   let acceptedProviderId: string | undefined;
   try {
-    const result = await adapter.sendMessage(ctx, op.connectionId, op.recipient, {
+    const result = await adapter.sendMessage(submissionCtx, op.connectionId, op.recipient, {
       text: op.response,
       metadata: op.metadata as Record<string, unknown>,
     });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { captureFollowupAuthorization } from "../followup-authority";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { jobQueue } from "@/lib/jobs/queue";
 import { SEND_FOLLOWUP_JOB, type SendFollowupPayload } from "@/lib/jobs/job-types";
@@ -64,7 +65,7 @@ export const scheduleFollowupTool: ToolDefinition = {
     if (!conversation) throw new NotFoundError("Conversation");
     return conversation.id;
   },
-  async execute(ctx, args, runtimeCtx) {
+  async execute(ctx, args, runtimeCtx, admission) {
     const parsed = schema.parse(args);
     const { message, delayHours } = parsed;
     const conversationId = runtimeCtx.conversationId ?? parsed.conversationId;
@@ -108,6 +109,16 @@ export const scheduleFollowupTool: ToolDefinition = {
         message: `No active ${conversation.channel} connection is configured to send the follow-up through.`,
       };
     }
+
+    await captureFollowupAuthorization(
+      ctx,
+      {
+        actionId: ctx.workBinding?.actionExecutionId ?? "",
+        conversationId,
+        connectionId: connection.id,
+      },
+      admission
+    );
 
     const runAt = new Date(Date.now() + delayHours * 3600_000);
     const idempotencyKey = computeIdempotencyKey(ctx, runtimeCtx);

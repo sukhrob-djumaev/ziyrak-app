@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
+import { authorizeSeededFollowup } from "../helpers/followup-fixtures";
 import { toolRegistry } from "@/lib/tools/registry";
 import "@/lib/tools/builtin";
 import { jobQueue } from "@/lib/jobs/queue";
@@ -79,6 +80,7 @@ afterAll(async () => {
 
 function aiCtx(conversationId: string): TenantContext {
   return {
+    ...business.ctx,
     businessId: business.businessId,
     role: null,
     actor: { kind: "ai_agent", conversationId, model: "test-model" },
@@ -266,19 +268,25 @@ describe("send-followup job handler — exactly once under retry (§31.2/§33.4 
     const conversation = await seedConversation("retry");
     const idempotencyKey = `${business.businessId}:retry-test-${Date.now()}`;
 
-    // The real ActionExecution row send-followup's handler looks up and updates.
-    await rawClient.actionExecution.create({
+    // Controlled positive authority; retry/transport is the boundary under test.
+    const action = await rawClient.actionExecution.create({
       data: {
         businessId: business.businessId,
         tool: "schedule_followup",
         status: "scheduled",
         input: { conversationId: conversation.id, message: "Retry me" },
         conversationId: conversation.id,
-        requestedBy: "ai",
+        requestedBy: business.ownerUserId,
         idempotencyKey,
       },
     });
 
+    await authorizeSeededFollowup(
+      business.ctx,
+      action.id,
+      conversation.id,
+      (conversation.metadata as { channelConnectionId: string }).channelConnectionId
+    );
     const queue = new PgBossJobQueue(TEST_DATABASE_URL, {
       schema: "followup_retry_" + process.pid,
     });

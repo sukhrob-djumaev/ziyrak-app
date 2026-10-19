@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AppError } from "@/lib/observability/errors";
 import { readDeferredProviderConnection } from "@/lib/platform/deferred-origin";
 import type { TenantContext } from "./context";
-import { getScopedPrisma } from "./scoped-prisma";
+import { getScopedPrisma, type AdmissionSession } from "./scoped-prisma";
 
 const id = z.string().min(1).max(128);
 const targetSchema = z.object({ conversationId: id, connectionId: id }).strict();
@@ -43,7 +43,8 @@ async function validate(
   ctx: TenantContext,
   saved: DeferredProviderCeiling,
   target: Target,
-  capture = false
+  capture = false,
+  session?: AdmissionSession
 ) {
   if (
     saved.businessId !== ctx.businessId ||
@@ -51,7 +52,7 @@ async function validate(
     saved.origin.connectionId !== target.connectionId
   )
     deny();
-  const db = getScopedPrisma(ctx),
+  const db = session ? session.repository(ctx) : getScopedPrisma(ctx),
     origin = saved.origin;
   const [receipt, delivery, conversation, connection] = await Promise.all([
     db.inboundEventReceipt.findFirst({ where: { id: origin.receiptId } }),
@@ -75,7 +76,7 @@ async function validate(
       where: { id: origin.conversationId },
       select: { id: true, channel: true, customerContact: true, metadata: true, retiredAt: true },
     }),
-    readDeferredProviderConnection(ctx.businessId, origin.connectionId),
+    readDeferredProviderConnection(ctx.businessId, origin.connectionId, session?.control),
   ]);
   if (
     !receipt ||
@@ -157,7 +158,8 @@ export async function captureDeferredProvider(
 export async function refreshDeferredProvider(
   ctx: TenantContext,
   input: unknown,
-  target: Target
+  target: Target,
+  session?: AdmissionSession
 ): Promise<DeferredProviderCeiling> {
   const saved = snapshotSchema.safeParse(input),
     parsedTarget = targetSchema.safeParse(target);
@@ -169,5 +171,5 @@ export async function refreshDeferredProvider(
     ctx.authorization !== undefined
   )
     deny();
-  return validate(ctx, saved.data, parsedTarget.data);
+  return validate(ctx, saved.data, parsedTarget.data, false, session);
 }

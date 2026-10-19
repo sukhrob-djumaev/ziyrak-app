@@ -6,6 +6,7 @@ import { once } from "node:events";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
 import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness } from "../helpers/tenant-fixtures";
+import { authorizeSeededFollowup } from "../helpers/followup-fixtures";
 import { PgBossJobQueue } from "@/lib/jobs/pgboss-job-queue";
 import { SEND_FOLLOWUP_JOB } from "@/lib/jobs/job-types";
 async function waitFor(predicate: () => Promise<boolean>, timeout = 150000) {
@@ -71,10 +72,11 @@ describe("actual worker crash and restart", () => {
           tool: "schedule_followup",
           status: "scheduled",
           input: { message },
-          requestedBy: "ai",
+          requestedBy: business.ownerUserId,
           idempotencyKey: key,
         },
       });
+      await authorizeSeededFollowup(business.ctx, action.id, conv.id, conn.id);
       await queue.enqueue(SEND_FOLLOWUP_JOB, {
         businessId: business.businessId,
         conversationId: conv.id,

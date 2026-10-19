@@ -1,4 +1,5 @@
 // Test-owned worker for an actual pg-boss crash/restart rehearsal.
+import "@/lib/tools/builtin";
 import { PgBossJobQueue } from "@/lib/jobs/pgboss-job-queue";
 import { handleSendFollowup } from "@/lib/jobs/handlers/send-followup";
 import { SEND_FOLLOWUP_JOB } from "@/lib/jobs/job-types";

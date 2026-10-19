@@ -1,3 +1,11 @@
+# Latest session (2026-10-20, member access editor)
+
+Restricted member editor implemented and verified in dev worktree p1-delayed-origin (acd4c42):
+unit 154/1556, independent security review fixed, fresh frozen full browser 25/25 incl. J25.
+Not merged. Next: owner approves merge, then delayed-work slices (campaigns, recovery resend,
+webhook retry) per docs/p1-delayed-work-origin-proposal-2026-10-19.md once approved. See CURRENT
+Update11.
+
 # Latest session (2026-10-19, push)
 
 Follow-up admission merged to main as e18389f, verified (tsc/lint, 153 files/1519 passed) and

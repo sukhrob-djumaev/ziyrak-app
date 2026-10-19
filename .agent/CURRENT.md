@@ -200,3 +200,21 @@ passed / 23 skipped (clean npm ci in the worktree; main's node_modules makes 3 p
 tests fail, pre-existing). Frozen build + full browser run (25 journeys incl. J25) in progress,
 DB ziyrak_acceptance_p1_editor_20261019a. Not merged. Delayed-work proposal still awaits owner
 approval (campaign CampaignRun migration; webhook retry recheck or waiver).
+
+## Update11 (2026-10-20, restricted member editor verified, awaiting merge approval)
+
+Dev head acd4c42 (worktree p1-delayed-origin, on main ab17c20). Verified on that exact head: tsc/lint
+clean; full unit 154 files / 1556 passed / 1 skipped (clean npm ci; paired DATABASE_URL and
+DIRECT_DATABASE_URL); fresh empty-DB frozen build + full browser 25/25 incl. new J25 (UI restrict,
+reopen, member sees only the granted channel's conversation, widen restores). Independent read-only
+security review: no access-widening path; findings fixed with tests (profile access defaults to
+none, grant ceiling, actor re-read under fence, UI sends scope only when changed, inventory test
+tightened). Browser found a real bug unit tests missed: /api/channels pads id-less per-type
+placeholders, so the editor now uses GET /api/admin/connection-options (real connections only).
+Earlier full runs: J22 timed out intermittently (hidden tab pauses requestAnimationFrame waits);
+fixed in the harness (bringToFront), lead-only harness review; J25 fixture/probe bugs fixed.
+Limits: stand-in only, no provider claim; dedicated placement not end to end; connection names can
+repeat (UX). Topology stopped, DBs ziyrak_acceptance_p1_editor_2026102* and
+ziyrak_test_p1_delayed_20261019 retained. Needs owner: merge approval for acd4c42 (merge commit);
+approval of the delayed-work proposal (CampaignRun migration; webhook retry recheck or waiver).
+Prohibited: push, P2/P3, deleting DBs/worktrees without approval.

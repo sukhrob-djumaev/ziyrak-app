@@ -1,3 +1,9 @@
+# Latest session (2026-10-19, later)
+
+Owner approved the follow-up admission proposal. Dev worktree p1-followup-admission (commit
+9320fbf) holds the coherent sending admission + rewritten tests, green on follow-up/delivery
+suites. Remaining list is in CURRENT Update5. Main has only docs/state commits.
+
 # Latest session (2026-10-19)
 
 Support text-message read verified on d7eba31: tsc/lint ok, unit 150 files/1478 passed, independent

@@ -64,6 +64,24 @@ uncommitted WIP is in /Users/sukhrob/.codex/worktrees/p1-workspace-access/owly o
 (16 files +342/-52); do not trust it as current; port selectively onto a fresh dev worktree from
 main 485cc9b. Tests-first: the 3 red cases in tests/security/followup-authority.test.ts.
 
+Update5 2026-10-19 (follow-up admission, IN PROGRESS, dev worktree
+/Users/sukhrob/.codex/worktrees/p1-followup-admission/owly detached, base 7b7942a, commit 9320fbf):
+ported old WIP + single sending admission: tenancy withAdmissionSession (control fence then
+data fence; shared placement reuses one tx), bound identity/policy/provider/destination readers,
+key expiry judged at final timestamp before the conditional claim, transport after release.
+Tests rewritten to contract (writer blocked behind admission; change committed before admission
+blocks). Verified there on isolated DB ziyrak_test_followup_admission_20261019: tsc/lint ok,
+followup-authority 21/21, tests/repository + delivery unit/security suites pass (239). NOT yet:
+(1) admitted-then-retired attempt marker (sanitized nonreplayable, needs schema+migration, scope
+tables; DeliveryOperation cascades from conversation/action); retirement currently labels admitted
+'sending' ops cancelled and loses transport outcome; (2) tests: retirement/erasure with held
+transport for accepted+uncertain, dedicated lock order + both commit-failure directions, two
+workers/one claim, real pg-boss retry/restart, adapter scoped write proves locks released, policy
+creation while default applies, shared tx reuse; (3) all authority-reducing writers inspected for
+the fence (scoped-prisma mutations already fenced; list non-scoped writers e.g. platform/session);
+(4) PLAN/§8,15,24,25,31,33 + dispatch-contract doc clarifications; (5) independent security
+review, full regressions, fresh full browser. P1 stays open; no push/merge/deploy.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

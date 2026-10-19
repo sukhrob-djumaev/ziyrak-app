@@ -2,9 +2,8 @@
 
 Support text-message read verified on d7eba31: tsc/lint ok, unit 150 files/1478 passed, independent
 security review (no leak; contract wording clarified, tests tightened), fresh Redis-backed full
-browser 24/24 incl. J22, screenshots inspected, owned topology stopped. Dev commits d1b81a4,
-2a07191, bb45ed8, d7eba31 sit on a detached dev worktree, NOT on main. Continue: get approval to
-integrate them into main; then next eligible P1 task.
+browser 24/24 incl. J22, screenshots inspected, owned topology stopped. Merged into main locally as 485cc9b (user-approved); verified tsc/lint and full 150-file suite
+(extended timeouts, host overloaded). Continue: next eligible P1 task when its dependency lands.
 
 
 # Settings full regression failure

@@ -45,6 +45,18 @@ review of full-diff 72873e3..d7eba31 not needed beyond done; remaining: user dec
 dev commits (d1b81a4, 2a07191, bb45ed8, d7eba31) into main, then next eligible P1 task
 (restricted member editor waits delayed lifecycle). No push/merge/deploy/tag/new phase.
 
+Update3 2026-10-19 (INTEGRATED): user-approved local merge commit 485cc9b brings dev line
+d7eba31 (support text-message read + Settings/Administration/support-list work) onto main; docs
+conflicts resolved keeping main's newer state; code tree identical to d7eba31 (src/prisma/
+scripts/tests diff empty). Verified on 485cc9b in idle runtime worktree: tsc/lint exit0; full
+suite 150 files/1478 passed/23 skipped exit0 on fresh migrated DB ziyrak_test_support_msgs_
+20261019d. Deviation: run with CLI --hookTimeout=120000 --testTimeout=180000 because host load
+~250 (unrelated dartvm processes) caused 10s hook timeouts in 3 earlier runs (not product
+failures; one earlier run also hit a dirty DB I contaminated). Browser 24/24 evidence is for
+d7eba31 (same product digest). No fresh browser on 485cc9b (docs-only delta). No push/tag/
+deploy; main ahead of origin. NEXT: restricted member editor still waits delayed lifecycle;
+phase/milestone boundary otherwise reached. Prohibited: push/release/new phase without approval.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

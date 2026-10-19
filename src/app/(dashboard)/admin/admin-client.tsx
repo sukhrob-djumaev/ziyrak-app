@@ -32,6 +32,18 @@ interface AdminUser {
   role: string;
   createdAt: string;
   updatedAt: string;
+  /** Null when the viewer may not see other members' reach. */
+  scope?: MemberScope | null;
+}
+
+type MemberScope =
+  | { kind: "workspace" | "unclassified"; customerProfileAccess: string }
+  | { kind: "connections"; customerProfileAccess: string; connectionIds: string[] };
+
+interface ConnectionOption {
+  id: string;
+  name: string;
+  type: string;
 }
 
 interface ApiKeyItem {
@@ -126,6 +138,13 @@ export default function AdminClient({
     password: "",
     role: "viewer",
   });
+  const [accessForm, setAccessForm] = useState<{
+    kind: "workspace" | "connections";
+    connectionIds: string[];
+    profile: "none" | "read" | "write";
+  }>({ kind: "workspace", connectionIds: [], profile: "write" });
+  const accessInitial = useRef("");
+  const [connectionOptions, setConnectionOptions] = useState<ConnectionOption[]>([]);
   const [savingUser, setSavingUser] = useState(false);
   const [userError, setUserError] = useState("");
 
@@ -174,6 +193,8 @@ export default function AdminClient({
     setShowKeyModal(false);
     setDeleteKeyTarget(null);
     setUserForm({ name: "", username: "", password: "", role: "viewer" });
+    setAccessForm({ kind: "workspace", connectionIds: [], profile: "write" });
+    setConnectionOptions([]);
     setKeyForm({ name: "" });
     setShowPassword(false);
     setUserError("");
@@ -275,6 +296,35 @@ export default function AdminClient({
   function openUserModal(user?: AdminUser) {
     if (!capabilities.manageUsers || user?.role === "owner") return;
     setUserError("");
+    if (user?.scope) {
+      // "unclassified" has no editor shape: start from the safest explicit choice.
+      const initial = {
+        kind: (user.scope.kind === "connections" ? "connections" : "workspace") as
+          | "workspace"
+          | "connections",
+        connectionIds: user.scope.kind === "connections" ? user.scope.connectionIds : [],
+        profile: ["none", "read", "write"].includes(user.scope.customerProfileAccess)
+          ? (user.scope.customerProfileAccess as "none" | "read" | "write")
+          : ("none" as const),
+      };
+      accessInitial.current =
+        user.scope.kind === "unclassified"
+          ? ""
+          : JSON.stringify([initial.kind, [...initial.connectionIds].sort(), initial.profile]);
+      setAccessForm(initial);
+      void request("/api/admin/connection-options")
+        .then((result) => {
+          if (result?.response.ok && result.fresh())
+            setConnectionOptions(
+              (result.body as { id: string; name?: string; type: string }[]).map((c) => ({
+                id: c.id,
+                name: c.name || c.type,
+                type: c.type,
+              }))
+            );
+        })
+        .catch((err) => console.error("Failed to fetch channels:", err));
+    }
     if (user) {
       setEditingUser(user);
       setUserForm({
@@ -308,7 +358,28 @@ export default function AdminClient({
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : "/api/admin/users";
       const method = editingUser ? "PUT" : "POST";
 
-      const payload: Record<string, string> = { role: userForm.role };
+      const payload: Record<string, unknown> = { role: userForm.role };
+      const accessNow = JSON.stringify([
+        accessForm.kind,
+        [...accessForm.connectionIds].sort(),
+        accessForm.profile,
+      ]);
+      // Only send scope when the admin changed it, so a role-only save cannot overwrite a
+      // concurrent scope edit or fail on a stale snapshot.
+      if (editingUser?.scope && accessNow !== accessInitial.current) {
+        if (accessForm.kind === "connections" && accessForm.connectionIds.length === 0) {
+          setUserError("Select at least one channel, or give access to the whole workspace.");
+          return;
+        }
+        payload.scope =
+          accessForm.kind === "workspace"
+            ? { kind: "workspace", customerProfileAccess: accessForm.profile }
+            : {
+                kind: "connections",
+                connectionIds: accessForm.connectionIds,
+                customerProfileAccess: accessForm.profile,
+              };
+      }
       if (!editingUser) {
         payload.name = userForm.name.trim();
         payload.username = userForm.username.trim();
@@ -541,6 +612,9 @@ export default function AdminClient({
                         Role
                       </th>
                       <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                        Access
+                      </th>
+                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
                         Created
                       </th>
                       <th className="text-right text-xs font-medium text-owly-text-light px-5 py-3">
@@ -562,6 +636,15 @@ export default function AdminClient({
                         <td className="px-5 py-3 text-sm text-owly-text-light">{user.username}</td>
                         <td className="px-5 py-3">
                           <RoleBadge role={user.role} />
+                        </td>
+                        <td className="px-5 py-3 text-sm text-owly-text-light">
+                          {!user.scope
+                            ? "-"
+                            : user.scope.kind === "workspace"
+                              ? "Whole workspace"
+                              : user.scope.kind === "connections"
+                                ? `${user.scope.connectionIds.length} channel${user.scope.connectionIds.length === 1 ? "" : "s"}`
+                                : "Not set"}
                         </td>
                         <td className="px-5 py-3 text-sm text-owly-text-light">
                           {formatDate(user.createdAt)}
@@ -824,6 +907,83 @@ export default function AdminClient({
                   <option value="viewer">Viewer - Read-only access</option>
                 </select>
               </div>
+              {editingUser?.scope && (
+                <fieldset className="space-y-2" aria-label="Channel access">
+                  <legend className="block text-xs font-medium text-owly-text mb-1.5">
+                    Channel access
+                  </legend>
+                  {editingUser.scope.kind === "unclassified" && (
+                    <p className="text-xs text-red-600">
+                      This member has no access scope yet and sees nothing until you save one.
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 text-sm text-owly-text">
+                    <input
+                      type="radio"
+                      name="access-kind"
+                      checked={accessForm.kind === "workspace"}
+                      onChange={() => setAccessForm({ ...accessForm, kind: "workspace" })}
+                    />
+                    Whole workspace
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-owly-text">
+                    <input
+                      type="radio"
+                      name="access-kind"
+                      checked={accessForm.kind === "connections"}
+                      onChange={() => setAccessForm({ ...accessForm, kind: "connections" })}
+                    />
+                    Selected channels only
+                  </label>
+                  {accessForm.kind === "connections" && (
+                    <div className="ml-6 space-y-1">
+                      {connectionOptions.length === 0 && (
+                        <p className="text-xs text-owly-text-light">No channels available.</p>
+                      )}
+                      {connectionOptions.map((option) => (
+                        <label
+                          key={option.id}
+                          className="flex items-center gap-2 text-sm text-owly-text"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={accessForm.connectionIds.includes(option.id)}
+                            onChange={(e) =>
+                              setAccessForm({
+                                ...accessForm,
+                                connectionIds: e.target.checked
+                                  ? [...accessForm.connectionIds, option.id]
+                                  : accessForm.connectionIds.filter((id) => id !== option.id),
+                              })
+                            }
+                          />
+                          {option.name}{" "}
+                          <span className="text-xs text-owly-text-light">({option.type})</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-owly-text mb-1.5">
+                      Customer profiles
+                    </label>
+                    <select
+                      value={accessForm.profile}
+                      onChange={(e) =>
+                        setAccessForm({
+                          ...accessForm,
+                          profile: e.target.value as "none" | "read" | "write",
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                    >
+                      <option value="none">No access</option>
+                      <option value="read">Read only</option>
+                      <option value="write">Read and edit</option>
+                    </select>
+                  </div>
+                </fieldset>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">

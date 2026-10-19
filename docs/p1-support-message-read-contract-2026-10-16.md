@@ -50,8 +50,10 @@ conversation: {is: {retiredAt: null}}}`. The generic resource scope predicate
   operation; inside that check (after the audited grant facts, before the
   session/expiry comparisons) re-verify the selected parent still exists, is
   unretired and is inside the fresh scope. Same actor/session/grant/workspace/
-  placement and unchanged normalized scope are required; any change discards the
-  entire result with `SUPPORT_CONTEXT_CHANGED`. No requery/widening loop. Authorization
+  placement and unchanged normalized scope are required; any change in actor/session/grant/
+  workspace/placement/scope discards the entire result with `SUPPORT_CONTEXT_CHANGED`;
+  loss of the selected parent itself (missing, retired or out of scope) discards it
+  with the same 404 shape as above, so the final check adds no existence oracle. No requery/widening loop. Authorization
   audits are not proof of customer exposure; there is no recall promise for data
   after the final checked snapshot leaves the server. All support responses are
   `private, no-store`.

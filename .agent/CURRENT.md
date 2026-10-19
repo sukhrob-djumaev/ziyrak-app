@@ -21,8 +21,11 @@ Update 2026-10-19 (blocker CLEARED): Docker/PG healthy (owly-db-1). Fresh DB
 ziyrak_test_support_msgs_20261019b migrated (prisma migrate deploy). On dev worktree bb45ed8:
 platform-authority + support-query-profile 129/129 pass; full `npm run test` 150 files,
 1478 passed/23 skipped, exit0 (isolated DB only; skips not a pass). Independent security
-review of 72873e3..bb45ed8 delegated (read-only), result pending/unrecorded. STILL OPEN:
-review findings, J22 browser, fresh full browser on a frozen candidate, build. Do not
+review of 72873e3..bb45ed8 (read-only subagent, source only, ran no checks): no leak/bypass;
+one low contract deviation (final-check parent loss gives 404 not SUPPORT_CONTEXT_CHANGED)
+resolved by contract wording (same 404, no oracle); weak assertions tightened in dev d7eba31
+(platform-authority 97/97 on isolated DB). Dev head now d7eba31. STILL OPEN:
+full-suite rerun on d7eba31 (tests only change), J22 browser, fresh full browser on a frozen candidate, build. Do not
 touch live 7700, acceptance or user DBs. Leftover DB ziyrak_test_support_msgs_20261019
 (pre-existing, unknown owner) untouched.
 

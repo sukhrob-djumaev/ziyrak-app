@@ -1,7 +1,7 @@
 # Latest session (2026-10-19)
 
 PG blocker cleared. On dev worktree bb45ed8 with fresh migrated DB: support tests 129/129,
-full suite 150 files/1478 passed/23 skipped. Security review delegated; J22/full browser
+full suite 150 files/1478 passed/23 skipped. Independent security review done (no leak; contract wording clarified; tests tightened, dev d7eba31); J22/full browser
 and build still open. No product code changed on main.
 
 # Latest session (2026-10-17)

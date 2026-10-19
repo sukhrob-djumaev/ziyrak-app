@@ -1,3 +1,5 @@
+import { sameConnectionOwner } from "@/lib/tenancy/connection-ownership";
+import { effectiveResourceScope } from "@/lib/tenancy/resource-query";
 import { logger } from "@/lib/observability/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
@@ -50,17 +52,13 @@ export async function routeConversation(
     case "skill_based":
       if (requiredExpertise) {
         const expertiseLower = requiredExpertise.toLowerCase();
-        selected = members.find((m) =>
-          m.expertise.toLowerCase().includes(expertiseLower)
-        );
+        selected = members.find((m) => m.expertise.toLowerCase().includes(expertiseLower));
       }
       if (!selected) selected = members[0];
       break;
 
     case "least_busy":
-      selected = members.reduce((min, m) =>
-        m._count.tickets < min._count.tickets ? m : min
-      );
+      selected = members.reduce((min, m) => (m._count.tickets < min._count.tickets ? m : min));
       break;
 
     case "round_robin": {
@@ -148,49 +146,56 @@ export async function mergeConversations(
   primaryId: string,
   secondaryId: string
 ): Promise<boolean> {
-  const db = getScopedPrisma(ctx);
-  const [primary, secondary] = await Promise.all([
-    db.conversation.findUnique({ where: { id: primaryId } }),
-    db.conversation.findUnique({ where: { id: secondaryId } }),
-  ]);
+  return getScopedPrisma(ctx).$transaction(async (db) => {
+    const primary = await db.conversation.findUnique({ where: { id: primaryId } });
+    const secondary = await db.conversation.findUnique({ where: { id: secondaryId } });
 
-  if (!primary || !secondary) return false;
+    if (
+      !primary ||
+      !secondary ||
+      primaryId === secondaryId ||
+      primary.retiredAt ||
+      secondary.retiredAt ||
+      !sameConnectionOwner(primary, secondary, effectiveResourceScope(ctx).kind === "workspace")
+    )
+      return false;
 
-  // Move all messages from secondary to primary
-  await db.message.updateMany({
-    where: { conversationId: secondaryId },
-    data: { conversationId: primaryId },
+    // Move all messages from secondary to primary
+    await db.message.updateMany({
+      where: { conversationId: secondaryId },
+      data: { conversationId: primaryId },
+    });
+
+    // Move tickets
+    await db.ticket.updateMany({
+      where: { conversationId: secondaryId },
+      data: { conversationId: primaryId },
+    });
+
+    // Move internal notes
+    await db.internalNote.updateMany({
+      where: { conversationId: secondaryId },
+      data: { conversationId: primaryId },
+    });
+
+    // Add merge note
+    await db.internalNote.create({
+      data: {
+        businessId: ctx.businessId,
+        conversationId: primaryId,
+        content: `Merged with conversation ${secondaryId} (${secondary.customerName} via ${secondary.channel})`,
+        authorName: "System",
+      },
+    });
+
+    // Close secondary
+    await db.conversation.update({
+      where: { id: secondaryId },
+      data: { status: "closed", summary: `Merged into ${primaryId}` },
+    });
+
+    return true;
   });
-
-  // Move tickets
-  await db.ticket.updateMany({
-    where: { conversationId: secondaryId },
-    data: { conversationId: primaryId },
-  });
-
-  // Move internal notes
-  await db.internalNote.updateMany({
-    where: { conversationId: secondaryId },
-    data: { conversationId: primaryId },
-  });
-
-  // Add merge note
-  await db.internalNote.create({
-    data: {
-      businessId: ctx.businessId,
-      conversationId: primaryId,
-      content: `Merged with conversation ${secondaryId} (${secondary.customerName} via ${secondary.channel})`,
-      authorName: "System",
-    },
-  });
-
-  // Close secondary
-  await db.conversation.update({
-    where: { id: secondaryId },
-    data: { status: "closed", summary: `Merged into ${primaryId}` },
-  });
-
-  return true;
 }
 
 /**
@@ -263,7 +268,9 @@ export async function checkSLABreaches(ctx: TenantContext): Promise<number> {
   }
 
   if (escalated > 0) {
-    logger.warn(`SLA breach: ${escalated} conversations auto-escalated`, { businessId: ctx.businessId });
+    logger.warn(`SLA breach: ${escalated} conversations auto-escalated`, {
+      businessId: ctx.businessId,
+    });
   }
 
   return escalated;
@@ -315,9 +322,13 @@ export async function executeMacro(
           if (!tag) {
             tag = await db.tag.create({ data: { businessId, name: action.value } });
           }
-          await db.conversationTag.create({
-            data: { businessId, conversationId, tagId: tag.id },
-          }).catch(() => { /* already tagged */ });
+          await db.conversationTag
+            .create({
+              data: { businessId, conversationId, tagId: tag.id },
+            })
+            .catch(() => {
+              /* already tagged */
+            });
           executed++;
           break;
         }

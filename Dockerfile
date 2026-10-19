@@ -4,6 +4,7 @@ FROM node:22-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
+COPY .puppeteerrc.cjs ./
 RUN npm ci
 
 COPY . .
@@ -54,6 +55,7 @@ RUN adduser --system --uid 1001 nextjs
 WORKDIR /app
 
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.puppeteerrc.cjs ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public

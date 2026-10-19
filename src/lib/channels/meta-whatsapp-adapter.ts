@@ -1,8 +1,18 @@
-import { findConnectionByConfigField, resolveChannelCredential, buildChannelCredentialContext } from "@/lib/identity/channel-credential-auth";
+import {
+  findConnectionByConfigField,
+  resolveChannelCredential,
+  buildChannelCredentialContext,
+} from "@/lib/identity/channel-credential-auth";
 import { MetaWhatsAppCredentialSchema } from "@/lib/secrets";
 import { buildMessageReceivedEvent } from "@/lib/events/types";
 import { registerInboundEvent } from "@/lib/events/inbound-receipt";
-import type { ChannelAdapter, ChannelStatus, OutboundContent, SendResult, ValidateInboundResult } from "./types";
+import type {
+  ChannelAdapter,
+  ChannelStatus,
+  OutboundContent,
+  SendResult,
+  ValidateInboundResult,
+} from "./types";
 import { registerChannelAdapter } from "./registry";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -70,13 +80,15 @@ export function extractMetaPhoneNumberIds(rawBody: Buffer | string): MetaPhoneNu
     const changes = (entry as { changes?: unknown }).changes;
     if (!Array.isArray(changes)) return { kind: "malformed" };
     for (const change of changes) {
-      if (!change || typeof change !== "object" || Array.isArray(change)) return { kind: "malformed" };
+      if (!change || typeof change !== "object" || Array.isArray(change))
+        return { kind: "malformed" };
       const value = (change as { value?: unknown }).value;
       if (!value || typeof value !== "object" || Array.isArray(value)) return { kind: "malformed" };
       const metadata = (value as { metadata?: unknown }).metadata;
       if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) continue;
       const phoneNumberId = (metadata as { phone_number_id?: unknown }).phone_number_id;
-      if (typeof phoneNumberId === "string" && phoneNumberId.length > 0) phoneNumberIds.add(phoneNumberId);
+      if (typeof phoneNumberId === "string" && phoneNumberId.length > 0)
+        phoneNumberIds.add(phoneNumberId);
     }
   }
 
@@ -85,7 +97,9 @@ export function extractMetaPhoneNumberIds(rawBody: Buffer | string): MetaPhoneNu
   return { kind: "one", phoneNumberId: phoneNumberIds.values().next().value! };
 }
 
-function extractFirstInboundMessage(payload: MetaWebhookPayload): { value: MetaWebhookValue; message: NonNullable<MetaWebhookValue["messages"]>[number] } | null {
+function extractFirstInboundMessage(
+  payload: MetaWebhookPayload
+): { value: MetaWebhookValue; message: NonNullable<MetaWebhookValue["messages"]>[number] } | null {
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const message = change.value.messages?.find((m) => m.type === "text" && m.text?.body);
@@ -126,25 +140,56 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
   async validateInbound(request: MetaWebhookRequest): Promise<ValidateInboundResult> {
     const rawBody = rawBodyBuffer(request.rawBody);
     const candidate = extractMetaPhoneNumberIds(rawBody);
-    if (candidate.kind === "malformed") return { kind: "rejected", reason: "Malformed JSON body", authenticated: false };
-    if (candidate.kind === "none") return { kind: "rejected", reason: "Missing phone_number_id in webhook payload", authenticated: false };
-    if (candidate.kind === "multiple") return { kind: "rejected", reason: "Multiple phone_number_id values in webhook payload", authenticated: false };
+    if (candidate.kind === "malformed")
+      return { kind: "rejected", reason: "Malformed JSON body", authenticated: false };
+    if (candidate.kind === "none")
+      return {
+        kind: "rejected",
+        reason: "Missing phone_number_id in webhook payload",
+        authenticated: false,
+      };
+    if (candidate.kind === "multiple")
+      return {
+        kind: "rejected",
+        reason: "Multiple phone_number_id values in webhook payload",
+        authenticated: false,
+      };
 
-    const resolved = await findConnectionByConfigField("whatsapp_cloud", "phoneNumberId", candidate.phoneNumberId);
+    const resolved = await findConnectionByConfigField(
+      "whatsapp_cloud",
+      "phoneNumberId",
+      candidate.phoneNumberId
+    );
     if (!resolved) {
-      return { kind: "rejected", reason: "No active ChannelConnection matches this phone_number_id", authenticated: false };
+      return {
+        kind: "rejected",
+        reason: "No active ChannelConnection matches this phone_number_id",
+        authenticated: false,
+      };
     }
 
-    const credential = await resolveChannelCredential(resolved.connectionId, MetaWhatsAppCredentialSchema);
+    const credential = await resolveChannelCredential(
+      resolved.connectionId,
+      MetaWhatsAppCredentialSchema
+    );
     if (!credential) {
-      return { kind: "rejected", reason: "Connection has no valid Meta WhatsApp credential", authenticated: false };
+      return {
+        kind: "rejected",
+        reason: "Connection has no valid Meta WhatsApp credential",
+        authenticated: false,
+      };
     }
 
     // Do not try a pool of secrets: this candidate connection's own encrypted
     // App Secret is the only permitted key. There is no platform-wide fallback,
     // so no single shared secret can forge events for several tenants.
     const appSecret = credential.appSecret;
-    if (!appSecret) return { kind: "rejected", reason: "No Meta App Secret is configured for this connection", authenticated: false };
+    if (!appSecret)
+      return {
+        kind: "rejected",
+        reason: "No Meta App Secret is configured for this connection",
+        authenticated: false,
+      };
 
     const signature = request.headers["x-hub-signature-256"] || "";
     if (!validateMetaSignature(appSecret, signature, rawBody)) {
@@ -183,7 +228,11 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
       // delivery-receipt processing is not a named acceptance criterion).
       // Acknowledged as "rejected" so the webhook route still ACKs 200
       // without enqueuing anything, exactly like Telegram's non-text case.
-      return { kind: "rejected", reason: "No inbound text message in payload", authenticated: true };
+      return {
+        kind: "rejected",
+        reason: "No inbound text message in payload",
+        authenticated: true,
+      };
     }
 
     const { value, message } = found;
@@ -210,20 +259,45 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
 
     if (registration.isDuplicate) return { kind: "duplicate" };
 
-    return { kind: "new", ctx, connectionId: resolved.connectionId, event, receiptId: registration.receiptId };
+    return {
+      kind: "new",
+      ctx,
+      connectionId: resolved.connectionId,
+      event,
+      receiptId: registration.receiptId,
+    };
   }
 
-  async sendMessage(ctx: TenantContext, connectionId: string, to: string, content: OutboundContent): Promise<SendResult> {
+  async sendMessage(
+    ctx: TenantContext,
+    connectionId: string,
+    to: string,
+    content: OutboundContent
+  ): Promise<SendResult> {
     // `resolveChannelCredential` reads by id with no tenant check (it has to
     // work for inbound webhooks, before any ctx exists) — so a *send* must
     // itself prove the connection belongs to the acting business before its
     // access token is ever decrypted (§46.7: "one business's credentials can
     // never be used to send another business's response").
-    const owned = await getScopedPrisma(ctx).channelConnection.findFirst({ where: { id: connectionId, type: "whatsapp_cloud", isActive: true } });
-    if (!owned) return { success: false, error: "No active WhatsApp connection for this business" };
+    const owned = await getScopedPrisma(ctx).channelConnection.findFirst({
+      where: { id: connectionId, type: "whatsapp_cloud", isActive: true },
+    });
+    if (!owned)
+      return {
+        success: false,
+        outcome: "rejected",
+        retryable: false,
+        error: "No active WhatsApp connection for this business",
+      };
 
     const credential = await resolveChannelCredential(connectionId, MetaWhatsAppCredentialSchema);
-    if (!credential) return { success: false, error: "Connection has no valid Meta WhatsApp credential" };
+    if (!credential)
+      return {
+        success: false,
+        outcome: "rejected",
+        retryable: false,
+        error: "Connection has no valid Meta WhatsApp credential",
+      };
 
     // §32.1's SSRF dispatcher is for tenant-*supplied* URLs (webhooks); the
     // Graph API host is fixed platform config, not tenant input, so the
@@ -232,34 +306,45 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
     // retry/backoff wrapper exists in this codebase for outbound provider
     // calls (confirmed: neither Telegram nor SMS uses one).
     try {
-      const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${credential.phoneNumberId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${credential.accessToken}`,
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body: content.text },
-        }),
-      });
+      const response = await fetch(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${credential.phoneNumberId}/messages`,
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(20_000),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${credential.accessToken}`,
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to,
+            type: "text",
+            text: { body: content.text },
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const errorBody = await response.text().catch(() => "");
+        await response.text().catch(() => "");
         logger.error("[MetaCloudWhatsAppAdapter] Send failed", undefined, {
           status: response.status,
           businessId: ctx.businessId,
           connectionId,
         });
-        return { success: false, error: `Meta Cloud API returned ${response.status}: ${errorBody.slice(0, 500)}` };
+        return {
+          success: false,
+          outcome: response.status >= 500 ? "unknown" : "rejected",
+          retryable: response.status === 429,
+          error: `Meta Cloud API returned ${response.status}`,
+        };
       }
 
       // A Graph 2xx means Meta accepted the request, not that the recipient
       // has seen it. Keep the provider message id for acceptance evidence,
       // but never log credential/header/recipient/content data.
-      const responseBody = (await response.json().catch(() => null)) as { messages?: { id?: string }[] } | null;
+      const responseBody = (await response.json().catch(() => null)) as {
+        messages?: { id?: string }[];
+      } | null;
       logger.info("[MetaCloudWhatsAppAdapter] Send accepted", {
         status: response.status,
         metaMessageId: responseBody?.messages?.[0]?.id ?? null,
@@ -267,13 +352,22 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
         businessId: ctx.businessId,
         connectionId,
       });
-      return { success: true };
-    } catch (error) {
-      logger.error("[MetaCloudWhatsAppAdapter] Failed to send message:", error, {
+      return {
+        success: true,
+        outcome: "accepted",
+        providerMessageId: responseBody?.messages?.[0]?.id,
+      };
+    } catch {
+      logger.error("[MetaCloudWhatsAppAdapter] Transport outcome is uncertain", undefined, {
         businessId: ctx.businessId,
         connectionId,
       });
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        success: false,
+        outcome: "unknown",
+        retryable: false,
+        error: "Meta transport outcome is uncertain",
+      };
     }
   }
 
@@ -283,7 +377,10 @@ export class MetaCloudWhatsAppAdapter implements ChannelAdapter<MetaWebhookReque
     if (!connection?.isActive || !connection.credentialRef) {
       return { connected: false, detail: "Not configured" };
     }
-    return { connected: true, detail: "Stateless HTTP channel — connected once credentials exist." };
+    return {
+      connected: true,
+      detail: "Stateless HTTP channel — connected once credentials exist.",
+    };
   }
 }
 

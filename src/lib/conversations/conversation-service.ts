@@ -1,4 +1,4 @@
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { logActivity } from "@/lib/observability/activity";
 import { emitNewConversation } from "@/lib/realtime/realtime";
@@ -23,9 +23,11 @@ export async function createNewConversation(
   /** Web Chat only (§20.4) — the widget generates its own conversation id client-side so it knows what to subscribe to before the async job that creates the row has run. */
   id?: string,
   /** The `ChannelConnection` the conversation arrived on — stamped so a later human reply is sent back through the same one (PLAN.md §46.7), not "whichever is first". */
-  connectionId?: string
+  connectionId?: string,
+  repository?: Pick<ScopedPrisma, "conversation" | "activityLog">,
+  afterCommit?: (() => void)[]
 ) {
-  const db = getScopedPrisma(ctx);
+  const db = repository ?? getScopedPrisma(ctx);
   const conversation = await db.conversation.create({
     data: {
       ...(id && { id }),
@@ -37,7 +39,18 @@ export async function createNewConversation(
       ...(connectionId && { metadata: { channelConnectionId: connectionId } }),
     },
   });
-  await logActivity(ctx, "conversation.created", "conversation", conversation.id, `New ${channel} conversation started by ${customerName}`, undefined, { channel });
-  emitNewConversation(ctx.businessId, conversation.id, { channel });
+  await logActivity(
+    ctx,
+    "conversation.created",
+    "conversation",
+    conversation.id,
+    `New ${channel} conversation started by ${customerName}`,
+    undefined,
+    { channel },
+    db
+  );
+  const announce = () => emitNewConversation(ctx.businessId, conversation.id, { channel });
+  if (afterCommit) afterCommit.push(announce);
+  else announce();
   return conversation;
 }

@@ -13,6 +13,9 @@ import { provisionBusiness } from "@/lib/platform/provisioning";
 import { validateBody, signupSchema } from "@/lib/validations";
 import { AppError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
+import { workspaceCookie, clearWorkspaceCookie } from "@/lib/identity/workspace-cookie";
+import { scopeFromRecord } from "@/lib/tenancy/resource-scope";
+import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 
 // POST /api/auth - Login, signup (create a new business), or logout
 export async function POST(request: NextRequest) {
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
         { status: 201 }
       );
       response.cookies.set(setAuthCookie(generateToken(user.id)));
+      response.cookies.set(workspaceCookie(businessId));
       return response;
     } catch (error) {
       if (error instanceof AppError) {
@@ -61,42 +65,51 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: error.statusCode });
       }
       logger.error("Signup failed:", error);
-      return NextResponse.json({ error: "Could not create the business. Please try again." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not create the business. Please try again." },
+        { status: 500 }
+      );
     }
   }
 
   if (action === "login") {
     if (!username || !password) {
-      return NextResponse.json(
-        { error: "Username and password are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const valid = await verifyPassword(password, user.password);
     if (!valid) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const token = generateToken(user.id);
     const cookie = setAuthCookie(token);
+    const memberships = await prisma.membership.findMany({
+      where: { userId: user.id, business: { status: "active" } },
+      include: { connectionScopes: true },
+    });
+    const eligible = memberships.filter((row) => {
+      try {
+        scopeFromRecord(row);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    const selected = eligible.length === 1 ? eligible[0].businessId : null;
 
     const response = NextResponse.json({
       success: true,
       user: { id: user.id, username: user.username, name: user.name },
+      workspaceSelectionRequired: selected === null,
     });
     response.cookies.set(cookie);
+    response.cookies.set(selected ? workspaceCookie(selected) : clearWorkspaceCookie());
     return response;
   }
 
@@ -116,11 +129,15 @@ export async function POST(request: NextRequest) {
     // (the token stays valid until it expires) instead of reporting success.
     const response = revocationFailed
       ? NextResponse.json(
-          { error: "Signed out of this browser, but the session could not be ended on the server. Please sign out again." },
+          {
+            error:
+              "Signed out of this browser, but the session could not be ended on the server. Please sign out again.",
+          },
           { status: 500 }
         )
       : NextResponse.json({ success: true });
     response.cookies.set(clearAuthCookie());
+    response.cookies.set(clearWorkspaceCookie());
     return response;
   }
 
@@ -146,5 +163,6 @@ export async function GET() {
     authenticated: true,
     setupRequired: false,
     user,
+    workspaceSelectionRequired: (await getTenantContextFromCookies()) === null,
   });
 }

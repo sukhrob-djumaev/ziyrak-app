@@ -5,6 +5,9 @@ import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+import { authorizedEventStream } from "@/lib/realtime/authorized-stream";
+import { projectWidgetEvent } from "@/lib/identity/stream-event-projection";
+
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ connectionId: string }> };
@@ -28,12 +31,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // single IP can trigger one (long-lived streams themselves are cheap; the
   // repeated auth attempts are what an attacker would hammer).
   const ip = getClientIp(request);
-  if (!(await checkRateLimit(`webchat-stream-ip:${connectionId}:${ip}`, { maxRequests: 30, windowMs: 60_000 })).allowed) {
+  if (
+    !(
+      await checkRateLimit(`webchat-stream-ip:${connectionId}:${ip}`, {
+        maxRequests: 30,
+        windowMs: 60_000,
+      })
+    ).allowed
+  ) {
     return new Response("Too Many Requests", { status: 429 });
   }
 
   const token = request.nextUrl.searchParams.get("token") || "";
   const conversationId = request.nextUrl.searchParams.get("conversationId") || "";
+  const visitorId = request.nextUrl.searchParams.get("visitorId") || "";
   const origin = request.headers.get("origin") || "";
   // EventSource is a cross-origin "simple" request (no preflight), but the
   // browser still needs `Access-Control-Allow-Origin` on the response to let
@@ -42,7 +53,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const cors = await webChatAdapter.corsHeadersFor(connectionId, origin).catch(() => ({}));
 
   const ctx = await webChatAdapter.authenticateWidget(connectionId, token, origin);
-  if (!ctx || !conversationId) {
+  if (!ctx || !conversationId || !visitorId) {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -53,7 +64,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ? (conversation.metadata as Record<string, unknown>).channelConnectionId
       : undefined;
 
-  if (!conversation || owningConnectionId !== connectionId) {
+  if (
+    !conversation ||
+    conversation.channel !== "webchat" ||
+    owningConnectionId !== connectionId ||
+    conversation.customerContact !== visitorId ||
+    conversation.retiredAt
+  ) {
     // With the CORS headers: a new visitor's widget opens this stream before
     // its conversation exists, and a header-less 404 is reported by the
     // browser as a CORS failure that also closes the EventSource for good.
@@ -62,38 +79,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const channel = tenantConversationChannel(ctx.businessId, conversationId);
 
-  const stream = new ReadableStream({
-    start(controller) {
-      const encoder = new TextEncoder();
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`));
-
-      const unsubscribe = subscribe(channel, (event) => {
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-        } catch {
-          unsubscribe();
-        }
+  const stream = authorizedEventStream({
+    signal: request.signal,
+    connected: { type: "connected" },
+    subscribe: (callback) => subscribe(channel, callback),
+    refresh: async () => {
+      const current = await webChatAdapter.authenticateWidget(connectionId, token, origin);
+      if (!current || current.businessId !== ctx.businessId) return null;
+      const owned = await getScopedPrisma(current).conversation.findFirst({
+        where: {
+          id: conversationId,
+          retiredAt: null,
+          channel: "webchat",
+          customerContact: visitorId,
+          metadata: { path: ["channelConnectionId"], equals: connectionId },
+        },
+        select: { id: true },
       });
-
-      const heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(": heartbeat\n\n"));
-        } catch {
-          clearInterval(heartbeat);
-          unsubscribe();
-        }
-      }, 30000);
-
-      request.signal.addEventListener("abort", () => {
-        clearInterval(heartbeat);
-        unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          // Already closed
-        }
-      });
+      return owned ? current : null;
     },
+    project: (current, event) => projectWidgetEvent(current, conversationId, event),
   });
 
   return new Response(stream, {

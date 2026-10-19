@@ -17,6 +17,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 describe("Characterization: create_ticket tool persists a Ticket row", () => {

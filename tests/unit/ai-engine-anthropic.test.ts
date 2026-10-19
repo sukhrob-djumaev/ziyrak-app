@@ -25,6 +25,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 function useLegacyAnthropicConfig(aiModel: string) {
@@ -75,7 +76,12 @@ describe("chat() with AnthropicProvider", () => {
       .mockResolvedValueOnce({
         content: [
           { type: "thinking", thinking: "", signature: "sig-engine" },
-          { type: "tool_use", id: "toolu_e1", name: "create_ticket", input: { title: "Broken scooter", description: "Wheel" } },
+          {
+            type: "tool_use",
+            id: "toolu_e1",
+            name: "create_ticket",
+            input: { title: "Broken scooter", description: "Wheel" },
+          },
         ],
         stop_reason: "tool_use",
         usage: { input_tokens: 50, output_tokens: 20 },
@@ -94,8 +100,16 @@ describe("chat() with AnthropicProvider", () => {
     const followUp = mockAnthropicCreateFn.mock.calls[1][0];
     expect(followUp).not.toHaveProperty("temperature");
     const assistantTurn = followUp.messages.find((m: { role: string }) => m.role === "assistant");
-    expect(assistantTurn.content[0]).toEqual({ type: "thinking", thinking: "", signature: "sig-engine" });
-    expect(assistantTurn.content[1]).toMatchObject({ type: "tool_use", id: "toolu_e1", name: "create_ticket" });
+    expect(assistantTurn.content[0]).toEqual({
+      type: "thinking",
+      thinking: "",
+      signature: "sig-engine",
+    });
+    expect(assistantTurn.content[1]).toMatchObject({
+      type: "tool_use",
+      id: "toolu_e1",
+      name: "create_ticket",
+    });
   });
 
   it("a retired model never reaches Anthropic: fallback copy for the customer, reason logged without the key", async () => {

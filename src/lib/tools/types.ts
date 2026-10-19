@@ -51,5 +51,16 @@ export interface ToolDefinition {
   schema: z.ZodType;
   /** Checked for HUMAN actors only (§9.5) — e.g. "tickets:create". Unset means RBAC imposes no extra gate beyond `ToolPolicy.allowedForHumanRoles`. */
   requiredPermission?: Permission;
+  /** For conversation-bound tools, resolve/authorize the actual parent before
+   * idempotency lookup or ActionExecution creation. May not change attempt IDs.
+   */
+  resolveConversationId?(
+    ctx: TenantContext,
+    args: unknown,
+    runtimeCtx: ToolRuntimeContext
+  ): Promise<string>;
+  /** Internal implementation callback. Product callers use ToolRegistry, which
+   * owns policy, parent preflight, idempotency and durable action admission.
+   */
   execute(ctx: TenantContext, args: unknown, runtimeCtx: ToolRuntimeContext): Promise<ToolResult>;
 }

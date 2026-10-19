@@ -35,11 +35,18 @@ afterAll(async () => {
 describe("tenant isolation: dashboard homepage Server Component", () => {
   it("getTenantContextFromCookies() + getScopedPrisma() never surfaces Business B's conversations to Business A", async () => {
     const dbB = getScopedPrisma(businessB.ctx);
-    await dbB.conversation.create({ data: { channel: "whatsapp", customerName: "B-only-on-dashboard" } });
+    await dbB.conversation.create({
+      data: { channel: "whatsapp", customerName: "B-only-on-dashboard" },
+    });
 
     const { cookies } = await import("next/headers");
     (cookies as ReturnType<typeof vi.fn>).mockResolvedValue({
-      get: (name: string) => (name === "owly-token" ? { value: tokenA } : undefined),
+      get: (name: string) =>
+        name === "owly-token"
+          ? { value: tokenA }
+          : name === "ziyrak-workspace"
+            ? { value: businessA.businessId }
+            : undefined,
     });
 
     const { getTenantContextFromCookies } = await import("@/lib/identity/route-auth");
@@ -49,7 +56,10 @@ describe("tenant isolation: dashboard homepage Server Component", () => {
     expect(ctx!.businessId).toBe(businessA.businessId);
 
     const dbA = getScopedPrisma(ctx!);
-    const conversations = await dbA.conversation.findMany({ take: 10, orderBy: { updatedAt: "desc" } });
+    const conversations = await dbA.conversation.findMany({
+      take: 10,
+      orderBy: { updatedAt: "desc" },
+    });
 
     expect(conversations.every((c) => c.customerName !== "B-only-on-dashboard")).toBe(true);
   });

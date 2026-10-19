@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
+import { installDeliveryMemory } from "../helpers/delivery-memory";
 import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
 
@@ -68,6 +69,7 @@ const testCtx = {
   role: "owner",
   actor: { kind: "user" as const, userId: "test-owner" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 // A live WhatsApp Web session only exists on a deployment that enables the
@@ -93,6 +95,21 @@ describe("Characterization: WhatsApp inbound message flow", () => {
       }
     }
 
+    installDeliveryMemory(mockPrisma);
+    mockPrisma.channelConnection.findUnique.mockResolvedValue({
+      id: TEST_CONNECTION_ID,
+      businessId: TEST_DEFAULT_BUSINESS_ID,
+      type: "whatsapp",
+      isActive: true,
+    });
+    mockPrisma.channelConnection.findFirst.mockResolvedValue({
+      id: TEST_CONNECTION_ID,
+      type: "whatsapp",
+      isActive: true,
+    });
+    mockPrisma.inboundEventReceipt.findUnique.mockImplementation(async () => ({
+      processingStatus: "enqueued",
+    }));
     mockPrisma.customer.findFirst.mockResolvedValue(null);
     mockPrisma.customer.create.mockResolvedValue({ id: "cust-new" });
     mockPrisma.conversation.findFirst.mockResolvedValue(null);
@@ -141,10 +158,12 @@ describe("Characterization: WhatsApp inbound message flow", () => {
     // (loadReceiptEvent → findUniqueOrThrow) — the mock echoes back
     // whatever `create` was called with, matching real Postgres behavior.
     let createdReceipt: Record<string, unknown> = {};
-    mockPrisma.inboundEventReceipt.create.mockImplementation(async (args: { data: Record<string, unknown> }) => {
-      createdReceipt = { id: "receipt-1", ...args.data };
-      return createdReceipt;
-    });
+    mockPrisma.inboundEventReceipt.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => {
+        createdReceipt = { id: "receipt-1", ...args.data };
+        return createdReceipt;
+      }
+    );
     mockPrisma.inboundEventReceipt.findUniqueOrThrow.mockImplementation(async () => createdReceipt);
     mockPrisma.inboundEventReceipt.update.mockResolvedValue({});
     mockPrisma.tenantPlacement.findUnique.mockResolvedValue({
@@ -153,7 +172,9 @@ describe("Characterization: WhatsApp inbound message flow", () => {
     });
 
     mockOpenAICreateFn.mockResolvedValue({
-      choices: [{ finish_reason: "stop", message: { content: "Thanks for reaching out! How can I help?" } }],
+      choices: [
+        { finish_reason: "stop", message: { content: "Thanks for reaching out! How can I help?" } },
+      ],
     });
   });
 
@@ -219,6 +240,9 @@ describe("Characterization: WhatsApp inbound message flow", () => {
 
     // AI reply delivered back over WhatsApp via the client's own sendMessage
     // (WhatsAppWebAdapter.sendMessage → sendWhatsAppMessage, §19.1).
-    expect(sendMessageSpy).toHaveBeenCalledWith("15550001234@c.us", "Thanks for reaching out! How can I help?");
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+      "15550001234@c.us",
+      "Thanks for reaching out! How can I help?"
+    );
   });
 });

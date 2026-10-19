@@ -33,7 +33,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const ip = getClientIp(request);
   // Polled every few seconds by an open widget — ~20/min is normal.
-  if (!(await checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, { maxRequests: 90, windowMs: 60_000 })).allowed) {
+  if (
+    !(
+      await checkRateLimit(`webchat-poll-ip:${connectionId}:${ip}`, {
+        maxRequests: 90,
+        windowMs: 60_000,
+      })
+    ).allowed
+  ) {
     return reply("Too Many Requests", 429);
   }
 
@@ -48,22 +55,41 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const db = getScopedPrisma(ctx);
   const conversation = await db.conversation.findUnique({ where: { id: conversationId } });
-  const owningConnectionId = (conversation?.metadata as Record<string, unknown> | null)?.channelConnectionId;
-  if (!conversation || owningConnectionId !== connectionId || conversation.customerContact !== visitorId) {
+  const owningConnectionId = (conversation?.metadata as Record<string, unknown> | null)
+    ?.channelConnectionId;
+  if (
+    !conversation ||
+    conversation.channel !== "webchat" ||
+    conversation.retiredAt ||
+    owningConnectionId !== connectionId ||
+    conversation.customerContact !== visitorId
+  ) {
     // Indistinguishable from "no such conversation" (§33.3).
     return reply("Not Found", 404);
   }
 
   let afterDate: Date | undefined;
+  // Recheck the parent in the actual content query. The admission snapshot
+  // cannot authorize a later read after retirement or a legacy ownership change.
+  const publicMessage = {
+    conversationId,
+    role: { in: ["customer", "assistant"] },
+    conversation: {
+      businessId: ctx.businessId,
+      channel: "webchat",
+      retiredAt: null,
+      customerContact: visitorId,
+      metadata: { path: ["channelConnectionId"], equals: connectionId },
+    },
+  };
   if (after) {
-    const cursor = await db.message.findFirst({ where: { id: after, conversationId } });
+    const cursor = await db.message.findFirst({ where: { ...publicMessage, id: after } });
     afterDate = cursor?.createdAt;
   }
 
   const messages = await db.message.findMany({
     where: {
-      conversationId,
-      role: { in: ["customer", "assistant"] },
+      ...publicMessage,
       // `gte` + excluding the cursor itself: two messages can share a
       // millisecond timestamp, and `gt` would silently skip the later one.
       // Anything re-sent is de-duplicated by id in the widget.

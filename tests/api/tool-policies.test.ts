@@ -12,7 +12,12 @@ vi.mock("@/lib/identity/route-auth", async (importOriginal) => importOriginal())
 
 import { generateToken } from "@/lib/identity/auth";
 import { createRequest, parseJsonResponse } from "../helpers/request";
-import { seedBusiness, cleanupBusiness, addMember, type SeededBusiness } from "../helpers/tenant-fixtures";
+import {
+  seedBusiness,
+  cleanupBusiness,
+  addMember,
+  type SeededBusiness,
+} from "../helpers/tenant-fixtures";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { toolRegistry } from "@/lib/tools/registry";
 import "@/lib/tools/builtin";
@@ -28,7 +33,9 @@ beforeAll(async () => {
   a = await seedBusiness("tool-policy-a");
   b = await seedBusiness("tool-policy-b");
   ownerToken = generateToken(a.ownerUserId);
-  supervisorToken = generateToken((await addMember(a.businessId, "supervisor", "tp-supervisor")).userId);
+  supervisorToken = generateToken(
+    (await addMember(a.businessId, "supervisor", "tp-supervisor")).userId
+  );
   agentToken = generateToken((await addMember(a.businessId, "agent", "tp-agent")).userId);
 });
 
@@ -46,11 +53,15 @@ async function list(token: string) {
 }
 async function put(token: string, tool: string, body: Record<string, unknown>) {
   const { PUT } = await import("@/app/api/tool-policies/[tool]/route");
-  return PUT(authed(`/api/tool-policies/${tool}`, token, { method: "PUT", body }), { params: Promise.resolve({ tool }) });
+  return PUT(authed(`/api/tool-policies/${tool}`, token, { method: "PUT", body }), {
+    params: Promise.resolve({ tool }),
+  });
 }
 async function reset(token: string, tool: string) {
   const { DELETE } = await import("@/app/api/tool-policies/[tool]/route");
-  return DELETE(authed(`/api/tool-policies/${tool}`, token, { method: "DELETE" }), { params: Promise.resolve({ tool }) });
+  return DELETE(authed(`/api/tool-policies/${tool}`, token, { method: "DELETE" }), {
+    params: Promise.resolve({ tool }),
+  });
 }
 
 describe("GET /api/tool-policies", () => {
@@ -59,7 +70,14 @@ describe("GET /api/tool-policies", () => {
     expect(response.status).toBe(200);
     const { data } = await parseJsonResponse(response);
     const names = data.map((t: { tool: string }) => t.tool);
-    expect(names).toEqual(expect.arrayContaining(["create_ticket", "send_internal_email", "trigger_webhook", "schedule_followup"]));
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "create_ticket",
+        "send_internal_email",
+        "trigger_webhook",
+        "schedule_followup",
+      ])
+    );
     expect(names).not.toContain("noop_test_action"); // internal test tool is not a business setting
     const ticket = data.find((t: { tool: string }) => t.tool === "create_ticket");
     expect(ticket).toMatchObject({
@@ -82,19 +100,30 @@ describe("customised means different from the default, not merely having a row",
   it("a signup-seeded row equal to the default is not customised; a real change is; changing it back is not", async () => {
     // Signup seeds one row per tool, equal to the default (platform/provisioning.ts).
     // (Under SEED_VIA_SIGNUP=1 the business already has this row, so upsert rather than create.)
-    const equalToDefault = { enabledForTenant: true, allowedForAI: true, allowedForHumanRoles: ["agent", "supervisor", "admin", "owner"], requiresHumanApproval: false };
+    const equalToDefault = {
+      enabledForTenant: true,
+      allowedForAI: true,
+      allowedForHumanRoles: ["agent", "supervisor", "admin", "owner"],
+      requiresHumanApproval: false,
+    };
     await getScopedPrisma(a.ctx).toolPolicy.upsert({
       where: { businessId_tool: { businessId: a.businessId, tool: "get_customer_history" } },
       update: equalToDefault,
       create: { businessId: a.businessId, tool: "get_customer_history", ...equalToDefault },
     });
-    const find = async () => (await parseJsonResponse(await list(ownerToken))).data.find((t: { tool: string }) => t.tool === "get_customer_history");
+    const find = async () =>
+      (await parseJsonResponse(await list(ownerToken))).data.find(
+        (t: { tool: string }) => t.tool === "get_customer_history"
+      );
     expect((await find()).customized).toBe(false);
 
     await put(ownerToken, "get_customer_history", { allowedForAI: false });
     expect((await find()).customized).toBe(true);
 
-    await put(ownerToken, "get_customer_history", { allowedForAI: true, allowedForHumanRoles: ["owner", "admin", "supervisor", "agent"] }); // same roles, different order
+    await put(ownerToken, "get_customer_history", {
+      allowedForAI: true,
+      allowedForHumanRoles: ["owner", "admin", "supervisor", "agent"],
+    }); // same roles, different order
     expect((await find()).customized).toBe(false);
   });
 });
@@ -120,7 +149,9 @@ describe("PUT /api/tool-policies/[tool]", () => {
   });
 
   it("refuses supervisors and agents (admin and owner only)", async () => {
-    expect((await put(supervisorToken, "create_ticket", { enabledForTenant: false })).status).toBe(403);
+    expect((await put(supervisorToken, "create_ticket", { enabledForTenant: false })).status).toBe(
+      403
+    );
     expect((await put(agentToken, "create_ticket", { enabledForTenant: false })).status).toBe(403);
     const { data } = await parseJsonResponse(await list(ownerToken));
     expect(data.find((t: { tool: string }) => t.tool === "create_ticket").customized).toBe(false);
@@ -128,11 +159,20 @@ describe("PUT /api/tool-policies/[tool]", () => {
 
   it("rejects unknown tools, the internal test tool, unknown roles and non-boolean flags", async () => {
     expect((await put(ownerToken, "does_not_exist", { enabledForTenant: false })).status).toBe(404);
-    expect((await put(ownerToken, "noop_test_action", { enabledForTenant: false })).status).toBe(404);
-    expect((await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["agent", "superuser"] })).status).toBe(400);
+    expect((await put(ownerToken, "noop_test_action", { enabledForTenant: false })).status).toBe(
+      404
+    );
+    expect(
+      (await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["agent", "superuser"] }))
+        .status
+    ).toBe(400);
     // Viewers are read-only by definition: a policy must not be able to let them run tools.
-    expect((await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["viewer", "agent"] })).status).toBe(400);
-    expect((await put(ownerToken, "create_ticket", { requiresHumanApproval: "yes" })).status).toBe(400);
+    expect(
+      (await put(ownerToken, "create_ticket", { allowedForHumanRoles: ["viewer", "agent"] })).status
+    ).toBe(400);
+    expect((await put(ownerToken, "create_ticket", { requiresHumanApproval: "yes" })).status).toBe(
+      400
+    );
     expect((await put(ownerToken, "create_ticket", {})).status).toBe(400); // nothing to change
   });
 
@@ -170,11 +210,26 @@ describe("concurrent edits and the audit trail (security review)", () => {
       where: { action: "tool_policy.updated", entityId: "trigger_webhook" },
       orderBy: { createdAt: "asc" },
     });
-    const meta = entries.map((e) => e.metadata as { changes: Record<string, unknown>; before: Record<string, unknown>; widensAccess: boolean });
+    const meta = entries.map(
+      (e) =>
+        e.metadata as {
+          changes: Record<string, unknown>;
+          before: Record<string, unknown>;
+          widensAccess: boolean;
+        }
+    );
     const narrowing = meta[meta.length - 2];
     const widening = meta[meta.length - 1];
-    expect(narrowing).toMatchObject({ before: { requiresHumanApproval: false }, changes: { requiresHumanApproval: true }, widensAccess: false });
-    expect(widening).toMatchObject({ before: { requiresHumanApproval: true }, changes: { requiresHumanApproval: false }, widensAccess: true });
+    expect(narrowing).toMatchObject({
+      before: { requiresHumanApproval: false },
+      changes: { requiresHumanApproval: true },
+      widensAccess: false,
+    });
+    expect(widening).toMatchObject({
+      before: { requiresHumanApproval: true },
+      changes: { requiresHumanApproval: false },
+      widensAccess: true,
+    });
   });
 });
 
@@ -184,17 +239,28 @@ describe("a saved policy actually gates the AI", () => {
     role: null,
     actor: { kind: "ai_agent", conversationId: `conv-${a.businessId}`, model: "test-model" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   });
 
   it("send_internal_email now waits for approval when the policy says so", async () => {
     await put(ownerToken, "send_internal_email", { requiresHumanApproval: true });
-    const result = await toolRegistry.execute(aiCtx(), "send_internal_email", { to: "team@example.com", subject: "s", body: "b" }, { toolCallId: `tc-${Math.random()}` });
+    const result = await toolRegistry.execute(
+      aiCtx(),
+      "send_internal_email",
+      { to: "team@example.com", subject: "s", body: "b" },
+      { toolCallId: `tc-${Math.random()}` }
+    );
     expect(result.status).toBe("pending_approval");
   });
 
   it("a disabled tool is not available to the AI at all", async () => {
     await put(ownerToken, "assign_to_person", { enabledForTenant: false });
-    const result = await toolRegistry.execute(aiCtx(), "assign_to_person", { ticketId: "t-1" }, { toolCallId: `tc-${Math.random()}` });
+    const result = await toolRegistry.execute(
+      aiCtx(),
+      "assign_to_person",
+      { ticketId: "t-1" },
+      { toolCallId: `tc-${Math.random()}` }
+    );
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/not available/);
   });
@@ -205,7 +271,11 @@ describe("DELETE /api/tool-policies/[tool]", () => {
     await put(ownerToken, "schedule_followup", { allowedForAI: false });
     const response = await reset(ownerToken, "schedule_followup");
     expect(response.status).toBe(200);
-    expect(await parseJsonResponse(response)).toMatchObject({ tool: "schedule_followup", customized: false, policy: { allowedForAI: true } });
+    expect(await parseJsonResponse(response)).toMatchObject({
+      tool: "schedule_followup",
+      customized: false,
+      policy: { allowedForAI: true },
+    });
     expect((await reset(ownerToken, "schedule_followup")).status).toBe(200);
     expect((await reset(supervisorToken, "schedule_followup")).status).toBe(403);
   });

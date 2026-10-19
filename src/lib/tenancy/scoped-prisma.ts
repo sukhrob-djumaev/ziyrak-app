@@ -1,7 +1,26 @@
+import {
+  createResourceGuard,
+  effectiveResourceScope,
+  CONTROL_PLANE_ONLY_MODELS,
+} from "./resource-query";
+import { AppError } from "@/lib/observability/errors";
 import type { TenantContext } from "./context";
 import { getBackstopTenantContext } from "./context";
 import { getDataPlaneClient } from "@/lib/platform/tenant-placement";
 import { prisma as sharedClient } from "@/lib/prisma/raw-client";
+import { lockTenantWrites } from "./work-lifecycle";
+
+const MUTATIONS = new Set([
+  "create",
+  "createMany",
+  "createManyAndReturn",
+  "update",
+  "updateMany",
+  "updateManyAndReturn",
+  "upsert",
+  "delete",
+  "deleteMany",
+]);
 
 /**
  * PLAN.md §8.3/§12 — every tenant-owned model that currently exists in the
@@ -21,6 +40,7 @@ import { prisma as sharedClient } from "@/lib/prisma/raw-client";
 export const TENANT_SCOPED_MODELS = [
   "membership",
   "inboundEventReceipt",
+  "deliveryOperation",
   "toolPolicy",
   "actionExecution",
   "customer",
@@ -79,55 +99,7 @@ export function isTenantScopedModel(model: string): model is TenantScopedModel {
   return SCOPED_SET.has(uncapitalizeModel(model));
 }
 
-export class CrossTenantWriteError extends Error {
-  constructor(model: string) {
-    super(
-      `Refusing to write a ${model} row tagged for a different business than the current tenant context (PLAN.md §8.3) — the scoped client never silently overrides a caller-supplied businessId on create, it rejects the write.`
-    );
-    this.name = "CrossTenantWriteError";
-  }
-}
-
-type WhereArgs = { where?: Record<string, unknown> } & Record<string, unknown>;
-
-function withTenantWhere<A extends WhereArgs>(args: A, businessId: string): A {
-  return { ...args, where: { ...(args.where ?? {}), businessId } };
-}
-
-function withTenantCreateData(
-  model: string,
-  data: Record<string, unknown> | undefined,
-  businessId: string
-): Record<string, unknown> {
-  const record = { ...(data ?? {}) };
-  if (record.businessId !== undefined && record.businessId !== businessId) {
-    throw new CrossTenantWriteError(model);
-  }
-  record.businessId = businessId;
-  return record;
-}
-
-function withTenantData<A extends { data?: unknown }>(
-  model: string,
-  args: A,
-  businessId: string
-): A {
-  const data = args.data;
-  if (Array.isArray(data)) {
-    return {
-      ...args,
-      data: data.map((d) => withTenantCreateData(model, d as Record<string, unknown>, businessId)),
-    };
-  }
-  return { ...args, data: withTenantCreateData(model, data as Record<string, unknown> | undefined, businessId) };
-}
-
-/** A tenant's own businessId can never be changed by an update payload. */
-function stripBusinessId(update: Record<string, unknown> | undefined): Record<string, unknown> {
-  const rest = { ...(update ?? {}) };
-  delete rest.businessId;
-  return rest;
-}
+export { CrossTenantWriteError } from "./write-error";
 
 /**
  * PLAN.md §8.3 — the tenant-scoping Prisma Client Extension. Takes `ctx`
@@ -163,69 +135,176 @@ export function getScopedPrisma(ctx: TenantContext | undefined) {
     );
   }
   const client = getDataPlaneClient(resolved.dataConnection);
-  const scoped = buildScopedClient(client, resolved.businessId);
+  const scoped = buildScopedClient(client, resolved);
   if (client === sharedClient) return scoped;
 
   // Dedicated database: control-plane-resident models are served by the shared connection.
-  const controlPlane = buildScopedClient(sharedClient, resolved.businessId);
+  const controlPlane = buildScopedClient(sharedClient, resolved);
   return new Proxy(scoped, {
     get(target, prop, receiver) {
-      if (typeof prop === "string" && CONTROL_PLANE_RESIDENT_SET.has(prop)) return Reflect.get(controlPlane, prop);
+      if (typeof prop === "string" && CONTROL_PLANE_RESIDENT_SET.has(prop))
+        return Reflect.get(controlPlane, prop);
       return Reflect.get(target, prop, receiver);
     },
   }) as typeof scoped;
 }
 
-function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, businessId: string) {
-
-  const whereScoped = async ({ model, args, query }: { model: string; args: WhereArgs; query: (args: WhereArgs) => Promise<unknown> }) => {
-    if (!isTenantScopedModel(model)) return query(args);
-    return query(withTenantWhere(args, businessId));
+const REPOSITORY_METHODS = new Set([
+  ...MUTATIONS,
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirst",
+  "findFirstOrThrow",
+  "findMany",
+  "count",
+  "aggregate",
+  "groupBy",
+]);
+const DENIED_RAW_METHODS = new Set([
+  "$queryRaw",
+  "$queryRawUnsafe",
+  "$executeRaw",
+  "$executeRawUnsafe",
+]);
+/** Never proxy a Prisma object as the public target: its parent/private aliases
+ * and property descriptors can expose the pre-extension client. Methods return
+ * native promises, not Prisma's fluent delegate/request objects.
+ */
+function repositorySurface(
+  invoke: (model: string, operation: string, args: Record<string, unknown>) => Promise<unknown>,
+  transaction?: (input: unknown, options?: Record<string, unknown>) => Promise<unknown>
+) {
+  const denied = (): never => {
+    throw new AppError(403, "FORBIDDEN", "Unscoped repository operations are unavailable");
   };
+  const models = new Map<string, object>();
+  return new Proxy(Object.freeze(Object.create(null)), {
+    get(_target, key) {
+      if (key === "then") return undefined;
+      if (typeof key === "symbol")
+        return key === Symbol.toStringTag ? "TenantRepository" : undefined;
+      if (key === "$transaction") return transaction ?? denied();
+      if (DENIED_RAW_METHODS.has(key)) return async () => denied();
+      if (!SCOPED_SET.has(key) && !(CONTROL_PLANE_ONLY_MODELS as readonly string[]).includes(key))
+        return denied();
+      if (!models.has(key)) {
+        const methods = new Map<string, (args?: Record<string, unknown>) => Promise<unknown>>();
+        models.set(
+          key,
+          new Proxy(Object.freeze(Object.create(null)), {
+            get(_modelTarget, operation) {
+              if (operation === "then") return undefined;
+              if (typeof operation === "symbol")
+                return operation === Symbol.toStringTag ? "TenantModel" : undefined;
+              if (!REPOSITORY_METHODS.has(operation)) return denied();
+              if (!methods.has(operation))
+                methods.set(operation, async (args = {}) => invoke(key, operation, args));
+              return methods.get(operation);
+            },
+          })
+        );
+      }
+      return models.get(key);
+    },
+  });
+}
 
-  return client.$extends({
-    name: "tenant-scoping",
+function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, ctx: TenantContext) {
+  effectiveResourceScope(ctx); // Synchronous fail-closed boundary for missing human scope.
+  const guard = createResourceGuard(ctx, client, sharedClient);
+  const extended = client.$extends({
+    name: "tenant-and-resource-scoping",
     query: {
-      $allModels: {
-        findUnique: whereScoped,
-        findUniqueOrThrow: whereScoped,
-        findFirst: whereScoped,
-        findFirstOrThrow: whereScoped,
-        findMany: whereScoped,
-        count: whereScoped,
-        aggregate: whereScoped,
-        groupBy: whereScoped,
-        update: whereScoped,
-        updateMany: whereScoped,
-        delete: whereScoped,
-        deleteMany: whereScoped,
-
-        async upsert({ model, args, query }) {
-          if (!isTenantScopedModel(model)) return query(args);
-          const typedArgs = args as WhereArgs & {
-            create?: Record<string, unknown>;
-            update?: Record<string, unknown>;
-          };
-          const scoped = withTenantWhere(typedArgs, businessId);
-          return query({
-            ...scoped,
-            create: withTenantCreateData(model, typedArgs.create, businessId),
-            update: stripBusinessId(typedArgs.update),
-          } as Parameters<typeof query>[0]);
-        },
-
-        async create({ model, args, query }) {
-          if (!isTenantScopedModel(model)) return query(args);
-          return query(withTenantData(model, args, businessId));
-        },
-
-        async createMany({ model, args, query }) {
-          if (!isTenantScopedModel(model)) return query(args);
-          return query(withTenantData(model, args, businessId));
-        },
+      $allOperations: async ({ model, operation, args, query }) => {
+        if (!model)
+          throw new AppError(
+            403,
+            "FORBIDDEN",
+            "Raw queries are unavailable through tenant repositories"
+          );
+        const key = uncapitalizeModel(model);
+        if (
+          !isTenantScopedModel(key) &&
+          !(CONTROL_PLANE_ONLY_MODELS as readonly string[]).includes(key)
+        )
+          throw new AppError(403, "INVALID_SCOPE", "Unknown repository scope");
+        if (MUTATIONS.has(operation)) {
+          return client.$transaction(
+            async (transaction) => {
+              await lockTenantWrites(transaction, ctx.businessId);
+              const transactionGuard = createResourceGuard(
+                ctx,
+                transaction,
+                client === sharedClient ? transaction : sharedClient
+              );
+              const prepared = await transactionGuard.prepare(
+                key,
+                operation,
+                (args ?? {}) as Record<string, unknown>
+              );
+              const delegate = Reflect.get(transaction, key);
+              return Reflect.apply(Reflect.get(delegate, operation), delegate, [prepared]);
+            },
+            { isolationLevel: "ReadCommitted" }
+          );
+        }
+        const prepared = await guard.prepare(
+          key,
+          operation,
+          (args ?? {}) as Record<string, unknown>
+        );
+        return query(prepared as typeof args);
       },
     },
   });
+  return repositorySurface(
+    async (model, operation, args) => {
+      const delegate = Reflect.get(extended, model);
+      return Reflect.apply(Reflect.get(delegate, operation), delegate, [args]);
+    },
+    (input: unknown, options?: Record<string, unknown>) => {
+      if (typeof input !== "function")
+        throw new AppError(403, "FORBIDDEN", "Tenant transactions require a guarded callback");
+      if (options?.isolationLevel && options.isolationLevel !== "ReadCommitted")
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Tenant writes require fresh committed lifecycle checks"
+        );
+      return client.$transaction(
+        async (transaction) => {
+          await lockTenantWrites(transaction, ctx.businessId);
+          const transactionGuard = createResourceGuard(
+            ctx,
+            transaction,
+            client === sharedClient ? transaction : sharedClient
+          );
+          const wrapped = repositorySurface(async (key, operation, args) => {
+            const isControl = CONTROL_PLANE_RESIDENT_SET.has(key);
+            if (
+              isControl &&
+              client !== sharedClient &&
+              !operation.startsWith("find") &&
+              !["count", "aggregate", "groupBy"].includes(operation)
+            )
+              throw new AppError(
+                403,
+                "FORBIDDEN",
+                "Operation requires a separate authorized context"
+              );
+            const delegate =
+              isControl && client !== sharedClient
+                ? Reflect.get(sharedClient, key)
+                : Reflect.get(transaction, key);
+            const prepared = await transactionGuard.prepare(key, operation, args);
+            return Reflect.apply(Reflect.get(delegate, operation), delegate, [prepared]);
+          });
+          return (input as (tx: typeof transaction) => Promise<unknown>)(wrapped);
+        },
+        { ...options, isolationLevel: "ReadCommitted" } as never
+      );
+    }
+  ) as typeof extended;
 }
 
 export type ScopedPrisma = ReturnType<typeof getScopedPrisma>;

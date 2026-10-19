@@ -17,7 +17,11 @@ import crypto from "node:crypto";
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
-import { getScopedPrisma, TENANT_SCOPED_MODELS, CrossTenantWriteError } from "@/lib/tenancy/scoped-prisma";
+import {
+  getScopedPrisma,
+  TENANT_SCOPED_MODELS,
+  CrossTenantWriteError,
+} from "@/lib/tenancy/scoped-prisma";
 import { runWithTenantContext } from "@/lib/tenancy/context";
 import { prisma as rawClient } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
@@ -101,7 +105,9 @@ describe("getScopedPrisma() — core CRUD scoping (§8.3)", () => {
   it("create REJECTS a payload that names a different businessId (§8.3)", async () => {
     const dbA = getScopedPrisma(businessA.ctx);
     await expect(
-      dbA.category.create({ data: { name: "cross-tenant-attempt", businessId: businessB.businessId } })
+      dbA.category.create({
+        data: { name: "cross-tenant-attempt", businessId: businessB.businessId },
+      })
     ).rejects.toThrow(CrossTenantWriteError);
   });
 
@@ -213,9 +219,13 @@ async function createMinimalRow(
     case "tag":
       return db.tag.create({ data: { name: marker } });
     case "webhook":
-      return db.webhook.create({ data: { name: marker, url: "https://example.com/hook", triggerOn: "ticket_created" } });
+      return db.webhook.create({
+        data: { name: marker, url: "https://example.com/hook", triggerOn: "ticket_created" },
+      });
     case "activityLog":
-      return db.activityLog.create({ data: { action: marker, entity: "test", description: marker } });
+      return db.activityLog.create({
+        data: { action: marker, entity: "test", description: marker },
+      });
     case "sLARule":
       return db.sLARule.create({ data: { name: marker } });
     case "cannedResponse":
@@ -231,7 +241,9 @@ async function createMinimalRow(
     case "channelConnection":
       return db.channelConnection.create({ data: { type: "whatsapp", name: marker } });
     case "apiKey":
-      return db.apiKey.create({ data: { name: marker, keyPrefix: marker.slice(0, 16), keyHash: marker } });
+      return db.apiKey.create({
+        data: { name: marker, keyPrefix: marker.slice(0, 16), keyHash: marker },
+      });
     case "conversation":
       return db.conversation.create({ data: { channel: "whatsapp", customerName: marker } });
     case "ticket":
@@ -273,25 +285,43 @@ async function createMinimalRow(
       });
     }
     case "message": {
-      const conversation = await db.conversation.create({ data: { channel: "whatsapp", customerName: marker } });
-      return db.message.create({ data: { conversationId: conversation.id, role: "customer", content: marker } });
+      const conversation = await db.conversation.create({
+        data: { channel: "whatsapp", customerName: marker },
+      });
+      return db.message.create({
+        data: { conversationId: conversation.id, role: "customer", content: marker },
+      });
     }
     case "internalNote": {
-      const conversation = await db.conversation.create({ data: { channel: "whatsapp", customerName: marker } });
+      const conversation = await db.conversation.create({
+        data: { channel: "whatsapp", customerName: marker },
+      });
       return db.internalNote.create({ data: { conversationId: conversation.id, content: marker } });
     }
     case "conversationTag": {
-      const conversation = await db.conversation.create({ data: { channel: "whatsapp", customerName: marker } });
+      const conversation = await db.conversation.create({
+        data: { channel: "whatsapp", customerName: marker },
+      });
       const tag = await db.tag.create({ data: { name: `${marker}-tag` } });
-      return db.conversationTag.create({ data: { conversationId: conversation.id, tagId: tag.id } });
+      return db.conversationTag.create({
+        data: { conversationId: conversation.id, tagId: tag.id },
+      });
     }
     case "callLog":
-      return db.callLog.create({ data: { callSid: `CA${marker}`, from: "+15550000000", to: "+15550000001" } });
+      return db.callLog.create({
+        data: { callSid: `CA${marker}`, from: "+15550000000", to: "+15550000001" },
+      });
     case "webhookDelivery": {
       const webhook = await db.webhook.create({
-        data: { name: `${marker}-wh`, url: "https://example.com/hook", triggerOn: "ticket_created" },
+        data: {
+          name: `${marker}-wh`,
+          url: "https://example.com/hook",
+          triggerOn: "ticket_created",
+        },
       });
-      return db.webhookDelivery.create({ data: { webhookId: webhook.id, event: "test", payload: {} } });
+      return db.webhookDelivery.create({
+        data: { webhookId: webhook.id, event: "test", payload: {} },
+      });
     }
     case "customerNote": {
       const customer = await db.customer.create({ data: { name: `${marker}-cust` } });
@@ -303,8 +333,27 @@ async function createMinimalRow(
       });
     case "inboundEventReceipt":
       return db.inboundEventReceipt.create({
-        data: { source: "test", externalEventId: marker, eventType: "message.received", correlationId: marker },
+        data: {
+          source: "test",
+          externalEventId: marker,
+          eventType: "message.received",
+          correlationId: marker,
+        },
       });
+    case "deliveryOperation": {
+      const connection = await db.channelConnection.create({
+        data: { type: "test", name: marker },
+      });
+      return db.deliveryOperation.create({
+        data: {
+          operationKey: marker,
+          kind: "inbound",
+          channel: "test",
+          connectionId: connection.id,
+          recipient: "synthetic",
+        },
+      });
+    }
     case "toolPolicy":
       return db.toolPolicy.create({ data: { tool: `test_tool_${marker}` } });
     case "actionExecution":
@@ -315,20 +364,25 @@ async function createMinimalRow(
 }
 
 describe("getScopedPrisma() — exhaustive per-model businessId scoping (§8.3 TENANT_SCOPED_MODELS)", () => {
-  it.each(TENANT_SCOPED_MODELS)("%s: a row created for one business never appears in the other's findMany", async (model) => {
-    const dbA = getScopedPrisma(businessA.ctx);
-    const dbB = getScopedPrisma(businessB.ctx);
-    const marker = `${model}-${crypto.randomUUID()}`;
+  it.each(TENANT_SCOPED_MODELS)(
+    "%s: a row created for one business never appears in the other's findMany",
+    async (model) => {
+      const dbA = getScopedPrisma(businessA.ctx);
+      const dbB = getScopedPrisma(businessB.ctx);
+      const marker = `${model}-${crypto.randomUUID()}`;
 
-    const rowA = await createMinimalRow(model, dbA, `${marker}-a`);
-    const rowB = await createMinimalRow(model, dbB, `${marker}-b`);
+      const rowA = await createMinimalRow(model, dbA, `${marker}-a`);
+      const rowB = await createMinimalRow(model, dbB, `${marker}-b`);
 
-    expect(rowA.businessId).toBe(businessA.businessId);
-    expect(rowB.businessId).toBe(businessB.businessId);
+      expect(rowA.businessId).toBe(businessA.businessId);
+      expect(rowB.businessId).toBe(businessB.businessId);
 
-    const modelClient = dbA[model] as { findMany: (args: Record<string, never>) => Promise<Array<{ businessId: string }>> };
-    const seenByA = await modelClient.findMany({});
-    expect(seenByA.every((r) => r.businessId === businessA.businessId)).toBe(true);
-    expect(seenByA.some((r) => r.businessId === businessB.businessId)).toBe(false);
-  });
+      const modelClient = dbA[model] as {
+        findMany: (args: Record<string, never>) => Promise<Array<{ businessId: string }>>;
+      };
+      const seenByA = await modelClient.findMany({});
+      expect(seenByA.every((r) => r.businessId === businessA.businessId)).toBe(true);
+      expect(seenByA.some((r) => r.businessId === businessB.businessId)).toBe(false);
+    }
+  );
 });

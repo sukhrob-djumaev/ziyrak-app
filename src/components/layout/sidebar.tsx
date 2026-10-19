@@ -80,6 +80,7 @@ const sections: NavSection[] = [
       { name: "Administration", href: "/admin", icon: Shield },
       { name: "API Docs", href: "/api-docs", icon: FileCode },
       { name: "Settings", href: "/settings", icon: Settings },
+      { name: "Switch workspace", href: "/workspaces", icon: Users },
     ],
   },
 ];
@@ -117,7 +118,13 @@ function usePendingApprovals(): number | null {
   return count;
 }
 
-export function Sidebar() {
+export function Sidebar({
+  canReadAdministration,
+  canReadSettings,
+}: {
+  canReadAdministration: boolean;
+  canReadSettings: boolean;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const pendingApprovals = usePendingApprovals();
@@ -153,46 +160,45 @@ export function Sidebar() {
                 {section.title}
               </p>
             )}
-            {collapsed && si > 0 && (
-              <div className="mx-3 mb-2 border-t border-white/10" />
-            )}
+            {collapsed && si > 0 && <div className="mx-3 mb-2 border-t border-white/10" />}
             <div className="space-y-0.5">
               {section.items
                 // Only roles allowed to review approvals get the link (the count request 403s for others).
                 .filter((item) => item.href !== APPROVALS_HREF || pendingApprovals !== null)
+                .filter((item) => item.href !== "/admin" || canReadAdministration)
+                .filter((item) => item.href !== "/settings" || canReadSettings)
                 .map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                  const isActive =
+                    pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={cn(
-                      "relative flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
-                      isActive
-                        ? "bg-owly-sidebar-active text-white"
-                        : "text-white/65 hover:bg-owly-sidebar-hover hover:text-white"
-                    )}
-                    title={collapsed ? item.name : undefined}
-                  >
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    {!collapsed && <span>{item.name}</span>}
-                    {item.href === APPROVALS_HREF && pendingApprovals ? (
-                      <span
-                        data-testid="approvals-badge"
-                        className={cn(
-                          "ml-auto rounded-full bg-owly-warning px-1.5 text-[10px] font-semibold leading-4 text-white",
-                          collapsed && "absolute -top-1 -right-1 ml-0"
-                        )}
-                      >
-                        {pendingApprovals > 99 ? "99+" : pendingApprovals}
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "relative flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
+                        isActive
+                          ? "bg-owly-sidebar-active text-white"
+                          : "text-white/65 hover:bg-owly-sidebar-hover hover:text-white"
+                      )}
+                      title={collapsed ? item.name : undefined}
+                    >
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      {!collapsed && <span>{item.name}</span>}
+                      {item.href === APPROVALS_HREF && pendingApprovals ? (
+                        <span
+                          data-testid="approvals-badge"
+                          className={cn(
+                            "ml-auto rounded-full bg-owly-warning px-1.5 text-[10px] font-semibold leading-4 text-white",
+                            collapsed && "absolute -top-1 -right-1 ml-0"
+                          )}
+                        >
+                          {pendingApprovals > 99 ? "99+" : pendingApprovals}
+                        </span>
+                      ) : null}
+                    </Link>
+                  );
+                })}
             </div>
           </div>
         ))}
@@ -203,11 +209,7 @@ export function Sidebar() {
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center justify-center w-full py-1.5 rounded-md text-white/40 hover:text-white hover:bg-owly-sidebar-hover transition-colors"
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
     </aside>

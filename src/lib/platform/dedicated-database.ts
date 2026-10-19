@@ -6,6 +6,7 @@ import { prisma as rawClient } from "@/lib/prisma/raw-client";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { getSecretResolver } from "@/lib/secrets";
+import { CONTROL_PLANE_ONLY_MODELS } from "@/lib/tenancy/resource-query";
 import { CONTROL_PLANE_RESIDENT_MODELS } from "@/lib/tenancy/scoped-prisma";
 import { closeDedicatedClient, ensureDedicatedClient, getDataPlaneClient, invalidateTenantPlacement } from "./tenant-placement";
 
@@ -31,6 +32,7 @@ const execFileAsync = promisify(execFile);
 const CONTROL_PLANE_TABLES: ReadonlySet<string> = new Set([
   "Business",
   "User",
+  ...CONTROL_PLANE_ONLY_MODELS.map((m) => m.charAt(0).toUpperCase() + m.slice(1)),
   // Tenant-scoped models served from the shared connection (see CONTROL_PLANE_RESIDENT_MODELS).
   ...CONTROL_PLANE_RESIDENT_MODELS.map((m) => m.charAt(0).toUpperCase() + m.slice(1)),
   "TenantPlacement",

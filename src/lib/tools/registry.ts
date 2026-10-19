@@ -8,6 +8,7 @@ import { computeIdempotencyKey } from "./idempotency";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logActivity } from "@/lib/observability/activity";
 import { emitNotification } from "@/lib/realtime/realtime";
+import { WorkRetiredError } from "@/lib/tenancy/work-lifecycle";
 
 const TERMINAL_STATUSES: ReadonlySet<ActionStatus> = new Set(["succeeded", "failed", "cancelled"]);
 
@@ -47,7 +48,9 @@ export class ToolRegistry {
    */
   async getAvailableTools(ctx: TenantContext): Promise<ToolDefinition[]> {
     const all = Array.from(this.tools.values());
-    const checks = await Promise.all(all.map(async (tool) => (await this.isAvailable(ctx, tool)) ? tool : null));
+    const checks = await Promise.all(
+      all.map(async (tool) => ((await this.isAvailable(ctx, tool)) ? tool : null))
+    );
     return checks.filter((tool): tool is ToolDefinition => tool !== null);
   }
 
@@ -110,14 +113,33 @@ export class ToolRegistry {
 
     const allowed = await this.isAvailable(ctx, tool);
     if (!allowed) {
-      return { success: false, message: `Tool "${name}" is not available to this caller.`, status: "failed" };
+      return {
+        success: false,
+        message: `Tool "${name}" is not available to this caller.`,
+        status: "failed",
+      };
     }
 
     const parsed = tool.schema.safeParse(args);
     if (!parsed.success) {
-      return { success: false, message: `Invalid arguments for tool "${name}": ${parsed.error.message}`, status: "failed" };
+      return {
+        success: false,
+        message: `Invalid arguments for tool "${name}": ${parsed.error.message}`,
+        status: "failed",
+      };
     }
 
+    if (tool.resolveConversationId) {
+      try {
+        runtimeCtx = {
+          ...runtimeCtx,
+          conversationId: await tool.resolveConversationId(ctx, parsed.data, runtimeCtx),
+        };
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        return { success: false, status: "failed", message: error.message };
+      }
+    }
     const idempotencyKey = computeIdempotencyKey(ctx, runtimeCtx);
     const db = getScopedPrisma(ctx);
 
@@ -125,8 +147,21 @@ export class ToolRegistry {
       where: { businessId_idempotencyKey: { businessId: ctx.businessId, idempotencyKey } },
     });
     if (existing) {
+      if (
+        existing.tool !== name ||
+        (tool.resolveConversationId && existing.conversationId !== runtimeCtx.conversationId)
+      )
+        return {
+          success: false,
+          status: "failed",
+          message: "This attempt key belongs to different tool work.",
+        };
       if (existing.status === "pending_approval") {
-        return { success: true, message: "This action is already pending human approval.", status: "pending_approval" };
+        return {
+          success: true,
+          message: "This action is already pending human approval.",
+          status: "pending_approval",
+        };
       }
       const cached = existing.result as CachedResult | null;
       return {
@@ -142,7 +177,7 @@ export class ToolRegistry {
     const input = parsed.data as Prisma.InputJsonValue;
 
     if (ctx.actor.kind === "ai_agent" && policy.requiresHumanApproval) {
-      await db.actionExecution.create({
+      const pending = await db.actionExecution.create({
         data: {
           businessId: ctx.businessId,
           tool: name,
@@ -153,8 +188,20 @@ export class ToolRegistry {
           idempotencyKey,
         },
       });
-      await logActivity(ctx, "action.pending_approval", "action", null, `${requestedBy === "ai" ? "AI" : "A user"} requested "${name}", which needs human approval`, undefined, { tool: name, conversationId: runtimeCtx.conversationId ?? null });
-      emitNotification(ctx.businessId, "action.pending_approval", { tool: name });
+      await logActivity(
+        ctx,
+        "action.pending_approval",
+        "action",
+        null,
+        `${requestedBy === "ai" ? "AI" : "A user"} requested "${name}", which needs human approval`,
+        undefined,
+        { tool: name, conversationId: runtimeCtx.conversationId ?? null }
+      );
+      emitNotification(ctx.businessId, "action.pending_approval", {
+        tool: name,
+        actionExecutionId: pending.id,
+        ...(pending.conversationId && { conversationId: pending.conversationId }),
+      });
       return {
         success: true,
         message: `This action ("${name}") requires human approval before it will run. It has been forwarded for review.`,
@@ -189,18 +236,51 @@ export class ToolRegistry {
     const record = await db.actionExecution.findUnique({ where: { id: actionExecutionId } });
     if (!record) throw new NotFoundError("ActionExecution");
     if (record.status !== "pending_approval") {
-      throw new AppError(409, "NOT_PENDING_APPROVAL", `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
+      throw new AppError(
+        409,
+        "NOT_PENDING_APPROVAL",
+        `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`
+      );
     }
 
     const tool = this.tools.get(record.tool);
-    if (!tool) throw new Error(`Unknown tool "${record.tool}" referenced by ActionExecution ${record.id}.`);
+    if (!tool)
+      throw new Error(`Unknown tool "${record.tool}" referenced by ActionExecution ${record.id}.`);
 
-    await db.actionExecution.update({ where: { id: record.id }, data: { status: "requested" } });
-
-    return this.runAndRecord(ctx, tool, record.id, record.input, {
+    const runtimeCtx = {
       conversationId: record.conversationId ?? undefined,
       idempotencyKey: record.idempotencyKey,
+    };
+    if (tool.resolveConversationId) {
+      // Never infer a legacy action's missing parent from old model input.
+      if (!record.conversationId)
+        throw new AppError(
+          409,
+          "UNBOUND_ACTION",
+          "This action has no authoritative conversation parent"
+        );
+      const input = tool.schema.safeParse(record.input);
+      if (!input.success)
+        throw new AppError(
+          409,
+          "INVALID_ACTION_INPUT",
+          "This action requires a new validated request"
+        );
+      if ((await tool.resolveConversationId(ctx, input.data, runtimeCtx)) !== record.conversationId)
+        throw new AppError(409, "CONFLICTING_PARENT", "Action conversation parents disagree");
+    }
+    const claimed = await db.actionExecution.updateMany({
+      where: { id: record.id, status: "pending_approval" },
+      data: { status: "requested" },
     });
+    if (!claimed.count)
+      throw new AppError(
+        409,
+        "NOT_PENDING_APPROVAL",
+        "Another person already handled this action."
+      );
+
+    return this.runAndRecord(ctx, tool, record.id, record.input, runtimeCtx);
   }
 
   /** Rejects a `pending_approval` action — no side effect ever ran, so this is purely a status transition. */
@@ -209,10 +289,31 @@ export class ToolRegistry {
     const record = await db.actionExecution.findUnique({ where: { id: actionExecutionId } });
     if (!record) throw new NotFoundError("ActionExecution");
     if (record.status !== "pending_approval") {
-      throw new AppError(409, "NOT_PENDING_APPROVAL", `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`);
+      throw new AppError(
+        409,
+        "NOT_PENDING_APPROVAL",
+        `ActionExecution ${actionExecutionId} is not pending approval (status: ${record.status}).`
+      );
     }
-    await db.actionExecution.update({ where: { id: record.id }, data: { status: "cancelled", completedAt: new Date() } });
-    await logActivity(ctx, "action.rejected", "action", record.id, `"${record.tool}" was rejected and will not run`, undefined, { tool: record.tool });
+    const rejected = await db.actionExecution.updateMany({
+      where: { id: record.id, status: "pending_approval" },
+      data: { status: "cancelled", completedAt: new Date() },
+    });
+    if (!rejected.count)
+      throw new AppError(
+        409,
+        "NOT_PENDING_APPROVAL",
+        "Another person already handled this action."
+      );
+    await logActivity(
+      ctx,
+      "action.rejected",
+      "action",
+      record.id,
+      `"${record.tool}" was rejected and will not run`,
+      undefined,
+      { tool: record.tool }
+    );
   }
 
   private async runAndRecord(
@@ -222,30 +323,83 @@ export class ToolRegistry {
     args: unknown,
     runtimeCtx: ToolRuntimeContext
   ): Promise<ToolResult> {
-    const db = getScopedPrisma(ctx);
+    const executionCtx: TenantContext = {
+      ...ctx,
+      workBinding: {
+        ...ctx.workBinding,
+        ...(runtimeCtx.conversationId && { conversationId: runtimeCtx.conversationId }),
+        actionExecutionId,
+      },
+    };
+    const db = getScopedPrisma(executionCtx);
+    const cancelled: ToolResult = {
+      success: false,
+      status: "cancelled",
+      message: "This work was retired.",
+    };
     try {
-      const result = await tool.execute(ctx, args, runtimeCtx);
-      await db.actionExecution.update({
+      const admitted = await db.actionExecution.updateMany({
+        where: { id: actionExecutionId, status: "requested" },
+        data: { status: "running" },
+      });
+      if (!admitted.count) return cancelled;
+      const result = await tool.execute(executionCtx, args, runtimeCtx);
+      const saved = await db.actionExecution.updateMany({
         where: { id: actionExecutionId },
         data: {
           status: result.status,
-          result: { success: result.success, message: result.message, data: result.data ?? null } as Prisma.InputJsonValue,
+          result: {
+            success: result.success,
+            message: result.message,
+            data: result.data ?? null,
+          } as Prisma.InputJsonValue,
           completedAt: TERMINAL_STATUSES.has(result.status) ? new Date() : null,
         },
       });
-      await logActivity(ctx, `tool.${result.status}`, "action", actionExecutionId, `"${tool.name}" ${result.status}: ${result.message}`.slice(0, 500), undefined, {
-        tool: tool.name,
-        conversationId: runtimeCtx.conversationId ?? null,
-      });
+      if (!saved.count) return cancelled;
+      await logActivity(
+        executionCtx,
+        `tool.${result.status}`,
+        "action",
+        actionExecutionId,
+        `"${tool.name}" ${result.status}: ${result.message}`.slice(0, 500),
+        undefined,
+        {
+          tool: tool.name,
+          conversationId: runtimeCtx.conversationId ?? null,
+        }
+      );
       return result;
     } catch (error) {
+      if (error instanceof WorkRetiredError) return cancelled;
+      const current = await db.actionExecution.findUnique({ where: { id: actionExecutionId } });
+      if (!current || current.retiredAt) return cancelled;
       const message = error instanceof Error ? error.message : "Unknown error";
-      await db.actionExecution.update({
-        where: { id: actionExecutionId },
-        data: { status: "failed", errorMessage: message, completedAt: new Date() },
-      });
-      await logActivity(ctx, "tool.failed", "action", actionExecutionId, `"${tool.name}" failed: ${message}`.slice(0, 500), undefined, { tool: tool.name });
-      return { success: false, message: `Tool "${tool.name}" failed: ${message}`, status: "failed" };
+      let saved;
+      try {
+        saved = await db.actionExecution.updateMany({
+          where: { id: actionExecutionId },
+          data: { status: "failed", errorMessage: message, completedAt: new Date() },
+        });
+      } catch (checkpointError) {
+        if (checkpointError instanceof WorkRetiredError) return cancelled;
+        throw checkpointError;
+      }
+      if (!saved.count) return cancelled;
+      await logActivity(
+        executionCtx,
+        "tool.failed",
+        "action",
+        actionExecutionId,
+        `"${tool.name}" failed: ${message}`.slice(0, 500),
+        undefined,
+        { tool: tool.name }
+      );
+      return {
+        success: false,
+        message: `Tool "${tool.name}" failed: ${message}`,
+        status: "failed",
+      };
     }
   }
 }

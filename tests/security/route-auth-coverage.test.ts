@@ -11,7 +11,7 @@ import { isPublicApiPath } from "@/lib/identity/public-api-paths";
  * Prisma-import check. Walks every `src/app/api/**\/route.ts` file exactly
  * as §14.2 describes: it must be on the public allowlist
  * (`src/lib/public-api-paths.ts`, the same one `src/proxy.ts` uses) or
- * import `requireAuth`.
+ * call `requireAuth`, or the P1 account-level gate for workspace/platform discovery.
  */
 
 const API_ROOT = path.join(process.cwd(), "src", "app", "api");
@@ -50,7 +50,12 @@ function isCovered(routeFile: string): boolean {
   const pathname = toApiPathname(routeFile);
   if (isPublicApiPath(pathname)) return true;
   const source = fs.readFileSync(routeFile, "utf8");
-  return source.includes("requireAuth");
+  return (
+    source.includes("requireAuth") ||
+    (source.includes("@/lib/identity/account-auth") &&
+      source.includes("requireAccountAuth(request)") &&
+      source.includes("isAccountAuthenticated"))
+  );
 }
 
 describe("every src/app/api/**/route.ts is public-allowlisted or calls requireAuth (§14.2/§36)", () => {

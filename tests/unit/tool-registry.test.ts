@@ -24,6 +24,7 @@ function aiCtx(conversationId: string): TenantContext {
     role: null,
     actor: { kind: "ai_agent", conversationId, model: "test-model" },
     dataConnection: "shared-default",
+    resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
   };
 }
 
@@ -37,13 +38,20 @@ afterAll(async () => {
 
 describe("ToolRegistry — authorization (§9.5/§23.4)", () => {
   it("denies an AI call to a tool whose ToolPolicy defaults allowedForAI to false", async () => {
-    const result = await toolRegistry.execute(aiCtx("conv-deny-ai"), "noop_test_action", {}, { toolCallId: "tc-deny-ai" });
+    const result = await toolRegistry.execute(
+      aiCtx("conv-deny-ai"),
+      "noop_test_action",
+      {},
+      { toolCallId: "tc-deny-ai" }
+    );
 
     expect(result.success).toBe(false);
     expect(result.status).toBe("failed");
     expect(result.message).toContain("not available");
 
-    const rows = await rawClient.actionExecution.findMany({ where: { businessId: business.businessId, tool: "noop_test_action" } });
+    const rows = await rawClient.actionExecution.findMany({
+      where: { businessId: business.businessId, tool: "noop_test_action" },
+    });
     expect(rows).toHaveLength(0); // denied before any ActionExecution is created
   });
 
@@ -58,7 +66,11 @@ describe("ToolRegistry — authorization (§9.5/§23.4)", () => {
     // ToolPolicy row is strictly narrower than RBAC, proving the two are
     // independent gates (§9.5), not one conflated check.
     await rawClient.toolPolicy.create({
-      data: { businessId: business.businessId, tool: "get_customer_history", allowedForHumanRoles: ["owner"] },
+      data: {
+        businessId: business.businessId,
+        tool: "get_customer_history",
+        allowedForHumanRoles: ["owner"],
+      },
     });
 
     const humanCtx: TenantContext = {
@@ -66,6 +78,7 @@ describe("ToolRegistry — authorization (§9.5/§23.4)", () => {
       role: "admin",
       actor: { kind: "user", userId: business.ownerUserId },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     };
 
     const result = await toolRegistry.execute(
@@ -85,6 +98,7 @@ describe("ToolRegistry — authorization (§9.5/§23.4)", () => {
       role: "owner",
       actor: { kind: "user", userId: business.ownerUserId },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     };
 
     // The narrow ["owner"] ToolPolicy row from the previous test still
@@ -101,7 +115,12 @@ describe("ToolRegistry — authorization (§9.5/§23.4)", () => {
   });
 
   it("returns an honest failure for an unregistered tool name, with no ActionExecution row", async () => {
-    const result = await toolRegistry.execute(aiCtx("conv-unknown"), "not_a_real_tool", {}, { toolCallId: "tc-unknown" });
+    const result = await toolRegistry.execute(
+      aiCtx("conv-unknown"),
+      "not_a_real_tool",
+      {},
+      { toolCallId: "tc-unknown" }
+    );
     expect(result.success).toBe(false);
     expect(result.message).toContain("Unknown tool");
   });
@@ -126,7 +145,11 @@ describe("ToolRegistry — ActionExecution + idempotency (§24)", () => {
     expect(result.status).toBe("succeeded");
 
     const row = await rawClient.actionExecution.findFirst({
-      where: { businessId: business.businessId, tool: "create_ticket", idempotencyKey: `${business.businessId}:tc-record-1` },
+      where: {
+        businessId: business.businessId,
+        tool: "create_ticket",
+        idempotencyKey: `${business.businessId}:tc-record-1`,
+      },
     });
     expect(row).not.toBeNull();
     expect(row?.status).toBe("succeeded");
@@ -143,17 +166,29 @@ describe("ToolRegistry — ActionExecution + idempotency (§24)", () => {
     expect(first.success).toBe(true);
     expect(second).toEqual(first); // short-circuited to the recorded result, not re-run
 
-    const tickets = await rawClient.ticket.findMany({ where: { businessId: business.businessId, title: "Idempotency check" } });
+    const tickets = await rawClient.ticket.findMany({
+      where: { businessId: business.businessId, title: "Idempotency check" },
+    });
     expect(tickets).toHaveLength(1); // exactly one real Ticket row, not two
   });
 
   it("two independent attempts with identical-looking arguments are NOT conflated (different toolCallId)", async () => {
-    const args = { title: "Repeat request", description: "same text, different occasion", priority: "low" as const };
+    const args = {
+      title: "Repeat request",
+      description: "same text, different occasion",
+      priority: "low" as const,
+    };
 
-    await toolRegistry.execute(aiCtx("conv-a"), "create_ticket", args, { toolCallId: "tc-independent-1" });
-    await toolRegistry.execute(aiCtx("conv-b"), "create_ticket", args, { toolCallId: "tc-independent-2" });
+    await toolRegistry.execute(aiCtx("conv-a"), "create_ticket", args, {
+      toolCallId: "tc-independent-1",
+    });
+    await toolRegistry.execute(aiCtx("conv-b"), "create_ticket", args, {
+      toolCallId: "tc-independent-2",
+    });
 
-    const tickets = await rawClient.ticket.findMany({ where: { businessId: business.businessId, title: "Repeat request" } });
+    const tickets = await rawClient.ticket.findMany({
+      where: { businessId: business.businessId, title: "Repeat request" },
+    });
     expect(tickets).toHaveLength(2); // two genuinely separate tickets, per §24.4
   });
 });
@@ -161,7 +196,12 @@ describe("ToolRegistry — ActionExecution + idempotency (§24)", () => {
 describe("ToolRegistry — human approval workflow (§23.4/§34.3 item 6)", () => {
   it("pauses an AI call to a requiresHumanApproval tool, performs no side effect, then executes on approval", async () => {
     await rawClient.toolPolicy.create({
-      data: { businessId: business.businessId, tool: "noop_test_action", allowedForAI: true, requiresHumanApproval: true },
+      data: {
+        businessId: business.businessId,
+        tool: "noop_test_action",
+        allowedForAI: true,
+        requiresHumanApproval: true,
+      },
     });
 
     const requested = await toolRegistry.execute(
@@ -174,7 +214,11 @@ describe("ToolRegistry — human approval workflow (§23.4/§34.3 item 6)", () =
     expect(requested.status).toBe("pending_approval");
 
     const pendingRow = await rawClient.actionExecution.findFirst({
-      where: { businessId: business.businessId, tool: "noop_test_action", idempotencyKey: `${business.businessId}:tc-approve-1` },
+      where: {
+        businessId: business.businessId,
+        tool: "noop_test_action",
+        idempotencyKey: `${business.businessId}:tc-approve-1`,
+      },
     });
     expect(pendingRow?.status).toBe("pending_approval");
     expect(pendingRow?.completedAt).toBeNull(); // no side effect happened yet
@@ -184,6 +228,7 @@ describe("ToolRegistry — human approval workflow (§23.4/§34.3 item 6)", () =
       role: "supervisor",
       actor: { kind: "user", userId: business.ownerUserId },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     };
 
     const approved = await toolRegistry.approve(supervisorCtx, pendingRow!.id);
@@ -199,14 +244,28 @@ describe("ToolRegistry — human approval workflow (§23.4/§34.3 item 6)", () =
     await rawClient.toolPolicy.upsert({
       where: { businessId_tool: { businessId: business.businessId, tool: "noop_test_action" } },
       update: { allowedForAI: true, requiresHumanApproval: true },
-      create: { businessId: business.businessId, tool: "noop_test_action", allowedForAI: true, requiresHumanApproval: true },
+      create: {
+        businessId: business.businessId,
+        tool: "noop_test_action",
+        allowedForAI: true,
+        requiresHumanApproval: true,
+      },
     });
 
-    const requested = await toolRegistry.execute(aiCtx("conv-reject"), "noop_test_action", {}, { toolCallId: "tc-reject-1" });
+    const requested = await toolRegistry.execute(
+      aiCtx("conv-reject"),
+      "noop_test_action",
+      {},
+      { toolCallId: "tc-reject-1" }
+    );
     expect(requested.status).toBe("pending_approval");
 
     const pendingRow = await rawClient.actionExecution.findFirst({
-      where: { businessId: business.businessId, tool: "noop_test_action", idempotencyKey: `${business.businessId}:tc-reject-1` },
+      where: {
+        businessId: business.businessId,
+        tool: "noop_test_action",
+        idempotencyKey: `${business.businessId}:tc-reject-1`,
+      },
     });
 
     const supervisorCtx: TenantContext = {
@@ -214,6 +273,7 @@ describe("ToolRegistry — human approval workflow (§23.4/§34.3 item 6)", () =
       role: "supervisor",
       actor: { kind: "user", userId: business.ownerUserId },
       dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
     };
 
     await toolRegistry.reject(supervisorCtx, pendingRow!.id);

@@ -43,7 +43,8 @@ function render(value: unknown, max: number): string {
  */
 export function summarizeInput(input: unknown, maxLength = 120): InputField[] {
   if (input === null || input === undefined) return [];
-  if (typeof input !== "object" || Array.isArray(input)) return [{ key: "input", value: render(input, maxLength) }];
+  if (typeof input !== "object" || Array.isArray(input))
+    return [{ key: "input", value: render(input, maxLength) }];
   return Object.entries(input as Record<string, unknown>).map(([key, value]) => ({
     key,
     value: SECRET_FIELD.test(key) ? REDACTED : render(value, maxLength),
@@ -62,6 +63,8 @@ export function statusPresentation(status: string): { label: string; variant: St
       return { label: status === "scheduled" ? "Scheduled" : "In progress", variant: "info" };
     case "succeeded":
       return { label: "Done", variant: "success" };
+    case "needs_review":
+      return { label: "Needs delivery review", variant: "warning" };
     case "failed":
       return { label: "Failed", variant: "danger" };
     case "cancelled":

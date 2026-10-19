@@ -27,6 +27,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 describe("AI Engine", () => {
@@ -82,9 +83,7 @@ describe("AI Engine", () => {
       customerName: "John",
       customerContact: "+1555",
       status: "active",
-      messages: [
-        { role: "customer", content: "Hi", createdAt: new Date() },
-      ],
+      messages: [{ role: "customer", content: "Hi", createdAt: new Date() }],
     });
 
     // Default message creation
@@ -307,7 +306,10 @@ describe("AI Engine", () => {
                   {
                     id: "call-1",
                     type: "function",
-                    function: { name: "get_customer_history", arguments: JSON.stringify({ customerContact: "+1555" }) },
+                    function: {
+                      name: "get_customer_history",
+                      arguments: JSON.stringify({ customerContact: "+1555" }),
+                    },
                   },
                 ],
               },
@@ -332,7 +334,11 @@ describe("AI Engine", () => {
   describe("§46.4 task 5: checkBlockedTopics wired as a real pre-check", () => {
     it("redirects a blocked-topic message instead of calling the model at all", async () => {
       const { chat } = await import("@/lib/ai/engine");
-      const response = await chat(ctx, "conv-1", "Can you give me legal advice about this contract?");
+      const response = await chat(
+        ctx,
+        "conv-1",
+        "Can you give me legal advice about this contract?"
+      );
 
       expect(response).not.toContain("legal advice");
       expect(response.toLowerCase()).toContain("team member");
@@ -340,7 +346,12 @@ describe("AI Engine", () => {
 
       // The customer's message is still recorded, plus the redirect itself.
       expect(mockPrisma.message.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ role: "customer", content: "Can you give me legal advice about this contract?" }) })
+        expect.objectContaining({
+          data: expect.objectContaining({
+            role: "customer",
+            content: "Can you give me legal advice about this contract?",
+          }),
+        })
       );
       expect(mockPrisma.message.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ role: "assistant" }) })
@@ -349,7 +360,9 @@ describe("AI Engine", () => {
 
     it("does not redirect an ordinary message that merely mentions an unrelated topic", async () => {
       mockOpenAICreateFn.mockResolvedValue({
-        choices: [{ finish_reason: "stop", message: { content: "Sure, here is our shipping policy." } }],
+        choices: [
+          { finish_reason: "stop", message: { content: "Sure, here is our shipping policy." } },
+        ],
       });
 
       const { chat } = await import("@/lib/ai/engine");
@@ -378,7 +391,9 @@ describe("AI Engine", () => {
 
     it("does not retry a non-retryable error (auth) and falls back to the existing user-facing message after one call", async () => {
       const { AuthenticationError } = await import("openai");
-      mockOpenAICreateFn.mockRejectedValue(new AuthenticationError(401, {}, "Invalid API key", new Headers()));
+      mockOpenAICreateFn.mockRejectedValue(
+        new AuthenticationError(401, {}, "Invalid API key", new Headers())
+      );
 
       const { chat } = await import("@/lib/ai/engine");
       const response = await chat(ctx, "conv-1", "Hello");
@@ -394,7 +409,10 @@ describe("AI Engine", () => {
       mockOpenAICreateFn.mockRejectedValue(
         new AuthenticationError(
           401,
-          { message: "Incorrect API key provided: sk-proj-abc***************wxyz. You can find your API key at https://platform.openai.com/account/api-keys." },
+          {
+            message:
+              "Incorrect API key provided: sk-proj-abc***************wxyz. You can find your API key at https://platform.openai.com/account/api-keys.",
+          },
           undefined,
           new Headers()
         )
@@ -415,7 +433,9 @@ describe("AI Engine", () => {
 
     it("falls back to the existing user-facing message if the retry also fails", async () => {
       const { RateLimitError } = await import("openai");
-      mockOpenAICreateFn.mockRejectedValue(new RateLimitError(429, {}, "Rate limited", new Headers()));
+      mockOpenAICreateFn.mockRejectedValue(
+        new RateLimitError(429, {}, "Rate limited", new Headers())
+      );
 
       const { chat } = await import("@/lib/ai/engine");
       const response = await chat(ctx, "conv-1", "Hello");

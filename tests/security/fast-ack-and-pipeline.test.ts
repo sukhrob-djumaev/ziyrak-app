@@ -40,11 +40,19 @@ import { jobQueue } from "@/lib/jobs/queue";
 import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
 
 function signTwilio(authToken: string, url: string, params: Record<string, string>): string {
-  const data = url + Object.keys(params).sort().reduce((acc, key) => acc + key + params[key], "");
+  const data =
+    url +
+    Object.keys(params)
+      .sort()
+      .reduce((acc, key) => acc + key + params[key], "");
   return crypto.createHmac("sha1", authToken).update(Buffer.from(data, "utf-8")).digest("base64");
 }
 
-function buildFormRequest(url: string, params: Record<string, string>, headers: Record<string, string>): NextRequest {
+function buildFormRequest(
+  url: string,
+  params: Record<string, string>,
+  headers: Record<string, string>
+): NextRequest {
   const body = new URLSearchParams(params).toString();
   return new NextRequest(url, {
     method: "POST",
@@ -86,6 +94,7 @@ beforeAll(async () => {
 });
 
 let phoneBusiness: SeededBusiness;
+let phoneConnectionId: string;
 const phoneNumber2 = `+1555${Math.floor(1000000 + Math.random() * 8999999)}`;
 const phoneAuthToken = "phone-fast-ack-token";
 
@@ -98,7 +107,7 @@ beforeAll(async () => {
     authToken: phoneAuthToken,
     phoneNumber: phoneNumber2,
   });
-  await prisma.channelConnection.create({
+  const phoneConnection = await prisma.channelConnection.create({
     data: {
       businessId: phoneBusiness.businessId,
       type: "phone",
@@ -108,12 +117,20 @@ beforeAll(async () => {
       credentialRef: phoneCredentialRef,
     },
   });
+  phoneConnectionId = phoneConnection.id;
 
-  const phoneAiCredentialRef = await encryptAIProviderCredential("openai", "sk-test-fast-ack-phone");
+  const phoneAiCredentialRef = await encryptAIProviderCredential(
+    "openai",
+    "sk-test-fast-ack-phone"
+  );
   await prisma.businessConfig.upsert({
     where: { businessId: phoneBusiness.businessId },
     update: { aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
-    create: { businessId: phoneBusiness.businessId, aiProvider: "openai", aiCredentialRef: phoneAiCredentialRef },
+    create: {
+      businessId: phoneBusiness.businessId,
+      aiProvider: "openai",
+      aiCredentialRef: phoneAiCredentialRef,
+    },
   });
 });
 
@@ -133,7 +150,9 @@ describe("Fast-ack + unified processInboundMessage pipeline (§17.6/§18.2/§46.
       Body: "Do you have same-day shipping?",
       MessageSid: `SM-${crypto.randomUUID()}`,
     };
-    const request = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(authToken, url, params) });
+    const request = buildFormRequest(url, params, {
+      "x-twilio-signature": signTwilio(authToken, url, params),
+    });
 
     // The AI call's promise is deliberately never resolved until after we
     // observe the webhook's own response — if the implementation ever
@@ -167,9 +186,17 @@ describe("Fast-ack + unified processInboundMessage pipeline (§17.6/§18.2/§46.
     });
     expect(conversation).not.toBeNull();
 
-    const messages = await prisma.message.findMany({ where: { conversationId: conversation!.id }, orderBy: { createdAt: "asc" } });
+    const messages = await prisma.message.findMany({
+      where: { conversationId: conversation!.id },
+      orderBy: { createdAt: "asc" },
+    });
     expect(messages.some((m) => m.role === "customer" && m.content === params.Body)).toBe(true);
-    expect(messages.some((m) => m.role === "assistant" && m.content === "Yes! Orders placed before 2pm ship same day.")).toBe(true);
+    expect(
+      messages.some(
+        (m) =>
+          m.role === "assistant" && m.content === "Yes! Orders placed before 2pm ship same day."
+      )
+    ).toBe(true);
 
     expect(twilioSendSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -183,14 +210,18 @@ describe("Fast-ack + unified processInboundMessage pipeline (§17.6/§18.2/§46.
     // create a second conversation chain or a second AI/outbound call.
     twilioSendSpy.mockClear();
     mockOpenAICreateFn.mockClear();
-    const replay = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(authToken, url, params) });
+    const replay = buildFormRequest(url, params, {
+      "x-twilio-signature": signTwilio(authToken, url, params),
+    });
     const replayResponse = await POST(replay);
     expect(replayResponse.status).toBe(200);
     await (jobQueue as unknown as FakeJobQueue).__drainForTests();
     expect(mockOpenAICreateFn).not.toHaveBeenCalled();
     expect(twilioSendSpy).not.toHaveBeenCalled();
 
-    const messagesAfterReplay = await prisma.message.findMany({ where: { conversationId: conversation!.id } });
+    const messagesAfterReplay = await prisma.message.findMany({
+      where: { conversationId: conversation!.id },
+    });
     expect(messagesAfterReplay.length).toBe(messages.length);
   });
 });
@@ -203,6 +234,7 @@ describe("Phone gather-turn fast-ack (§17.6/§46.5 acceptance-audit correction)
         channel: "phone",
         customerName: "Phone Caller",
         customerContact: "+15559990000",
+        metadata: { channelConnectionId: phoneConnectionId },
       },
     });
 
@@ -210,8 +242,15 @@ describe("Phone gather-turn fast-ack (§17.6/§46.5 acceptance-audit correction)
 
     const callSid = `CA-${crypto.randomUUID()}`;
     const url = `https://example.com/api/channels/phone/gather?conversationId=${conversation.id}`;
-    const params = { To: phoneNumber2, From: "+15559990000", SpeechResult: "What are your hours?", CallSid: callSid };
-    const request = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(phoneAuthToken, url, params) });
+    const params = {
+      To: phoneNumber2,
+      From: "+15559990000",
+      SpeechResult: "What are your hours?",
+      CallSid: callSid,
+    };
+    const request = buildFormRequest(url, params, {
+      "x-twilio-signature": signTwilio(phoneAuthToken, url, params),
+    });
 
     // Deliberately never resolved until after the webhook's own response is
     // observed — if /gather ever regressed to awaiting the AI call inline,
@@ -236,25 +275,41 @@ describe("Phone gather-turn fast-ack (§17.6/§46.5 acceptance-audit correction)
     // webhook's own (already-sent) response body.
     expect(twilioCallUpdateSpy).toHaveBeenCalledWith(
       callSid,
-      expect.objectContaining({ twiml: expect.stringContaining("open 9am to 6pm, Monday through Saturday.") })
+      expect.objectContaining({
+        twiml: expect.stringContaining("open 9am to 6pm, Monday through Saturday."),
+      })
     );
 
-    const messages = await prisma.message.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" } });
-    expect(messages.some((m) => m.role === "customer" && m.content === params.SpeechResult)).toBe(true);
-    expect(messages.some((m) => m.role === "assistant" && m.content === "We're open 9am to 6pm, Monday through Saturday.")).toBe(true);
+    const messages = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(messages.some((m) => m.role === "customer" && m.content === params.SpeechResult)).toBe(
+      true
+    );
+    expect(
+      messages.some(
+        (m) =>
+          m.role === "assistant" && m.content === "We're open 9am to 6pm, Monday through Saturday."
+      )
+    ).toBe(true);
 
     // §17.4/§33.4 item 1 — redelivery of the identical CallSid+SpeechResult
     // must not trigger a second AI/call-update.
     twilioCallUpdateSpy.mockClear();
     mockOpenAICreateFn.mockClear();
-    const replay = buildFormRequest(url, params, { "x-twilio-signature": signTwilio(phoneAuthToken, url, params) });
+    const replay = buildFormRequest(url, params, {
+      "x-twilio-signature": signTwilio(phoneAuthToken, url, params),
+    });
     const replayResponse = await POST(replay);
     expect(replayResponse.status).toBe(200);
     await (jobQueue as unknown as FakeJobQueue).__drainForTests();
     expect(mockOpenAICreateFn).not.toHaveBeenCalled();
     expect(twilioCallUpdateSpy).not.toHaveBeenCalled();
 
-    const messagesAfterReplay = await prisma.message.findMany({ where: { conversationId: conversation.id } });
+    const messagesAfterReplay = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+    });
     expect(messagesAfterReplay.length).toBe(messages.length);
   });
 });

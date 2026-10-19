@@ -13,6 +13,7 @@ const ctx: TenantContext = {
   role: "admin",
   actor: { kind: "user", userId: "test-user" },
   dataConnection: "shared-default",
+  resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
 };
 
 describe("Conversation Engine", () => {
@@ -23,8 +24,20 @@ describe("Conversation Engine", () => {
   describe("routeConversation", () => {
     it("should route to skill-matched member", async () => {
       mockPrisma.teamMember.findMany.mockResolvedValue([
-        { id: "m1", name: "Alice", expertise: "billing", department: { name: "Finance" }, _count: { tickets: 2 } },
-        { id: "m2", name: "Bob", expertise: "technical", department: { name: "Support" }, _count: { tickets: 5 } },
+        {
+          id: "m1",
+          name: "Alice",
+          expertise: "billing",
+          department: { name: "Finance" },
+          _count: { tickets: 2 },
+        },
+        {
+          id: "m2",
+          name: "Bob",
+          expertise: "technical",
+          department: { name: "Support" },
+          _count: { tickets: 5 },
+        },
       ]);
 
       const { routeConversation } = await import("@/lib/conversations/conversation-engine");
@@ -59,9 +72,14 @@ describe("Conversation Engine", () => {
 
   describe("mergeConversations", () => {
     it("should merge secondary into primary", async () => {
-      mockPrisma.conversation.findUnique
-        .mockResolvedValueOnce({ id: "primary", customerName: "John" })
-        .mockResolvedValueOnce({ id: "secondary", customerName: "John", channel: "email" });
+      mockPrisma.conversation.findUnique.mockImplementation(async ({ where }) => ({
+        id: where.id,
+        customerName: "John",
+        channel: "webchat",
+        metadata: { channelConnectionId: "same-connection" },
+      }));
+      for (const model of ["message", "ticket", "internalNote"])
+        mockPrisma[model].findMany.mockResolvedValue([{ conversationId: "secondary" }]);
       mockPrisma.message.updateMany.mockResolvedValue({ count: 5 });
       mockPrisma.ticket.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.internalNote.updateMany.mockResolvedValue({ count: 0 });
@@ -72,10 +90,15 @@ describe("Conversation Engine", () => {
       const result = await mergeConversations(ctx, "primary", "secondary");
 
       expect(result).toBe(true);
-      expect(mockPrisma.message.updateMany).toHaveBeenCalledWith({
-        where: { conversationId: "secondary" },
-        data: { conversationId: "primary" },
-      });
+      expect(mockPrisma.message.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            conversationId: "secondary",
+            businessId: ctx.businessId,
+          }),
+          data: { conversationId: "primary" },
+        })
+      );
     });
 
     it("should return false if conversation not found", async () => {
@@ -94,10 +117,15 @@ describe("Conversation Engine", () => {
       mockPrisma.internalNote.create.mockResolvedValue({});
 
       const { executeMacro } = await import("@/lib/conversations/conversation-engine");
-      const result = await executeMacro(ctx, "conv-1", [
-        { type: "set_status", value: "resolved" },
-        { type: "add_note", value: "Issue resolved" },
-      ], "Admin");
+      const result = await executeMacro(
+        ctx,
+        "conv-1",
+        [
+          { type: "set_status", value: "resolved" },
+          { type: "add_note", value: "Issue resolved" },
+        ],
+        "Admin"
+      );
 
       expect(result.executed).toBe(2);
       expect(result.errors).toHaveLength(0);
@@ -105,9 +133,12 @@ describe("Conversation Engine", () => {
 
     it("should handle unknown action types", async () => {
       const { executeMacro } = await import("@/lib/conversations/conversation-engine");
-      const result = await executeMacro(ctx, "conv-1", [
-        { type: "unknown_action", value: "test" },
-      ], "Admin");
+      const result = await executeMacro(
+        ctx,
+        "conv-1",
+        [{ type: "unknown_action", value: "test" }],
+        "Admin"
+      );
 
       expect(result.executed).toBe(0);
       expect(result.errors).toHaveLength(1);

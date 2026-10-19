@@ -24,7 +24,7 @@ export type EventType =
   | "agent:offline"
   | "notification";
 
-interface EventPayload {
+export interface EventPayload {
   type: EventType;
   data: Record<string, unknown>;
   timestamp: string;

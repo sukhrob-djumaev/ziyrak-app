@@ -169,7 +169,9 @@
       "/stream?token=" +
       encodeURIComponent(token) +
       "&conversationId=" +
-      encodeURIComponent(conversationId);
+      encodeURIComponent(conversationId) +
+      "&visitorId=" +
+      encodeURIComponent(visitorId);
     var source = new EventSource(url);
     source.onmessage = function (evt) {
       try {

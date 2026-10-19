@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { logger } from "@/lib/observability/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 
 function defaultActorName(ctx: TenantContext): string {
   switch (ctx.actor.kind) {
@@ -29,10 +29,11 @@ export async function logActivity(
   entityId: string | null,
   description: string,
   userName?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  repository?: Pick<ScopedPrisma, "activityLog">
 ): Promise<void> {
   try {
-    const db = getScopedPrisma(ctx);
+    const db = repository ?? getScopedPrisma(ctx);
     await db.activityLog.create({
       data: {
         businessId: ctx.businessId,

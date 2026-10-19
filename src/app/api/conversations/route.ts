@@ -1,3 +1,4 @@
+import { recheckSupportExposure, privateSupportResponse } from "@/lib/identity/support-request";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/observability/logger";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
@@ -13,7 +14,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip, take } = parsePagination(searchParams);
 
-    const { conversations, total } = await conversationsService.list(ctx, {
+    const support = ctx.authorization?.kind === "support";
+    const read = support ? conversationsService.listSupportSummary : conversationsService.list;
+    const { conversations, total } = await read(ctx, {
       channel: searchParams.get("channel"),
       status: searchParams.get("status"),
       search: searchParams.get("search"),
@@ -21,10 +24,18 @@ export async function GET(request: NextRequest) {
       take,
     });
 
+    if (support) {
+      const denied = await recheckSupportExposure(request, ctx);
+      if (denied) return denied;
+      return privateSupportResponse(
+        NextResponse.json(paginatedResponse(conversations, total, page, limit))
+      );
+    }
     return NextResponse.json(paginatedResponse(conversations, total, page, limit));
   } catch (error) {
     logger.error("Failed to fetch conversations:", error);
-    return toErrorResponse(error);
+    const response = toErrorResponse(error);
+    return ctx.authorization?.kind === "support" ? privateSupportResponse(response) : response;
   }
 }
 
@@ -37,13 +48,15 @@ export async function POST(request: NextRequest) {
     const { channel, customerName, customerContact, status } = body;
 
     if (!channel || typeof channel !== "string") {
-      return NextResponse.json(
-        { error: "Channel is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Channel is required" }, { status: 400 });
     }
 
-    const conversation = await conversationsService.create(ctx, { channel, customerName, customerContact, status });
+    const conversation = await conversationsService.create(ctx, {
+      channel,
+      customerName,
+      customerContact,
+      status,
+    });
 
     return NextResponse.json(conversation, { status: 201 });
   } catch (error) {

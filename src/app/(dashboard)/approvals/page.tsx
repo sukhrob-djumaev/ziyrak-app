@@ -2,15 +2,30 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronRight, Loader2, MessageSquare, ShieldCheck, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  MessageSquare,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
+import { DeliveryRecoveryPanel } from "@/components/approvals/delivery-recovery-panel";
 import { PoliciesPanel } from "@/components/approvals/policies-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
-import { requesterLabel, statusPresentation, summarizeInput, timeAgo, toolLabel } from "@/lib/approvals/present";
+import {
+  requesterLabel,
+  statusPresentation,
+  summarizeInput,
+  timeAgo,
+  toolLabel,
+} from "@/lib/approvals/present";
 import { cn } from "@/lib/utils";
 
 interface ActionRow {
@@ -26,7 +41,7 @@ interface ActionRow {
   completedAt: string | null;
 }
 
-type Tab = "pending" | "history" | "policies";
+type Tab = "pending" | "history" | "policies" | "delivery";
 type Decision = { action: ActionRow; kind: "approve" | "reject" } | null;
 
 const POLL_MS = 15_000;
@@ -79,18 +94,34 @@ export default function ApprovalsPage() {
       const res = await fetch(`/api/actions/${action.id}/${kind}`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (res.status === 409) {
-        toast({ type: "info", title: "Already handled", description: "Someone else already decided on this request." });
+        toast({
+          type: "info",
+          title: "Already handled",
+          description: "Someone else already decided on this request.",
+        });
       } else if (!res.ok) {
-        toast({ type: "error", title: `Could not ${kind}`, description: body?.error?.message ?? "Please try again." });
+        toast({
+          type: "error",
+          title: `Could not ${kind}`,
+          description: body?.error?.message ?? "Please try again.",
+        });
       } else if (kind === "reject") {
         toast({ type: "success", title: "Rejected", description: "The action was not run." });
       } else if (body.success === false) {
-        toast({ type: "error", title: "Approved, but the action failed", description: body.message });
+        toast({
+          type: "error",
+          title: "Approved, but the action failed",
+          description: body.message,
+        });
       } else {
         toast({ type: "success", title: "Approved and run", description: body.message });
       }
     } catch {
-      toast({ type: "error", title: `Could not ${kind}`, description: "Network error. Please try again." });
+      toast({
+        type: "error",
+        title: `Could not ${kind}`,
+        description: "Network error. Please try again.",
+      });
     } finally {
       setDecision(null);
       load();
@@ -113,7 +144,7 @@ export default function ApprovalsPage() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <div className="flex items-center gap-2" role="tablist">
-          {(["pending", "history", "policies"] as const).map((key) => (
+          {(["pending", "history", "policies", "delivery"] as const).map((key) => (
             <button
               key={key}
               role="tab"
@@ -121,29 +152,52 @@ export default function ApprovalsPage() {
               onClick={() => setTab(key)}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                tab === key ? "bg-owly-primary text-white" : "bg-owly-surface border border-owly-border text-owly-text-light hover:text-owly-text"
+                tab === key
+                  ? "bg-owly-primary text-white"
+                  : "bg-owly-surface border border-owly-border text-owly-text-light hover:text-owly-text"
               )}
             >
-              {key === "pending" ? `Waiting (${pending.length})` : key === "history" ? "History" : "Policies"}
+              {key === "pending"
+                ? `Waiting (${pending.length})`
+                : key === "history"
+                  ? "History"
+                  : key === "policies"
+                    ? "Policies"
+                    : "Delivery recovery"}
             </button>
           ))}
         </div>
 
-        {tab === "policies" ? (
+        {tab === "delivery" ? (
+          <DeliveryRecoveryPanel />
+        ) : tab === "policies" ? (
           <PoliciesPanel />
         ) : loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-owly-primary" />
           </div>
         ) : forbidden ? (
-          <EmptyState icon={ShieldCheck} title="You don't have access to approvals" description="Reviewing AI actions needs a supervisor, admin or owner role." />
+          <EmptyState
+            icon={ShieldCheck}
+            title="You don't have access to approvals"
+            description="Reviewing AI actions needs a supervisor, admin or owner role."
+          />
         ) : loadError ? (
-          <EmptyState icon={XCircle} title="Could not load approvals" description={loadError} action={{ label: "Try again", onClick: load }} />
+          <EmptyState
+            icon={XCircle}
+            title="Could not load approvals"
+            description={loadError}
+            action={{ label: "Try again", onClick: load }}
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={tab === "pending" ? CheckCircle2 : ShieldCheck}
             title={tab === "pending" ? "Nothing is waiting for approval" : "No actions yet"}
-            description={tab === "pending" ? "When the AI wants to run an action that needs a human decision, it will appear here." : "Actions the AI has requested will be listed here."}
+            description={
+              tab === "pending"
+                ? "When the AI wants to run an action that needs a human decision, it will appear here."
+                : "Actions the AI has requested will be listed here."
+            }
           />
         ) : (
           <ul className="space-y-3" data-testid={`approvals-${tab}`}>
@@ -152,7 +206,11 @@ export default function ApprovalsPage() {
               const fields = summarizeInput(action.input);
               const open = expanded.has(action.id);
               return (
-                <li key={action.id} className="bg-owly-surface border border-owly-border rounded-xl p-5" data-testid="approval-row">
+                <li
+                  key={action.id}
+                  className="bg-owly-surface border border-owly-border rounded-xl p-5"
+                  data-testid="approval-row"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -160,11 +218,15 @@ export default function ApprovalsPage() {
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </div>
                       <p className="text-sm text-owly-text-light">
-                        Requested by {requesterLabel(action.requestedBy)} · {timeAgo(action.createdAt)}
+                        Requested by {requesterLabel(action.requestedBy)} ·{" "}
+                        {timeAgo(action.createdAt)}
                         {action.conversationId && (
                           <>
                             {" · "}
-                            <Link href={`/conversations?id=${action.conversationId}`} className="inline-flex items-center gap-1 text-owly-primary hover:underline">
+                            <Link
+                              href={`/conversations?id=${action.conversationId}`}
+                              className="inline-flex items-center gap-1 text-owly-primary hover:underline"
+                            >
                               <MessageSquare className="h-3.5 w-3.5" /> View conversation
                             </Link>
                           </>
@@ -192,8 +254,15 @@ export default function ApprovalsPage() {
 
                   {fields.length > 0 && (
                     <div className="mt-3">
-                      <button onClick={() => toggle(action.id)} className="inline-flex items-center gap-1 text-sm text-owly-text-light hover:text-owly-text">
-                        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <button
+                        onClick={() => toggle(action.id)}
+                        className="inline-flex items-center gap-1 text-sm text-owly-text-light hover:text-owly-text"
+                      >
+                        {open ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
                         {open ? "Hide details" : "Show details"}
                       </button>
                       {open && (
@@ -209,11 +278,17 @@ export default function ApprovalsPage() {
                     </div>
                   )}
 
-                  {(action.errorMessage || action.result?.message) && action.status !== "pending_approval" && (
-                    <p className={cn("mt-3 text-sm", action.status === "failed" ? "text-owly-danger" : "text-owly-text-light")}>
-                      {action.errorMessage ?? action.result?.message}
-                    </p>
-                  )}
+                  {(action.errorMessage || action.result?.message) &&
+                    action.status !== "pending_approval" && (
+                      <p
+                        className={cn(
+                          "mt-3 text-sm",
+                          action.status === "failed" ? "text-owly-danger" : "text-owly-text-light"
+                        )}
+                      >
+                        {action.errorMessage ?? action.result?.message}
+                      </p>
+                    )}
                 </li>
               );
             })}
@@ -226,7 +301,11 @@ export default function ApprovalsPage() {
         onCancel={() => setDecision(null)}
         onConfirm={decide}
         destructive={decision?.kind === "reject"}
-        title={decision?.kind === "approve" ? `Approve "${decision ? toolLabel(decision.action.tool) : ""}"?` : `Reject "${decision ? toolLabel(decision.action.tool) : ""}"?`}
+        title={
+          decision?.kind === "approve"
+            ? `Approve "${decision ? toolLabel(decision.action.tool) : ""}"?`
+            : `Reject "${decision ? toolLabel(decision.action.tool) : ""}"?`
+        }
         description={
           decision?.kind === "approve"
             ? "This runs the action now. Check the details first — it may send messages or change data."

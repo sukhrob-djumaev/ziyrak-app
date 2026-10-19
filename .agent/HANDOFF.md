@@ -1,3 +1,9 @@
+# Latest session (2026-10-19, end)
+
+Follow-up sending admission implemented and verified in dev worktree p1-followup-admission
+(9d37bc8): security review fixed, full unit 153/1519, fresh full browser 24/24. Waiting on owner
+approval to merge into main; then restricted member editor. See CURRENT Update7.
+
 # Latest session (2026-10-19, later)
 
 Owner approved the follow-up admission proposal. Dev worktree p1-followup-admission (commit

@@ -95,6 +95,27 @@ dispatch-contract clarified (docs only, no acceptance claimed). Independent secu
 dedicated test (claim committed + control failure never calls adapter) not written, full rerun,
 fresh full browser, merge approval to main (code is NOT on main), P1 closure. No push/deploy.
 
+Update7 2026-10-19 (follow-up admission VERIFIED in development, NOT on main): dev worktree
+/Users/sukhrob/.codex/worktrees/p1-followup-admission/owly head 9d37bc8 (base 7b7942a; commits
+9320fbf, b85e349, 211d903, 9870516, 9d37bc8). Independent security review (read-only subagent,
+ran no checks): no leak/bypass; findings fixed in 9870516 (frozen workspace-bound control reader,
+outer tx timeout margin, notAfter validation, send from admitted row, sequential provider reads in
+session, marker for already-uncertain attempted ops) and test hardening; 'add failed to denied
+action statuses' declined (retryable refusal projects action to failed; real pg-boss retry relies
+on it); hostile-getter copy of authorizer result not done (trusted internal code). Verified:
+tsc/lint exit0; full unit suite 153 files/1519 passed/23 skipped (isolated PG, at 9870516).
+Browser: first full run on 9870516 FAILED at J17 (fixture: synthetic follow-up without saved
+authority correctly refused; harness repair 9d37bc8, lead-only harness review). Fresh FULL browser
+on 9d37bc8 build 4bFB8NhnUvuQzcBn-65Sx (product digest a2a6a427...21a45fb, unchanged vs 9870516),
+fresh DB ziyrak_acceptance_p1_followup_admission_20261019b, Redis prefix ziyrak_acc_p1_followup_adm2:,
+system Chrome via CHROMIUM_PATH: 24/24 PASSED exit0, log /private/tmp/ziyrak-p1-followup-admission-
+browser2.log, J17 screenshot inspected, exact owned stop remainingOwned=[]. Failed-run DB/log
+retained. Stand-in AI, no provider claim. NOT DONE: dispatch-level dedicated placement browser/
+end-to-end (primitive + dispatch-level shared tested); full unit rerun on 9d37bc8 (script-only
+delta). OPEN: owner approval to merge dev line into main; restricted member editor (waits on this
+landing), campaigns/recovery requester/manual webhook retry origin integration, P1 closure, R3
+final cutoff. No push/deploy/tag.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

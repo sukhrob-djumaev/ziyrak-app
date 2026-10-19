@@ -8,6 +8,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { toolRegistry } from "@/lib/tools/registry";
 import "@/lib/tools/builtin";
 import { jobQueue } from "@/lib/jobs/queue";
+import { PgBossJobQueue } from "@/lib/jobs/pgboss-job-queue";
 import { handleSendFollowup } from "@/lib/jobs/handlers/send-followup";
 import { handleRetryDelivery } from "@/lib/jobs/handlers/retry-delivery";
 import {
@@ -870,4 +871,94 @@ describe("P1 erasure racing an admitted follow-up attempt (transport held)", () 
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(sent).toHaveBeenCalledTimes(1);
   });
+});
+
+describe("P1 admission concurrency and fence release", () => {
+  it("two workers racing one follow-up produce exactly one claim and one submission", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    const results = await Promise.allSettled([
+      handleSendFollowup(worker(), queued[0]),
+      handleSendFollowup(worker(), queued[0]),
+    ]);
+    expect(results.some((r) => r.status === "fulfilled")).toBe(true);
+    expect(sent).toHaveBeenCalledTimes(1);
+    const rows = await prisma.deliveryOperation.findMany({
+      where: { operationKey: "followup:" + scheduled.action!.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("accepted");
+    expect(rows[0].attempts).toBe(1);
+  });
+  it("releases both fences before transport: an adapter scoped write cannot deadlock", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    const { getScopedPrisma } = await import("@/lib/tenancy/scoped-prisma");
+    let wrote = false;
+    sent.mockImplementation(async () => {
+      await Promise.race([
+        getScopedPrisma(ctx).toolPolicy.upsert({
+          where: { businessId_tool: { businessId: a.businessId, tool: "schedule_followup" } },
+          create: {
+            businessId: a.businessId,
+            tool: "schedule_followup",
+            enabledForTenant: true,
+            allowedForAI: true,
+            allowedForHumanRoles: ["owner"],
+          },
+          update: { enabledForTenant: true },
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Fence still held during transport")), 5000)
+        ),
+      ]);
+      wrote = true;
+      return { success: true, providerMessageId: "synthetic-fence-released" };
+    });
+    await handleSendFollowup(worker(), queued[0]);
+    expect(wrote).toBe(true);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("P1 real pg-boss retry revocation (isolated queue schema)", () => {
+  it("does not resubmit a refused follow-up after authority is revoked between attempts", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    sent.mockReset();
+    sent
+      .mockResolvedValueOnce({ success: false, outcome: "rejected", retryable: true })
+      .mockResolvedValue({ success: true, providerMessageId: "synthetic-must-not-send" });
+    const schema = "followup_retry_" + randomUUID().replaceAll("-", "");
+    const queue = new PgBossJobQueue(process.env.DATABASE_URL!, { schema });
+    queue.registerHandler(SEND_FOLLOWUP_JOB, handleSendFollowup);
+    const until = async (check: () => Promise<boolean> | boolean, ms: number, what: string) => {
+      const deadline = Date.now() + ms;
+      while (!(await check())) {
+        if (Date.now() > deadline) throw new Error("Timed out waiting for " + what);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    };
+    try {
+      await queue.start();
+      await queue.enqueue(SEND_FOLLOWUP_JOB, queued[0]);
+      await until(() => sent.mock.calls.length === 1, 30_000, "first submission");
+      await disableFollowupPolicy();
+      await until(
+        async () =>
+          (
+            await prisma.actionExecution.findUniqueOrThrow({ where: { id: scheduled.action!.id } })
+          ).errorMessage?.includes("Saved follow-up authority is unavailable") === true,
+        90_000,
+        "revoked retry refusal"
+      );
+      expect(sent).toHaveBeenCalledTimes(1);
+    } finally {
+      await queue.stop();
+      await prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    }
+  }, 150_000);
 });

@@ -2218,7 +2218,7 @@ describe("P1 request-local support text-message read", () => {
     expect(big.status).toBe(200);
     expect((await big.json()).data.length).toBe(3);
     const far = await call("?page=100000000&limit=100");
-    expect(far.status).toBeGreaterThanOrEqual(200);
+    expect(far.status).toBe(403);
     expect(JSON.stringify(await far.json())).not.toMatch(/support-text/);
   });
   it("requires messages:read; conversations:read alone cannot read messages and the reverse", async () => {
@@ -2372,7 +2372,7 @@ describe("P1 request-local support text-message read", () => {
         });
       }
       const response = await readSupportMessages(x);
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBe(404);
       expect(JSON.stringify(await response.json())).not.toMatch(/support-text/);
     }
   );

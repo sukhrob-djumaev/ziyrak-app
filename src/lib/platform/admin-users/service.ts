@@ -44,14 +44,25 @@ interface AdminUserView {
   name: string;
   role: string;
   createdAt: Date;
+  /** Null when the viewer is itself connection-restricted and may not see others' reach. */
+  scope: MemberScopeView | null;
 }
 
-function toView(membership: {
-  id: string;
-  role: string;
-  createdAt: Date;
-  user: { id: string; username: string; name: string };
-}): AdminUserView {
+export type MemberScopeView =
+  | { kind: "workspace" | "unclassified"; customerProfileAccess: string }
+  | { kind: "connections"; customerProfileAccess: string; connectionIds: string[] };
+
+function toView(
+  membership: {
+    id: string;
+    role: string;
+    createdAt: Date;
+    scopeMode?: string;
+    customerProfileAccess?: string;
+    user: { id: string; username: string; name: string };
+  },
+  connectionIds?: string[]
+): AdminUserView {
   return {
     id: membership.id,
     userId: membership.user.id,
@@ -59,6 +70,19 @@ function toView(membership: {
     name: membership.user.name,
     role: membership.role,
     createdAt: membership.createdAt,
+    scope:
+      membership.scopeMode === undefined || !connectionIds
+        ? null
+        : membership.scopeMode === "connections"
+          ? {
+              kind: "connections",
+              customerProfileAccess: membership.customerProfileAccess ?? "none",
+              connectionIds,
+            }
+          : {
+              kind: membership.scopeMode as "workspace" | "unclassified",
+              customerProfileAccess: membership.customerProfileAccess ?? "none",
+            },
   };
 }
 
@@ -79,7 +103,25 @@ export async function list(ctx: TenantContext, params: ListParams) {
     db.membership.count(),
   ]);
 
-  return { users: memberships.map(toView), total };
+  // Scope rows are control-plane resident; only a workspace-wide viewer sees other members' reach.
+  const mayViewScope = effectiveResourceScope(ctx).kind === "workspace";
+  const scopes = mayViewScope
+    ? await prisma.membershipConnectionScope.findMany({
+        where: { businessId: ctx.businessId, membershipId: { in: memberships.map((m) => m.id) } },
+        select: { membershipId: true, connectionId: true },
+      })
+    : [];
+  return {
+    users: memberships.map((m) =>
+      toView(
+        m,
+        mayViewScope
+          ? scopes.filter((row) => row.membershipId === m.id).map((row) => row.connectionId)
+          : undefined
+      )
+    ),
+    total,
+  };
 }
 
 export interface CreateInput {

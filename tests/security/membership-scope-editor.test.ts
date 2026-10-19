@@ -11,6 +11,7 @@ import {
 } from "../helpers/tenant-fixtures";
 import { createRequest } from "../helpers/request";
 import { PUT } from "@/app/api/admin/users/[id]/route";
+import { GET as LIST } from "@/app/api/admin/users/route";
 
 let a: SeededBusiness, b: SeededBusiness;
 let adminId: string, targetUserId: string, targetMembership: string;
@@ -183,5 +184,34 @@ describe("membership scope editor (real route auth/Postgres)", () => {
     const m = await membershipOf(a.businessId, targetUserId);
     expect(m.scopeMode).toBe("connections");
     expect(m.connectionScopes).toHaveLength(0);
+  });
+  it("the list shows each member's reach to a workspace-wide admin but hides it from a restricted admin", async () => {
+    await reset();
+    await put(a.ownerUserId, targetMembership, {
+      scope: { kind: "connections", connectionIds: [connA1], customerProfileAccess: "read" },
+    });
+    const list = async (actor: string) =>
+      (await (
+        await LIST(
+          createRequest("/api/admin/users", { cookies: { "owly-token": generateToken(actor) } })
+        )
+      ).json()) as { data: { id: string; scope: unknown }[] };
+    const seen = (await list(a.ownerUserId)).data.find((u) => u.id === targetMembership);
+    expect(seen?.scope).toEqual({
+      kind: "connections",
+      customerProfileAccess: "read",
+      connectionIds: [connA1],
+    });
+    const restricted = await addMember(a.businessId, "admin", "scope-list-restricted");
+    const rm = await membershipOf(a.businessId, restricted.userId);
+    await prisma.membership.update({
+      where: { id: rm.id },
+      data: { scopeMode: "connections", customerProfileAccess: "none" },
+    });
+    await prisma.membershipConnectionScope.create({
+      data: { businessId: a.businessId, membershipId: rm.id, connectionId: connA1 },
+    });
+    const hidden = (await list(restricted.userId)).data.find((u) => u.id === targetMembership);
+    expect(hidden?.scope).toBeNull();
   });
 });

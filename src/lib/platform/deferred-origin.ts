@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma/raw-client";
 import { ROLES } from "@/lib/rbac/rbac";
 import { scopeFromRecord, scopeIsWithin } from "@/lib/tenancy/resource-scope";
@@ -18,7 +19,15 @@ export interface CurrentDeferredIdentity {
   origin: DeferredIdentityOrigin;
   role: string;
   scope: ResourceScope;
+  /** Present for an API key with an expiry; the admission re-judges it at its final timestamp. */
+  expiresAt?: Date;
 }
+/** Narrow read-only control-plane surface; an admission session binds it to its transaction. */
+export type IdentityReader = {
+  business: Pick<Prisma.TransactionClient["business"], "findFirst">;
+  membership: Pick<Prisma.TransactionClient["membership"], "findFirst">;
+  apiKey: Pick<Prisma.TransactionClient["apiKey"], "findFirst">;
+};
 /** Fresh control-plane facts. Callers still own operation policy, binding and dispatch checks.
  * No original session is replayed: recorded intent survives logout/expiry by owner decision.
  */
@@ -27,9 +36,10 @@ export async function readDeferredIdentity(
   reference:
     | { kind: "membership"; userId: string; membershipId: string }
     | { kind: "api_key"; apiKeyId: string },
-  expected?: DeferredIdentityOrigin
+  expected?: DeferredIdentityOrigin,
+  bound?: IdentityReader
 ): Promise<CurrentDeferredIdentity | null> {
-  return prisma.$transaction(async (tx) => {
+  const read = async (tx: IdentityReader): Promise<CurrentDeferredIdentity | null> => {
     const business = await tx.business.findFirst({
       where: { id: businessId, status: "active" },
       select: { id: true },
@@ -91,13 +101,18 @@ export async function readDeferredIdentity(
       return null;
     // A lookup can wait across the boundary; return no facts for an expired key.
     if (key.expiresAt && key.expiresAt.getTime() <= Date.now()) return null;
-    return { origin, role: key.role, scope };
-  });
+    return { origin, role: key.role, scope, expiresAt: key.expiresAt ?? undefined };
+  };
+  return bound ? read(bound) : prisma.$transaction(read);
 }
 
 /** Active shared control-plane destination metadata; never credentials or tenant data. */
-export async function readDeferredProviderConnection(businessId: string, connectionId: string) {
-  return prisma.channelConnection.findFirst({
+export async function readDeferredProviderConnection(
+  businessId: string,
+  connectionId: string,
+  bound?: { channelConnection: Pick<Prisma.TransactionClient["channelConnection"], "findFirst"> }
+) {
+  return (bound ?? prisma).channelConnection.findFirst({
     where: { id: connectionId, businessId, isActive: true, business: { status: "active" } },
     select: { id: true, type: true },
   });

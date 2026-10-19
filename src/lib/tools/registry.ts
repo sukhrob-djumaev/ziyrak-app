@@ -2,7 +2,13 @@ import { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { hasPermission } from "@/lib/rbac/rbac";
-import type { ActionStatus, ToolDefinition, ToolResult, ToolRuntimeContext } from "./types";
+import type {
+  ActionStatus,
+  ToolDefinition,
+  ToolResult,
+  ToolRuntimeContext,
+  ToolAdmission,
+} from "./types";
 import { resolveEffectiveToolPolicy } from "./policy";
 import { computeIdempotencyKey } from "./idempotency";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
@@ -221,7 +227,14 @@ export class ToolRegistry {
       },
     });
 
-    return this.runAndRecord(ctx, tool, record.id, parsed.data, runtimeCtx);
+    return this.runAndRecord(
+      ctx,
+      tool,
+      record.id,
+      parsed.data,
+      runtimeCtx,
+      ctx.actor.kind === "ai_agent" ? "ai_tool" : "direct_tool"
+    );
   }
 
   /**
@@ -280,7 +293,7 @@ export class ToolRegistry {
         "Another person already handled this action."
       );
 
-    return this.runAndRecord(ctx, tool, record.id, record.input, runtimeCtx);
+    return this.runAndRecord(ctx, tool, record.id, record.input, runtimeCtx, "human_approval");
   }
 
   /** Rejects a `pending_approval` action — no side effect ever ran, so this is purely a status transition. */
@@ -321,7 +334,8 @@ export class ToolRegistry {
     tool: ToolDefinition,
     actionExecutionId: string,
     args: unknown,
-    runtimeCtx: ToolRuntimeContext
+    runtimeCtx: ToolRuntimeContext,
+    admission: ToolAdmission
   ): Promise<ToolResult> {
     const executionCtx: TenantContext = {
       ...ctx,
@@ -343,7 +357,7 @@ export class ToolRegistry {
         data: { status: "running" },
       });
       if (!admitted.count) return cancelled;
-      const result = await tool.execute(executionCtx, args, runtimeCtx);
+      const result = await tool.execute(executionCtx, args, runtimeCtx, admission);
       const saved = await db.actionExecution.updateMany({
         where: { id: actionExecutionId },
         data: {

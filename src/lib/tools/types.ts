@@ -45,6 +45,8 @@ export interface ToolRuntimeContext {
  * is converted to JSON Schema (`schema-json.ts`) for the AI provider's own
  * `tools` field, so the two can never drift apart.
  */
+export type ToolAdmission = "direct_tool" | "ai_tool" | "human_approval";
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -62,5 +64,10 @@ export interface ToolDefinition {
   /** Internal implementation callback. Product callers use ToolRegistry, which
    * owns policy, parent preflight, idempotency and durable action admission.
    */
-  execute(ctx: TenantContext, args: unknown, runtimeCtx: ToolRuntimeContext): Promise<ToolResult>;
+  execute(
+    ctx: TenantContext,
+    args: unknown,
+    runtimeCtx: ToolRuntimeContext,
+    admission?: ToolAdmission
+  ): Promise<ToolResult>;
 }

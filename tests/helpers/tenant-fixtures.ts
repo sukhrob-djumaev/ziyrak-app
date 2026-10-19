@@ -56,6 +56,11 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
       ownerPassword: "not-a-real-login-password",
       ownerName: "Test Owner",
     });
+    const membership = await prisma.membership.findUniqueOrThrow({
+      where: {
+        businessId_userId: { businessId: provisioned.businessId, userId: provisioned.userId },
+      },
+    });
     recordWorkspaceSelection(provisioned.userId, provisioned.businessId);
     return {
       businessId: provisioned.businessId,
@@ -68,6 +73,11 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
         actor: { kind: "user", userId: provisioned.userId },
         dataConnection: "shared-default",
         resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+        authorization: {
+          kind: "membership",
+          userId: membership.userId,
+          membershipId: membership.id,
+        },
       },
     };
   }
@@ -83,7 +93,7 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
   const user = await prisma.user.create({
     data: { username: `owner-${suffix}`, password: passwordHash, name: "Test Owner" },
   });
-  await prisma.membership.create({
+  const membership = await prisma.membership.create({
     data: { businessId: business.id, userId: user.id, role: "owner" },
   });
   recordWorkspaceSelection(user.id, business.id);
@@ -99,6 +109,7 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
       resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+      authorization: { kind: "membership", userId: membership.userId, membershipId: membership.id },
     },
   };
 }
@@ -132,6 +143,11 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
           actor: { kind: "user", userId: membership.userId },
           dataConnection: "shared-default",
           resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+          authorization: {
+            kind: "membership",
+            userId: membership.userId,
+            membershipId: membership.id,
+          },
         },
       };
     }
@@ -154,7 +170,7 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
       name: "Default Owner",
     },
   });
-  await prisma.membership.create({
+  const membership = await prisma.membership.create({
     data: { businessId: business.id, userId: user.id, role: "owner" },
   });
   recordWorkspaceSelection(user.id, business.id);
@@ -170,6 +186,7 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
       resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+      authorization: { kind: "membership", userId: membership.userId, membershipId: membership.id },
     },
   };
 }
@@ -185,7 +202,9 @@ export async function addMember(
   const user = await prisma.user.create({
     data: { username: `${label}-${suffix}`, password: passwordHash, name: `Test ${label}` },
   });
-  await prisma.membership.create({ data: { businessId, userId: user.id, role } });
+  const membership = await prisma.membership.create({
+    data: { businessId, userId: user.id, role },
+  });
   recordWorkspaceSelection(user.id, businessId);
 
   return {
@@ -197,6 +216,7 @@ export async function addMember(
       actor: { kind: "user", userId: user.id },
       dataConnection: "shared-default",
       resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+      authorization: { kind: "membership", userId: membership.userId, membershipId: membership.id },
     },
   };
 }

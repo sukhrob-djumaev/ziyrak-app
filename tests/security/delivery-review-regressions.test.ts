@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
 import { prisma } from "@/lib/prisma/raw-client";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
-import { scheduleFollowupTool } from "@/lib/tools/builtin/schedule-followup";
+import "@/lib/tools/builtin";
+import { toolRegistry } from "@/lib/tools/registry";
+import { authorizeSeededFollowup } from "../helpers/followup-fixtures";
+import { SEND_FOLLOWUP_JOB } from "@/lib/jobs/job-types";
+import type { TenantContext } from "@/lib/tenancy/context";
 import { jobQueue } from "@/lib/jobs/queue";
 import { handleSendFollowup } from "@/lib/jobs/handlers/send-followup";
 import { deleteCustomerData } from "@/lib/customers/gdpr";
@@ -37,6 +41,14 @@ afterAll(async () => {
   vi.restoreAllMocks();
   if (business) await cleanupBusiness(business.businessId);
 });
+function worker(): TenantContext {
+  return {
+    ...business.ctx,
+    role: null,
+    authorization: undefined,
+    actor: { kind: "system_job", jobId: randomUUID(), jobType: SEND_FOLLOWUP_JOB },
+  };
+}
 async function fixture() {
   const customer = await prisma.customer.create({
     data: { businessId: business.businessId, name: "Synthetic private customer" },
@@ -59,10 +71,11 @@ async function fixture() {
       status: "scheduled",
       conversationId: conversation.id,
       input: { message },
-      requestedBy: "ai",
+      requestedBy: business.ownerUserId,
       idempotencyKey,
     },
   });
+  await authorizeSeededFollowup(business.ctx, action.id, conversation.id, connectionId);
   const payload = {
     businessId: business.businessId,
     conversationId: conversation.id,
@@ -86,8 +99,9 @@ describe("independent delivery review regressions (real Postgres, synthetic prov
     });
     const schedule = vi.spyOn(jobQueue, "schedule").mockResolvedValue("synthetic-job");
     try {
-      const result = await scheduleFollowupTool.execute(
+      const result = await toolRegistry.execute(
         business.ctx,
+        "schedule_followup",
         { message: "Follow-up", delayHours: 1 },
         { conversationId: f.conversation.id, idempotencyKey: randomUUID() }
       );
@@ -100,7 +114,7 @@ describe("independent delivery review regressions (real Postgres, synthetic prov
   it("does not recreate cached PII when an erased customer's delayed follow-up becomes due", async () => {
     const f = await fixture();
     await deleteCustomerData(business.ctx, f.customer.id);
-    await handleSendFollowup(business.ctx, f.payload);
+    await handleSendFollowup(worker(), f.payload);
     expect(
       (await prisma.actionExecution.findUniqueOrThrow({ where: { id: f.action.id } })).status
     ).toBe("cancelled");
@@ -306,18 +320,20 @@ describe("independent delivery review regressions (real Postgres, synthetic prov
   it("does not overwrite a terminal human decision with a stale worker status", async () => {
     const f = await fixture();
     const actual = delivery.dispatchDelivery;
-    const dispatch = vi.spyOn(delivery, "dispatchDelivery").mockImplementation(async (ctx, id) => {
-      const stale = await actual(ctx, id);
-      expect(stale.status).toBe("unknown");
-      await delivery.recoverDelivery(business.ctx, id, {
-        decision: "cancel",
-        reason: "Operator completed review",
-        requestId: randomUUID(),
+    const dispatch = vi
+      .spyOn(delivery, "dispatchDelivery")
+      .mockImplementation(async (ctx, id, authorize) => {
+        const stale = await actual(ctx, id, authorize);
+        expect(stale.status).toBe("unknown");
+        await delivery.recoverDelivery(business.ctx, id, {
+          decision: "cancel",
+          reason: "Operator completed review",
+          requestId: randomUUID(),
+        });
+        return stale;
       });
-      return stale;
-    });
     try {
-      await handleSendFollowup(business.ctx, f.payload);
+      await handleSendFollowup(worker(), f.payload);
       expect(
         (await prisma.actionExecution.findUniqueOrThrow({ where: { id: f.action.id } })).status
       ).toBe("cancelled");

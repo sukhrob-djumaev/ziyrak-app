@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TenantContext } from "./context";
 import { AppError } from "@/lib/observability/errors";
-import { readDeferredIdentity } from "@/lib/platform/deferred-origin";
+import { readDeferredIdentity, type IdentityReader } from "@/lib/platform/deferred-origin";
 import { intersectResourceScopes, validateResourceScope } from "./resource-scope";
 
 const id = z.string().min(1).max(128);
@@ -88,12 +88,16 @@ export async function captureDeferredIdentity(
 /** Strict saved identity refresh. Consumers must separately enforce exact job/action/resource
  * bindings and fresh operation policy; these facts cannot be used as TenantContext.
  */
-export async function refreshDeferredIdentity(input: unknown, expectedBusinessId: string) {
+export async function refreshDeferredIdentity(
+  input: unknown,
+  expectedBusinessId: string,
+  bound?: IdentityReader
+) {
   const parsed = snapshot.safeParse(input);
   if (!parsed.success || parsed.data.businessId !== expectedBusinessId) deny();
   const saved = parsed.data;
   try {
-    const current = await readDeferredIdentity(saved.businessId, saved.origin, saved.origin);
+    const current = await readDeferredIdentity(saved.businessId, saved.origin, saved.origin, bound);
     if (!current) deny();
     return { ...current, scope: intersectResourceScopes(current.scope, saved.scope) };
   } catch (error) {

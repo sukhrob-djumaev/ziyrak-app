@@ -40,6 +40,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { SSRFBlockedError } from "@/lib/integrations/http-dispatcher";
 
 let fresh: { businessId: string; userId: string };
+let freshMembershipId: string;
 let other: SeededBusiness;
 const suffix = crypto.randomBytes(4).toString("hex");
 
@@ -50,6 +51,7 @@ function ai(conversationId = "conv"): TenantContext {
     actor: { kind: "ai_agent", conversationId, model: "fake" },
     dataConnection: "shared-default",
     resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+    authorization: { kind: "membership", userId: fresh.userId, membershipId: freshMembershipId },
   };
 }
 function human(role: string): TenantContext {
@@ -59,6 +61,7 @@ function human(role: string): TenantContext {
     actor: { kind: "user", userId: fresh.userId },
     dataConnection: "shared-default",
     resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+    authorization: { kind: "membership", userId: fresh.userId, membershipId: freshMembershipId },
   };
 }
 let toolCall = 0;
@@ -75,6 +78,11 @@ beforeAll(async () => {
     ownerPassword: "a-decent-password",
   });
   fresh = { businessId: provisioned.businessId, userId: provisioned.userId };
+  freshMembershipId = (
+    await prisma.membership.findFirstOrThrow({
+      where: { businessId: fresh.businessId, userId: fresh.userId },
+    })
+  ).id;
 
   // A populated neighbor: team, department, customer history, webhook, tickets.
   other = await seedBusiness("fresh-neighbor");
@@ -163,6 +171,7 @@ describe("default ToolPolicy for a brand-new business (§23.4/§46.7)", () => {
     );
     // ...and it is scoped: the neighbor is unaffected.
     const neighborAi: TenantContext = {
+      ...other.ctx,
       businessId: other.businessId,
       role: null,
       actor: { kind: "ai_agent", conversationId: "c", model: "m" },

@@ -82,13 +82,19 @@ export const DEFAULT_TOOL_POLICIES: Record<string, EffectiveToolPolicy> = {
  * programming error (every tool the registry knows about must have one),
  * never a runtime/tenant-data condition.
  */
-export async function resolveEffectiveToolPolicy(ctx: TenantContext, tool: string): Promise<EffectiveToolPolicy> {
+export async function resolveEffectiveToolPolicy(
+  ctx: TenantContext,
+  tool: string,
+  bound?: Pick<ReturnType<typeof getScopedPrisma>, "toolPolicy">
+): Promise<EffectiveToolPolicy> {
   const fallback = DEFAULT_TOOL_POLICIES[tool];
   if (!fallback) {
-    throw new Error(`No default ToolPolicy registered for tool "${tool}" — every tool must have one (PLAN.md §23.4).`);
+    throw new Error(
+      `No default ToolPolicy registered for tool "${tool}" — every tool must have one (PLAN.md §23.4).`
+    );
   }
 
-  const db = getScopedPrisma(ctx);
+  const db = bound ?? getScopedPrisma(ctx);
   const row = await db.toolPolicy.findUnique({
     where: { businessId_tool: { businessId: ctx.businessId, tool } },
   });

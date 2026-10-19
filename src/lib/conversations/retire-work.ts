@@ -140,7 +140,19 @@ export async function retireConversationWork(
     // erased parents so cascade deletion cannot remove its accountability. It is never a
     // "cancelled" claim of non-submission; the late transport outcome settles it.
     const admitted = await db.deliveryOperation.findMany({
-      where: { AND: [where, { status: "sending", claimToken: { not: null } }] },
+      // In flight (claimed) or already uncertain after a real attempt: either may have reached
+      // the provider, so neither may be relabelled cancelled or cascade-deleted.
+      where: {
+        AND: [
+          where,
+          {
+            OR: [
+              { status: "sending", claimToken: { not: null } },
+              { status: "unknown", attempts: { gt: 0 } },
+            ],
+          },
+        ],
+      },
       select: { id: true, receiptId: true },
     });
     if (admitted.length) {

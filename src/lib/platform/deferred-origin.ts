@@ -23,7 +23,11 @@ export interface CurrentDeferredIdentity {
   expiresAt?: Date;
 }
 /** Narrow read-only control-plane surface; an admission session binds it to its transaction. */
-export type IdentityReader = Pick<Prisma.TransactionClient, "business" | "membership" | "apiKey">;
+export type IdentityReader = {
+  business: Pick<Prisma.TransactionClient["business"], "findFirst">;
+  membership: Pick<Prisma.TransactionClient["membership"], "findFirst">;
+  apiKey: Pick<Prisma.TransactionClient["apiKey"], "findFirst">;
+};
 /** Fresh control-plane facts. Callers still own operation policy, binding and dispatch checks.
  * No original session is replayed: recorded intent survives logout/expiry by owner decision.
  */
@@ -106,7 +110,7 @@ export async function readDeferredIdentity(
 export async function readDeferredProviderConnection(
   businessId: string,
   connectionId: string,
-  bound?: Pick<Prisma.TransactionClient, "channelConnection">
+  bound?: { channelConnection: Pick<Prisma.TransactionClient["channelConnection"], "findFirst"> }
 ) {
   return (bound ?? prisma).channelConnection.findFirst({
     where: { id: connectionId, businessId, isActive: true, business: { status: "active" } },

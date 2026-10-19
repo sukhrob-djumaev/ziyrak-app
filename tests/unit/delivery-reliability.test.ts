@@ -3,6 +3,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 
 const f = vi.hoisted(() => ({
   status: "scheduled",
+  notAfter: undefined as Date | undefined,
   ops: {} as Record<string, Record<string, unknown>>,
   receiptStatus: "enqueued",
   send: vi.fn(),
@@ -143,7 +144,8 @@ vi.mock("@/lib/tools/followup-authority", () => {
       conversationId: string;
       deliveryId?: string;
     }
-  ): Promise<{ context: TenantContext }> => ({
+  ): Promise<{ context: TenantContext; notAfter?: Date }> => ({
+    notAfter: f.notAfter,
     context: {
       ...worker,
       role: null,
@@ -206,6 +208,7 @@ const payload = {
 beforeEach(() => {
   vi.clearAllMocks();
   f.status = "scheduled";
+  f.notAfter = undefined;
   f.ops = {};
   f.receiptStatus = "enqueued";
   f.markReceipt.mockImplementation(async (_ctx, _id, status) => {
@@ -273,6 +276,15 @@ describe("R1 delivery recovery contract", () => {
     await handleSendFollowup(ctx, payload).catch(() => undefined);
     await handleSendFollowup(ctx, payload).catch(() => undefined);
     expect(f.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses an invalid or already-passed expiry as a known unsent outcome", async () => {
+    for (const notAfter of [new Date(Number.NaN), new Date(Date.now() - 1000)]) {
+      f.ops = {};
+      f.notAfter = notAfter;
+      await handleSendFollowup(ctx, payload).catch(() => undefined);
+    }
+    expect(f.send).not.toHaveBeenCalled();
   });
 
   it("does not dispatch again on recovery of an interrupted in-flight send", async () => {

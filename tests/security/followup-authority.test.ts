@@ -962,3 +962,80 @@ describe("P1 real pg-boss retry revocation (isolated queue schema)", () => {
     }
   }, 150_000);
 });
+
+describe("P1 admission failure directions and retired markers (dispatch level)", () => {
+  it("a claim that committed before an admission completion failure never reaches the adapter and stays sending", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    const tenancy = await import("@/lib/tenancy/scoped-prisma"),
+      original = tenancy.withAdmissionSession;
+    const spy = vi.spyOn(tenancy, "withAdmissionSession").mockImplementationOnce((async (
+      ...args: Parameters<typeof original>
+    ) => {
+      await original(...args);
+      throw new Error("admission completion failed after the claim committed");
+    }) as typeof original);
+    try {
+      await handleSendFollowup(worker(), queued[0]).catch(() => {});
+    } finally {
+      spy.mockRestore();
+    }
+    expect(sent).not.toHaveBeenCalled();
+    const op = await prisma.deliveryOperation.findFirstOrThrow({
+      where: { operationKey: "followup:" + scheduled.action!.id },
+    });
+    expect(op.status).toBe("sending");
+    expect(op.attempts).toBe(1);
+    expect(op.claimToken).not.toBeNull();
+  });
+  it("redacts every private column of a retired marker and refuses a queued retry of it", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    let release!: () => void, entered!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve)),
+      reached = new Promise<void>((resolve) => (entered = resolve));
+    sent.mockImplementation(async () => {
+      entered();
+      await hold;
+      return { success: false, outcome: "unknown" };
+    });
+    const pending = handleSendFollowup(worker(), queued[0]);
+    await reached;
+    const { remove } = await import("@/lib/conversations/service");
+    await remove(ctx, c.row.id);
+    const marker = await prisma.deliveryOperation.findFirstOrThrow({
+      where: { operationKey: "followup:" + scheduled.action!.id },
+    });
+    expect(marker.metadata).toEqual({});
+    expect(marker.recoveryLog).toEqual([]);
+    expect(marker.response).toBe("[REDACTED - GDPR]");
+    release();
+    await pending.catch(() => {});
+    await handleRetryDelivery(worker(), { businessId: a.businessId, deliveryId: marker.id });
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a marker for an already-uncertain attempted operation instead of cancelling or deleting it", async () => {
+    const c = await conversation(),
+      scheduled = await submit(c);
+    expect(scheduled.result.status).toBe("scheduled");
+    sent.mockResolvedValue({ success: false, outcome: "unknown" });
+    await handleSendFollowup(worker(), queued[0]);
+    const before = await prisma.deliveryOperation.findFirstOrThrow({
+      where: { operationKey: "followup:" + scheduled.action!.id },
+    });
+    expect(before).toMatchObject({ status: "unknown", attempts: 1 });
+    const { remove } = await import("@/lib/conversations/service");
+    await remove(ctx, c.row.id);
+    const after = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: before.id } });
+    expect(after).toMatchObject({
+      status: "unknown",
+      conversationId: null,
+      actionId: null,
+      recipient: "",
+    });
+    expect(after.retiredAt).not.toBeNull();
+    expect(after.response).toBe("[REDACTED - GDPR]");
+  });
+});

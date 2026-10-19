@@ -70,16 +70,13 @@ describe("dedicated admission session", () => {
       const dataWriter = db.conversation.create({
         data: { channel: "webchat", businessId: moved.businessId },
       });
-      const controlWriter = getScopedPrisma({ ...moved.ctx }).toolPolicy.upsert({
-        where: { businessId_tool: { businessId: moved.businessId, tool: "schedule_followup" } },
-        create: {
-          businessId: moved.businessId,
-          tool: "schedule_followup",
-          enabledForTenant: false,
-          allowedForAI: true,
-          allowedForHumanRoles: ["owner"],
-        },
-        update: { enabledForTenant: false },
+      // membership is control-plane resident: this writer only waits on the control fence.
+      const member = await prisma.membership.findFirstOrThrow({
+        where: { businessId: moved.businessId },
+      });
+      const controlWriter = getScopedPrisma(dedicatedCtx).membership.update({
+        where: { id: member.id },
+        data: { role: member.role },
       });
       expect(await blocked(dataWriter)).toBe(true);
       expect(await blocked(controlWriter)).toBe(true);
@@ -98,7 +95,9 @@ describe("dedicated admission session", () => {
         ? withAdmissionSession(dedicatedCtx, async (s) => {
             await s.repository(dedicatedCtx).conversation.count();
           })
-        : db.conversation.create({ data: { channel: "webchat", businessId: moved.businessId } })
+        : i % 4
+          ? db.conversation.create({ data: { channel: "webchat", businessId: moved.businessId } })
+          : db.membership.updateMany({ where: {}, data: { role: "owner" } })
     );
     const outcome = await Promise.race([
       Promise.allSettled(work),

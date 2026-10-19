@@ -295,6 +295,11 @@ export async function dispatchDelivery(
         const next = await authorize(ctx, binding, session);
         admitted = validateAdmitted(next, binding);
         notAfter = next.notAfter;
+        if (
+          notAfter !== undefined &&
+          (!(notAfter instanceof Date) || Number.isNaN(notAfter.getTime()))
+        )
+          throw new AppError(403, "INVALID_FOLLOWUP_AUTHORITY", "Invalid follow-up authority");
       } catch (error) {
         return { kind: "refused" as const, error };
       }
@@ -322,7 +327,7 @@ export async function dispatchDelivery(
         },
       });
       if (!claimed.count) return { kind: "busy" as const };
-      return { kind: "admitted" as const, context: admitted };
+      return { kind: "admitted" as const, context: admitted, row };
     }).catch((error) => ({ kind: "unavailable" as const, error }));
     if (admission.kind === "busy")
       throw new DeliveryBusyError("Dispatch claim was taken by another worker.");
@@ -341,6 +346,14 @@ export async function dispatchDelivery(
       return db.deliveryOperation.findUniqueOrThrow({ where: { id } });
     }
     submissionCtx = admission.context;
+    // Transport uses exactly the row whose authority and destination were admitted.
+    op = { ...admission.row, status: "sending" };
+    if (op.response === null)
+      throw new AppError(
+        409,
+        "NO_SAVED_REPLY",
+        "No completed reply exists; review the conversation."
+      );
   } else {
     try {
       await validateDeliveryDestination(submissionCtx, op);

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // here deliberately; an unclassified one fails closed until it is inspected.
 const root = join(__dirname, "../..", "src");
 const WRITE =
-  /\b(membership|apiKey|business|channelConnection|toolPolicy|user|session|membershipConnectionScope|apiKeyConnectionScope)\.(update|updateMany|delete|deleteMany|upsert|create|createMany)\(/g;
+  /\b(membership|apiKey|business|channelConnection|toolPolicy|user|session|membershipConnectionScope|apiKeyConnectionScope)\.(update|updateMany|updateManyAndReturn|delete|deleteMany|upsert|create|createMany|createManyAndReturn)\(/g;
 /** Fenced: scoped repository mutations (every one takes lockTenantWrites). */
 const FENCED = new Set([
   "app/api/channels/email/route.ts",
@@ -29,7 +29,18 @@ const PLATFORM = new Set([
   "lib/platform/provisioning.ts",
 ]);
 const FORBIDDEN_FOR_EXISTING =
-  /\b(membership|business)\.(update|updateMany|delete|deleteMany|upsert)\(/;
+  /\b(membership|business)\.(update|updateMany|updateManyAndReturn|delete|deleteMany|upsert)\(/;
+/** Every file that issues raw SQL is pinned: raw SQL bypasses the repositories and their fence,
+ * so a new one must be reviewed (and either fenced or classified here) before it lands.
+ */
+const RAW_SQL = [
+  "app/api/health/route.ts",
+  "lib/platform/access/authority.ts",
+  "lib/platform/dedicated-database.ts",
+  "lib/platform/username-reservation.ts",
+  "lib/tenancy/scoped-prisma.ts",
+  "lib/tenancy/work-lifecycle.ts",
+];
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -48,11 +59,20 @@ describe("authority-reducing writer inventory", () => {
     const unclassified = [...found.keys()].filter((f) => !FENCED.has(f) && !PLATFORM.has(f));
     expect(unclassified).toEqual([]);
   });
+  it("pins every file that issues raw SQL", () => {
+    const raw = files(root)
+      .filter((path) => /\$(executeRaw|queryRaw)(Unsafe)?\b/.test(readFileSync(path, "utf8")))
+      .map((path) => relative(root, path))
+      .sort();
+    expect(raw).toEqual([...RAW_SQL].sort());
+  });
   it("fenced writers use the scoped repository, never a raw client", () => {
     for (const file of FENCED) {
       const text = found.get(file) ?? "";
       expect(text, file).toMatch(/getScopedPrisma/);
-      expect(text, file).not.toMatch(/raw-client/);
+      expect(text, file).not.toMatch(
+        /raw-client|from "@\/lib\/prisma"|\$transaction\(\s*async \(tx\)\s*=>\s*\{[^}]*prisma\./
+      );
     }
   });
   it("has no application membership/workspace mutation outside the fenced set", () => {

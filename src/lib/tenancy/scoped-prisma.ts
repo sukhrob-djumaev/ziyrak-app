@@ -310,11 +310,31 @@ function buildScopedClient(client: ReturnType<typeof getDataPlaneClient>, ctx: T
 
 export type ScopedPrisma = ReturnType<typeof getScopedPrisma>;
 
-/** Narrow control-plane readers bound to the admission's control transaction. */
-export type AdmissionControlReader = Pick<
-  Prisma.TransactionClient,
-  "business" | "membership" | "apiKey" | "channelConnection"
->;
+/** Narrow control-plane readers bound to the admission's control transaction: `findFirst`
+ * only, with the session's workspace injected so a reader cannot cross workspaces.
+ */
+export type AdmissionControlReader = {
+  business: Pick<Prisma.TransactionClient["business"], "findFirst">;
+  membership: Pick<Prisma.TransactionClient["membership"], "findFirst">;
+  apiKey: Pick<Prisma.TransactionClient["apiKey"], "findFirst">;
+  channelConnection: Pick<Prisma.TransactionClient["channelConnection"], "findFirst">;
+};
+function controlReader(tx: Prisma.TransactionClient, businessId: string): AdmissionControlReader {
+  const only = (delegate: object, field: "id" | "businessId") =>
+    Object.freeze({
+      findFirst: (args: { where?: object } = {}) =>
+        (delegate as { findFirst: (a: unknown) => unknown }).findFirst({
+          ...args,
+          where: { AND: [args.where ?? {}, { [field]: businessId }] },
+        }),
+    });
+  return Object.freeze({
+    business: only(tx.business, "id"),
+    membership: only(tx.membership, "businessId"),
+    apiKey: only(tx.apiKey, "businessId"),
+    channelConnection: only(tx.channelConnection, "businessId"),
+  }) as unknown as AdmissionControlReader;
+}
 /** Short local sending-admission session (PLAN P1 follow-up admission contract). Both
  * workspace write fences are held for its whole life, so authority-reducing writers wait
  * behind it. No provider call, raw SQL, client escape or nested transaction belongs here.
@@ -325,7 +345,18 @@ export interface AdmissionSession {
   /** Control-plane readers bound to the control transaction (the same one when shared). */
   control: AdmissionControlReader;
 }
-const ADMISSION_TX = { isolationLevel: "ReadCommitted", maxWait: 15_000, timeout: 30_000 } as never;
+// The outer (control) transaction outlives the inner (data) one, so an inner timeout is
+// reported before the outer one can expire mid-commit.
+const ADMISSION_INNER_TX = {
+  isolationLevel: "ReadCommitted",
+  maxWait: 15_000,
+  timeout: 30_000,
+} as never;
+const ADMISSION_OUTER_TX = {
+  isolationLevel: "ReadCommitted",
+  maxWait: 15_000,
+  timeout: 45_000,
+} as never;
 /** Acquire the control-plane fence first and the data-plane fence second. For shared
  * placement one transaction serves both (a second advisory lock would self-deadlock);
  * for dedicated placement the control fence is retained through the data-plane commit.
@@ -338,7 +369,7 @@ export async function withAdmissionSession<T>(
   const dedicated = client !== sharedClient;
   const open = (control: Prisma.TransactionClient, data: Prisma.TransactionClient) =>
     run({
-      control,
+      control: controlReader(control, ctx.businessId),
       repository(scoped) {
         effectiveResourceScope(scoped);
         if (scoped.businessId !== ctx.businessId || scoped.dataConnection !== ctx.dataConnection)
@@ -367,12 +398,12 @@ export async function withAdmissionSession<T>(
     return sharedClient.$transaction(async (tx) => {
       await lockTenantWrites(tx, ctx.businessId);
       return open(tx, tx);
-    }, ADMISSION_TX);
+    }, ADMISSION_INNER_TX);
   return sharedClient.$transaction(async (control) => {
     await lockTenantWrites(control, ctx.businessId);
     return client.$transaction(async (data) => {
       await lockTenantWrites(data, ctx.businessId);
       return open(control, data);
-    }, ADMISSION_TX);
-  }, ADMISSION_TX);
+    }, ADMISSION_INNER_TX);
+  }, ADMISSION_OUTER_TX);
 }

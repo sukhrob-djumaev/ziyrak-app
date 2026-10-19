@@ -54,8 +54,8 @@ async function validate(
     deny();
   const db = session ? session.repository(ctx) : getScopedPrisma(ctx),
     origin = saved.origin;
-  const [receipt, delivery, conversation, connection] = await Promise.all([
-    db.inboundEventReceipt.findFirst({ where: { id: origin.receiptId } }),
+  const readReceipt = () => db.inboundEventReceipt.findFirst({ where: { id: origin.receiptId } });
+  const readDelivery = () =>
     db.deliveryOperation.findFirst({
       where: { id: origin.deliveryOperationId },
       select: {
@@ -71,13 +71,29 @@ async function validate(
         status: true,
         retiredAt: true,
       },
-    }),
+    });
+  const readConversation = () =>
     db.conversation.findFirst({
       where: { id: origin.conversationId },
       select: { id: true, channel: true, customerContact: true, metadata: true, retiredAt: true },
-    }),
-    readDeferredProviderConnection(ctx.businessId, origin.connectionId, session?.control),
-  ]);
+    });
+  const readConnection = () =>
+    readDeferredProviderConnection(ctx.businessId, origin.connectionId, session?.control);
+  // One interactive transaction serves a session: read sequentially so no query can outlive
+  // the callback; without a session the independent reads stay concurrent.
+  let receipt, delivery, conversation, connection;
+  if (session) {
+    receipt = await readReceipt();
+    delivery = await readDelivery();
+    conversation = await readConversation();
+    connection = await readConnection();
+  } else
+    [receipt, delivery, conversation, connection] = await Promise.all([
+      readReceipt(),
+      readDelivery(),
+      readConversation(),
+      readConnection(),
+    ]);
   if (
     !receipt ||
     !delivery ||

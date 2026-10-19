@@ -53,6 +53,26 @@ async function openEdit(owner, username) {
         ",now())"
     );
     L.assert(a && kept && keptType, "Workspace and a pre-existing connection exist");
+    // One conversation per channel type (controlled DB prerequisite) to observe scope in the API.
+    const convKept = randomUUID(),
+      convOther = randomUUID();
+    for (const [id, channel, owner] of [
+      [convKept, keptType, kept],
+      [convOther, otherType, other],
+    ])
+      L.sql(
+        'INSERT INTO "Conversation" (id,"businessId",channel,"customerName",metadata,"updatedAt") VALUES (' +
+          [
+            id,
+            a,
+            channel,
+            "J25 customer " + channel,
+            JSON.stringify({ channelConnectionId: owner }),
+          ]
+            .map(quote)
+            .join(",") +
+          ",now())"
+      );
     // Provision a member through the real UI.
     const member = {
       username: `j25_agent_${suffix}`,
@@ -104,13 +124,13 @@ async function openEdit(owner, username) {
     await owner.waitForFunction(
       () => document.querySelectorAll('fieldset input[type="checkbox"]').length >= 2
     );
-    await owner.evaluate(() => {
+    await owner.evaluate((name) => {
       // Grant exactly the second channel, picked by its visible label.
       const label = [...document.querySelectorAll("fieldset label")].find((l) =>
-        l.textContent.includes("J25 second channel")
+        l.textContent.includes(name)
       );
       label.querySelector('input[type="checkbox"]').click();
-    });
+    }, "J25 second channel " + suffix);
     await owner.evaluate(() => {
       const select = document.querySelectorAll(".fixed select")[1];
       select.value = "none";
@@ -140,8 +160,8 @@ async function openEdit(owner, username) {
       L.sql(
         'SELECT "scopeMode"||\'/\'||"customerProfileAccess" FROM "Membership" WHERE id=' +
           quote(created.id)
-      ) === "connections/none" && scopeRows.split(",").length === 1,
-      "Stored scope is connections/none with exactly one connection"
+      ) === "connections/none" && scopeRows === other,
+      "Stored scope is connections/none with exactly the chosen connection"
     );
     // Reopen: the dialog shows what was saved.
     await openEdit(owner, member.username);
@@ -167,18 +187,18 @@ async function openEdit(owner, username) {
       page.waitForNavigation({ waitUntil: "load" }),
       page.click('button[type="submit"]'),
     ]);
-    const visible = await page.evaluate(async () => {
-      const r = await fetch("/api/channels", { cache: "no-store" });
-      return { status: r.status, body: r.ok ? await r.json() : null };
-    });
-    L.assert(visible.status === 200, "Restricted member can read their channel list");
-    // The channel list pads every type with an id-less placeholder; only real connections count.
-    const ids = visible.body.map((c) => c.id).filter(Boolean);
+    const listConversations = () =>
+      page.evaluate(async () => {
+        const r = await fetch("/api/conversations?limit=100", { cache: "no-store" });
+        return { status: r.status, body: r.ok ? await r.json() : null };
+      });
+    const visible = await listConversations();
+    L.assert(visible.status === 200, "Restricted member can read their conversations");
+    const seen = (visible.body?.data ?? []).map((c) => c.id);
     L.assert(
-      ids.length === 1 && ids[0] === scopeRows && scopeRows === other,
-      "Restricted member sees exactly the granted real connection"
+      seen.includes(convOther) && !seen.includes(convKept),
+      "Restricted member sees the granted channel's conversation and not the excluded one"
     );
-    L.assert(!ids.includes(other), "Excluded channel is not visible to the restricted member");
     // Widen back through the UI and confirm the member's reach follows without code changes.
     await openEdit(owner, member.username);
     await owner.evaluate(() => document.querySelectorAll('input[name="access-kind"]')[0].click());
@@ -197,14 +217,11 @@ async function openEdit(owner, username) {
       {},
       member.username
     );
-    const widened = await page.evaluate(async () =>
-      (await (await fetch("/api/channels", { cache: "no-store" })).json())
-        .map((c) => c.id)
-        .filter(Boolean)
-    );
+    const wide = await listConversations();
+    const widened = (wide.body?.data ?? []).map((c) => c.id);
     L.assert(
-      widened.length > ids.length && widened.includes(other) && widened.includes(kept),
-      "Whole-workspace scope restores the member's wider channel reach"
+      wide.status === 200 && widened.includes(convOther) && widened.includes(convKept),
+      "Whole-workspace scope restores the member's reach to both channels"
     );
     await L.shot(owner, "j25-access-widened");
     L.assert(

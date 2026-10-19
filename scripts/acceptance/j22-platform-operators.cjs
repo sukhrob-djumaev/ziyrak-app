@@ -519,6 +519,9 @@ async function clickMutation(page, selector, label, endpoint = "/api/platform/op
       "Second-tab support grant revocation",
       "/api/platform/support-grants"
     );
+    // The second tab hides this one; a hidden tab pauses requestAnimationFrame, which the
+    // alert waits below poll on. Bring the observing tab back before it acts.
+    await operator.bringToFront();
     const revokedMessages = messagesResponse();
     await operator.evaluate(() =>
       [...document.querySelectorAll("#limitedSupportMessages button")]

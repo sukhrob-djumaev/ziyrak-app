@@ -186,3 +186,17 @@ Findings and proposal: docs/p1-delayed-work-origin-proposal-2026-10-19.md (campa
 CampaignRun migration, awaiting owner approval, rule 11). Closure matrix:
 docs/p1-closure-matrix-2026-10-19.md. Dev worktree p1-delayed-origin (at ab17c20, no code yet).
 Next: restricted member editor (no approval needed) while the proposal waits. No pushes.
+
+## Update10 (2026-10-19, restricted member editor)
+
+Dev worktree p1-delayed-origin (head 5e572ad on top of main ab17c20; commits 9324552 editor
+backend, 99cf0bb UI, 9266e7a J25 journey, 5e572ad review fixes). Editor: PUT /api/admin/users/[id]
+accepts `scope` (workspace|connections, connectionIds, customerProfileAccess default none); raw
+control-plane transaction under lockTenantWrites; target + acting admin re-read under the fence;
+no self/owner edits; grant ceiling = actor's profile access; list shows scope only to
+workspace-wide viewers. Independent read-only security review: no access-widening path found;
+three findings fixed with tests first. Unit evidence on 5e572ad: tsc/lint clean, 154 files / 1532
+passed / 23 skipped (clean npm ci in the worktree; main's node_modules makes 3 patched-dependency
+tests fail, pre-existing). Frozen build + full browser run (25 journeys incl. J25) in progress,
+DB ziyrak_acceptance_p1_editor_20261019a. Not merged. Delayed-work proposal still awaits owner
+approval (campaign CampaignRun migration; webhook retry recheck or waiver).

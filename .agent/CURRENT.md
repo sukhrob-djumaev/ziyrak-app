@@ -29,6 +29,22 @@ full-suite rerun on d7eba31 (tests only change), J22 browser, fresh full browser
 touch live 7700, acceptance or user DBs. Leftover DB ziyrak_test_support_msgs_20261019
 (pre-existing, unknown owner) untouched.
 
+Update2 2026-10-19 (support text-message read, candidate d7eba31, product digest
+ef9db79c95abd4f467879ce7a9c3d9270a8928d7276793ea3cf63e0a81f20ef3 same as bb45ed8): tsc/lint
+exit0; full unit suite 150 files/1478 passed/23 skipped on isolated PG; fresh FULL browser
+24/24 PASSED incl. J19 (Redis 6381, prefix ziyrak_acc_p1_support_r3:) and J22 text-message view,
+build thvv7QyOM4jCGfIRWYUEY, DB ziyrak_acceptance_p1_support_msgs_20261019r3, work dir
+/private/tmp/ziyrak-p1-support-msgs-work-r3, log /private/tmp/ziyrak-p1-support-msgs-full-r4.log.
+Deviation: headless system Google Chrome via CHROMIUM_PATH (puppeteer Chrome 148 not installed,
+download failed); isolated profiles. Screenshots j22-support-text-messages/-messages-revoked
+inspected OK. Stand-in AI, no provider/delivery claim. Exact owned stop, remainingOwned=[].
+Earlier attempts r2/r3 (no Redis; J01 browser-missing, J19 no REDIS_URL) are not passes. Stale
+15:23 topology (PIDs 83211/83369/83457/9376) stopped with user approval. Failed/old DBs retained.
+Independent review lead-only for harness; security review independent. NEXT: independent
+review of full-diff 72873e3..d7eba31 not needed beyond done; remaining: user decision to merge
+dev commits (d1b81a4, 2a07191, bb45ed8, d7eba31) into main, then next eligible P1 task
+(restricted member editor waits delayed lifecycle). No push/merge/deploy/tag/new phase.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

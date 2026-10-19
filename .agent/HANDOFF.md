@@ -1,16 +1,11 @@
 # Latest session (2026-10-19)
 
-PG blocker cleared. On dev worktree bb45ed8 with fresh migrated DB: support tests 129/129,
-full suite 150 files/1478 passed/23 skipped. Independent security review done (no leak; contract wording clarified; tests tightened, dev d7eba31); J22/full browser
-and build still open. No product code changed on main.
+Support text-message read verified on d7eba31: tsc/lint ok, unit 150 files/1478 passed, independent
+security review (no leak; contract wording clarified, tests tightened), fresh Redis-backed full
+browser 24/24 incl. J22, screenshots inspected, owned topology stopped. Dev commits d1b81a4,
+2a07191, bb45ed8, d7eba31 sit on a detached dev worktree, NOT on main. Continue: get approval to
+integrate them into main; then next eligible P1 task.
 
-# Latest session (2026-10-17)
-
-Reconciled stale state: dev worktree already has support text-message read tests (d1b81a4),
-implementation (2a07191), gate tests + J22 extension (bb45ed8). Verified tsc and lint pass.
-DB-backed tests blocked: Docker Postgres 5432 hangs at handshake. No code changed on main;
-only contract rate-limit-key clarification (360da65). Continue at: restore PG, run support
-tests, review, J22/full browser. Prior Settings history below.
 
 # Settings full regression failure
 

@@ -82,6 +82,19 @@ the fence (scoped-prisma mutations already fenced; list non-scoped writers e.g. 
 (4) PLAN/§8,15,24,25,31,33 + dispatch-contract doc clarifications; (5) independent security
 review, full regressions, fresh full browser. P1 stays open; no push/merge/deploy.
 
+Update6 2026-10-19: admission dev worktree now at 211d903 (3 commits over 7b7942a). Added:
+sanitized retired-marker for admitted in-flight attempts (redacted, detached, 'unknown', late
+outcome settles via retirement ctx; recovery/list/resend refuse retired), writer-inventory test
+(authority-reducing writers all via fenced scoped repo; no app membership/suspension writer yet),
+two-worker one-claim, adapter-scoped-write fence release, dedicated session lock order/no
+deadlock/both commit-failure directions (primitive level), real pg-boss retry revocation.
+Verified on isolated DBs: followup-authority 28 tests, admission-session-dedicated 5, full suite
+at b85e349 151 files/1503 passed/23 skipped (211d903 adds tests; full rerun pending). PLAN and
+dispatch-contract clarified (docs only, no acceptance claimed). Independent security review of
+7b7942a..211d903 delegated read-only, result pending. STILL OPEN: review findings, dispatch-level
+dedicated test (claim committed + control failure never calls adapter) not written, full rerun,
+fresh full browser, merge approval to main (code is NOT on main), P1 closure. No push/deploy.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

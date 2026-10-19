@@ -79,3 +79,18 @@ independent implementation security review and a fresh full browser run after wi
 Recovery requester, campaigns and manual webhook retry need their own origin
 producer/consumer integration. Accepting the follow-up boundary alone cannot close
 P1 delayed-work acceptance, support activation or deployment readiness.
+
+## Amendment 2026-10-19: single sending admission
+
+Per the owner-approved [admission proposal](p1-followup-admission-proposal-2026-10-15.md),
+the two-step "check before claim and again before the adapter" is replaced by one
+sending admission. The `AuthorizeFollowupSubmission` seam now receives a short admission
+session (bound readers under the control then data workspace fences) and returns the
+constrained context plus the earliest expiry of the facts used. Delivery validates the
+returned context, judges that expiry at its final decision timestamp, commits the claim and
+only then invokes transport. A change committed before the claim blocks sending; one after
+it cannot recall the admitted attempt. A retired in-flight admitted attempt keeps a
+sanitized unresolved marker (never `cancelled`, never recoverable or resendable) that the
+late transport outcome settles without restoring content. Status: implemented and
+unit/real-Postgres tested in development; independent review, full regressions and a fresh
+full browser run remain open, so P1 delayed-work acceptance is not closed.

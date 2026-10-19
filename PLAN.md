@@ -263,7 +263,10 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   stale/revoked membership, expired support access and scope widening through API keys.
   Restricted users cannot recover excluded channel data through related resources,
   counts/search/exports, attachments or realtime. Recheck revocation for long-lived
-  subscriptions and delayed user-initiated work; system jobs retain only their defined
+  subscriptions and delayed user-initiated work (for delayed sending, "before sending" means
+  before the durable local sending admission commits; see the approved
+  [follow-up admission clarification](docs/p1-followup-admission-proposal-2026-10-15.md));
+  system jobs retain only their defined
   operation, not a reusable human support grant. Define safe defaults for existing
   full-workspace memberships and new restricted assignments; unknown scope fails closed.
 - **Verification:** tests first for authorization/isolation regressions; real isolated
@@ -381,6 +384,13 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   expiry): desired realPG result3failed/10passed. P1 remains open; coherent admission
   and its cancellation cutoff need the documented rule11 clarification before
   implementation. See [proposal](docs/p1-followup-admission-proposal-2026-10-15.md).
+  **Owner approved that proposal on 2026-10-19** (bounded local implementation and tests
+  only). Implementation is in progress in an isolated development worktree; P1 and all
+  its criteria remain open. Admission ordering also clarifies §§8/15 (revocation/
+  lifecycle: a change committed before admission blocks sending, one after it cannot
+  recall the admitted attempt), §24 (saved action authority is refreshed under the
+  fences), §§25/31 (claim then transport; a failed claim is unsent, an unknown commit
+  outcome is never permission to resend) and §33 (race tests).
 
 - **Support query prerequisite (2026-10-15):** code c78a1ff: explicit scalar
   conversation-list

@@ -12,6 +12,7 @@ import {
 import { createRequest } from "../helpers/request";
 import { PUT } from "@/app/api/admin/users/[id]/route";
 import { GET as LIST } from "@/app/api/admin/users/route";
+import * as adminUsers from "@/lib/platform/admin-users/service";
 
 let a: SeededBusiness, b: SeededBusiness;
 let adminId: string, targetUserId: string, targetMembership: string;
@@ -213,5 +214,56 @@ describe("membership scope editor (real route auth/Postgres)", () => {
     });
     const hidden = (await list(restricted.userId)).data.find((u) => u.id === targetMembership);
     expect(hidden?.scope).toBeNull();
+  });
+  it("an omitted customer-profile capability stores none, never write", async () => {
+    await reset();
+    const r = await put(a.ownerUserId, targetMembership, {
+      scope: { kind: "connections", connectionIds: [connA1] },
+    });
+    expect(r.status).toBe(200);
+    expect((await membershipOf(a.businessId, targetUserId)).customerProfileAccess).toBe("none");
+    const w = await put(a.ownerUserId, targetMembership, { scope: { kind: "workspace" } });
+    expect(w.status).toBe(200);
+    expect((await membershipOf(a.businessId, targetUserId)).customerProfileAccess).toBe("none");
+  });
+  it("an admin cannot grant a profile capability above their own", async () => {
+    await reset();
+    const actor = await addMember(a.businessId, "admin", "scope-profile-read-admin");
+    await prisma.membership.update({
+      where: { businessId_userId: { businessId: a.businessId, userId: actor.userId } },
+      data: { customerProfileAccess: "read" },
+    });
+    for (const grant of ["write"]) {
+      const r = await put(actor.userId, targetMembership, {
+        scope: { kind: "workspace", customerProfileAccess: grant },
+      });
+      expect(r.status).toBe(403);
+    }
+    const ok = await put(actor.userId, targetMembership, {
+      scope: { kind: "workspace", customerProfileAccess: "read" },
+    });
+    expect(ok.status).toBe(200);
+  });
+  it("the acting admin's authority is re-read under the fence, not trusted from request start", async () => {
+    await reset();
+    const actor = await addMember(a.businessId, "admin", "scope-stale-actor");
+    const ctx = {
+      businessId: a.businessId,
+      role: "admin",
+      actor: { kind: "user" as const, userId: actor.userId },
+      dataConnection: "shared-default",
+      resourceScope: { kind: "workspace" as const, customerProfileAccess: "write" as const },
+    };
+    // Revoked after the request was authenticated, before the write commits.
+    await prisma.membership.update({
+      where: { businessId_userId: { businessId: a.businessId, userId: actor.userId } },
+      data: { role: "viewer" },
+    });
+    await expect(
+      adminUsers.update(ctx as never, targetMembership, {
+        scope: { kind: "connections", connectionIds: [connA1] },
+      })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect((await membershipOf(a.businessId, targetUserId)).scopeMode).toBe("workspace");
   });
 });

@@ -189,7 +189,7 @@ function parseRequestedScope(input: unknown): RequestedScope {
   const invalid = () => new AppError(400, "VALIDATION_ERROR", "Invalid access scope");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
   const raw = input as Record<string, unknown>;
-  const profile = raw.customerProfileAccess ?? "write";
+  const profile = raw.customerProfileAccess ?? "none";
   if (profile !== "none" && profile !== "read" && profile !== "write") throw invalid();
   const allowed =
     raw.kind === "workspace"
@@ -257,6 +257,33 @@ export async function update(ctx: TenantContext, membershipId: string, input: Up
   // and scope change together or not at all and cannot race an admission or another editor.
   await prisma.$transaction(async (tx) => {
     await lockTenantWrites(tx, ctx.businessId);
+    // The acting admin's own authority is judged here, under the fence, not from request start.
+    const actorNow = actorUserId
+      ? await tx.membership.findFirst({
+          where: { businessId: ctx.businessId, userId: actorUserId },
+        })
+      : null;
+    if (
+      !actorNow ||
+      !hasPermission(actorNow.role, "admin:update") ||
+      actorNow.scopeMode !== "workspace"
+    )
+      throw new AppError(
+        403,
+        "FORBIDDEN",
+        "Team access management requires workspace-wide human authority"
+      );
+    const rank = { none: 0, read: 1, write: 2 } as const;
+    if (
+      requestedScope &&
+      rank[requestedScope.customerProfileAccess] >
+        rank[actorNow.customerProfileAccess as keyof typeof rank]
+    )
+      throw new AppError(
+        403,
+        "FORBIDDEN",
+        "Cannot grant more customer-profile access than you hold"
+      );
     const fresh = await tx.membership.findFirst({
       where: { id: membershipId, businessId: ctx.businessId },
     });

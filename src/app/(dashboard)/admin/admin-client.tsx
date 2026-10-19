@@ -143,6 +143,7 @@ export default function AdminClient({
     connectionIds: string[];
     profile: "none" | "read" | "write";
   }>({ kind: "workspace", connectionIds: [], profile: "write" });
+  const accessInitial = useRef("");
   const [connectionOptions, setConnectionOptions] = useState<ConnectionOption[]>([]);
   const [savingUser, setSavingUser] = useState(false);
   const [userError, setUserError] = useState("");
@@ -297,13 +298,20 @@ export default function AdminClient({
     setUserError("");
     if (user?.scope) {
       // "unclassified" has no editor shape: start from the safest explicit choice.
-      setAccessForm({
-        kind: user.scope.kind === "connections" ? "connections" : "workspace",
+      const initial = {
+        kind: (user.scope.kind === "connections" ? "connections" : "workspace") as
+          | "workspace"
+          | "connections",
         connectionIds: user.scope.kind === "connections" ? user.scope.connectionIds : [],
         profile: ["none", "read", "write"].includes(user.scope.customerProfileAccess)
           ? (user.scope.customerProfileAccess as "none" | "read" | "write")
-          : "none",
-      });
+          : ("none" as const),
+      };
+      accessInitial.current =
+        user.scope.kind === "unclassified"
+          ? ""
+          : JSON.stringify([initial.kind, [...initial.connectionIds].sort(), initial.profile]);
+      setAccessForm(initial);
       void request("/api/channels")
         .then((result) => {
           if (result?.response.ok && result.fresh())
@@ -351,7 +359,14 @@ export default function AdminClient({
       const method = editingUser ? "PUT" : "POST";
 
       const payload: Record<string, unknown> = { role: userForm.role };
-      if (editingUser?.scope) {
+      const accessNow = JSON.stringify([
+        accessForm.kind,
+        [...accessForm.connectionIds].sort(),
+        accessForm.profile,
+      ]);
+      // Only send scope when the admin changed it, so a role-only save cannot overwrite a
+      // concurrent scope edit or fail on a stale snapshot.
+      if (editingUser?.scope && accessNow !== accessInitial.current) {
         if (accessForm.kind === "connections" && accessForm.connectionIds.length === 0) {
           setUserError("Select at least one channel, or give access to the whole workspace.");
           return;

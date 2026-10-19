@@ -86,6 +86,19 @@ describe("authority-reducing writer inventory", () => {
       expect(text, file).toMatch(
         /\$transaction\(async \(tx\) => \{\s*await lockTenantWrites\(tx, ctx\.businessId\)/
       );
+      // Every raw-client write to membership state must be a `tx.` write after the fence is taken
+      // in the same callback; a bare `prisma.` write (or one before the fence) fails closed.
+      expect(text, file).not.toMatch(
+        /\bprisma\.(membership|membershipConnectionScope|business|channelConnection)\.(update|updateMany|delete|deleteMany|upsert|create|createMany)\(/
+      );
+      const fence = text.indexOf("await lockTenantWrites(tx, ctx.businessId)");
+      const writes = [
+        ...text.matchAll(
+          /\btx\.(membership|membershipConnectionScope)\.(update|updateMany|delete|deleteMany|upsert|create|createMany)\(/g
+        ),
+      ];
+      expect(writes.length, file).toBeGreaterThan(0);
+      for (const write of writes) expect(write.index, file).toBeGreaterThan(fence);
     }
   });
   it("has no application membership/workspace mutation outside the fenced set", () => {

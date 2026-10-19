@@ -57,6 +57,13 @@ d7eba31 (same product digest). No fresh browser on 485cc9b (docs-only delta). No
 deploy; main ahead of origin. NEXT: restricted member editor still waits delayed lifecycle;
 phase/milestone boundary otherwise reached. Prohibited: push/release/new phase without approval.
 
+Update4 2026-10-19: OWNER APPROVED docs/p1-followup-admission-proposal-2026-10-15.md (bounded
+local implementation + tests only; no deploy/provider/account change/milestone closure). Task:
+delayed follow-up sending admission (fences, coherent admission, retirement markers). Existing
+uncommitted WIP is in /Users/sukhrob/.codex/worktrees/p1-workspace-access/owly on old base c78a1ff
+(16 files +342/-52); do not trust it as current; port selectively onto a fresh dev worktree from
+main 485cc9b. Tests-first: the 3 red cases in tests/security/followup-authority.test.ts.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

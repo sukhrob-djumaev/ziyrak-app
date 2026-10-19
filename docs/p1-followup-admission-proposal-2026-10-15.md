@@ -1,6 +1,8 @@
 # P1 follow-up admission: proposed contract clarification
 
-Status: **proposal; owner decision pending**. Last verified product baseline
+Status: **approved by the owner on 2026-10-19** for the bounded local implementation and
+tests below only (no deployment, provider/account change or milestone closure); the
+three failing cases remain required evidence. Last verified product baseline
 `0bfe1ae`; isolated development has an uncommitted, incomplete dispatch integration.
 No live rollout or queue migration is authorized by this proposal.
 

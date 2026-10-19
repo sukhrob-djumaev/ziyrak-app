@@ -17,6 +17,15 @@ identified candidate. Do not touch live 7700, acceptance or user DBs.
 
 Recheck 2026-10-19: Docker daemon not running (docker.sock absent), localhost:5432 closed. Blocker unchanged: user must start Docker Desktop and the shared PG.
 
+Update 2026-10-19 (blocker CLEARED): Docker/PG healthy (owly-db-1). Fresh DB
+ziyrak_test_support_msgs_20261019b migrated (prisma migrate deploy). On dev worktree bb45ed8:
+platform-authority + support-query-profile 129/129 pass; full `npm run test` 150 files,
+1478 passed/23 skipped, exit0 (isolated DB only; skips not a pass). Independent security
+review of 72873e3..bb45ed8 delegated (read-only), result pending/unrecorded. STILL OPEN:
+review findings, J22 browser, fresh full browser on a frozen candidate, build. Do not
+touch live 7700, acceptance or user DBs. Leftover DB ziyrak_test_support_msgs_20261019
+(pre-existing, unknown owner) untouched.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

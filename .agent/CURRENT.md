@@ -125,6 +125,14 @@ Verified on e18389f in idle runtime worktree: tsc/lint exit0; full suite 153 fil
 member editor, campaigns/recovery requester/manual webhook retry origin integration, other
 support surfaces, R3 final cutoff, P1 closure. No tag/release/deploy.
 
+Decision 2026-10-19 (owner): P1 support access scope is the audited, read-only limited
+conversation list plus per-conversation text messages ONLY. Customer details/notes, realtime/
+streams and other support surfaces are out of P1 (later work under the same grant contract).
+P1 closure plan: closure matrix doc first, then restricted member editor, delayed-work origins,
+final cutoff record, P1 acceptance pass (independent review + full role browser run). Open
+questions to ask one at a time: delayed-work paths in P1, restricted-editor scope, R3 advisory
+timing, housekeeping deletion approval.
+
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development

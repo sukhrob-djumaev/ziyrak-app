@@ -178,3 +178,11 @@ syntax/format checked). Pending: independent harness review, new candidate/build
 fresh full24. Acceptance still open; no run claimed.
 
 Update2: fresh full24 on runtime 897fdff/build bJsO0xiUf7E8wvd83Irjm, unchanged product digest, empty DB ziyrak_acceptance_p1_settings_j18_20261015: 24/24 PASSED, exact owned stop verified. OPEN: screenshot inspection (needs /add-dir of the workdir); harness review lead-only. Next: support text-message read, tests first.
+
+## Update9 (2026-10-19, delayed-work scope)
+
+Owner: all three delayed paths (campaigns, recovery resend, webhook retry) are in P1.
+Findings and proposal: docs/p1-delayed-work-origin-proposal-2026-10-19.md (campaigns need a
+CampaignRun migration, awaiting owner approval, rule 11). Closure matrix:
+docs/p1-closure-matrix-2026-10-19.md. Dev worktree p1-delayed-origin (at ab17c20, no code yet).
+Next: restricted member editor (no approval needed) while the proposal waits. No pushes.

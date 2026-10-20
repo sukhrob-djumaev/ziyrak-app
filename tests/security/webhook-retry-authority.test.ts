@@ -134,4 +134,37 @@ describe("P1 manual webhook retry: requester authority", () => {
     await expect(retryDelivery(worker(), deliveryId)).rejects.toMatchObject({ statusCode: 403 });
     expect(queued).toHaveLength(0);
   });
+
+  it("leaves the delivery untouched when the requester's identity cannot be saved", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    const broken: TenantContext = { ...admin.ctx, authorization: undefined };
+    await expect(retryDelivery(broken, deliveryId)).rejects.toBeDefined();
+    const row = await delivery();
+    expect(row.status).toBe("failed");
+    expect(row.attempts).toBe(3);
+    expect(queued).toHaveLength(0);
+  });
+
+  it("restores the delivery when the retry cannot be queued", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    vi.mocked(jobQueue.enqueue).mockRejectedValueOnce(new Error("queue unavailable"));
+    await expect(retryDelivery(admin.ctx, deliveryId)).rejects.toThrow("queue unavailable");
+    const row = await delivery();
+    expect(row.status).toBe("failed");
+    expect(row.attempts).toBe(3);
+  });
+
+  it("a denied retry job never overwrites a delivery that already succeeded", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    await retryDelivery(admin.ctx, deliveryId);
+    await prisma.membership.deleteMany({
+      where: { businessId: a.businessId, userId: admin.userId },
+    });
+    await prisma.webhookDelivery.update({
+      where: { id: deliveryId },
+      data: { status: "delivered" },
+    });
+    await handleDeliverWebhook(worker(), queued[0]);
+    expect((await delivery()).status).toBe("delivered");
+  });
 });

@@ -5,6 +5,7 @@ import { generateSignature } from "@/lib/integrations/webhook-delivery";
 import { hasPermission } from "@/lib/rbac/rbac";
 import { refreshDeferredIdentity } from "@/lib/tenancy/deferred-origin";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
+import { AppError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 import { jobQueue } from "@/lib/jobs/queue";
 import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
@@ -62,12 +63,14 @@ export async function handleDeliverWebhook(
       allowed =
         hasPermission(fresh.role, "webhooks:update") &&
         validateResourceScope(fresh.scope).kind === "workspace";
-    } catch {
+    } catch (error) {
+      // Only a definite authority denial stops the retry; anything else is transient.
+      if (!(error instanceof AppError)) throw error;
       allowed = false;
     }
     if (!allowed) {
-      await db.webhookDelivery.update({
-        where: { id: delivery.id },
+      await db.webhookDelivery.updateMany({
+        where: { id: delivery.id, status: { not: "delivered" } },
         data: { status: "failed", lastError: "Retry requester is no longer authorized" },
       });
       logger.warn("[deliver-webhook] retry requester no longer authorized, not sent", {

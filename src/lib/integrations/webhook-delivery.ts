@@ -45,7 +45,12 @@ export async function deliverWebhook(
       businessId: ctx.businessId,
       webhookId: webhook.id,
       event,
-      payload: { event, timestamp: new Date().toISOString(), webhookId: webhook.id, data } as Prisma.InputJsonValue,
+      payload: {
+        event,
+        timestamp: new Date().toISOString(),
+        webhookId: webhook.id,
+        data,
+      } as Prisma.InputJsonValue,
       status: "pending",
       attempts: 0,
     },
@@ -74,7 +79,11 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
     !ctx.role ||
     !hasPermission(ctx.role, "webhooks:update")
   )
-    throw new AppError(403, "FORBIDDEN", "Retrying a delivery requires a signed-in authorized person");
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Retrying a delivery requires a signed-in authorized person"
+    );
   const db = getScopedPrisma(ctx);
   const delivery = await db.webhookDelivery.findUnique({
     where: { id: deliveryId },
@@ -85,17 +94,28 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
     return false;
   }
 
+  // Save who is asking before changing anything, so a failure leaves the delivery as it was.
+  const requestedBy = await captureDeferredIdentity(ctx);
+  const previous = {
+    status: delivery.status,
+    attempts: delivery.attempts,
+    lastError: delivery.lastError,
+  };
   await db.webhookDelivery.update({
     where: { id: deliveryId },
     data: { status: "pending", attempts: 0, lastError: null },
   });
-
-  await jobQueue.enqueue<DeliverWebhookPayload>(DELIVER_WEBHOOK_JOB, {
-    businessId: ctx.businessId,
-    webhookId: delivery.webhook.id,
-    deliveryId: delivery.id,
-    requestedBy: await captureDeferredIdentity(ctx),
-  });
+  try {
+    await jobQueue.enqueue<DeliverWebhookPayload>(DELIVER_WEBHOOK_JOB, {
+      businessId: ctx.businessId,
+      webhookId: delivery.webhook.id,
+      deliveryId: delivery.id,
+      requestedBy,
+    });
+  } catch (error) {
+    await db.webhookDelivery.update({ where: { id: deliveryId }, data: previous });
+    throw error;
+  }
 
   return true;
 }

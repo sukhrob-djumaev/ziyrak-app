@@ -532,4 +532,33 @@ describe("P1 recovery resend: the approving person is rechecked at admission", (
     await retry().catch(() => undefined);
     expect(sent).toHaveBeenCalledTimes(1);
   });
+
+  it("does not resend when the approver is now limited to other channels", async () => {
+    const { approver, retry } = await resendReady();
+    const other = await prisma.channelConnection.create({
+      data: { businessId: a.businessId, type: "other-type", name: "Other", isActive: true },
+    });
+    const m = await prisma.membership.findFirstOrThrow({
+      where: { businessId: a.businessId, userId: approver.userId },
+    });
+    await prisma.membership.update({ where: { id: m.id }, data: { scopeMode: "connections" } });
+    await prisma.membershipConnectionScope.create({
+      data: { businessId: a.businessId, membershipId: m.id, connectionId: other.id },
+    });
+    await retry().catch(() => undefined);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed for an approved resend that recorded no approver membership", async () => {
+    const { op, retry } = await resendReady();
+    const row = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: op.id } });
+    const log = (row.recoveryLog as Record<string, unknown>[]).map((entry) => {
+      const { actorMembershipId: _removed, ...rest } = entry;
+      void _removed;
+      return rest;
+    });
+    await prisma.deliveryOperation.update({ where: { id: op.id }, data: { recoveryLog: log } });
+    await retry().catch(() => undefined);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
 });

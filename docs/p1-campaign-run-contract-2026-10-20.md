@@ -78,3 +78,19 @@ Decided, not changed: the recipient contact is resolved from the customer profil
 (the customer is the target; an edited address is followed, an erased profile has none). A run
 whose worker keeps failing can stay `running` and block a new start until an operator cancel
 path exists (not built; no UI for campaigns yet).
+
+## Recovery resend and webhook retry (same branch)
+
+Recovery resend: `recoverDelivery` records the approver's membership id in the recovery log; at
+every admission of a follow-up or campaign operation the latest `resend` entry's approver is
+re-read under the same fence (`actions:approve`, whole-workspace or the delivery's connection,
+expiry folded into `notAfter`), in addition to the original requester. Decided, not changed:
+inbound replies are system flows with no requester and are not rechecked; a resend approved before
+this change has no membership id and fails closed (needs re-approval); the webhook HTTP call runs
+unfenced for up to 10 s after the check, so a revocation inside that window cannot recall it.
+
+Webhook retry: a manual retry saves the requester's identity ceiling in the job payload (no schema
+change); the worker rechecks `webhooks:update` and whole-workspace scope before any request. Only a
+definite denial stops the retry (delivery marked failed, never overwriting `delivered`); transient
+errors rethrow for the queue's own retry. A failed enqueue restores the delivery. System deliveries
+carry no requester. Second independent review found no bypass; its low findings are fixed.

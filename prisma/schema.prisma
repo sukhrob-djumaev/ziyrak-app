@@ -54,6 +54,7 @@ model Business {
   cannedResponses      CannedResponse[]
   automationRules      AutomationRule[]
   campaigns            Campaign[]
+  campaignRuns         CampaignRun[]
   flows                Flow[]
   businessHours        BusinessHours[]
   aiInteractionLogs    AIInteractionLog[]
@@ -424,6 +425,8 @@ model DeliveryOperation {
   conversation      Conversation?        @relation(fields: [businessId, conversationId], references: [businessId, id], onDelete: Cascade)
   actionId          String?
   action            ActionExecution?     @relation(fields: [businessId, actionId], references: [businessId, id], onDelete: Cascade)
+  campaignRunId     String?
+  campaignRun       CampaignRun?         @relation(fields: [businessId, campaignRunId], references: [businessId, id], onDelete: Cascade)
   channel           String
   connectionId      String
   recipient         String
@@ -1020,7 +1023,31 @@ model Campaign {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  runs CampaignRun[]
+
   @@index([businessId])
+}
+
+// A frozen, authorized execution of a campaign. The worker sends only this copy.
+model CampaignRun {
+  id                    String              @id @default(uuid())
+  businessId            String
+  business              Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  campaignId            String
+  campaign              Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status                String              @default("pending") // pending | running | completed | cancelled
+  authorizationSnapshot Json
+  channel               String
+  connectionId          String
+  message               String
+  targetCustomerIds     Json
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  retiredAt             DateTime?
+  deliveryOperations    DeliveryOperation[]
+
+  @@unique([businessId, id])
+  @@index([businessId, campaignId])
 }
 
 // ==================== FLOWS ====================

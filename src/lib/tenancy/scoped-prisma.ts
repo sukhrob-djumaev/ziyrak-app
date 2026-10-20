@@ -66,6 +66,7 @@ export const TENANT_SCOPED_MODELS = [
   "cannedResponse",
   "automationRule",
   "campaign",
+  "campaignRun",
   "flow",
   "apiKey",
   "businessConfig",

@@ -1,3 +1,10 @@
+# Latest session (2026-10-20, delayed work)
+
+Editor merged and pushed (8ad8457, CI green after one flaky rerun). Campaign runs, recovery-resend
+approver recheck and webhook-retry requester recheck built tests-first on branch p1-campaign-run
+(92ac544): two independent reviews fixed, unit 156/1574, fresh full browser 26/26 incl. J26.
+Not merged. Next: owner merge approval, then remaining P1 closure items. See CURRENT Update13.
+
 # Latest session (2026-10-20, merge)
 
 Member access editor merged (8ad8457), pushed, CI green after one flaky-test rerun. Owner approved

@@ -229,3 +229,25 @@ CampaignRun migration with per-recipient operations, (B) webhook retry requester
 waived). Order: campaigns, recovery resend, webhook retry; each tests-first, independent security
 review, then a full frozen browser run. `.claude/settings.json` committed (bcfa29e, local).
 Prohibited: push without approval, P2/P3, deleting DBs/worktrees.
+
+## Update13 (2026-10-20, delayed-work slices verified on dev, awaiting merge approval)
+
+Dev worktree p1-campaign-run (branch p1-campaign-run, head 92ac544, based on main 681f46b; not
+merged, not pushed). Contract: docs/p1-campaign-run-contract-2026-10-20.md (on that branch).
+Slice 1 campaigns: CampaignRun migration (20261020120000_campaign_run, additive), frozen message /
+connection / targets / requester identity, per-recipient DeliveryOperation (kind campaign, key
+campaign:<run>:<customer>) through the single sending admission, requester rechecked per recipient
+(automation:create, whole-workspace scope, profile access), serialized starts, cancel on enqueue
+failure, erasure scrubs run targets. Slice 2 recovery resend: approver membership recorded in the
+recovery log and rechecked at admission for follow-ups and campaigns. Slice 3 webhook retry: requester
+identity in the job payload, rechecked before any request. Two independent read-only security
+reviews: no bypass; all confirmed findings fixed with tests. Evidence on 92ac544: tsc/lint clean;
+full unit 156 files / 1574 passed / 23 skipped (the skips are Redis-gated tests; CI runs them);
+fresh empty-DB frozen build + full browser 26/26 incl. new J26 (log in scratchpad browser6.log,
+DB ziyrak_acceptance_p1_campaign_20261020a retained), topology stopped, ports free.
+Limits: webchat send is a no-op so J26 proves admission/persistence/worker, not provider delivery;
+no campaigns screen exists; no operator cancel path for a stuck run; inbound replies are not
+rechecked on resend; legacy approved resends fail closed; screenshots not inspected; reviews were
+agent reviews (not human). Needs owner: merge approval for p1-campaign-run (merge commit, then CI on
+the exact head). Remaining P1: cutoff/logout-surviving schedules (R3 decision), whole-surface
+review, full role-by-role browser run. Prohibited: push, P2/P3, deleting DBs/worktrees.

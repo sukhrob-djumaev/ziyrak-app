@@ -218,3 +218,14 @@ repeat (UX). Topology stopped, DBs ziyrak_acceptance_p1_editor_2026102* and
 ziyrak_test_p1_delayed_20261019 retained. Needs owner: merge approval for acd4c42 (merge commit);
 approval of the delayed-work proposal (CampaignRun migration; webhook retry recheck or waiver).
 Prohibited: push, P2/P3, deleting DBs/worktrees without approval.
+
+## Update12 (2026-10-20, editor merged, delayed-work approved)
+
+Member access editor merged into main as 8ad8457 (merge commit of acd4c42) and pushed on owner
+instruction; CI on 8ad8457 green after a rerun (first run failed once on
+tests/unit/realtime-bus-multi-instance.test.ts redis case, a Redis connect timeout on the runner;
+untouched by the merge; cause not investigated). Owner approved the delayed-work proposal: (A)
+CampaignRun migration with per-recipient operations, (B) webhook retry requester recheck (not
+waived). Order: campaigns, recovery resend, webhook retry; each tests-first, independent security
+review, then a full frozen browser run. `.claude/settings.json` committed (bcfa29e, local).
+Prohibited: push without approval, P2/P3, deleting DBs/worktrees.

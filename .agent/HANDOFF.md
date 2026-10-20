@@ -1,3 +1,9 @@
+# Latest session (2026-10-20, merge)
+
+Member access editor merged (8ad8457), pushed, CI green after one flaky-test rerun. Owner approved
+the delayed-work proposal (A and B-recheck). Next: campaigns slice in a new worktree, tests first.
+See CURRENT Update12.
+
 # Latest session (2026-10-20, member access editor)
 
 Restricted member editor implemented and verified in dev worktree p1-delayed-origin (acd4c42):

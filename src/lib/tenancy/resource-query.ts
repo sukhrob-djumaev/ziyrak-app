@@ -213,7 +213,8 @@ export function createResourceGuard(
         entityId: { in: convs.map((row) => row.id) },
       };
     }
-    if (model === "webhookDelivery" || model === "campaign") return deny(model);
+    if (model === "webhookDelivery" || model === "campaign" || model === "campaignRun")
+      return deny(model);
     if (CONFIG.has(model)) return { businessId: ctx.businessId };
     throw new AppError(403, "INVALID_SCOPE", "Resource has no defined scope contract");
   }
@@ -417,7 +418,10 @@ export function createResourceGuard(
       scope.customerProfileAccess !== "write"
     )
       throw new AppError(403, "FORBIDDEN", "Shared customer profile write permission is required");
-    if (scope.kind === "connections" && ["webhookDelivery", "campaign"].includes(model))
+    if (
+      scope.kind === "connections" &&
+      ["webhookDelivery", "campaign", "campaignRun"].includes(model)
+    )
       throw new AppError(403, "FORBIDDEN", "Resource has no connection scope");
     if (model === "channelConnection" && scope.kind === "connections")
       throw new AppError(403, "FORBIDDEN", "Channel configuration requires workspace scope");

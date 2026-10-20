@@ -11,6 +11,7 @@ import { validateResourceScope, type ResourceScope } from "@/lib/tenancy/resourc
 import { hasPermission } from "@/lib/rbac/rbac";
 import { SEND_FOLLOWUP_JOB, RETRY_DELIVERY_JOB } from "@/lib/jobs/job-types";
 import { AppError } from "@/lib/observability/errors";
+import { assertRecoveryRequester } from "@/lib/conversations/recovery-authority";
 import { resolveEffectiveToolPolicy } from "./policy";
 import { toolRegistry } from "./registry";
 import type { ToolAdmission } from "./types";
@@ -228,6 +229,14 @@ export async function authorizeFollowupAction(
   // destination read after turning fresh facts into submission authority.
   const facts = await currentFacts({ ...worker, authorization: undefined }, saved, session);
   if (facts.scope.kind === "connections" && owner !== binding.connectionId) deny();
+  const approverExpiry = binding.recoveredBy
+    ? await assertRecoveryRequester(
+        worker.businessId,
+        binding.recoveredBy,
+        binding.connectionId,
+        session
+      )
+    : undefined;
   const authorization: AuthorizationProvenance = {
     kind: "delegated_job",
     actorUserId: facts.actorUserId,
@@ -241,7 +250,13 @@ export async function authorizeFollowupAction(
     authorization,
     workBinding: { conversationId: binding.conversationId, actionExecutionId: binding.actionId },
   };
-  return { context: result, notAfter: facts.notAfter };
+  const notAfter =
+    facts.notAfter && approverExpiry
+      ? facts.notAfter < approverExpiry
+        ? facts.notAfter
+        : approverExpiry
+      : (facts.notAfter ?? approverExpiry);
+  return { context: result, notAfter };
 }
 export const authorizeFollowupSubmission: AuthorizeFollowupSubmission = async (
   worker,

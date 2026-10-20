@@ -126,6 +126,10 @@ export const SCOPE_SCHEMA: Record<
         model: "campaign",
         many: true,
       },
+      campaignRuns: {
+        model: "campaignRun",
+        many: true,
+      },
       flows: {
         model: "flow",
         many: true,
@@ -546,6 +550,10 @@ export const SCOPE_SCHEMA: Record<
         model: "actionExecution",
         many: false,
       },
+      campaignRun: {
+        model: "campaignRun",
+        many: false,
+      },
     },
     scalars: [
       "retiredAt",
@@ -556,6 +564,7 @@ export const SCOPE_SCHEMA: Record<
       "receiptId",
       "conversationId",
       "actionId",
+      "campaignRunId",
       "channel",
       "connectionId",
       "recipient",
@@ -1157,6 +1166,10 @@ export const SCOPE_SCHEMA: Record<
         model: "business",
         many: false,
       },
+      runs: {
+        model: "campaignRun",
+        many: true,
+      },
     },
     scalars: [
       "id",
@@ -1172,6 +1185,36 @@ export const SCOPE_SCHEMA: Record<
       "sentCount",
       "createdAt",
       "updatedAt",
+    ],
+  },
+  campaignRun: {
+    relations: {
+      business: {
+        model: "business",
+        many: false,
+      },
+      campaign: {
+        model: "campaign",
+        many: false,
+      },
+      deliveryOperations: {
+        model: "deliveryOperation",
+        many: true,
+      },
+    },
+    scalars: [
+      "id",
+      "businessId",
+      "campaignId",
+      "status",
+      "authorizationSnapshot",
+      "channel",
+      "connectionId",
+      "message",
+      "targetCustomerIds",
+      "createdAt",
+      "updatedAt",
+      "retiredAt",
     ],
   },
   flow: {

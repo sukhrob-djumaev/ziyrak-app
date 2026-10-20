@@ -74,6 +74,7 @@ export interface TenantContext {
   workBinding?: {
     conversationId?: string;
     actionExecutionId?: string;
+    campaignRunId?: string;
     deliveryOperationId?: string;
     receiptId?: string;
   };

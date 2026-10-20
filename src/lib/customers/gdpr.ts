@@ -167,6 +167,17 @@ export async function deleteCustomerData(
       where: { conversationId: { in: conversationIds } },
       select: { id: true },
     });
+    // Unfinished campaign runs must not keep, or later contact, an erased customer.
+    for (const run of await db.campaignRun.findMany({
+      select: { id: true, targetCustomerIds: true },
+    })) {
+      const targets = Array.isArray(run.targetCustomerIds) ? run.targetCustomerIds : [];
+      if (targets.includes(customerId))
+        await db.campaignRun.updateMany({
+          where: { id: run.id },
+          data: { targetCustomerIds: targets.filter((id) => id !== customerId) },
+        });
+    }
     const tickets = await db.ticket.findMany({
       where: { conversationId: { in: conversationIds } },
       select: { id: true },

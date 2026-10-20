@@ -166,6 +166,7 @@ export async function retireConversationWork(
           errorMessage: RETIRED_ADMITTED_MESSAGE,
           conversationId: null,
           actionId: null,
+          campaignRunId: null,
           receiptId: null,
         },
       });

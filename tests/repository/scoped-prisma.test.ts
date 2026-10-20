@@ -234,6 +234,19 @@ async function createMinimalRow(
       return db.automationRule.create({ data: { name: marker, type: "auto_tag" } });
     case "campaign":
       return db.campaign.create({ data: { name: marker, message: "hi" } });
+    case "campaignRun": {
+      const campaign = await db.campaign.create({ data: { name: marker, message: "hi" } });
+      return db.campaignRun.create({
+        data: {
+          campaignId: campaign.id,
+          authorizationSnapshot: {},
+          channel: "test",
+          connectionId: marker,
+          message: "hi",
+          targetCustomerIds: [],
+        },
+      });
+    }
     case "flow":
       return db.flow.create({ data: { name: marker } });
     case "department":

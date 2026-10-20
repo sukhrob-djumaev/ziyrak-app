@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import {
   validFollowupProvenance,
   type AdmittedFollowup,
+  type AuthorizeCampaignSubmission,
   type AuthorizeFollowupSubmission,
 } from "./delivery-authority";
+import { recoveryRequesterOf } from "./recovery-authority";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import type { Prisma, DeliveryOperation } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -27,9 +29,10 @@ export class DeliveryRefusedError extends Error {
 }
 type NewOperation = {
   operationKey: string;
-  kind: "inbound" | "followup";
+  kind: "inbound" | "followup" | "campaign";
   receiptId?: string;
   actionId?: string;
+  campaignRunId?: string;
   conversationId?: string;
   channel: string;
   connectionId: string;
@@ -179,7 +182,8 @@ export async function validateDeliveryDestination(
 export async function dispatchDelivery(
   ctx: TenantContext,
   id: string,
-  authorize?: AuthorizeFollowupSubmission
+  authorize?: AuthorizeFollowupSubmission,
+  authorizeCampaign?: AuthorizeCampaignSubmission
 ): Promise<DeliveryOperation> {
   const db = getScopedPrisma(ctx);
   await expireDeliveryClaims(ctx);
@@ -202,11 +206,25 @@ export async function dispatchDelivery(
     channel: row.channel,
     recipient: row.recipient,
     response: row.response!,
+    recoveredBy: recoveryRequesterOf(row.recoveryLog),
+  });
+  const campaignBindingOf = (row: DeliveryOperation) => ({
+    deliveryId: row.id,
+    campaignRunId: row.campaignRunId!,
+    conversationId: row.conversationId!,
+    connectionId: row.connectionId,
+    channel: row.channel,
+    recipient: row.recipient,
+    response: row.response!,
+    recoveredBy: recoveryRequesterOf(row.recoveryLog),
   });
   /** Validates the composed authority; a malformed callback can never widen it. */
   const validateAdmitted = (
     next: AdmittedFollowup | undefined,
-    binding: ReturnType<typeof bindingOf>
+    binding: { deliveryId: string; conversationId: string; connectionId: string } & (
+      | { actionId: string; campaignRunId?: undefined }
+      | { campaignRunId: string; actionId?: undefined }
+    )
   ): TenantContext => {
     const context = next?.context;
     if (!context || typeof context !== "object" || !context.actor)
@@ -223,8 +241,9 @@ export async function dispatchDelivery(
       context.actor.jobType !== ctx.actor.jobType ||
       !validFollowupProvenance(auth, binding) ||
       context.workBinding?.actionExecutionId !== binding.actionId ||
-      context.workBinding.conversationId !== binding.conversationId ||
-      context.workBinding.deliveryOperationId !== binding.deliveryId ||
+      context.workBinding?.campaignRunId !== binding.campaignRunId ||
+      context.workBinding?.conversationId !== binding.conversationId ||
+      context.workBinding?.deliveryOperationId !== binding.deliveryId ||
       (scope.kind === "connections" && !scope.connectionIds.includes(binding.connectionId))
     )
       throw new AppError(403, "INVALID_FOLLOWUP_AUTHORITY", "Invalid follow-up authority");
@@ -266,8 +285,13 @@ export async function dispatchDelivery(
   const adapter = getChannelAdapter(op.channel);
   const token = randomUUID();
   let submissionCtx = ctx;
-  if (op.kind === "followup") {
-    if (!authorize || !op.actionId || !op.conversationId || op.response === null)
+  if (op.kind === "followup" || op.kind === "campaign") {
+    const isCampaign = op.kind === "campaign";
+    if (
+      (isCampaign ? !authorizeCampaign || !op.campaignRunId : !authorize || !op.actionId) ||
+      !op.conversationId ||
+      op.response === null
+    )
       return refuseUnsent(
         new AppError(403, "FOLLOWUP_AUTHORITY_REQUIRED", "Fresh follow-up authority is required")
       );
@@ -283,17 +307,24 @@ export async function dispatchDelivery(
         !row ||
         row.status !== seen.status ||
         row.updatedAt.getTime() !== seen.updatedAt.getTime() ||
-        row.kind !== "followup" ||
-        !row.actionId ||
+        row.kind !== seen.kind ||
+        !(isCampaign ? row.campaignRunId : row.actionId) ||
         !row.conversationId ||
         row.response === null
       )
         return { kind: "busy" as const };
-      const binding = bindingOf(row);
       let admitted: TenantContext, notAfter: Date | undefined;
       try {
-        const next = await authorize(ctx, binding, session);
-        admitted = validateAdmitted(next, binding);
+        let next: AdmittedFollowup;
+        if (isCampaign) {
+          const binding = campaignBindingOf(row);
+          next = await authorizeCampaign!(ctx, binding, session);
+          admitted = validateAdmitted(next, binding);
+        } else {
+          const binding = bindingOf(row);
+          next = await authorize!(ctx, binding, session);
+          admitted = validateAdmitted(next, binding);
+        }
         notAfter = next.notAfter;
         if (
           notAfter !== undefined &&
@@ -418,7 +449,7 @@ export async function dispatchDelivery(
           },
         });
         if (!accepted.count) return "claim_not_current" as const;
-        if (op.kind === "followup" && op.conversationId) {
+        if (op.kind !== "inbound" && op.conversationId) {
           await tx.message.upsert({
             where: { id },
             create: {
@@ -657,6 +688,8 @@ export async function recoverDelivery(
   const entry = {
     requestId: input.requestId,
     actorId,
+    actorMembershipId:
+      ctx.authorization?.kind === "membership" ? ctx.authorization.membershipId : undefined,
     decision: input.decision,
     reason: input.reason,
     previousStatus: op.status,
@@ -687,12 +720,7 @@ export async function recoverDelivery(
     });
     if (!changed.count)
       throw new AppError(409, "ALREADY_HANDLED", "Another person already handled this operation.");
-    if (
-      status === "accepted" &&
-      op.kind === "followup" &&
-      op.conversationId &&
-      op.response !== null
-    )
+    if (status === "accepted" && op.kind !== "inbound" && op.conversationId && op.response !== null)
       await tx.message.upsert({
         where: { id },
         create: {

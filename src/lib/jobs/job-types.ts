@@ -1,3 +1,4 @@
+import type { DeferredIdentityCeiling } from "@/lib/tenancy/deferred-origin";
 /**
  * PLAN.md §25.2/§46.6 — every job type name and its payload shape, in one
  * dependency-free module. Split out from `queue.ts` so `queue-policies.ts`
@@ -18,6 +19,8 @@ export interface DeliverWebhookPayload {
   businessId: string;
   webhookId: string;
   deliveryId: string;
+  /** Saved identity of the person who asked for a manual retry; absent for system deliveries. */
+  requestedBy?: DeferredIdentityCeiling;
 }
 
 export const SWEEP_SLA_BREACHES_JOB = "sweep-sla-breaches";

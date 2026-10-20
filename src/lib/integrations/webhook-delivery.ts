@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { captureDeferredIdentity } from "@/lib/tenancy/deferred-origin";
+import { hasPermission } from "@/lib/rbac/rbac";
+import { AppError } from "@/lib/observability/errors";
 import { jobQueue } from "@/lib/jobs/queue";
 import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
 
@@ -66,6 +69,12 @@ export async function deliverWebhook(
  * Re-queues a specific failed delivery for another attempt.
  */
 export async function retryDelivery(ctx: TenantContext, deliveryId: string): Promise<boolean> {
+  if (
+    !["user", "api_key"].includes(ctx.actor.kind) ||
+    !ctx.role ||
+    !hasPermission(ctx.role, "webhooks:update")
+  )
+    throw new AppError(403, "FORBIDDEN", "Retrying a delivery requires a signed-in authorized person");
   const db = getScopedPrisma(ctx);
   const delivery = await db.webhookDelivery.findUnique({
     where: { id: deliveryId },
@@ -85,6 +94,7 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
     businessId: ctx.businessId,
     webhookId: delivery.webhook.id,
     deliveryId: delivery.id,
+    requestedBy: await captureDeferredIdentity(ctx),
   });
 
   return true;

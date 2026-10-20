@@ -14,6 +14,9 @@ import { EXECUTE_CAMPAIGN_JOB, type ExecuteCampaignPayload } from "@/lib/jobs/jo
 import { handleExecuteCampaign } from "@/lib/jobs/handlers/execute-campaign";
 import { startCampaignRun } from "@/lib/campaigns/campaign-run";
 import { registerChannelAdapter } from "@/lib/channels/registry";
+import { retirementContext } from "@/lib/tenancy/work-lifecycle";
+import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { retireConversationWork } from "@/lib/conversations/retire-work";
 
 /**
  * P1 campaign execution: the requester's authority is saved when the run is created and
@@ -49,7 +52,12 @@ beforeEach(async () => {
   });
   connectionId = (
     await prisma.channelConnection.create({
-      data: { businessId: a.businessId, type: CHANNEL, name: "Synthetic campaign line", isActive: true },
+      data: {
+        businessId: a.businessId,
+        type: CHANNEL,
+        name: "Synthetic campaign line",
+        isActive: true,
+      },
     })
   ).id;
 });
@@ -69,7 +77,11 @@ async function customers(n: number) {
   for (let i = 0; i < n; i++)
     rows.push(
       await prisma.customer.create({
-        data: { businessId: a.businessId, name: `C${i}`, phone: `+1555000${i}${randomUUID().slice(0, 4)}` },
+        data: {
+          businessId: a.businessId,
+          name: `C${i}`,
+          phone: `+1555000${i}${randomUUID().slice(0, 4)}`,
+        },
       })
     );
   return rows;
@@ -197,7 +209,9 @@ describe("P1 campaign run: requester authority is rechecked at admission", () =>
     await customers(3);
     const { payload } = await start(who.ctx, (await campaign()).id);
     sent.mockImplementationOnce(async () => {
-      await prisma.membership.deleteMany({ where: { businessId: a.businessId, userId: who.userId } });
+      await prisma.membership.deleteMany({
+        where: { businessId: a.businessId, userId: who.userId },
+      });
       return { success: true, providerMessageId: "first" };
     });
     await run(payload);
@@ -279,10 +293,18 @@ describe("P1 campaign run: start-time boundaries", () => {
     const b = await seedBusiness("campaign-run-b");
     try {
       const foreign = await prisma.campaign.create({
-        data: { businessId: b.businessId, name: "Foreign", channel: CHANNEL, message: "x", segments: [] },
+        data: {
+          businessId: b.businessId,
+          name: "Foreign",
+          channel: CHANNEL,
+          message: "x",
+          segments: [],
+        },
       });
       const who = await requester();
-      await expect(startCampaignRun(who.ctx, foreign.id)).rejects.toMatchObject({ statusCode: 404 });
+      await expect(startCampaignRun(who.ctx, foreign.id)).rejects.toMatchObject({
+        statusCode: 404,
+      });
     } finally {
       await cleanupBusiness(b.businessId);
     }
@@ -304,13 +326,54 @@ describe("P1 campaign run: start-time boundaries", () => {
     }
   });
 
+  it("refuses a second run while one is still pending or running", async () => {
+    const who = await requester();
+    await customers(1);
+    const camp = await campaign();
+    await startCampaignRun(who.ctx, camp.id);
+    await expect(startCampaignRun(who.ctx, camp.id)).rejects.toMatchObject({
+      code: "CAMPAIGN_RUN_ACTIVE",
+    });
+    expect(queued).toHaveLength(1);
+  });
+
   it("does not send when the campaign has no active connection and says so", async () => {
     const who = await requester();
     await customers(1);
     const camp = await prisma.campaign.create({
-      data: { businessId: a.businessId, name: "No line", channel: "no-line", message: "x", segments: [] },
+      data: {
+        businessId: a.businessId,
+        name: "No line",
+        channel: "no-line",
+        message: "x",
+        segments: [],
+      },
     });
     await expect(startCampaignRun(who.ctx, camp.id)).rejects.toBeDefined();
     expect(queued).toHaveLength(0);
+  });
+});
+
+describe("P1 campaign run: erasure", () => {
+  it("retires an unsent recipient operation with its conversation and never sends it afterwards", async () => {
+    const who = await requester();
+    const [c1] = await customers(1);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    // Admit the preparation only: the recipient conversation exists, the operation is ready.
+    const first = await prisma.membership.findFirstOrThrow({
+      where: { businessId: a.businessId, userId: who.userId },
+    });
+    await prisma.membership.delete({ where: { id: first.id } }); // blocks the send itself
+    await run(payload);
+    const conversation = await prisma.conversation.findFirstOrThrow({
+      where: { businessId: a.businessId, customerId: c1.id },
+    });
+    await retireConversationWork(getScopedPrisma(retirementContext(worker())), [conversation.id]);
+    await run(payload);
+    expect(sent).not.toHaveBeenCalled();
+    const [op] = await ops(payload.runId);
+    expect(op.retiredAt).not.toBeNull();
+    expect(op.recipient).toBe("");
+    expect(op.response).toBe("[REDACTED - GDPR]");
   });
 });

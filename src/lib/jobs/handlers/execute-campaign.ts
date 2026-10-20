@@ -1,79 +1,133 @@
+import type { CampaignRun } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { findTargetCustomers, sendProactiveMessage, type CampaignSegment } from "@/lib/campaigns/campaigns";
+import { authorizeCampaignSubmission } from "@/lib/campaigns/campaign-authority";
 import { jobQueue } from "@/lib/jobs/queue";
 import { EXECUTE_CAMPAIGN_JOB, type ExecuteCampaignPayload } from "@/lib/jobs/job-types";
+import {
+  DeliveryBusyError,
+  dispatchDelivery,
+  ensureDelivery,
+  prepareDelivery,
+} from "@/lib/conversations/delivery";
+import { NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 
+type Outcome = "attempted" | "skipped" | "failed";
+
 /**
- * PLAN.md §25.2/§46.6 PR3 task 15 — replaces `POST /api/campaigns/:id/
- * execute`'s target-count-only behavior (§2.4 — it only ever counted
- * matched customers, never sent anything) with a durable, per-customer
- * fan-out: one `sendProactiveMessage` attempt per matched customer, each
- * in its own try/catch so one customer's failure never stops the rest
- * (§31.3's "a single [unit] down must not affect other" principle,
- * applied here to campaign recipients the same way it already applies to
- * channels and businesses), with per-customer success/failure tracked
- * rather than only an aggregate count.
+ * Sends one frozen campaign run. Every recipient has its own durable `DeliveryOperation`
+ * (`campaign:<run>:<customer>`) that goes through the single sending admission, which rechecks
+ * the requester's saved authority immediately before transport. A redelivered job, a second
+ * worker or a retry after a crash can never send a recipient twice: an operation that was
+ * claimed, accepted, rejected or left uncertain is never re-sent from here.
  */
-export async function handleExecuteCampaign(ctx: TenantContext, payload: ExecuteCampaignPayload): Promise<void> {
+async function sendToRecipient(
+  ctx: TenantContext,
+  run: CampaignRun,
+  customerId: string
+): Promise<Outcome> {
   const db = getScopedPrisma(ctx);
-
-  const campaign = await db.campaign.findUnique({ where: { id: payload.campaignId } });
-  if (!campaign) {
-    logger.warn("[execute-campaign] campaign no longer exists, skipping", { businessId: ctx.businessId, campaignId: payload.campaignId });
-    return;
+  const key = `campaign:${run.id}:${customerId}`;
+  const existing = await db.deliveryOperation.findUnique({
+    where: { businessId_operationKey: { businessId: ctx.businessId, operationKey: key } },
+  });
+  if (existing && !["pending", "ready"].includes(existing.status)) return "skipped";
+  const customer = await db.customer.findUnique({ where: { id: customerId } });
+  if (!customer) return "failed";
+  const to =
+    run.channel === "email"
+      ? customer.email
+      : run.channel === "whatsapp"
+        ? customer.whatsapp
+        : customer.phone;
+  if (!to) return "failed";
+  try {
+    let op = await ensureDelivery(ctx, {
+      operationKey: key,
+      kind: "campaign",
+      campaignRunId: run.id,
+      channel: run.channel,
+      connectionId: run.connectionId,
+      recipient: to,
+    });
+    op = await prepareDelivery(ctx, op, async (recordConversation) => {
+      const conversation = await db.conversation.create({
+        data: {
+          businessId: ctx.businessId,
+          channel: run.channel,
+          customerName: customer.name,
+          customerContact: to,
+          customerId,
+          status: "active",
+          metadata: { channelConnectionId: run.connectionId, campaignRunId: run.id },
+        },
+      });
+      await recordConversation(conversation.id);
+      return { conversationId: conversation.id, response: run.message };
+    });
+    await dispatchDelivery(ctx, op.id, undefined, authorizeCampaignSubmission);
+    return "attempted";
+  } catch (error) {
+    if (error instanceof DeliveryBusyError) return "skipped";
+    throw error;
   }
+}
 
-  await db.campaign.update({ where: { id: campaign.id }, data: { status: "running" } });
-
-  const connection = await db.channelConnection.findFirst({ where: { type: campaign.channel, isActive: true } });
-  if (!connection) {
-    await db.campaign.update({ where: { id: campaign.id }, data: { status: "paused" } });
-    logger.error("[execute-campaign] no active connection for channel, campaign paused", {
+export async function handleExecuteCampaign(
+  ctx: TenantContext,
+  payload: ExecuteCampaignPayload
+): Promise<void> {
+  if (ctx.businessId !== payload.businessId) throw new NotFoundError("Campaign run");
+  const db = getScopedPrisma(ctx);
+  if (typeof payload.runId !== "string") {
+    // A job queued before runs existed carried no frozen copy or saved authority.
+    logger.warn("[execute-campaign] job has no saved run; nothing was sent", {
       businessId: ctx.businessId,
-      campaignId: campaign.id,
-      channel: campaign.channel,
     });
     return;
   }
-
-  const customers = await findTargetCustomers(ctx, campaign.segments as unknown as CampaignSegment[]);
-
-  let sent = 0;
+  const run = await db.campaignRun.findFirst({ where: { id: payload.runId, retiredAt: null } });
+  if (!run || ["completed", "cancelled"].includes(run.status)) {
+    logger.warn("[execute-campaign] run is unavailable or finished, skipping", {
+      businessId: ctx.businessId,
+      runId: payload.runId,
+    });
+    return;
+  }
+  await db.campaignRun.updateMany({
+    where: { id: run.id, status: { in: ["pending", "running"] } },
+    data: { status: "running" },
+  });
+  await db.campaign.updateMany({ where: { id: run.campaignId }, data: { status: "running" } });
+  const targets = Array.isArray(run.targetCustomerIds) ? (run.targetCustomerIds as string[]) : [];
   let failed = 0;
-  for (const customer of customers) {
+  for (const customerId of targets) {
     try {
-      const result = await sendProactiveMessage(ctx, customer.id, campaign.channel, connection.id, campaign.message);
-      if (result.success) {
-        sent++;
-      } else {
-        failed++;
-        logger.warn("[execute-campaign] send failed for one customer", {
-          businessId: ctx.businessId,
-          campaignId: campaign.id,
-          customerId: customer.id,
-          error: result.error,
-        });
-      }
+      if ((await sendToRecipient(ctx, run, customerId)) === "failed") failed++;
     } catch (error) {
       failed++;
       logger.error("[execute-campaign] unexpected error sending to one customer", {
         businessId: ctx.businessId,
-        campaignId: campaign.id,
-        customerId: customer.id,
+        runId: run.id,
+        customerId,
         error,
       });
     }
   }
-
-  await db.campaign.update({ where: { id: campaign.id }, data: { status: "completed", sentCount: sent } });
-
-  logger.info("[execute-campaign] campaign complete", {
+  const accepted = await db.deliveryOperation.count({
+    where: { campaignRunId: run.id, status: "accepted" },
+  });
+  await db.campaignRun.updateMany({ where: { id: run.id }, data: { status: "completed" } });
+  await db.campaign.updateMany({
+    where: { id: run.campaignId },
+    data: { status: "completed", sentCount: accepted },
+  });
+  logger.info("[execute-campaign] run complete", {
     businessId: ctx.businessId,
-    campaignId: campaign.id,
-    targeted: customers.length,
-    sent,
+    runId: run.id,
+    targeted: targets.length,
+    accepted,
     failed,
   });
 }

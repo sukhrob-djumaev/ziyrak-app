@@ -51,7 +51,7 @@ export interface SendFollowupPayload {
 export const EXECUTE_CAMPAIGN_JOB = "execute-campaign";
 export interface ExecuteCampaignPayload {
   businessId: string;
-  campaignId: string;
+  runId: string;
 }
 
 /**

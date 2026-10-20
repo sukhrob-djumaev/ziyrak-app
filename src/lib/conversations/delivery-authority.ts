@@ -10,6 +10,16 @@ export interface FollowupSubmissionBinding {
   recipient: string;
   response: string;
 }
+/** Binding for one campaign recipient; the run replaces the follow-up action as parent. */
+export interface CampaignSubmissionBinding {
+  deliveryId: string;
+  campaignRunId: string;
+  conversationId: string;
+  connectionId: string;
+  channel: string;
+  recipient: string;
+  response: string;
+}
 /** Fresh facts for one sending admission. `notAfter` is the earliest expiry among the facts
  * used (for example an API key); the admission judges it at its final decision timestamp.
  */
@@ -24,6 +34,11 @@ export type AuthorizeFollowupSubmission = (
 ) => Promise<AdmittedFollowup>;
 
 import { z } from "zod";
+export type AuthorizeCampaignSubmission = (
+  worker: TenantContext,
+  binding: Readonly<CampaignSubmissionBinding>,
+  session: AdmissionSession
+) => Promise<AdmittedFollowup>;
 const id = z.string().min(1).max(128);
 const origin = z.union([
   z.object({ kind: z.literal("membership"), userId: id, membershipId: id }).strict(),
@@ -64,7 +79,7 @@ const delegated = z
 /** Shape/binding validation of the public composition seam; the authorizer owns freshness. */
 export function validFollowupProvenance(
   input: unknown,
-  binding: Readonly<FollowupSubmissionBinding>
+  binding: Readonly<Pick<FollowupSubmissionBinding, "deliveryId" | "conversationId" | "connectionId">>
 ) {
   const parsed = delegated.safeParse(input);
   if (!parsed.success) return false;

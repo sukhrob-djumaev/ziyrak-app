@@ -1,5 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import type { AdmissionSession } from "@/lib/tenancy/scoped-prisma";
+import type { RecoveryRequester } from "./recovery-authority";
 /** Application-composed fresh authority, never a queue adapter or ambient role. */
 export interface FollowupSubmissionBinding {
   deliveryId: string;
@@ -9,6 +10,8 @@ export interface FollowupSubmissionBinding {
   channel: string;
   recipient: string;
   response: string;
+  /** Present when a person approved a recovery resend of this operation. */
+  recoveredBy?: RecoveryRequester;
 }
 /** Binding for one campaign recipient; the run replaces the follow-up action as parent. */
 export interface CampaignSubmissionBinding {
@@ -19,6 +22,7 @@ export interface CampaignSubmissionBinding {
   channel: string;
   recipient: string;
   response: string;
+  recoveredBy?: RecoveryRequester;
 }
 /** Fresh facts for one sending admission. `notAfter` is the earliest expiry among the facts
  * used (for example an API key); the admission judges it at its final decision timestamp.
@@ -79,7 +83,9 @@ const delegated = z
 /** Shape/binding validation of the public composition seam; the authorizer owns freshness. */
 export function validFollowupProvenance(
   input: unknown,
-  binding: Readonly<Pick<FollowupSubmissionBinding, "deliveryId" | "conversationId" | "connectionId">>
+  binding: Readonly<
+    Pick<FollowupSubmissionBinding, "deliveryId" | "conversationId" | "connectionId">
+  >
 ) {
   const parsed = delegated.safeParse(input);
   if (!parsed.success) return false;

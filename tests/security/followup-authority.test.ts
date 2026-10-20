@@ -2,6 +2,8 @@ import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
 import { prisma } from "@/lib/prisma/raw-client";
+import { addMember } from "../helpers/tenant-fixtures";
+import { recoverDelivery } from "@/lib/conversations/delivery";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { generateToken, verifyToken, revokeToken } from "@/lib/identity/auth";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -256,6 +258,47 @@ describe("P1 scheduled follow-up origin and submission boundary, isolated Postgr
     expect(
       (await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: op.id } })).status
     ).toBe("rejected");
+  });
+});
+
+describe("P1 recovery resend of a follow-up rechecks the approving person", () => {
+  async function uncertainFollowup() {
+    const c = await conversation(),
+      { action } = await submit(c);
+    const op = await ensureDelivery(worker(), {
+      operationKey: "followup:" + action!.id,
+      kind: "followup",
+      actionId: action!.id,
+      conversationId: c.row.id,
+      connectionId: c.connection.id,
+      channel: CHANNEL,
+      recipient: c.row.customerContact,
+      response: queued[0].message,
+    });
+    await prisma.deliveryOperation.update({ where: { id: op.id }, data: { status: "unknown" } });
+    const approver = await addMember(a.businessId, "admin", "followup-approver");
+    await recoverDelivery(approver.ctx, op.id, {
+      decision: "resend",
+      reason: "synthetic recovery decision",
+      acknowledgeDuplicateRisk: true,
+      requestId: randomUUID(),
+    });
+    return { op, approver };
+  }
+  const retry = (id: string) =>
+    handleRetryDelivery(worker(RETRY_DELIVERY_JOB), { businessId: a.businessId, deliveryId: id });
+  it("resends when the approver still holds authority", async () => {
+    const { op } = await uncertainFollowup();
+    await retry(op.id);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+  it("does not resend after the approver is removed", async () => {
+    const { op, approver } = await uncertainFollowup();
+    await prisma.membership.deleteMany({
+      where: { businessId: a.businessId, userId: approver.userId },
+    });
+    await retry(op.id).catch(() => undefined);
+    expect(sent).not.toHaveBeenCalled();
   });
 });
 

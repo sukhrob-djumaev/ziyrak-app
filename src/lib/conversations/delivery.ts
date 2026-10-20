@@ -5,6 +5,7 @@ import {
   type AuthorizeCampaignSubmission,
   type AuthorizeFollowupSubmission,
 } from "./delivery-authority";
+import { recoveryRequesterOf } from "./recovery-authority";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import type { Prisma, DeliveryOperation } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -205,6 +206,7 @@ export async function dispatchDelivery(
     channel: row.channel,
     recipient: row.recipient,
     response: row.response!,
+    recoveredBy: recoveryRequesterOf(row.recoveryLog),
   });
   const campaignBindingOf = (row: DeliveryOperation) => ({
     deliveryId: row.id,
@@ -214,6 +216,7 @@ export async function dispatchDelivery(
     channel: row.channel,
     recipient: row.recipient,
     response: row.response!,
+    recoveredBy: recoveryRequesterOf(row.recoveryLog),
   });
   /** Validates the composed authority; a malformed callback can never widen it. */
   const validateAdmitted = (
@@ -685,6 +688,8 @@ export async function recoverDelivery(
   const entry = {
     requestId: input.requestId,
     actorId,
+    actorMembershipId:
+      ctx.authorization?.kind === "membership" ? ctx.authorization.membershipId : undefined,
     decision: input.decision,
     reason: input.reason,
     previousStatus: op.status,
@@ -715,12 +720,7 @@ export async function recoverDelivery(
     });
     if (!changed.count)
       throw new AppError(409, "ALREADY_HANDLED", "Another person already handled this operation.");
-    if (
-      status === "accepted" &&
-      op.kind !== "inbound" &&
-      op.conversationId &&
-      op.response !== null
-    )
+    if (status === "accepted" && op.kind !== "inbound" && op.conversationId && op.response !== null)
       await tx.message.upsert({
         where: { id },
         create: {

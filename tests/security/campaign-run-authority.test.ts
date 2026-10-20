@@ -10,7 +10,13 @@ import {
 } from "../helpers/tenant-fixtures";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { jobQueue } from "@/lib/jobs/queue";
-import { EXECUTE_CAMPAIGN_JOB, type ExecuteCampaignPayload } from "@/lib/jobs/job-types";
+import {
+  EXECUTE_CAMPAIGN_JOB,
+  RETRY_DELIVERY_JOB,
+  type ExecuteCampaignPayload,
+} from "@/lib/jobs/job-types";
+import { handleRetryDelivery } from "@/lib/jobs/handlers/retry-delivery";
+import { recoverDelivery } from "@/lib/conversations/delivery";
 import { handleExecuteCampaign } from "@/lib/jobs/handlers/execute-campaign";
 import { startCampaignRun } from "@/lib/campaigns/campaign-run";
 import { registerChannelAdapter } from "@/lib/channels/registry";
@@ -452,6 +458,78 @@ describe("P1 campaign run: review hardening", () => {
     const row = await prisma.campaignRun.findUniqueOrThrow({ where: { id: payload.runId } });
     expect(row.targetCustomerIds).toEqual([c1.id]);
     await run(payload);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("P1 recovery resend: the approving person is rechecked at admission", () => {
+  /** One recipient whose first send is uncertain, then a human approves a resend. */
+  async function resendReady() {
+    const requesterMember = await requester();
+    const approver = await addMember(a.businessId, "admin", "recovery-approver");
+    await customers(1);
+    const { payload } = await start(requesterMember.ctx, (await campaign()).id);
+    sent.mockRejectedValueOnce(new Error("worker crashed mid-send"));
+    await run(payload);
+    const [op] = await ops(payload.runId);
+    expect(op.status).toBe("unknown");
+    await recoverDelivery(approver.ctx, op.id, {
+      decision: "resend",
+      reason: "synthetic recovery decision",
+      acknowledgeDuplicateRisk: true,
+      requestId: randomUUID(),
+    });
+    const retry = () =>
+      handleRetryDelivery(
+        {
+          ...worker(),
+          actor: { kind: "system_job", jobId: randomUUID(), jobType: RETRY_DELIVERY_JOB },
+        },
+        { businessId: a.businessId, deliveryId: op.id }
+      );
+    return { op, approver, requesterMember, retry };
+  }
+
+  it("resends once when both the requester and the approver still hold authority", async () => {
+    const { op, retry } = await resendReady();
+    await retry();
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(
+      (await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: op.id } })).status
+    ).toBe("accepted");
+  });
+
+  for (const [label, change] of [
+    [
+      "removed approver",
+      (a2: { userId: string }) =>
+        prisma.membership.deleteMany({ where: { businessId: a.businessId, userId: a2.userId } }),
+    ],
+    [
+      "demoted approver",
+      (a2: { userId: string }) =>
+        prisma.membership.updateMany({
+          where: { businessId: a.businessId, userId: a2.userId },
+          data: { role: "agent" },
+        }),
+    ],
+  ] as const) {
+    it(`does not resend after a ${label}`, async () => {
+      const { op, approver, retry } = await resendReady();
+      await change(approver);
+      await retry().catch(() => undefined);
+      expect(sent).toHaveBeenCalledTimes(1);
+      const row = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: op.id } });
+      expect(row.status).not.toBe("accepted");
+    });
+  }
+
+  it("does not resend when the original requester lost authority even if the approver is valid", async () => {
+    const { requesterMember, retry } = await resendReady();
+    await prisma.membership.deleteMany({
+      where: { businessId: a.businessId, userId: requesterMember.userId },
+    });
+    await retry().catch(() => undefined);
     expect(sent).toHaveBeenCalledTimes(1);
   });
 });

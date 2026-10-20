@@ -3,6 +3,7 @@ import { getScopedPrisma, type AdmissionSession } from "@/lib/tenancy/scoped-pri
 import { refreshDeferredIdentity } from "@/lib/tenancy/deferred-origin";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import { hasPermission } from "@/lib/rbac/rbac";
+import { assertRecoveryRequester } from "@/lib/conversations/recovery-authority";
 import { EXECUTE_CAMPAIGN_JOB, RETRY_DELIVERY_JOB } from "@/lib/jobs/job-types";
 import { AppError } from "@/lib/observability/errors";
 import type {
@@ -16,6 +17,9 @@ function deny(): never {
     "CAMPAIGN_AUTHORITY_UNAVAILABLE",
     "The saved campaign authority is unavailable"
   );
+}
+function earliest(a?: Date, b?: Date) {
+  return a && b ? (a < b ? a : b) : (a ?? b);
 }
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -90,6 +94,14 @@ export const authorizeCampaignSubmission: AuthorizeCampaignSubmission = async (
     binding.connectionId,
     session
   );
+  const approverExpiry = binding.recoveredBy
+    ? await assertRecoveryRequester(
+        worker.businessId,
+        binding.recoveredBy,
+        binding.connectionId,
+        session
+      )
+    : undefined;
   const authorization: AuthorizationProvenance = {
     kind: "delegated_job",
     actorUserId: facts.actorUserId,
@@ -107,5 +119,5 @@ export const authorizeCampaignSubmission: AuthorizeCampaignSubmission = async (
       deliveryOperationId: binding.deliveryId,
     },
   };
-  return { context, notAfter: facts.notAfter };
+  return { context, notAfter: earliest(facts.notAfter, approverExpiry) };
 };

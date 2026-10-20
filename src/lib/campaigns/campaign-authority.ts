@@ -1,7 +1,7 @@
 import type { TenantContext, AuthorizationProvenance } from "@/lib/tenancy/context";
 import { getScopedPrisma, type AdmissionSession } from "@/lib/tenancy/scoped-prisma";
 import { refreshDeferredIdentity } from "@/lib/tenancy/deferred-origin";
-import { validateResourceScope, type ResourceScope } from "@/lib/tenancy/resource-scope";
+import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import { hasPermission } from "@/lib/rbac/rbac";
 import { EXECUTE_CAMPAIGN_JOB, RETRY_DELIVERY_JOB } from "@/lib/jobs/job-types";
 import { AppError } from "@/lib/observability/errors";
@@ -22,9 +22,6 @@ function object(value: unknown): Record<string, unknown> {
     ? (value as Record<string, unknown>)
     : {};
 }
-function permitsConnection(scope: ResourceScope, connectionId: string) {
-  return scope.kind === "workspace" || scope.connectionIds.includes(connectionId);
-}
 /**
  * Fresh identity facts for a saved campaign requester. Campaign sending needs the requester to
  * still hold `automation:create`, whole-workspace or channel scope containing the connection,
@@ -39,7 +36,9 @@ export async function currentCampaignFacts(
   const fresh = await refreshDeferredIdentity(saved, workspaceId, session?.control);
   if (!hasPermission(fresh.role, "automation:create")) deny();
   const scope = validateResourceScope(fresh.scope);
-  if (!permitsConnection(scope, connectionId) || scope.customerProfileAccess === "none") deny();
+  // Campaigns have no connection scope: a requester now limited to specific channels can no
+  // longer reach campaigns at all, even if the run's connection is among them.
+  if (scope.kind !== "workspace" || scope.customerProfileAccess === "none") deny();
   return {
     scope,
     origin: fresh.origin,
@@ -80,7 +79,8 @@ export const authorizeCampaignSubmission: AuthorizeCampaignSubmission = async (
     !conversation ||
     conversation.channel !== binding.channel ||
     conversation.customerContact !== binding.recipient ||
-    object(conversation.metadata).channelConnectionId !== binding.connectionId
+    object(conversation.metadata).channelConnectionId !== binding.connectionId ||
+    object(conversation.metadata).campaignRunId !== run.id
   )
     deny();
   // Resource lookups precede the final identity refresh, as for follow-ups.

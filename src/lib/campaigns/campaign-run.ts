@@ -38,11 +38,6 @@ export async function startCampaignRun(ctx: TenantContext, campaignId: string) {
       "NO_CONNECTION",
       "No active connection exists for this campaign's channel"
     );
-  const active = await db.campaignRun.findFirst({
-    where: { campaignId, status: { in: ["pending", "running"] }, retiredAt: null },
-    select: { id: true },
-  });
-  if (active) throw new AppError(409, "CAMPAIGN_RUN_ACTIVE", "This campaign is already being sent");
   const customers = await findTargetCustomers(
     ctx,
     campaign.segments as unknown as CampaignSegment[]
@@ -50,20 +45,41 @@ export async function startCampaignRun(ctx: TenantContext, campaignId: string) {
   const snapshot = await captureDeferredIdentity(ctx);
   // The requester must already satisfy the exact conditions the worker will recheck.
   await currentCampaignFacts(ctx.businessId, snapshot, connection.id);
-  const run = await db.campaignRun.create({
-    data: {
+  const run = await db.$transaction(async (tx) => {
+    // Locking the campaign row (and the workspace fence it takes) serializes simultaneous
+    // starts: only one can observe "no active run" and create one.
+    const locked = await tx.campaign.updateMany({
+      where: { id: campaignId },
+      data: { id: campaignId },
+    });
+    if (!locked.count) throw new NotFoundError("Campaign");
+    const active = await tx.campaignRun.findFirst({
+      where: { campaignId, status: { in: ["pending", "running"] }, retiredAt: null },
+      select: { id: true },
+    });
+    if (active)
+      throw new AppError(409, "CAMPAIGN_RUN_ACTIVE", "This campaign is already being sent");
+    return tx.campaignRun.create({
+      data: {
+        businessId: ctx.businessId,
+        campaignId,
+        authorizationSnapshot: snapshot as Prisma.InputJsonValue,
+        channel: campaign.channel,
+        connectionId: connection.id,
+        message: campaign.message,
+        targetCustomerIds: customers.map((customer) => customer.id),
+      },
+    });
+  });
+  try {
+    await jobQueue.enqueue<ExecuteCampaignPayload>(EXECUTE_CAMPAIGN_JOB, {
       businessId: ctx.businessId,
-      campaignId,
-      authorizationSnapshot: snapshot as Prisma.InputJsonValue,
-      channel: campaign.channel,
-      connectionId: connection.id,
-      message: campaign.message,
-      targetCustomerIds: customers.map((customer) => customer.id),
-    },
-  });
-  await jobQueue.enqueue<ExecuteCampaignPayload>(EXECUTE_CAMPAIGN_JOB, {
-    businessId: ctx.businessId,
-    runId: run.id,
-  });
+      runId: run.id,
+    });
+  } catch (error) {
+    // Nothing was queued, so nothing will send: release the campaign for another attempt.
+    await db.campaignRun.updateMany({ where: { id: run.id }, data: { status: "cancelled" } });
+    throw error;
+  }
   return { runId: run.id, targetCount: customers.length };
 }

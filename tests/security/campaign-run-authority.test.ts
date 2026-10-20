@@ -14,6 +14,7 @@ import { EXECUTE_CAMPAIGN_JOB, type ExecuteCampaignPayload } from "@/lib/jobs/jo
 import { handleExecuteCampaign } from "@/lib/jobs/handlers/execute-campaign";
 import { startCampaignRun } from "@/lib/campaigns/campaign-run";
 import { registerChannelAdapter } from "@/lib/channels/registry";
+import { deleteCustomerData } from "@/lib/customers/gdpr";
 import { retirementContext } from "@/lib/tenancy/work-lifecycle";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { retireConversationWork } from "@/lib/conversations/retire-work";
@@ -375,5 +376,82 @@ describe("P1 campaign run: erasure", () => {
     expect(op.retiredAt).not.toBeNull();
     expect(op.recipient).toBe("");
     expect(op.response).toBe("[REDACTED - GDPR]");
+  });
+});
+
+describe("P1 campaign run: review hardening", () => {
+  it("two simultaneous starts create exactly one run", async () => {
+    const who = await requester();
+    await customers(2);
+    const camp = await campaign();
+    const results = await Promise.allSettled([
+      startCampaignRun(who.ctx, camp.id),
+      startCampaignRun(who.ctx, camp.id),
+      startCampaignRun(who.ctx, camp.id),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await prisma.campaignRun.count({ where: { businessId: a.businessId } })).toBe(1);
+    expect(queued).toHaveLength(1);
+  });
+
+  it("a failed enqueue cancels the run so the campaign can be started again", async () => {
+    const who = await requester();
+    await customers(1);
+    const camp = await campaign();
+    vi.mocked(jobQueue.enqueue).mockRejectedValueOnce(new Error("queue unavailable"));
+    await expect(startCampaignRun(who.ctx, camp.id)).rejects.toThrow("queue unavailable");
+    const [failed] = await prisma.campaignRun.findMany({ where: { businessId: a.businessId } });
+    expect(failed.status).toBe("cancelled");
+    await expect(startCampaignRun(who.ctx, camp.id)).resolves.toMatchObject({ targetCount: 1 });
+  });
+
+  it("sends nothing when the requester is re-scoped to specific channels after starting", async () => {
+    const who = await requester();
+    await customers(2);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    const m = await prisma.membership.findFirstOrThrow({
+      where: { businessId: a.businessId, userId: who.userId },
+    });
+    await prisma.membership.update({ where: { id: m.id }, data: { scopeMode: "connections" } });
+    await prisma.membershipConnectionScope.create({
+      data: { businessId: a.businessId, membershipId: m.id, connectionId },
+    });
+    await run(payload);
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  it("per-recipient keys, not only the finished-run shortcut, prevent a second send", async () => {
+    const who = await requester();
+    await customers(3);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    await run(payload);
+    await prisma.campaignRun.update({ where: { id: payload.runId }, data: { status: "running" } });
+    await run(payload);
+    expect(sent).toHaveBeenCalledTimes(3);
+  });
+
+  it("never re-sends a recipient whose outcome was uncertain, and sends the rest exactly once", async () => {
+    const who = await requester();
+    await customers(3);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    sent.mockResolvedValueOnce({ success: true, providerMessageId: "one" });
+    sent.mockRejectedValueOnce(new Error("worker crashed mid-send"));
+    await run(payload);
+    await prisma.campaignRun.update({ where: { id: payload.runId }, data: { status: "running" } });
+    await run(payload);
+    expect(sent).toHaveBeenCalledTimes(3);
+    const statuses = (await ops(payload.runId)).map((o) => o.status).sort();
+    expect(statuses).toEqual(["accepted", "accepted", "unknown"]);
+  });
+
+  it("customer erasure removes the customer from unfinished runs and nothing is sent to them", async () => {
+    const who = await requester();
+    const [c1, c2] = await customers(2);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    await deleteCustomerData(a.ctx, c2.id, true);
+    const row = await prisma.campaignRun.findUniqueOrThrow({ where: { id: payload.runId } });
+    expect(row.targetCustomerIds).toEqual([c1.id]);
+    await run(payload);
+    expect(sent).toHaveBeenCalledTimes(1);
   });
 });

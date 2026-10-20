@@ -63,3 +63,18 @@ the full browser suite.
 Stand-in channel only, no provider claim. Pre-created recipient conversations remain (empty)
 when a send is refused or rejected; they are marked by campaign metadata so they can be
 filtered. Dedicated data-plane placement is not exercised end to end.
+
+## Review outcome (independent read-only review, fixed with tests)
+
+Fixed: simultaneous starts could create two runs (now serialized by locking the campaign row in
+a transaction); a failed enqueue left the campaign blocked (the run is cancelled); a requester
+re-scoped to channels kept sending (campaigns require whole-workspace scope at admission, as at
+start); erasure left the customer id in run target lists (removed in the same transaction);
+`campaignRun` added to the connection-scope deny lists; the authorizer also checks the recipient
+conversation's run marker. Tests tightened (uncertain recipients are never re-sent; the
+per-recipient keys, not only the finished-run shortcut, prevent a second send).
+
+Decided, not changed: the recipient contact is resolved from the customer profile at send time
+(the customer is the target; an edited address is followed, an erased profile has none). A run
+whose worker keeps failing can stay `running` and block a new start until an operator cancel
+path exists (not built; no UI for campaigns yet).

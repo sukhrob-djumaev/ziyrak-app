@@ -19,6 +19,7 @@ import { handleRetryDelivery } from "@/lib/jobs/handlers/retry-delivery";
 import { recoverDelivery } from "@/lib/conversations/delivery";
 import { handleExecuteCampaign } from "@/lib/jobs/handlers/execute-campaign";
 import { startCampaignRun } from "@/lib/campaigns/campaign-run";
+import { generateToken, verifyToken, revokeToken } from "@/lib/identity/auth";
 import { registerChannelAdapter } from "@/lib/channels/registry";
 import { deleteCustomerData } from "@/lib/customers/gdpr";
 import { retirementContext } from "@/lib/tenancy/work-lifecycle";
@@ -203,13 +204,33 @@ describe("P1 campaign run: requester authority is rechecked at admission", () =>
       await run(payload);
       expect(sent).not.toHaveBeenCalled();
       const rows = await ops(payload.runId);
-      expect(rows.length).toBeGreaterThan(0);
       for (const op of rows) {
         expect(["rejected", "pending", "ready"]).toContain(op.status);
         expect(op.status).not.toBe("accepted");
       }
     });
   }
+
+  it("creates no recipient conversations and cancels the run when the requester lost authority before it began", async () => {
+    const who = await requester();
+    await customers(3);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    await prisma.membership.deleteMany({ where: { businessId: a.businessId, userId: who.userId } });
+    await run(payload);
+    expect(sent).not.toHaveBeenCalled();
+    expect(
+      await prisma.conversation.count({
+        where: {
+          businessId: a.businessId,
+          metadata: { path: ["campaignRunId"], equals: payload.runId },
+        },
+      })
+    ).toBe(0);
+    expect(await ops(payload.runId)).toHaveLength(0);
+    expect(
+      (await prisma.campaignRun.findUniqueOrThrow({ where: { id: payload.runId } })).status
+    ).toBe("cancelled");
+  });
 
   it("stops the remaining recipients when authority is revoked mid-run", async () => {
     const who = await requester();
@@ -225,6 +246,37 @@ describe("P1 campaign run: requester authority is rechecked at admission", () =>
     expect(sent).toHaveBeenCalledTimes(1);
     const statuses = (await ops(payload.runId)).map((o) => o.status);
     expect(statuses.filter((s) => s === "accepted")).toHaveLength(1);
+  });
+});
+
+describe("P1 campaign run: schedules survive the requester's logout", () => {
+  it("still sends after the requester's session is revoked, as a bounded delegated job", async () => {
+    const who = await requester();
+    const token = generateToken(who.userId);
+    const session = verifyToken(token)!;
+    const ctx: TenantContext = {
+      ...who.ctx,
+      authorization: {
+        kind: "membership",
+        userId: who.userId,
+        membershipId: (who.ctx.authorization as { membershipId: string }).membershipId,
+        sessionJti: session.jti,
+        sessionExpiresAt: session.exp,
+      },
+    };
+    await customers(2);
+    const { payload } = await start(ctx, (await campaign()).id);
+    await revokeToken(token); // logout
+    await run(payload);
+    expect(sent).toHaveBeenCalledTimes(2);
+    const actual = sent.mock.calls[0][0] as TenantContext;
+    expect(actual.role).toBeNull();
+    expect(actual.actor.kind).toBe("system_job");
+    expect(actual.authorization).toMatchObject({
+      kind: "delegated_job",
+      allowedOperations: ["messages:create"],
+    });
+    await prisma.revokedToken.deleteMany({ where: { userId: who.userId } });
   });
 });
 
@@ -364,21 +416,24 @@ describe("P1 campaign run: start-time boundaries", () => {
 describe("P1 campaign run: erasure", () => {
   it("retires an unsent recipient operation with its conversation and never sends it afterwards", async () => {
     const who = await requester();
-    const [c1] = await customers(1);
+    await customers(2);
     const { payload } = await start(who.ctx, (await campaign()).id);
-    // Admit the preparation only: the recipient conversation exists, the operation is ready.
-    const first = await prisma.membership.findFirstOrThrow({
-      where: { businessId: a.businessId, userId: who.userId },
+    // The first send revokes the requester, so the second recipient is prepared but refused at admission.
+    sent.mockImplementationOnce(async () => {
+      await prisma.membership.deleteMany({
+        where: { businessId: a.businessId, userId: who.userId },
+      });
+      return { success: true, providerMessageId: "first" };
     });
-    await prisma.membership.delete({ where: { id: first.id } }); // blocks the send itself
     await run(payload);
-    const conversation = await prisma.conversation.findFirstOrThrow({
-      where: { businessId: a.businessId, customerId: c1.id },
-    });
+    const unsent = (await ops(payload.runId)).filter((o) => o.status !== "accepted");
+    expect(unsent).toHaveLength(1);
+    // Recipient order comes from an unordered query: retire whichever recipient was left unsent.
+    const conversation = { id: unsent[0].conversationId! };
     await retireConversationWork(getScopedPrisma(retirementContext(worker())), [conversation.id]);
     await run(payload);
-    expect(sent).not.toHaveBeenCalled();
-    const [op] = await ops(payload.runId);
+    expect(sent).toHaveBeenCalledTimes(1);
+    const op = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: unsent[0].id } });
     expect(op.retiredAt).not.toBeNull();
     expect(op.recipient).toBe("");
     expect(op.response).toBe("[REDACTED - GDPR]");

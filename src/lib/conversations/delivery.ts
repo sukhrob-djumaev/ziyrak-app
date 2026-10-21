@@ -5,7 +5,7 @@ import {
   type AuthorizeCampaignSubmission,
   type AuthorizeFollowupSubmission,
 } from "./delivery-authority";
-import { recoveryRequesterOf } from "./recovery-authority";
+import { assertRecoveryRequester, recoveryRequesterOf } from "./recovery-authority";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
 import type { Prisma, DeliveryOperation } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -386,6 +386,16 @@ export async function dispatchDelivery(
         "No completed reply exists; review the conversation."
       );
   } else {
+    // An inbound reply has no saved requester, but a person may have approved its resend: that
+    // approver must still hold their authority when it goes out.
+    const approver = recoveryRequesterOf(op.recoveryLog);
+    if (approver) {
+      try {
+        await assertRecoveryRequester(ctx.businessId, approver, op.connectionId);
+      } catch (error) {
+        return refuseUnsent(error);
+      }
+    }
     try {
       await validateDeliveryDestination(submissionCtx, op);
     } catch (error) {

@@ -1,7 +1,6 @@
 import { logger } from "@/lib/observability/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { sendInternalEmailTool } from "@/lib/tools/builtin/send-internal-email";
 
 interface Condition {
   field: string;
@@ -43,11 +42,7 @@ interface MatchedAction {
   actions: Action[];
 }
 
-function getFieldValue(
-  field: string,
-  message: Message,
-  conversation: Conversation
-): string {
+function getFieldValue(field: string, message: Message, conversation: Conversation): string {
   switch (field) {
     case "message_content":
       return message.content || "";
@@ -65,11 +60,7 @@ function evaluateCondition(
   message: Message,
   conversation: Conversation
 ): boolean {
-  const fieldValue = getFieldValue(
-    condition.field,
-    message,
-    conversation
-  ).toLowerCase();
+  const fieldValue = getFieldValue(condition.field, message, conversation).toLowerCase();
   const targetValue = condition.value.toLowerCase();
 
   switch (condition.operator) {
@@ -91,9 +82,7 @@ function ruleMatchesMessage(
 ): boolean {
   if (!rule.conditions || rule.conditions.length === 0) return false;
 
-  return rule.conditions.every((condition) =>
-    evaluateCondition(condition, message, conversation)
-  );
+  return rule.conditions.every((condition) => evaluateCondition(condition, message, conversation));
 }
 
 /**
@@ -150,9 +139,7 @@ export async function evaluateRules(
           where: { id: rule.id },
           data: { triggerCount: { increment: 1 } },
         })
-        .catch((err) =>
-          logger.error(`Failed to increment trigger count for rule ${rule.id}`, err)
-        );
+        .catch((err) => logger.error(`Failed to increment trigger count for rule ${rule.id}`, err));
     }
   }
 
@@ -193,7 +180,11 @@ export async function applyAutomationActions(
             .upsert({
               where: { conversationId_tagId: { conversationId: conversation.id, tagId: tag.id } },
               update: {},
-              create: { businessId: ctx.businessId, conversationId: conversation.id, tagId: tag.id },
+              create: {
+                businessId: ctx.businessId,
+                conversationId: conversation.id,
+                tagId: tag.id,
+              },
             })
             .catch((err) => logger.error(`[automation] failed to apply auto_tag "${value}"`, err));
           break;
@@ -206,7 +197,9 @@ export async function applyAutomationActions(
               where: { id: conversation.id },
               data: { metadata: { ...existingMetadata, routedDepartment: value } },
             })
-            .catch((err) => logger.error(`[automation] failed to apply auto_route "${value}"`, err));
+            .catch((err) =>
+              logger.error(`[automation] failed to apply auto_route "${value}"`, err)
+            );
           break;
         }
         case "auto_reply": {
@@ -214,21 +207,19 @@ export async function applyAutomationActions(
           break;
         }
         case "keyword_alert": {
-          await sendInternalEmailTool
-            .execute(
-              ctx,
-              {
-                to: value,
-                subject: `Automation alert: ${matched.ruleName}`,
-                body: `Automation rule "${matched.ruleName}" matched a customer message in conversation ${conversation.id}.`,
-              },
-              {}
-            )
-            .catch((err) => logger.error(`[automation] failed to send keyword_alert to "${value}"`, err));
+          // Fail closed: this used to e-mail a rule-supplied address through the legacy global SMTP
+          // account shared by every workspace, with no tool policy, admission or recorded origin.
+          // It sends nothing until a per-workspace e-mail setting exists.
+          logger.warn(
+            `[automation] keyword_alert skipped for rule "${matched.ruleName}": alert e-mails are disabled until a per-workspace e-mail setting exists`,
+            { businessId: ctx.businessId, ruleId: matched.ruleId }
+          );
           break;
         }
         default:
-          logger.warn(`[automation] unrecognized action type "${action.type}" on rule "${matched.ruleName}"`);
+          logger.warn(
+            `[automation] unrecognized action type "${action.type}" on rule "${matched.ruleName}"`
+          );
       }
     }
   }

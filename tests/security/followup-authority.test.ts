@@ -302,6 +302,46 @@ describe("P1 recovery resend of a follow-up rechecks the approving person", () =
   });
 });
 
+describe("P1 recovery resend of an inbound reply rechecks the approving person", () => {
+  async function uncertainInbound() {
+    const c = await conversation();
+    const op = await ensureDelivery(worker(), {
+      operationKey: "inbound-resend:" + randomUUID(),
+      kind: "inbound",
+      conversationId: c.row.id,
+      connectionId: c.connection.id,
+      channel: CHANNEL,
+      recipient: c.row.customerContact,
+      response: "Saved inbound reply",
+    });
+    await prisma.deliveryOperation.update({ where: { id: op.id }, data: { status: "unknown" } });
+    const approver = await addMember(a.businessId, "admin", "inbound-approver");
+    await recoverDelivery(approver.ctx, op.id, {
+      decision: "resend",
+      reason: "synthetic recovery decision",
+      acknowledgeDuplicateRisk: true,
+      requestId: randomUUID(),
+    });
+    return { op, approver };
+  }
+  it("resends when the approver still holds authority", async () => {
+    const { op } = await uncertainInbound();
+    await dispatchDelivery(worker(RETRY_DELIVERY_JOB), op.id);
+    expect(sent).toHaveBeenCalledTimes(1);
+  });
+  it("does not resend after the approver is removed", async () => {
+    const { op, approver } = await uncertainInbound();
+    await prisma.membership.deleteMany({
+      where: { businessId: a.businessId, userId: approver.userId },
+    });
+    await dispatchDelivery(worker(RETRY_DELIVERY_JOB), op.id).catch(() => undefined);
+    expect(sent).not.toHaveBeenCalled();
+    expect(
+      (await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: op.id } })).status
+    ).not.toBe("accepted");
+  });
+});
+
 describe("P1 dispatch seam and accepted checkpoint regressions", () => {
   it("rejects malformed callback origins and missing operation arrays as permanent unsent refusals", async () => {
     const c = await conversation();

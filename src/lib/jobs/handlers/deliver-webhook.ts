@@ -5,7 +5,7 @@ import { generateSignature } from "@/lib/integrations/webhook-delivery";
 import { hasPermission } from "@/lib/rbac/rbac";
 import { refreshDeferredIdentity } from "@/lib/tenancy/deferred-origin";
 import { validateResourceScope } from "@/lib/tenancy/resource-scope";
-import { AppError } from "@/lib/observability/errors";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 import { jobQueue } from "@/lib/jobs/queue";
 import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
@@ -31,16 +31,8 @@ export async function handleDeliverWebhook(
   ctx: TenantContext,
   payload: DeliverWebhookPayload
 ): Promise<void> {
+  if (ctx.businessId !== payload.businessId) throw new NotFoundError("Webhook delivery");
   const db = getScopedPrisma(ctx);
-
-  const webhook = await db.webhook.findUnique({ where: { id: payload.webhookId } });
-  if (!webhook) {
-    logger.warn("[deliver-webhook] webhook no longer exists, skipping", {
-      businessId: ctx.businessId,
-      webhookId: payload.webhookId,
-    });
-    return;
-  }
 
   const delivery = await db.webhookDelivery.findUnique({ where: { id: payload.deliveryId } });
   if (!delivery) {
@@ -50,14 +42,38 @@ export async function handleDeliverWebhook(
     });
     return;
   }
+  // The target is the delivery's own webhook; a mismatched payload pair is never followed.
+  if (delivery.webhookId !== payload.webhookId) {
+    logger.warn("[deliver-webhook] payload webhook does not own the delivery, skipping", {
+      businessId: ctx.businessId,
+      deliveryId: delivery.id,
+    });
+    return;
+  }
+  const webhook = await db.webhook.findUnique({ where: { id: delivery.webhookId } });
+  if (!webhook) {
+    logger.warn("[deliver-webhook] webhook no longer exists, skipping", {
+      businessId: ctx.businessId,
+      webhookId: delivery.webhookId,
+    });
+    return;
+  }
+  if (!webhook.isActive) {
+    await db.webhookDelivery.updateMany({
+      where: { id: delivery.id, status: { not: "delivered" } },
+      data: { status: "failed", lastError: "Webhook is no longer active" },
+    });
+    return;
+  }
 
   if (delivery.status === "delivered") {
     return; // already succeeded on a previous attempt this exact job retried past
   }
 
+  // Every delivery attempt runs for a recorded person (manual retry). A job without one has no
+  // producer and no authority to run, so it fails closed instead of sending.
+  let allowed = false;
   if (payload.requestedBy !== undefined) {
-    // A manual retry runs only while the person who asked still may ask.
-    let allowed = false;
     try {
       const fresh = await refreshDeferredIdentity(payload.requestedBy, ctx.businessId);
       allowed =
@@ -68,17 +84,23 @@ export async function handleDeliverWebhook(
       if (!(error instanceof AppError)) throw error;
       allowed = false;
     }
-    if (!allowed) {
-      await db.webhookDelivery.updateMany({
-        where: { id: delivery.id, status: { not: "delivered" } },
-        data: { status: "failed", lastError: "Retry requester is no longer authorized" },
-      });
-      logger.warn("[deliver-webhook] retry requester no longer authorized, not sent", {
-        businessId: ctx.businessId,
-        deliveryId: delivery.id,
-      });
-      return;
-    }
+  }
+  if (!allowed) {
+    await db.webhookDelivery.updateMany({
+      where: { id: delivery.id, status: { not: "delivered" } },
+      data: {
+        status: "failed",
+        lastError:
+          payload.requestedBy === undefined
+            ? "Delivery has no recorded requester"
+            : "Retry requester is no longer authorized",
+      },
+    });
+    logger.warn("[deliver-webhook] no authorized requester, not sent", {
+      businessId: ctx.businessId,
+      deliveryId: delivery.id,
+    });
+    return;
   }
 
   const attempt = delivery.attempts + 1;

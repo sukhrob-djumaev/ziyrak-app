@@ -12,6 +12,7 @@ vi.mock("@/lib/identity/auth", async (importOriginal) => {
     ...actual,
     getCurrentUser: vi.fn(),
     isSetupComplete: vi.fn(),
+    verifyPassword: vi.fn(actual.verifyPassword),
   };
 });
 
@@ -77,6 +78,23 @@ describe("POST /api/auth", () => {
 
       const response = await POST(request);
       expect(response.status).toBe(401);
+    });
+
+    it("does the same password-hash work for an unknown username as for a known one", async () => {
+      const { verifyPassword } = await import("@/lib/identity/auth");
+      vi.mocked(verifyPassword).mockClear();
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      const { POST } = await import("@/app/api/auth/route");
+      const request = createRequest("/api/auth", {
+        method: "POST",
+        body: { action: "login", username: "noone", password: "pass" },
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(401);
+      // A response that skips the hash comparison reveals, by timing, that the username is unknown.
+      expect(verifyPassword).toHaveBeenCalledTimes(1);
     });
 
     it("should reject missing credentials", async () => {

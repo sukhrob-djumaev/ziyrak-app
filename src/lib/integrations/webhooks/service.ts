@@ -1,5 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
 import { NotFoundError } from "@/lib/observability/errors";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -11,6 +12,7 @@ export interface ListWebhooksParams {
 }
 
 export async function list(ctx: TenantContext, params: ListWebhooksParams) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   const [webhooks, total] = await Promise.all([
     db.webhook.findMany({ orderBy: { createdAt: "desc" }, skip: params.skip, take: params.take }),
@@ -29,6 +31,7 @@ export interface CreateWebhookInput {
 }
 
 export async function create(ctx: TenantContext, input: CreateWebhookInput) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   return db.webhook.create({
     data: {
@@ -44,6 +47,7 @@ export async function create(ctx: TenantContext, input: CreateWebhookInput) {
 }
 
 export async function getById(ctx: TenantContext, id: string) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   const webhook = await db.webhook.findUnique({ where: { id } });
   if (!webhook) throw new NotFoundError("Webhook");
@@ -61,6 +65,7 @@ export interface UpdateWebhookInput {
 }
 
 export async function update(ctx: TenantContext, id: string, input: UpdateWebhookInput) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   const existing = await db.webhook.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Webhook");
@@ -80,6 +85,7 @@ export async function update(ctx: TenantContext, id: string, input: UpdateWebhoo
 }
 
 export async function remove(ctx: TenantContext, id: string): Promise<void> {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   const existing = await db.webhook.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Webhook");
@@ -92,7 +98,12 @@ export interface ListDeliveriesParams {
   take: number;
 }
 
-export async function listDeliveries(ctx: TenantContext, webhookId: string, params: ListDeliveriesParams) {
+export async function listDeliveries(
+  ctx: TenantContext,
+  webhookId: string,
+  params: ListDeliveriesParams
+) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   const webhook = await db.webhook.findUnique({ where: { id: webhookId } });
   if (!webhook) throw new NotFoundError("Webhook");
@@ -101,14 +112,24 @@ export async function listDeliveries(ctx: TenantContext, webhookId: string, para
   if (params.status && params.status !== "all") where.status = params.status;
 
   const [deliveries, total] = await Promise.all([
-    db.webhookDelivery.findMany({ where, orderBy: { createdAt: "desc" }, skip: params.skip, take: params.take }),
+    db.webhookDelivery.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
     db.webhookDelivery.count({ where }),
   ]);
 
   return { deliveries, total };
 }
 
-export async function findDeliveryForWebhook(ctx: TenantContext, webhookId: string, deliveryId: string) {
+export async function findDeliveryForWebhook(
+  ctx: TenantContext,
+  webhookId: string,
+  deliveryId: string
+) {
+  assertWorkspaceWideAuthority(ctx, "Webhooks");
   const db = getScopedPrisma(ctx);
   return db.webhookDelivery.findFirst({ where: { id: deliveryId, webhookId } });
 }

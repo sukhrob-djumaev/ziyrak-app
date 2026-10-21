@@ -1,3 +1,9 @@
+# Latest session (2026-10-21, P1 review)
+
+Whole-surface P1 review done (3 independent agent reviews); fixes on branch p1-closure (24d446a),
+full browser 26/26, unit 1594/1616. Open: keyword_alert / global SMTP owner decision; merge approval.
+See CURRENT Update16.
+
 # Latest session (2026-10-21, R3 close)
 
 R3 merged locally (d0bc61f) after exact-head PR CI; braces residual accepted by the owner. Main

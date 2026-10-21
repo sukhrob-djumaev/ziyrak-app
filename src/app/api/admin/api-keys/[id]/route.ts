@@ -9,7 +9,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await requireAuth(request, "admin:read");
+  const ctx = await requireAuth(request, "admin:update");
   if (!isAuthenticated(ctx)) return ctx;
 
   try {

@@ -1,5 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
 import { NotFoundError } from "@/lib/observability/errors";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -95,7 +96,8 @@ export async function getById(ctx: TenantContext, id: string) {
 
   // Linked conversations by matching email, phone, or whatsapp.
   const contactFilters: Record<string, unknown>[] = [];
-  if (customer.email) contactFilters.push({ customerContact: { equals: customer.email, mode: "insensitive" } });
+  if (customer.email)
+    contactFilters.push({ customerContact: { equals: customer.email, mode: "insensitive" } });
   if (customer.phone) contactFilters.push({ customerContact: customer.phone });
   if (customer.whatsapp) contactFilters.push({ customerContact: customer.whatsapp });
 
@@ -149,6 +151,9 @@ export async function update(ctx: TenantContext, id: string, input: UpdateCustom
 }
 
 export async function remove(ctx: TenantContext, id: string): Promise<void> {
+  // A customer profile is shared across channels: deleting it detaches conversations on channels a
+  // restricted member cannot see, exactly as whole-customer erasure refuses.
+  assertWorkspaceWideAuthority(ctx, "Deleting a customer");
   const db = getScopedPrisma(ctx);
   const existing = await db.customer.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Customer");
@@ -174,7 +179,8 @@ export async function listConversations(
   if (!customer) throw new NotFoundError("Customer");
 
   const contactFilters: Record<string, unknown>[] = [{ customerId }];
-  if (customer.email) contactFilters.push({ customerContact: { equals: customer.email, mode: "insensitive" } });
+  if (customer.email)
+    contactFilters.push({ customerContact: { equals: customer.email, mode: "insensitive" } });
   if (customer.phone) contactFilters.push({ customerContact: customer.phone });
   if (customer.whatsapp) contactFilters.push({ customerContact: customer.whatsapp });
 

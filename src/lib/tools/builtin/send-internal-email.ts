@@ -1,6 +1,7 @@
 import { z } from "zod";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma/raw-client";
+import { isDefaultBusiness } from "@/lib/tenancy/default-business";
 import type { ToolDefinition } from "../types";
 
 const schema = z.object({
@@ -14,8 +15,18 @@ export const sendInternalEmailTool: ToolDefinition = {
   name: "send_internal_email",
   description: "Send an email to a team member about a customer issue that needs their attention.",
   schema,
-  async execute(_ctx, args) {
+  async execute(ctx, args) {
     const { to, subject, body } = schema.parse(args);
+    // The SMTP identity is the legacy GLOBAL settings row, which only the default (first)
+    // business can configure. Every other workspace is told it is not configured instead of
+    // sending mail from an account that is not theirs.
+    if (!(await isDefaultBusiness(ctx))) {
+      return {
+        success: false,
+        status: "failed",
+        message: "Email is not configured for this workspace.",
+      };
+    }
     const settings = await prisma.settings.findFirst();
     if (!settings?.smtpHost) {
       return {

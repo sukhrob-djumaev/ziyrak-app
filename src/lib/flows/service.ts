@@ -1,5 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
 import { NotFoundError } from "@/lib/observability/errors";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -14,10 +15,16 @@ export interface ListFlowsParams {
 export async function list(ctx: TenantContext, params: ListFlowsParams) {
   const db = getScopedPrisma(ctx);
   const where: Record<string, unknown> = {};
-  if (params.isActive !== null && params.isActive !== undefined) where.isActive = params.isActive === "true";
+  if (params.isActive !== null && params.isActive !== undefined)
+    where.isActive = params.isActive === "true";
 
   const [flows, total] = await Promise.all([
-    db.flow.findMany({ where, orderBy: { createdAt: "desc" }, skip: params.skip, take: params.take }),
+    db.flow.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
     db.flow.count({ where }),
   ]);
   return { flows, total };
@@ -32,6 +39,7 @@ export interface CreateFlowInput {
 }
 
 export async function create(ctx: TenantContext, input: CreateFlowInput) {
+  assertWorkspaceWideAuthority(ctx, "Flows");
   const db = getScopedPrisma(ctx);
   return db.flow.create({
     data: {
@@ -61,6 +69,7 @@ export interface UpdateFlowInput {
 }
 
 export async function update(ctx: TenantContext, id: string, input: UpdateFlowInput) {
+  assertWorkspaceWideAuthority(ctx, "Flows");
   const db = getScopedPrisma(ctx);
   const existing = await db.flow.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Flow");
@@ -78,6 +87,7 @@ export async function update(ctx: TenantContext, id: string, input: UpdateFlowIn
 }
 
 export async function remove(ctx: TenantContext, id: string): Promise<void> {
+  assertWorkspaceWideAuthority(ctx, "Flows");
   const db = getScopedPrisma(ctx);
   const existing = await db.flow.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Flow");

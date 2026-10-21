@@ -29,7 +29,7 @@ const sql = L.sql;
   const nameField = await op.$("input[placeholder='My Business']");
   out.settingsEdit.foundNameField = !!nameField;
   if (nameField) {
-    await nameField.click({ clickCount: 3 });
+    await nameField.evaluate((el) => { el.focus(); el.select(); });
     await nameField.type("Northwind Bakery (edited via /settings)");
     const saveResp = op.waitForResponse((r) => r.url().includes("/api/settings/business") && r.request().method() === "PUT", { timeout: 10000 }).catch(() => null);
     await L.clickFirst(op, "button", "Save");

@@ -124,7 +124,9 @@ exports.launch = async (name) => {
   fs.mkdirSync(userDataDir, { recursive: true });
   const browser = await puppeteer.launch({
     executablePath: CHROMIUM,
-    headless: true,
+    // ACC_HEADLESS=shell selects Chrome's windowless headless shell (point CHROMIUM_PATH at it): it does not
+    // depend on a visible window, so a locked screen or occluded window cannot pause rendering.
+    headless: process.env.ACC_HEADLESS === "shell" ? "shell" : true,
     userDataDir,
     args: ["--no-sandbox", "--window-size=1280,900"],
     defaultViewport: { width: 1280, height: 900 },

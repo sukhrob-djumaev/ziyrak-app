@@ -53,7 +53,7 @@ async function submit(page, proof, reason, status) {
       L.sql('SELECT count(*) FROM "User" WHERE "platformRole"=\'super_admin\'') === "0",
       "Denied proof creates no authority"
     );
-    await a.page.click("#enrollmentReason", { clickCount: 3 });
+    await a.page.$eval("#enrollmentReason", (el) => { el.focus(); el.select(); });
     await a.page.keyboard.press("Backspace");
     await submit(a.page, bootstrap, "Synthetic approved platform enrollment", 200);
     await a.page.waitForFunction(

@@ -24,7 +24,7 @@ async function mutation(page, endpoint, method, action, status) {
   return response;
 }
 async function replace(page, selector, value) {
-  await page.click(selector, { clickCount: 3 });
+  await page.$eval(selector, (el) => { el.focus(); el.select(); });
   await page.keyboard.press("Backspace");
   await page.type(selector, value);
 }
@@ -453,7 +453,7 @@ async function lateReadContext(page, switcher, a, b, expectedB) {
       ) === "true",
       "Explicit credential replacement preserves untouched credential"
     );
-    await legacy.click('input[placeholder="Enter SMTP password"]', { clickCount: 3 });
+    await legacy.$eval('input[placeholder="Enter SMTP password"]', (el) => { el.focus(); el.select(); });
     await legacy.keyboard.press("Backspace");
     await mutation(
       legacy,

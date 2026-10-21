@@ -251,3 +251,18 @@ rechecked on resend; legacy approved resends fail closed; screenshots not inspec
 agent reviews (not human). Needs owner: merge approval for p1-campaign-run (merge commit, then CI on
 the exact head). Remaining P1: cutoff/logout-surviving schedules (R3 decision), whole-surface
 review, full role-by-role browser run. Prohibited: push, P2/P3, deleting DBs/worktrees.
+
+## Update14 (2026-10-21, R3 Puppeteer 25 candidate verified, awaiting owner)
+
+Branch r3-puppeteer25 (head after this record; code commit fcb2487 on main a34f8bf), worktree
+/Users/sukhrob/.codex/worktrees/r3-puppeteer25/owly. Not merged, not pushed. Puppeteer 25 removes
+extract-zip: production audit 5 high -> 0, full 10 -> 5 (braces lint chain only). Verified on
+fcb2487: tsc/lint clean; unit 1573 passed / 23 skips, Redis-backed 1595 passed / 1 skip; Docker
+build + offline non-root probe; full browser 26/26 in headless-shell mode (fresh DB, frozen build).
+Harness: opt-in ACC_HEADLESS=shell and explicit select() in J15/J20/J24. Windowed-mode runs had
+stalled at random journeys on both old and new code (locked screen, runaway Dart language server,
+macOS indexing); old code in shell mode untested. Details: docs/r3-remediation-2026-10-15.md
+(Update 2026-10-21). Needs owner: (1) approve merging r3-puppeteer25 (touches whatsapp-web.js, no
+real WhatsApp session tested); (2) accept or reject the braces lint-tooling residual. P1 paused at:
+cutoff/logout-surviving schedules (R3 decision), whole-surface review, full role-by-role run.
+Prohibited: push/merge without approval, P2/P3, deleting DBs/worktrees.

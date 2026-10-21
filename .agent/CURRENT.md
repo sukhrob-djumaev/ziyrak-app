@@ -287,3 +287,11 @@ Record: docs/p1-whole-surface-review-2026-10-21.md. Verified on 24d446a: tsc/lin
 Needs owner: (1) keyword_alert / global SMTP finding: A fail closed (recommended) or B per-workspace
 SMTP; (2) login throttle: accept documented TRUSTED_PROXY_HOPS requirement or add per-username limiter;
 (3) merge approval for p1-closure. P1 stays open until (1) is decided and the branch is merged.
+
+## Update17 (2026-10-21, review decisions applied)
+
+Owner decided: keyword_alert / global SMTP = option A fail closed (done; send_internal_email also limited
+to the default workspace that owns the global SMTP row); login throttle = accept documented
+TRUSTED_PROXY_HOPS requirement plus production warning, no per-username limiter. p1-closure is ready
+for a merge decision after a final frozen browser run on its latest head. Prohibited: deleting
+DBs/worktrees, deploy, P2/P3.

@@ -125,10 +125,37 @@ describe("P1 manual webhook retry: requester authority", () => {
     });
   }
 
-  it("does not change deliveries queued by the system (no requester)", async () => {
+  it("refuses a delivery job that carries no recorded requester (no producer exists for one)", async () => {
     await handleDeliverWebhook(worker(), { businessId: a.businessId, webhookId, deliveryId });
-    expect(dispatchHttpRequest).toHaveBeenCalledTimes(1);
-    expect((await delivery()).status).toBe("delivered");
+    expect(dispatchHttpRequest).not.toHaveBeenCalled();
+    const row = await delivery();
+    expect(row.status).toBe("failed");
+    expect(row.lastError).toMatch(/no recorded requester/i);
+  });
+
+  it("derives the target webhook from the delivery, never from a mismatched payload pair", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    const other = await prisma.webhook.create({
+      data: {
+        businessId: a.businessId,
+        name: "Other hook",
+        url: "https://other.invalid/hook",
+        triggerOn: "ticket.created",
+      },
+    });
+    await retryDelivery(admin.ctx, deliveryId);
+    await handleDeliverWebhook(worker(), { ...queued[0], webhookId: other.id });
+    expect(dispatchHttpRequest).not.toHaveBeenCalled();
+    expect((await delivery()).status).not.toBe("delivered");
+  });
+
+  it("does not deliver to a webhook that was deactivated after the retry was queued", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    await retryDelivery(admin.ctx, deliveryId);
+    await prisma.webhook.update({ where: { id: webhookId }, data: { isActive: false } });
+    await handleDeliverWebhook(worker(), queued[0]);
+    expect(dispatchHttpRequest).not.toHaveBeenCalled();
+    expect((await delivery()).status).toBe("failed");
   });
 
   it("refuses a retry requested without a signed-in authorized person", async () => {
@@ -189,5 +216,19 @@ describe("P1 manual webhook retry: requester authority", () => {
     expect(dispatchHttpRequest).toHaveBeenCalledTimes(1);
     expect((await delivery()).status).toBe("delivered");
     await prisma.revokedToken.deleteMany({ where: { userId: admin.userId } });
+  });
+
+  it("refuses a job whose payload names another workspace than the job context", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    await retryDelivery(admin.ctx, deliveryId);
+    const b = await seedBusiness("webhook-retry-other");
+    try {
+      await expect(
+        handleDeliverWebhook({ ...worker(), businessId: b.businessId }, queued[0])
+      ).rejects.toBeDefined();
+      expect(dispatchHttpRequest).not.toHaveBeenCalled();
+    } finally {
+      await cleanupBusiness(b.businessId);
+    }
   });
 });

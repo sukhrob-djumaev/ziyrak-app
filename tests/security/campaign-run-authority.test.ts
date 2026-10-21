@@ -416,7 +416,7 @@ describe("P1 campaign run: start-time boundaries", () => {
 describe("P1 campaign run: erasure", () => {
   it("retires an unsent recipient operation with its conversation and never sends it afterwards", async () => {
     const who = await requester();
-    const [, c2] = await customers(2);
+    await customers(2);
     const { payload } = await start(who.ctx, (await campaign()).id);
     // The first send revokes the requester, so the second recipient is prepared but refused at admission.
     sent.mockImplementationOnce(async () => {
@@ -428,9 +428,8 @@ describe("P1 campaign run: erasure", () => {
     await run(payload);
     const unsent = (await ops(payload.runId)).filter((o) => o.status !== "accepted");
     expect(unsent).toHaveLength(1);
-    const conversation = await prisma.conversation.findFirstOrThrow({
-      where: { businessId: a.businessId, customerId: c2.id },
-    });
+    // Recipient order comes from an unordered query: retire whichever recipient was left unsent.
+    const conversation = { id: unsent[0].conversationId! };
     await retireConversationWork(getScopedPrisma(retirementContext(worker())), [conversation.id]);
     await run(payload);
     expect(sent).toHaveBeenCalledTimes(1);

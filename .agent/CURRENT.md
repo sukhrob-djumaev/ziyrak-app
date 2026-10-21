@@ -266,3 +266,11 @@ macOS indexing); old code in shell mode untested. Details: docs/r3-remediation-2
 real WhatsApp session tested); (2) accept or reject the braces lint-tooling residual. P1 paused at:
 cutoff/logout-surviving schedules (R3 decision), whole-surface review, full role-by-role run.
 Prohibited: push/merge without approval, P2/P3, deleting DBs/worktrees.
+
+## Update15 (2026-10-21, R3 closed locally)
+
+R3 merged into main as d0bc61f (PR #29, exact-head CI green on 4bb3134); owner accepted the braces
+lint-tooling residual. Main is ahead of origin and unpushed (needs owner approval). R3 complete
+locally, not deployed. Next: back to P1 (cutoff/logout-surviving schedules needs the owner
+decision; whole-surface review; full role-by-role browser run). Prohibited: push without approval,
+deploy, P2/P3, deleting DBs/worktrees.

@@ -1,3 +1,8 @@
+# Latest session (2026-10-21, R3 close)
+
+R3 merged locally (d0bc61f) after exact-head PR CI; braces residual accepted by the owner. Main
+unpushed. Next: P1. See CURRENT Update15.
+
 # Latest session (2026-10-21, R3)
 
 Switched to R3 at the owner's request. Puppeteer 25 (branch r3-puppeteer25, fcb2487) removes

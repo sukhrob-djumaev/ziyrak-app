@@ -32,7 +32,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
 | 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
-| 2 | **R3 — Operational safety** | Implementation/local verification passed; residual owner decision pending | Verified isolated safety baseline;5high production/10high full advisories remain. |
+| 2 | **R3 — Operational safety** | Complete locally; residuals decided 2026-10-21; not deployed | Puppeteer 25 (PR #29) removes extract-zip: 0 production / 5 high full (braces lint tooling, accepted) advisories. |
 | 3 | **P1 — Platform and workspace access** | In progress; full acceptance open | Workspace/resource boundaries and secured operators; support/delayed integration remains open. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
@@ -246,8 +246,15 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   type/lint and Node22 Docker build/probes passed; independent candidate security
   review found no confirmed new issue. [Remediation evidence and concrete residual
   decision](docs/r3-remediation-2026-10-15.md) record unpatched extract-zip/braces
-  exposure and controls. Owner decision pending; R3 not closed. P1 preparation and
-  implementation may use the verified isolated safety baseline; no live changes.
+  exposure and controls. P1 preparation and implementation may use the verified isolated
+  safety baseline; no live changes.
+- **Result (2026-10-21):** Puppeteer 25 removes the unpatched extract-zip chain: production
+  audit 0 high, full audit 5 high (braces lint tooling only). Verified on `fcb2487`: strict
+  type/lint, unit 1573 passed (1595 Redis-backed), Node 22 Docker build and offline non-root probe,
+  full browser 26/26 on a frozen build (headless-shell mode); PR #29 exact-head CI passed and was
+  merged locally as `d0bc61f`. Owner accepted the braces residual under stated controls. Not
+  deployed; whatsapp-web.js untested against a real WhatsApp session. See the
+  [remediation record](docs/r3-remediation-2026-10-15.md).
 
 ### P1 — Platform and workspace access
 

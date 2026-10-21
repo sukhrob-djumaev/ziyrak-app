@@ -137,3 +137,17 @@ in the Docker node_modules (not claimed absent from the artifact). Proposed: acc
 under the stated control (keep these patterns repository-controlled; review any untrusted pattern
 boundary) and reopen when an upstream patch appears. The `extract-zip` residual from 2026-10-15 is
 closed by this change if merged; if not merged, that residual and its controls stand as before.
+
+## Owner decisions, 2026-10-21
+
+1. **Merge approved** after an exact-head CI check: PR #29 head `4bb3134` passed CI (build 8m35s,
+   GitGuardian) and was merged into main locally as `d0bc61f` (tree identical to the tested head).
+   Not yet pushed to main at this record's writing; deployment still needs separate authorization.
+2. **Residual accepted:** the `braces` lint-tooling finding (full audit only, no fixed version
+   published) is accepted under the stated control: keep lint/rootDir patterns repository-controlled
+   and review any new untrusted pattern boundary. Reopen when an upstream patch exists or that
+   boundary changes. The 2026-10-15 `extract-zip` residual is closed by the merge.
+
+R3 criteria: confirmed in-scope risks resolved or explicitly accepted (above); safe commands and
+build identification documented; exact-commit CI checked before the merge. Deployment remains
+unauthorized and unperformed; no live restart or production migration occurred.

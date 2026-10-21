@@ -1,3 +1,10 @@
+# Latest session (2026-10-21, R3)
+
+Switched to R3 at the owner's request. Puppeteer 25 (branch r3-puppeteer25, fcb2487) removes
+extract-zip: prod audit 0, full audit 5 (braces lint only); 26/26 browser in headless-shell mode, unit
+1573/1595, Docker probe ok. Random windowed-Chrome stalls diagnosed (locked screen, Dart loop, macOS
+indexing). Not merged. Next: owner decides merge + braces residual, then back to P1. See CURRENT Update14.
+
 # Latest session (2026-10-20, delayed work)
 
 Editor merged and pushed (8ad8457, CI green after one flaky rerun). Campaign runs, recovery-resend

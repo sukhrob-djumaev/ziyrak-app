@@ -1,3 +1,7 @@
+import { logger } from "@/lib/observability/logger";
+
+let warnedUntrusted = false;
+
 /**
  * Client IP for rate limiting (PLAN.md §46.8 security review).
  *
@@ -14,10 +18,21 @@ export function getClientIp(request: { headers: Headers }): string {
   const forwarded = request.headers.get("x-forwarded-for");
 
   if (Number.isFinite(hops) && hops > 0) {
-    const entries = (forwarded ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+    const entries = (forwarded ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
     if (entries.length === 0) return "unknown";
     return entries[Math.max(0, entries.length - hops)];
   }
 
+  if (process.env.NODE_ENV === "production" && !warnedUntrusted) {
+    warnedUntrusted = true;
+    logger.error(
+      "TRUSTED_PROXY_HOPS is not set in production: the rate-limit address is taken from a header " +
+        "the client can choose, so login and API throttling can be bypassed. Set it to the number of " +
+        "proxies you run in front of the app."
+    );
+  }
   return forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
 }

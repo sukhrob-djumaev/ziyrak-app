@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/raw-client";
 import {
   verifyPassword,
+  hashPassword,
   generateToken,
   setAuthCookie,
   clearAuthCookie,
@@ -18,6 +20,12 @@ import { scopeFromRecord } from "@/lib/tenancy/resource-scope";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 
 // POST /api/auth - Login, signup (create a new business), or logout
+let dummyHash: Promise<string> | undefined;
+/** A throwaway hash at the same cost as real password hashes, created once per process. */
+function unknownUserHash(): Promise<string> {
+  return (dummyHash ??= hashPassword(randomUUID()));
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { action, username, password } = body;
@@ -79,6 +87,9 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) {
+      // Spend the same hash work as a wrong password, so response time does not reveal which
+      // usernames exist (platform operators included).
+      await verifyPassword(password, await unknownUserHash());
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 

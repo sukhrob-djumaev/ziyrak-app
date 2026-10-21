@@ -12,6 +12,7 @@ import * as rules from "@/lib/automations/automation-rules/service";
 import * as flows from "@/lib/flows/service";
 import * as hooks from "@/lib/integrations/webhooks/service";
 import { retryDelivery } from "@/lib/integrations/webhook-delivery";
+import * as customers from "@/lib/customers/service";
 
 /**
  * P1: automation rules, flows and webhooks act on every channel of the workspace, so a
@@ -117,5 +118,22 @@ describe("P1 workspace-wide configuration under a connection-restricted member",
     await expect(flows.update(a.ctx, flowId, { isActive: true })).resolves.toBeDefined();
     await expect(hooks.getById(a.ctx, hookId)).resolves.toBeDefined();
     expect((await hooks.list(a.ctx, { skip: 0, take: 10 })).total).toBe(1);
+  });
+
+  it("cannot delete a shared customer profile (erasure already refuses the same case)", async () => {
+    const customer = await prisma.customer.create({
+      data: { businessId: a.businessId, name: "Shared customer", phone: "+15550001111" },
+    });
+    const writer: TenantContext = {
+      ...restricted,
+      resourceScope: {
+        ...(restricted.resourceScope as { connectionIds: string[] }),
+        kind: "connections",
+        customerProfileAccess: "write",
+      },
+    };
+    await expect(customers.remove(writer, customer.id)).rejects.toMatchObject(forbidden);
+    expect(await prisma.customer.count({ where: { id: customer.id } })).toBe(1);
+    await expect(customers.remove(a.ctx, customer.id)).resolves.toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ import { scheduleFollowupTool } from "@/lib/tools/builtin/schedule-followup";
 import { triggerWebhookTool } from "@/lib/tools/builtin/trigger-webhook";
 import { toProviderToolDefinition } from "@/lib/tools/schema-json";
 import type { TenantContext } from "@/lib/tenancy/context";
+import { TEST_DEFAULT_BUSINESS_ID } from "../setup";
 
 // The SSRF-hardened dispatcher itself has its own dedicated suite
 // (tests/security/http-dispatcher-ssrf.test.ts) — mocked here so this
@@ -152,6 +153,8 @@ describe("Built-in tools (tools/builtin/*)", () => {
   });
 
   describe("send_internal_email", () => {
+    // The global SMTP row belongs to the default workspace; see send-internal-email-scope.test.ts.
+    const defaultCtx: TenantContext = { ...ctx, businessId: TEST_DEFAULT_BUSINESS_ID };
     it("sends email when SMTP is configured", async () => {
       mockPrisma.settings.findFirst.mockResolvedValue({
         smtpHost: "smtp.test.com",
@@ -162,7 +165,7 @@ describe("Built-in tools (tools/builtin/*)", () => {
       });
 
       const result = await sendInternalEmailTool.execute(
-        ctx,
+        defaultCtx,
         { to: "team@test.com", subject: "Urgent issue", body: "Please check ticket #123" },
         {}
       );
@@ -174,7 +177,7 @@ describe("Built-in tools (tools/builtin/*)", () => {
       mockPrisma.settings.findFirst.mockResolvedValue({ smtpHost: null });
 
       const result = await sendInternalEmailTool.execute(
-        ctx,
+        defaultCtx,
         { to: "team@test.com", subject: "Test", body: "Test body" },
         {}
       );

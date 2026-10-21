@@ -70,6 +70,11 @@ vi.mock("@/lib/identity/route-auth", () => ({
 vi.mock("@/lib/tenancy/default-business", () => ({
   getDefaultBusinessId: vi.fn().mockResolvedValue(TEST_DEFAULT_BUSINESS_ID),
   assertDefaultBusinessOnly: vi.fn().mockResolvedValue(undefined),
+  isDefaultBusiness: vi
+    .fn()
+    .mockImplementation(
+      async (ctx: { businessId: string }) => ctx.businessId === TEST_DEFAULT_BUSINESS_ID
+    ),
   getDefaultBusinessContext: vi.fn().mockResolvedValue({
     businessId: TEST_DEFAULT_BUSINESS_ID,
     role: null,

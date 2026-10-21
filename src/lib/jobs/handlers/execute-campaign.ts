@@ -1,7 +1,10 @@
 import type { CampaignRun } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
-import { authorizeCampaignSubmission } from "@/lib/campaigns/campaign-authority";
+import {
+  authorizeCampaignSubmission,
+  currentCampaignFacts,
+} from "@/lib/campaigns/campaign-authority";
 import { jobQueue } from "@/lib/jobs/queue";
 import { EXECUTE_CAMPAIGN_JOB, type ExecuteCampaignPayload } from "@/lib/jobs/job-types";
 import {
@@ -10,7 +13,7 @@ import {
   ensureDelivery,
   prepareDelivery,
 } from "@/lib/conversations/delivery";
-import { NotFoundError } from "@/lib/observability/errors";
+import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
 
 type Outcome = "attempted" | "skipped" | "failed";
@@ -92,6 +95,23 @@ export async function handleExecuteCampaign(
     logger.warn("[execute-campaign] run is unavailable or finished, skipping", {
       businessId: ctx.businessId,
       runId: payload.runId,
+    });
+    return;
+  }
+  // Freshness gate before anything is prepared: a requester who already lost authority must not
+  // cause recipient conversations to be created. Each recipient is still rechecked at its admission.
+  try {
+    await currentCampaignFacts(ctx.businessId, run.authorizationSnapshot, run.connectionId);
+  } catch (error) {
+    if (!(error instanceof AppError)) throw error;
+    await db.campaignRun.updateMany({
+      where: { id: run.id, status: { in: ["pending", "running"] } },
+      data: { status: "cancelled" },
+    });
+    await db.campaign.updateMany({ where: { id: run.campaignId }, data: { status: "paused" } });
+    logger.warn("[execute-campaign] requester no longer authorized, run cancelled before sending", {
+      businessId: ctx.businessId,
+      runId: run.id,
     });
     return;
   }

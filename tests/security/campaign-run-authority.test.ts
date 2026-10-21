@@ -204,13 +204,33 @@ describe("P1 campaign run: requester authority is rechecked at admission", () =>
       await run(payload);
       expect(sent).not.toHaveBeenCalled();
       const rows = await ops(payload.runId);
-      expect(rows.length).toBeGreaterThan(0);
       for (const op of rows) {
         expect(["rejected", "pending", "ready"]).toContain(op.status);
         expect(op.status).not.toBe("accepted");
       }
     });
   }
+
+  it("creates no recipient conversations and cancels the run when the requester lost authority before it began", async () => {
+    const who = await requester();
+    await customers(3);
+    const { payload } = await start(who.ctx, (await campaign()).id);
+    await prisma.membership.deleteMany({ where: { businessId: a.businessId, userId: who.userId } });
+    await run(payload);
+    expect(sent).not.toHaveBeenCalled();
+    expect(
+      await prisma.conversation.count({
+        where: {
+          businessId: a.businessId,
+          metadata: { path: ["campaignRunId"], equals: payload.runId },
+        },
+      })
+    ).toBe(0);
+    expect(await ops(payload.runId)).toHaveLength(0);
+    expect(
+      (await prisma.campaignRun.findUniqueOrThrow({ where: { id: payload.runId } })).status
+    ).toBe("cancelled");
+  });
 
   it("stops the remaining recipients when authority is revoked mid-run", async () => {
     const who = await requester();
@@ -396,21 +416,25 @@ describe("P1 campaign run: start-time boundaries", () => {
 describe("P1 campaign run: erasure", () => {
   it("retires an unsent recipient operation with its conversation and never sends it afterwards", async () => {
     const who = await requester();
-    const [c1] = await customers(1);
+    const [, c2] = await customers(2);
     const { payload } = await start(who.ctx, (await campaign()).id);
-    // Admit the preparation only: the recipient conversation exists, the operation is ready.
-    const first = await prisma.membership.findFirstOrThrow({
-      where: { businessId: a.businessId, userId: who.userId },
+    // The first send revokes the requester, so the second recipient is prepared but refused at admission.
+    sent.mockImplementationOnce(async () => {
+      await prisma.membership.deleteMany({
+        where: { businessId: a.businessId, userId: who.userId },
+      });
+      return { success: true, providerMessageId: "first" };
     });
-    await prisma.membership.delete({ where: { id: first.id } }); // blocks the send itself
     await run(payload);
+    const unsent = (await ops(payload.runId)).filter((o) => o.status !== "accepted");
+    expect(unsent).toHaveLength(1);
     const conversation = await prisma.conversation.findFirstOrThrow({
-      where: { businessId: a.businessId, customerId: c1.id },
+      where: { businessId: a.businessId, customerId: c2.id },
     });
     await retireConversationWork(getScopedPrisma(retirementContext(worker())), [conversation.id]);
     await run(payload);
-    expect(sent).not.toHaveBeenCalled();
-    const [op] = await ops(payload.runId);
+    expect(sent).toHaveBeenCalledTimes(1);
+    const op = await prisma.deliveryOperation.findUniqueOrThrow({ where: { id: unsent[0].id } });
     expect(op.retiredAt).not.toBeNull();
     expect(op.recipient).toBe("");
     expect(op.response).toBe("[REDACTED - GDPR]");

@@ -298,3 +298,10 @@ DBs/worktrees, deploy, P2/P3.
 
 Update17 evidence: full browser 26/26 on p1-closure c9e4aa0 (fresh DB, frozen build, headless-shell,
 clean tree); unit 1597 (1619 Redis-backed); tsc/lint clean. Awaiting owner merge approval.
+
+## Update18 (2026-10-22, p1-closure merged; awaiting P1 completion decision)
+
+p1-closure merged into main as f7fa7fa and pushed; exact-head CI green. Code identical to c9e4aa0
+(browser 26/26, unit 1597/1619, tsc/lint clean). PLAN P1 closure-candidate record and matrix rows
+11/14 updated this session (docs only). P1 is NOT declared complete: owner must decide to close P1
+(tag) or name more work. Prohibited: P2/P3 start, tag, deploy, deleting DBs/worktrees without approval.

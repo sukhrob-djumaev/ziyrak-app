@@ -1,3 +1,9 @@
+# Latest session (2026-10-22, P1 closure record)
+
+Reconciled state: p1-closure is on main (f7fa7fa), pushed, CI green. Added the PLAN P1 closure-candidate
+record and cleared "PLAN record pending" in the matrix (docs only, no checks rerun). Next: owner decides
+whether to declare P1 complete/tag or name further work. See CURRENT Update18.
+
 # Latest session (2026-10-21, P1 review)
 
 Whole-surface P1 review done (3 independent agent reviews); fixes on branch p1-closure (24d446a),

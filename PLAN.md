@@ -459,6 +459,19 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   Browser acceptance remains open; no P1/P2 closure/provider claim. See
   `docs/p1-settings-context-implementation-2026-10-15.md`.
 
+- **P1 closure candidate (2026-10-22, on main f7fa7fa; P1 not declared complete):** the
+  delayed-work slices (campaign runs, recovery-resend approver recheck, webhook-retry requester
+  recheck), the whole-surface review fixes and the owner decisions of 2026-10-21 (keyword_alert /
+  send_internal_email fail closed; login throttle relies on the documented TRUSTED_PROXY_HOPS
+  requirement plus a production warning) are merged. Product code is identical to c9e4aa0, where a
+  fresh-DB frozen full browser run passed 26/26 (headless-shell, stand-in AI, no provider claim);
+  unit 1597 (1619 Redis-backed); tsc/lint clean; exact-head CI on f7fa7fa green. Reviews were
+  three independent agent reviews, not human ones. Per-row evidence:
+  `docs/p1-closure-matrix-2026-10-19.md`, `docs/p1-whole-surface-review-2026-10-21.md`. Open
+  limits: windowed-browser mode not covered by the recorded run; per-workspace e-mail settings are
+  future work. Owner decision needed: declare P1 complete / tag `phase-p1-complete`, or name
+  further work.
+
 ### P2 — Managed AI and usage limits
 
 - **Problem/evidence:** signup/settings require tenant AI keys; provider/model choices

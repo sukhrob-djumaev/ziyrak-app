@@ -19,6 +19,7 @@ import { handleRetryDelivery } from "@/lib/jobs/handlers/retry-delivery";
 import { recoverDelivery } from "@/lib/conversations/delivery";
 import { handleExecuteCampaign } from "@/lib/jobs/handlers/execute-campaign";
 import { startCampaignRun } from "@/lib/campaigns/campaign-run";
+import { generateToken, verifyToken, revokeToken } from "@/lib/identity/auth";
 import { registerChannelAdapter } from "@/lib/channels/registry";
 import { deleteCustomerData } from "@/lib/customers/gdpr";
 import { retirementContext } from "@/lib/tenancy/work-lifecycle";
@@ -225,6 +226,37 @@ describe("P1 campaign run: requester authority is rechecked at admission", () =>
     expect(sent).toHaveBeenCalledTimes(1);
     const statuses = (await ops(payload.runId)).map((o) => o.status);
     expect(statuses.filter((s) => s === "accepted")).toHaveLength(1);
+  });
+});
+
+describe("P1 campaign run: schedules survive the requester's logout", () => {
+  it("still sends after the requester's session is revoked, as a bounded delegated job", async () => {
+    const who = await requester();
+    const token = generateToken(who.userId);
+    const session = verifyToken(token)!;
+    const ctx: TenantContext = {
+      ...who.ctx,
+      authorization: {
+        kind: "membership",
+        userId: who.userId,
+        membershipId: (who.ctx.authorization as { membershipId: string }).membershipId,
+        sessionJti: session.jti,
+        sessionExpiresAt: session.exp,
+      },
+    };
+    await customers(2);
+    const { payload } = await start(ctx, (await campaign()).id);
+    await revokeToken(token); // logout
+    await run(payload);
+    expect(sent).toHaveBeenCalledTimes(2);
+    const actual = sent.mock.calls[0][0] as TenantContext;
+    expect(actual.role).toBeNull();
+    expect(actual.actor.kind).toBe("system_job");
+    expect(actual.authorization).toMatchObject({
+      kind: "delegated_job",
+      allowedOperations: ["messages:create"],
+    });
+    await prisma.revokedToken.deleteMany({ where: { userId: who.userId } });
   });
 });
 

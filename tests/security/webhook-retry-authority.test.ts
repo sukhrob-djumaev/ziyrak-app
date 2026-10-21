@@ -15,6 +15,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { jobQueue } from "@/lib/jobs/queue";
 import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
 import { handleDeliverWebhook } from "@/lib/jobs/handlers/deliver-webhook";
+import { generateToken, verifyToken, revokeToken } from "@/lib/identity/auth";
 import { retryDelivery } from "@/lib/integrations/webhook-delivery";
 import { dispatchHttpRequest } from "@/lib/integrations/http-dispatcher";
 
@@ -166,5 +167,27 @@ describe("P1 manual webhook retry: requester authority", () => {
     });
     await handleDeliverWebhook(worker(), queued[0]);
     expect((await delivery()).status).toBe("delivered");
+  });
+
+  it("still retries after the requester's session is revoked (schedules survive logout)", async () => {
+    const admin = await addMember(a.businessId, "admin", "webhook-retrier");
+    const token = generateToken(admin.userId);
+    const session = verifyToken(token)!;
+    const ctx: TenantContext = {
+      ...admin.ctx,
+      authorization: {
+        kind: "membership",
+        userId: admin.userId,
+        membershipId: (admin.ctx.authorization as { membershipId: string }).membershipId,
+        sessionJti: session.jti,
+        sessionExpiresAt: session.exp,
+      },
+    };
+    await retryDelivery(ctx, deliveryId);
+    await revokeToken(token); // logout
+    await handleDeliverWebhook(worker(), queued[0]);
+    expect(dispatchHttpRequest).toHaveBeenCalledTimes(1);
+    expect((await delivery()).status).toBe("delivered");
+    await prisma.revokedToken.deleteMany({ where: { userId: admin.userId } });
   });
 });

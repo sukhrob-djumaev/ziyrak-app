@@ -6,6 +6,16 @@ import crypto from "crypto";
 
 /** PLAN.md §16.2/§9.4 — application-service layer for "admin/api-keys". */
 
+/**
+ * A connection-restricted admin manages only the keys they issued: workspace-wide keys and other
+ * people's keys are invisible to them. Workspace-wide actors see every key, as before.
+ */
+function ownedByRestrictedActor(ctx: TenantContext) {
+  if (validateResourceScope(ctx.resourceScope).kind === "workspace") return {};
+  if (ctx.actor.kind !== "user") return { id: "" }; // fail closed: nothing matches
+  return { issuedByUserId: ctx.actor.userId };
+}
+
 export interface ListParams {
   skip: number;
   take: number;
@@ -14,8 +24,13 @@ export interface ListParams {
 export async function list(ctx: TenantContext, params: ListParams) {
   const db = getScopedPrisma(ctx);
   const [keys, total] = await Promise.all([
-    db.apiKey.findMany({ orderBy: { createdAt: "desc" }, skip: params.skip, take: params.take }),
-    db.apiKey.count(),
+    db.apiKey.findMany({
+      where: ownedByRestrictedActor(ctx),
+      orderBy: { createdAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
+    db.apiKey.count({ where: ownedByRestrictedActor(ctx) }),
   ]);
   return { keys, total };
 }
@@ -77,7 +92,7 @@ export interface UpdateInput {
 
 export async function update(ctx: TenantContext, id: string, input: UpdateInput) {
   const db = getScopedPrisma(ctx);
-  const existing = await db.apiKey.findUnique({ where: { id } });
+  const existing = await db.apiKey.findFirst({ where: { id, ...ownedByRestrictedActor(ctx) } });
   if (!existing) throw new NotFoundError("API key");
 
   return db.apiKey.update({
@@ -91,7 +106,7 @@ export async function update(ctx: TenantContext, id: string, input: UpdateInput)
 
 export async function remove(ctx: TenantContext, id: string): Promise<void> {
   const db = getScopedPrisma(ctx);
-  const existing = await db.apiKey.findUnique({ where: { id } });
+  const existing = await db.apiKey.findFirst({ where: { id, ...ownedByRestrictedActor(ctx) } });
   if (!existing) throw new NotFoundError("API key");
   await db.apiKey.delete({ where: { id } });
 }

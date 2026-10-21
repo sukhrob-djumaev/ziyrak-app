@@ -1,5 +1,6 @@
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
 import { NotFoundError } from "@/lib/observability/errors";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -17,7 +18,12 @@ export async function list(ctx: TenantContext, params: ListRulesParams) {
   if (params.type && params.type !== "all") where.type = params.type;
 
   const [rules, total] = await Promise.all([
-    db.automationRule.findMany({ where, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], skip: params.skip, take: params.take }),
+    db.automationRule.findMany({
+      where,
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      skip: params.skip,
+      take: params.take,
+    }),
     db.automationRule.count({ where }),
   ]);
   return { rules, total };
@@ -34,6 +40,7 @@ export interface CreateRuleInput {
 }
 
 export async function create(ctx: TenantContext, input: CreateRuleInput) {
+  assertWorkspaceWideAuthority(ctx, "Automation rules");
   const db = getScopedPrisma(ctx);
   return db.automationRule.create({
     data: {
@@ -60,6 +67,7 @@ export interface UpdateRuleInput {
 }
 
 export async function update(ctx: TenantContext, id: string, input: UpdateRuleInput) {
+  assertWorkspaceWideAuthority(ctx, "Automation rules");
   const db = getScopedPrisma(ctx);
   const existing = await db.automationRule.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Automation rule");
@@ -71,7 +79,9 @@ export async function update(ctx: TenantContext, id: string, input: UpdateRuleIn
       ...(input.description !== undefined && { description: input.description.trim() }),
       ...(input.type !== undefined && { type: input.type }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
-      ...(input.conditions !== undefined && { conditions: input.conditions as Prisma.InputJsonValue }),
+      ...(input.conditions !== undefined && {
+        conditions: input.conditions as Prisma.InputJsonValue,
+      }),
       ...(input.actions !== undefined && { actions: input.actions as Prisma.InputJsonValue }),
       ...(input.priority !== undefined && { priority: input.priority }),
       // PLAN.md §46.6 task 6 — a business explicitly saving this rule
@@ -84,6 +94,7 @@ export async function update(ctx: TenantContext, id: string, input: UpdateRuleIn
 }
 
 export async function remove(ctx: TenantContext, id: string): Promise<void> {
+  assertWorkspaceWideAuthority(ctx, "Automation rules");
   const db = getScopedPrisma(ctx);
   const existing = await db.automationRule.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Automation rule");

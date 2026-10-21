@@ -5,6 +5,7 @@ import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { captureDeferredIdentity } from "@/lib/tenancy/deferred-origin";
 import { hasPermission } from "@/lib/rbac/rbac";
 import { AppError } from "@/lib/observability/errors";
+import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
 import { jobQueue } from "@/lib/jobs/queue";
 import { DELIVER_WEBHOOK_JOB, type DeliverWebhookPayload } from "@/lib/jobs/job-types";
 
@@ -84,6 +85,7 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
       "FORBIDDEN",
       "Retrying a delivery requires a signed-in authorized person"
     );
+  assertWorkspaceWideAuthority(ctx, "Webhook delivery");
   const db = getScopedPrisma(ctx);
   const delivery = await db.webhookDelivery.findUnique({
     where: { id: deliveryId },

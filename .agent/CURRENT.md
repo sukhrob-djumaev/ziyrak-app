@@ -274,3 +274,16 @@ lint-tooling residual. Main is ahead of origin and unpushed (needs owner approva
 locally, not deployed. Next: back to P1 (cutoff/logout-surviving schedules needs the owner
 decision; whole-surface review; full role-by-role browser run). Prohibited: push without approval,
 deploy, P2/P3, deleting DBs/worktrees.
+
+## Update16 (2026-10-21, P1 whole-surface review done; fixes on p1-closure)
+
+Branch p1-closure (worktree /Users/sukhrob/.codex/worktrees/p1-closure/owly, head 24d446a plus a docs
+commit; based on main 267ad99). Three independent agent reviews of the whole P1 surface; confirmed
+findings fixed tests-first (restricted-admin API keys, workspace-wide automation/flow/webhook config,
+shared customer delete, webhook job fail-closed, campaign pre-authority conversations, inbound resend
+approver, unknown-username timing, TRUSTED_PROXY_HOPS production warning, dead direct-send removed).
+Record: docs/p1-whole-surface-review-2026-10-21.md. Verified on 24d446a: tsc/lint clean; unit 156 files /
+1594 (1616 Redis-backed); full browser 26/26 (fresh DB, frozen, headless-shell). Not merged.
+Needs owner: (1) keyword_alert / global SMTP finding: A fail closed (recommended) or B per-workspace
+SMTP; (2) login throttle: accept documented TRUSTED_PROXY_HOPS requirement or add per-username limiter;
+(3) merge approval for p1-closure. P1 stays open until (1) is decided and the branch is merged.

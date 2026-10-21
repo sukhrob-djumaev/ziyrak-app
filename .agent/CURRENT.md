@@ -295,3 +295,6 @@ to the default workspace that owns the global SMTP row); login throttle = accept
 TRUSTED_PROXY_HOPS requirement plus production warning, no per-username limiter. p1-closure is ready
 for a merge decision after a final frozen browser run on its latest head. Prohibited: deleting
 DBs/worktrees, deploy, P2/P3.
+
+Update17 evidence: full browser 26/26 on p1-closure c9e4aa0 (fresh DB, frozen build, headless-shell,
+clean tree); unit 1597 (1619 Redis-backed); tsc/lint clean. Awaiting owner merge approval.

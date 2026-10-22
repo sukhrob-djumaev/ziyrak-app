@@ -67,21 +67,16 @@ describe("workspace team authority (real route auth/Postgres)", () => {
         connectionId: conn.id,
       },
     });
-    const username = "forbidden-wider-" + crypto.randomUUID();
+    const email = `forbidden-wider-${crypto.randomUUID()}@example.test`;
     const response = await POST(
       createRequest("/api/admin/users", {
         method: "POST",
         cookies: { "owly-token": generateToken(actor.userId) },
-        body: {
-          username,
-          password: "synthetic-secured-password",
-          name: "Synthetic member",
-          role: "admin",
-        },
+        body: { email, role: "admin" },
       })
     );
     expect(response.status).toBe(403);
-    expect(await prisma.user.findUnique({ where: { username } })).toBeNull();
+    expect(await prisma.accountToken.count({ where: { email } })).toBe(0);
     expect(
       (await prisma.membership.findUniqueOrThrow({ where: { id: membership.id } })).scopeMode
     ).toBe("connections");

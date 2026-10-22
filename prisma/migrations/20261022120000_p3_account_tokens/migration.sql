@@ -1,6 +1,4 @@
 -- AlterTable
-ALTER TABLE "Business" ADD COLUMN     "activatedAt" TIMESTAMP(3);
-
 -- AlterTable
 ALTER TABLE "User" ADD COLUMN     "email" TEXT,
 ADD COLUMN     "emailVerifiedAt" TIMESTAMP(3),
@@ -27,6 +25,7 @@ CREATE TABLE "OnboardingState" (
     "testReplyStatus" TEXT NOT NULL DEFAULT 'pending',
     "testReplyAt" TIMESTAMP(3),
     "testReplyReason" TEXT,
+    "activatedAt" TIMESTAMP(3),
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "OnboardingState_pkey" PRIMARY KEY ("businessId")
@@ -56,6 +55,3 @@ ALTER TABLE "OnboardingState" ADD CONSTRAINT "OnboardingState_businessId_fkey" F
 
 -- A verified address identifies exactly one account; unverified claims may coexist until proven.
 CREATE UNIQUE INDEX "User_verified_email_key" ON "User"("email") WHERE "emailVerifiedAt" IS NOT NULL;
-
--- Existing workspaces keep working: only new signups start inactive.
-UPDATE "Business" SET "activatedAt" = "createdAt" WHERE "activatedAt" IS NULL;

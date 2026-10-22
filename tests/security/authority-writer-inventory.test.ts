@@ -35,6 +35,8 @@ const PLATFORM = new Set([
   // P3 recovery: email verification and password change write only the account row.
   "lib/identity/account-service.ts",
   "lib/platform/admin-users/service.ts",
+  // P3 invitations create accounts/memberships (never reduce authority); revocation only marks tokens used.
+  "lib/platform/admin-users/invitations.ts",
   "lib/platform/provisioning.ts",
 ]);
 const FORBIDDEN_FOR_EXISTING =

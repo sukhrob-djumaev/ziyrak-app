@@ -43,7 +43,7 @@ describe("provisionBusiness with an owner email", () => {
     const r = await provision({ ownerEmail: email });
     const user = await prisma.user.findUniqueOrThrow({ where: { id: r.userId } });
     expect(user).toMatchObject({ email: email.toLowerCase(), emailVerifiedAt: null });
-    expect((await prisma.business.findUniqueOrThrow({ where: { id: r.businessId } })).activatedAt).toBeNull();
+    expect((await prisma.onboardingState.findUniqueOrThrow({ where: { businessId: r.businessId } })).activatedAt).toBeNull();
     expect(await prisma.workspaceAiAllowance.findUniqueOrThrow({ where: { businessId: r.businessId } })).toMatchObject({
       mode: "managed",
       status: "pending_verification",
@@ -52,7 +52,7 @@ describe("provisionBusiness with an owner email", () => {
 
   it("without an email behaves as before: active workspace, no allowance, no email", async () => {
     const r = await provision();
-    expect((await prisma.business.findUniqueOrThrow({ where: { id: r.businessId } })).activatedAt).not.toBeNull();
+    expect(await prisma.onboardingState.count({ where: { businessId: r.businessId } })).toBe(0);
     expect(await prisma.workspaceAiAllowance.count({ where: { businessId: r.businessId } })).toBe(0);
     expect((await prisma.user.findUniqueOrThrow({ where: { id: r.userId } })).email).toBeNull();
   });
@@ -94,7 +94,7 @@ describe("POST /api/auth signup", () => {
     userIds.push(user.id);
     const membership = await prisma.membership.findFirstOrThrow({ where: { userId: user.id } });
     businessIds.push(membership.businessId);
-    expect((await prisma.business.findUniqueOrThrow({ where: { id: membership.businessId } })).activatedAt).toBeNull();
+    expect((await prisma.onboardingState.findUniqueOrThrow({ where: { businessId: membership.businessId } })).activatedAt).toBeNull();
   });
 
   it("gives the identical answer for an address already verified elsewhere, creates nothing, and warns the holder", async () => {
@@ -102,27 +102,32 @@ describe("POST /api/auth signup", () => {
     const holder = await provision({ ownerEmail: addr() });
     const holderRow = await prisma.user.findUniqueOrThrow({ where: { id: holder.userId } });
     await prisma.user.update({ where: { id: holder.userId }, data: { emailVerifiedAt: new Date() } });
-    const before = await prisma.business.count();
-    const fresh = await POST(signup({ username: uname(), email: addr() }));
-    const conflict = await POST(signup({ username: uname(), email: holderRow.email!.toUpperCase() }));
+    const freshName = uname();
+    const conflictName = uname();
+    const fresh = await POST(signup({ username: freshName, email: addr() }));
+    const conflict = await POST(signup({ username: conflictName, email: holderRow.email!.toUpperCase() }));
     expect(conflict.status).toBe(fresh.status);
     expect(await parseJsonResponse(conflict)).toEqual(await parseJsonResponse(fresh));
-    expect(await prisma.business.count()).toBe(before + 1);
+    // The new address got an account and workspace; the contested one created nothing.
+    const created = await prisma.user.findUnique({ where: { username: freshName } });
+    expect(created).not.toBeNull();
+    userIds.push(created!.id);
+    for (const m of await prisma.membership.findMany({ where: { userId: created!.id } })) businessIds.push(m.businessId);
+    expect(await prisma.user.findUnique({ where: { username: conflictName } })).toBeNull();
     expect(mail.messages.some((m) => m.to === holderRow.email && /already|did not/i.test(m.text))).toBe(true);
-    for (const u of await prisma.user.findMany({ where: { username: { startsWith: "su_" } } })) userIds.push(u.id);
-    for (const b of await prisma.business.findMany({ where: { name: "Signup Test Co" } })) businessIds.push(b.id);
   });
 
   it("an unverified claim on an address does not block a signup", async () => {
     const { POST } = await import("@/app/api/auth/route");
     const shared = addr();
     await provision({ ownerEmail: shared });
-    const before = await prisma.business.count();
-    const res = await POST(signup({ username: uname(), email: shared }));
+    const username = uname();
+    const res = await POST(signup({ username, email: shared }));
     expect(res.status).toBe(202);
-    expect(await prisma.business.count()).toBe(before + 1);
-    for (const u of await prisma.user.findMany({ where: { username: { startsWith: "su_" } } })) userIds.push(u.id);
-    for (const b of await prisma.business.findMany({ where: { name: "Signup Test Co" } })) businessIds.push(b.id);
+    const created = await prisma.user.findUniqueOrThrow({ where: { username } });
+    userIds.push(created.id);
+    for (const m of await prisma.membership.findMany({ where: { userId: created.id } })) businessIds.push(m.businessId);
+    expect(created.email).toBe(shared.toLowerCase());
   });
 
   it("still reports a taken username", async () => {

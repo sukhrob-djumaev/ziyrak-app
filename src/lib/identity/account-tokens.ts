@@ -90,3 +90,12 @@ export async function purgeExpiredAccountTokens(now: Date = new Date()): Promise
   });
   return result.count;
 }
+
+/** Reads a token without consuming it (for previews). Null when invalid, used or expired. */
+export async function peekAccountToken(token: string, purpose: AccountTokenPurpose): Promise<ConsumedToken | null> {
+  if (typeof token !== "string" || token.length < 20 || token.length > 200) return null;
+  const row = await prisma.accountToken.findFirst({
+    where: { tokenHash: hashToken(token), purpose, usedAt: null, expiresAt: { gt: new Date() } },
+  });
+  return row ? { id: row.id, purpose: row.purpose as AccountTokenPurpose, email: row.email, userId: row.userId, payload: row.payload } : null;
+}

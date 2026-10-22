@@ -20,14 +20,22 @@ async function signup() {
       body: {
         action: "signup",
         username,
+        email: `${username}@example.test`,
         password: "synthetic-entry-password",
         name: "Entry owner",
         businessName: "Synthetic entry workspace",
       },
     })
   );
-  const data = await response.json();
-  if (data.business?.id) owned.push(data.business.id);
+  const data: Record<string, any> = await response.json(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  // P3: signup answers 202 without a session; the created workspace is read back from the database.
+  const user = await prisma.user.findUnique({ where: { username } });
+  const membership = user ? await prisma.membership.findFirst({ where: { userId: user.id } }) : null;
+  if (user && membership) {
+    data.user = { id: user.id };
+    data.business = { id: membership.businessId };
+    owned.push(membership.businessId);
+  }
   return { username, response, data };
 }
 describe("explicit workspace entry (real auth/PG)", () => {
@@ -91,10 +99,14 @@ describe("explicit workspace entry (real auth/PG)", () => {
       ).status
     ).toBe(403);
   });
-  it("signup selects only the workspace the person explicitly created", async () => {
+  it("signup signs nobody in and selects no workspace; the created workspace belongs to the new owner only", async () => {
     const { response, data } = await signup();
-    expect(response.status).toBe(201);
-    expect(response.cookies.get("ziyrak-workspace")?.value).toBe(data.business.id);
+    expect(response.status).toBe(202);
+    expect(response.cookies.get("ziyrak-workspace")).toBeUndefined();
+    expect(response.cookies.get("owly-token")).toBeUndefined();
+    expect(
+      (await prisma.membership.findMany({ where: { businessId: data.business.id } })).map((m) => m.userId)
+    ).toEqual([data.user.id]);
   });
   it("login with multiple memberships requires a choice and clears an old selection", async () => {
     const { username, data } = await signup();

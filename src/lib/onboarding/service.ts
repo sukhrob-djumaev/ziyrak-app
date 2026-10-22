@@ -7,7 +7,7 @@ import { logger } from "@/lib/observability/logger";
 /**
  * PLAN.md P3 — resumable onboarding. Knowledge and channel readiness are read
  * live; the one step that cannot be derived (a real test reply) is recorded in
- * `OnboardingState`; activation is `Business.activatedAt`. A workspace has
+ * `OnboardingState`; activation is `OnboardingState.activatedAt`. A workspace has
  * onboarding only if it has an `OnboardingState` row (created by signup with an
  * email); seeded and legacy workspaces are never gated. State survives reloads
  * and failures because nothing lives in the browser.
@@ -30,20 +30,19 @@ export interface OnboardingView {
 export async function isOnboardingInactive(businessId: string): Promise<boolean> {
   const state = await prisma.onboardingState.findUnique({
     where: { businessId },
-    select: { business: { select: { activatedAt: true } } },
+    select: { activatedAt: true },
   });
-  return Boolean(state && !state.business.activatedAt);
+  return Boolean(state && !state.activatedAt);
 }
 
 export async function getOnboardingState(input: { businessId: string; userId: string }): Promise<OnboardingView> {
-  const [state, business, user, knowledge, channels] = await Promise.all([
+  const [state, user, knowledge, channels] = await Promise.all([
     prisma.onboardingState.findUnique({ where: { businessId: input.businessId } }),
-    prisma.business.findUnique({ where: { id: input.businessId }, select: { activatedAt: true } }),
     prisma.user.findUnique({ where: { id: input.userId }, select: { emailVerifiedAt: true } }),
     prisma.knowledgeEntry.count({ where: { businessId: input.businessId, isActive: true } }),
     prisma.channelConnection.count({ where: { businessId: input.businessId, isActive: true } }),
   ]);
-  const activated = Boolean(business?.activatedAt);
+  const activated = Boolean(state?.activatedAt);
   const status = (done: boolean): StepStatus => (done ? "done" : "pending");
   return {
     applicable: Boolean(state),
@@ -115,6 +114,6 @@ export async function activateWorkspace(ctx: TenantContext, userId: string): Pro
   const missing = view.steps.filter((s) => s.id !== "activation" && s.status !== "done").map((s) => s.id);
   if (missing.length)
     return { ok: false, code: "STEPS_INCOMPLETE", message: "Finish the remaining steps first.", missing };
-  await prisma.business.updateMany({ where: { id: ctx.businessId, activatedAt: null }, data: { activatedAt: new Date() } });
+  await prisma.onboardingState.updateMany({ where: { businessId: ctx.businessId, activatedAt: null }, data: { activatedAt: new Date() } });
   return { ok: true };
 }

@@ -4,6 +4,7 @@ import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { toErrorResponse } from "@/lib/observability/errors";
 import * as adminUsersService from "@/lib/platform/admin-users/service";
+import { createInvitation } from "@/lib/platform/admin-users/invitations";
 
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "admin:read");
@@ -22,33 +23,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * PLAN.md P3 — adding a team member is an invitation to a recipient address, not creating an
+ * account with a password chosen by someone else.
+ */
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "admin:create");
   if (!isAuthenticated(ctx)) return ctx;
 
   try {
     const body = await request.json();
-    const { username, password, name, role } = body;
-
-    if (!username || typeof username !== "string" || username.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Username is required" },
-        { status: 400 }
-      );
+    const { email, role, scope } = body ?? {};
+    if (typeof email !== "string" || !email.trim()) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-
-    if (!password || typeof password !== "string" || password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
-
-    const user = await adminUsersService.create(ctx, { username, password, name, role });
-
-    return NextResponse.json(user, { status: 201 });
+    const invitation = await createInvitation(ctx, { email, role: typeof role === "string" ? role : "viewer", scope });
+    return NextResponse.json({ invitation }, { status: 201 });
   } catch (error) {
-    logger.error("Failed to create admin user:", error);
+    logger.error("Failed to invite team member:", error);
     return toErrorResponse(error);
   }
 }

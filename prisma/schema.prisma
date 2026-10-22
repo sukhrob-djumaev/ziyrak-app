@@ -16,9 +16,6 @@ model Business {
   slug        String    @unique
   name        String
   status      String    @default("active") // active, suspended, deleted
-  // P3: set when the owner explicitly activates the workspace after onboarding. Existing
-  // workspaces are backfilled by the migration so nobody is locked out.
-  activatedAt DateTime?
   planId      String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -1215,5 +1212,7 @@ model OnboardingState {
   testReplyAt     DateTime?
   // Sanitized, customer-readable reason; never provider text.
   testReplyReason String?
+  // Set by the owner's explicit activation; null keeps the workspace inactive.
+  activatedAt     DateTime?
   updatedAt       DateTime  @updatedAt
 }

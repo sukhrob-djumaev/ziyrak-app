@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 
 /** PLAN.md P3 — onboarding routes: authenticated persons only, own workspace only, owner-gated actions. */
@@ -55,7 +55,7 @@ describe("onboarding routes", () => {
     const body = await parseJsonResponse(res);
     expect(res.status).toBe(409);
     expect(body.error.code).toBe("EMAIL_NOT_VERIFIED");
-    expect((await prisma.business.findUniqueOrThrow({ where: { id: a.businessId } })).activatedAt).toBeNull();
+    expect((await prisma.onboardingState.findUniqueOrThrow({ where: { businessId: a.businessId } })).activatedAt).toBeNull();
   });
 
   it("refuses the test reply for a non-owner member", async () => {

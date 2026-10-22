@@ -106,9 +106,7 @@ export async function provisionBusiness(
         await reserveNewUsername(tx, username);
         const ownerEmail = input.ownerEmail ? normalizeEmail(input.ownerEmail) : null;
         const business = await tx.business.create({
-          // A signup with an email starts inactive until onboarding finishes; the other callers
-          // (seed, scripts) have no onboarding and are active at once.
-          data: { slug, name: input.businessName.trim(), status: "active", activatedAt: ownerEmail ? null : new Date() },
+          data: { slug, name: input.businessName.trim(), status: "active" },
         });
 
         await tx.tenantPlacement.create({ data: { businessId: business.id } });
@@ -119,6 +117,8 @@ export async function provisionBusiness(
         if (ownerEmail) {
           // Managed AI starts waiting for the owner's verified email (paid use is gated on identity).
           await tx.workspaceAiAllowance.create({ data: { businessId: business.id, mode: "managed", status: "pending_verification" } });
+          // A signup with an email starts inactive until the owner finishes onboarding; seed and
+          // script callers have no onboarding row and are active at once.
           await tx.onboardingState.create({ data: { businessId: business.id } });
         }
 

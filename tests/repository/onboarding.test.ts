@@ -158,7 +158,7 @@ describe("activation", () => {
     const res = await activateWorkspace(w.ctx, w.userId);
     expect(res).toMatchObject({ ok: false, code: "STEPS_INCOMPLETE" });
     expect((res as { missing: string[] }).missing).toEqual(["knowledge", "channel", "test_reply"]);
-    expect((await prisma.business.findUniqueOrThrow({ where: { id: w.businessId } })).activatedAt).toBeNull();
+    expect((await prisma.onboardingState.findUniqueOrThrow({ where: { businessId: w.businessId } })).activatedAt).toBeNull();
   });
 
   it("is refused for an unverified owner even if everything else is done", async () => {

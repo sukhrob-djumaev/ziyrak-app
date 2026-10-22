@@ -138,6 +138,8 @@ function createMockPrismaClient() {
     "workspaceAiAllowance",
     "aiServicePolicy",
     "aiUsageReservation",
+    "onboardingState",
+    "accountToken",
     "revokedToken",
     "databaseProfile",
     "storageProfile",

@@ -42,10 +42,17 @@ describe("Input Validation Schemas", () => {
   });
 
   describe("signupSchema", () => {
-    const valid = { action: "signup", businessName: "Acme Support", username: "owner", password: "secure123", name: "Owner" };
+    const valid = { action: "signup", businessName: "Acme Support", username: "owner", email: "owner@example.test", password: "secure123", name: "Owner" };
 
     it("should accept a valid signup", () => {
       expect(validateBody(signupSchema, valid).success).toBe(true);
+    });
+
+    it("requires a valid email and normalizes it", () => {
+      for (const email of [undefined, "", "nope", "a@b", "x".repeat(260) + "@example.test"])
+        expect(validateBody(signupSchema, { ...valid, email }).success).toBe(false);
+      const result = validateBody(signupSchema, { ...valid, email: "  Owner@Example.TEST " });
+      expect(result.success && result.data.email).toBe("owner@example.test");
     });
 
     it("should reject a short username, a short password, and a missing business name", () => {

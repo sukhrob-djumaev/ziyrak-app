@@ -148,6 +148,9 @@ import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
 import "@/lib/channels/bootstrap";
 import "@/lib/jobs/bootstrap";
 import { NextRequest } from "next/server";
+import { getMailTransport, type CaptureMailTransport } from "@/lib/mail/transport";
+import { confirmEmail } from "@/lib/identity/account-service";
+import { acceptInvitation } from "@/lib/platform/admin-users/invitations";
 
 const APP_SECRET = "e2e-meta-app-secret";
 const ORIGIN = "https://shop.example.com";
@@ -229,18 +232,27 @@ async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
   const name = `${label} Shop ${uniq()}`;
 
   const { POST: authPost } = await import("@/app/api/auth/route");
+  const email = `${label}-${uniq()}@example.test`;
+  const mailbox = getMailTransport() as CaptureMailTransport;
   const signup = await authPost(
     createRequest("/api/auth", {
       method: "POST",
-      body: { action: "signup", businessName: name, username, password, name: "Owner" },
+      body: { action: "signup", businessName: name, username, email, password, name: "Owner" },
     })
   );
-  expect(signup.status).toBe(201);
-  const signupBody = await parseJsonResponse(signup);
-  const businessId = signupBody.business.id as string;
-  recordWorkspaceSelection(signupBody.user.id, businessId);
+  // P3: signup answers 202 and signs nobody in; the owner confirms the address, then signs in.
+  expect(signup.status).toBe(202);
+  const owner = await prisma.user.findUniqueOrThrow({ where: { username } });
+  const businessId = (await prisma.membership.findFirstOrThrow({ where: { userId: owner.id } })).businessId;
+  recordWorkspaceSelection(owner.id, businessId);
+  const verifyMail = [...mailbox.messages].reverse().find((m) => m.to === email)!;
+  expect(await confirmEmail(verifyMail.text.match(/token=([A-Za-z0-9_-]+)/)![1])).toEqual({ userId: owner.id });
+  // This suite exercises the assistant on the workspace's own AI key and an activated workspace;
+  // managed AI, onboarding and activation have their own suites (P2/P3).
+  await prisma.workspaceAiAllowance.update({ where: { businessId }, data: { mode: "legacy_byok", status: "active" } });
+  await prisma.onboardingState.update({ where: { businessId }, data: { activatedAt: new Date() } });
 
-  // The owner logs in again like a returning user (existing login keeps working).
+  // The owner logs in like a returning user (existing login keeps working).
   const login = await authPost(
     createRequest("/api/auth", { method: "POST", body: { action: "login", username, password } })
   );
@@ -278,15 +290,20 @@ async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
   );
   expect(entry.status).toBe(201);
 
-  // The owner invites the business's first agent (the role the dashboard now offers).
+  // The owner invites the business's first agent; the agent accepts and chooses their own credentials.
   const agentName = `agent-${label}-${uniq()}`;
+  const agentEmail = `agent-${label}-${uniq()}@example.test`;
   const invite = await call("@/app/api/admin/users/route", "POST", ownerToken, "/api/admin/users", {
-    username: agentName,
-    password: "agent-password-1",
-    name: "First Agent",
+    email: agentEmail,
     role: "agent",
   });
   expect(invite.status).toBe(201);
+  const inviteMail = [...mailbox.messages].reverse().find((m) => m.to === agentEmail)!;
+  const accepted = await acceptInvitation({
+    token: inviteMail.text.match(/token=([A-Za-z0-9_-]+)/)![1],
+    signup: { username: agentName, password: "agent-password-1", name: "First Agent" },
+  });
+  expect(accepted.ok).toBe(true);
   const agentLogin = await authPost(
     createRequest("/api/auth", {
       method: "POST",

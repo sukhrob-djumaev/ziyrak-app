@@ -5,7 +5,8 @@ import { AppError, toErrorResponse } from "@/lib/observability/errors";
 import * as knowledgeService from "@/lib/knowledge/service";
 import { resolveAIConfig } from "@/lib/ai/config";
 import { aiProviderRegistry } from "@/lib/ai/providers/registry";
-import { AIProviderError } from "@/lib/ai/providers/types";
+import { AIProviderError, type CompletionResult } from "@/lib/ai/providers/types";
+import { meteredCall, AllowanceError, estimateTokensFromText } from "@/lib/ai/metered";
 import { assertAiProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { recordAIInteraction } from "@/lib/ai/usage";
 
@@ -78,15 +79,39 @@ Your answer here...
       throw policyError;
     }
     const provider = aiProviderRegistry.get(aiConfig.provider, { apiKey: aiConfig.apiKey });
-    const completion = await provider.complete({
+    const completionRequest = {
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question.trim() },
+        { role: "system" as const, content: systemPrompt },
+        { role: "user" as const, content: question.trim() },
       ],
       maxTokens: aiConfig.maxTokens,
       temperature: aiConfig.temperature,
       model: aiConfig.model,
-    });
+    };
+    const promptTokens = estimateTokensFromText(systemPrompt + question);
+    let completion;
+    try {
+      completion = await meteredCall(
+        ctx,
+        {
+          kind: "generation",
+          managed: aiConfig.managed,
+          estimateTokens: promptTokens + aiConfig.maxTokens,
+          promptTokens,
+          maxPromptTokens: aiConfig.maxPromptTokens,
+          usageOf: (r: CompletionResult) => r.usage.totalTokens,
+        },
+        () => provider.complete(completionRequest)
+      );
+    } catch (allowanceError) {
+      if (allowanceError instanceof AllowanceError) {
+        return NextResponse.json(
+          { error: "The AI usage allowance for this workspace is unavailable. Try again later or contact your administrator." },
+          { status: 429 }
+        );
+      }
+      throw allowanceError;
+    }
 
     await recordAIInteraction(ctx, {
       kind: "generation",

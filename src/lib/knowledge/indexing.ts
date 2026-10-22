@@ -3,8 +3,9 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { resolveEmbeddingConfig } from "@/lib/ai/config";
 import { embeddingProviderRegistry } from "@/lib/ai/providers/embedding-registry";
-import { AIProviderError, type EmbeddingProvider } from "@/lib/ai/providers/types";
+import { AIProviderError, type EmbeddingProvider, type EmbeddingResult } from "@/lib/ai/providers/types";
 import { recordAIInteraction } from "@/lib/ai/usage";
+import { meteredCall, AllowanceError, estimateTokensFromText } from "@/lib/ai/metered";
 import { assertEmbeddingProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { jobQueue } from "@/lib/jobs/queue";
 import { INDEX_KNOWLEDGE_ENTRY_JOB, type IndexKnowledgeEntryPayload } from "@/lib/jobs/job-types";
@@ -159,7 +160,7 @@ export function redactProviderMessage(message: string): string {
 }
 
 export type ResolvedEmbeddingProvider =
-  | { status: "available"; provider: EmbeddingProvider }
+  | { status: "available"; provider: EmbeddingProvider; managed: boolean }
   | { status: "not_configured"; providerName: string }
   | { status: "unsupported"; providerName: string }
   | { status: "not_permitted"; providerName: string };
@@ -184,13 +185,17 @@ export async function resolveTenantEmbeddingProvider(ctx: TenantContext): Promis
     if (error instanceof AIProviderError) return { status: "not_permitted", providerName: config.provider };
     throw error;
   }
-  return { status: "available", provider: embeddingProviderRegistry.get(config.provider, { apiKey: config.apiKey }) };
+  return {
+    status: "available",
+    provider: embeddingProviderRegistry.get(config.provider, { apiKey: config.apiKey }),
+    managed: config.managed,
+  };
 }
 
 export type KnowledgeIndexOutcome =
   | { status: "indexed"; provider: string; model: string }
   | { status: "already_current"; provider: string }
-  | { status: "skipped"; reason: "not_found" | "inactive" | "no_embedding_provider" | "unsupported_embedding_provider" | "embedding_provider_not_permitted"; provider?: string }
+  | { status: "skipped"; reason: "not_found" | "inactive" | "no_embedding_provider" | "unsupported_embedding_provider" | "embedding_provider_not_permitted" | "allowance_unavailable"; provider?: string }
   | { status: "stale"; provider: string }
   | { status: "failed"; provider: string; code: string; retryable: boolean; message: string };
 
@@ -227,8 +232,22 @@ export async function indexKnowledgeEntry(ctx: TenantContext, entryId: string): 
 
   let embedded;
   try {
-    embedded = await provider.embed(knowledgeEmbeddingText(entry));
+    const text = knowledgeEmbeddingText(entry);
+    embedded = await meteredCall(
+      ctx,
+      {
+        kind: "embedding",
+        managed: resolved.managed,
+        estimateTokens: estimateTokensFromText(text),
+        usageOf: (r: EmbeddingResult) => r.usage.totalTokens,
+      },
+      () => provider.embed(text)
+    );
   } catch (error) {
+    // P2 — no allowance (or ledger down): no paid call was made; keyword search keeps working.
+    if (error instanceof AllowanceError) {
+      return { status: "skipped", reason: "allowance_unavailable", provider: provider.name };
+    }
     // An SDK/network error that isn't an AIProviderError (e.g. a dropped
     // connection) is treated as transient.
     const providerError = error instanceof AIProviderError ? error : null;

@@ -20,6 +20,8 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { logger } from "@/lib/observability/logger";
 import { recordAIInteraction } from "@/lib/ai/usage";
+import { meteredCall, estimateTokensFromText } from "@/lib/ai/metered";
+import type { EmbeddingResult } from "@/lib/ai/providers/types";
 import { isEmbeddingUsable, readStoredEmbedding, redactProviderMessage, resolveTenantEmbeddingProvider } from "./indexing";
 
 interface SearchResult {
@@ -122,7 +124,16 @@ export async function searchKnowledgeBase(
     const cached = await cacheGet(cacheKey);
     if (cached) queryEmbedding = parseCachedQueryEmbedding(cached);
     if (!queryEmbedding) {
-      const embedded = await embeddingProvider.embed(query).catch((error) => {
+      const embedded = await meteredCall(
+        ctx,
+        {
+          kind: "embedding",
+          managed: resolved.status === "available" && resolved.managed,
+          estimateTokens: estimateTokensFromText(query),
+          usageOf: (r: EmbeddingResult) => r.usage.totalTokens,
+        },
+        () => embeddingProvider.embed(query)
+      ).catch((error) => {
         logger.error("Failed to generate query embedding, falling back to keyword search", undefined, {
           businessId: ctx.businessId,
           provider: embeddingProvider.name,

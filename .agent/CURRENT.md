@@ -309,3 +309,7 @@ p1-closure merged into main as f7fa7fa and pushed; exact-head CI green. Code ide
 ## Update19 (2026-10-22, P1 complete)
 
 Owner declared P1 complete; tag phase-p1-complete on the commit containing this update. Not deployed. Next eligible: P2 (needs owner go-ahead for the new phase). Tag push needs approval.
+
+## Update20 (2026-10-22, P2 started)
+
+P1 complete and tagged. P2 proposal approved (docs/p2-managed-ai-proposal-2026-10-22.md, branch p2-managed-ai, worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/owly). Next: tests-first schema + reservation service, then resolution/enforcement, UI, migration script, security review, browser run, targeted real call with env keys. Prohibited: push/merge/deploy without approval.

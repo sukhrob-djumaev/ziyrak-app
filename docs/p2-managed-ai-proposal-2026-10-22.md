@@ -1,6 +1,6 @@
 # P2 managed AI and usage limits: proposal for owner review (2026-10-22)
 
-Status: PROPOSAL. No code written. PLAN P2 says allowance values and limit-facing behavior
+Status: APPROVED by the owner 2026-10-22 (decisions in section 8). No code written yet. PLAN P2 says allowance values and limit-facing behavior
 await an owner-reviewed proposal; this is that proposal. Governing text: PLAN P2, §10.2, §21,
 §39.2.
 
@@ -95,3 +95,13 @@ generation + embedding call through the managed path (needs a platform OpenAI ke
 5. **Uncertain outcomes:** charge the reserved bound (conservative, recommended) or release?
 6. **Real-provider check:** can you supply a platform OpenAI key for the targeted call when we
    reach verification (never committed, entered via the platform console)?
+
+## 8. Owner decisions (2026-10-22)
+
+All recommendations accepted: (1) calendar-month UTC, total tokens, separate generation and
+embedding limits; (2) default allowance 500,000 generation / 1,000,000 embedding tokens per month,
+changeable per workspace by the super admin; (3) existing workspaces stay `legacy_byok` until
+flipped; (4) exhausted = fallback reply plus human handoff; (5) uncertain outcomes charge the
+reserved bound; (6) the platform keys in the environment (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+in the local `.env`) are real and working and may be used for the targeted real call. Presence
+was checked without displaying values; the real call itself is still to be run and recorded.

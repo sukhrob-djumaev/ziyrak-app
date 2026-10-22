@@ -3,52 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ANTHROPIC_DEFAULT_MODEL, ANTHROPIC_MODELS } from "@/lib/ai/providers/anthropic-models";
 
-const STEPS = [
-  "Create Your Account",
-  "Business Profile",
-  "AI Configuration",
-  "You're All Set!",
-];
+const STEPS = ["Create Your Account", "Business Profile", "Check Your Email"];
 
 const TONE_OPTIONS = [
   { value: "friendly", label: "Friendly", desc: "Warm and approachable" },
   { value: "professional", label: "Professional", desc: "Polished and business-like" },
   { value: "formal", label: "Formal", desc: "Courteous and proper" },
   { value: "technical", label: "Technical", desc: "Precise and detailed" },
-];
-
-// PLAN.md §46.4 task 7 — only providers with a real, tested AIProvider
-// implementation (ai/providers/registry.ts) are listed as fully supported;
-// Ollama is honestly marked "coming soon" rather than silently broken
-// (§2.3's original bug — selecting it used to silently still call OpenAI).
-// "anthropic" matches AnthropicProvider.name/the registry key exactly.
-// Anthropic's list is the shared supported catalog (ai/providers/
-// anthropic-models.ts), so the wizard can never offer a retired model id.
-const toOptions = (ids: string[]) => ids.map((id) => ({ value: id, label: id }));
-const PROVIDER_OPTIONS = [
-  {
-    value: "openai",
-    label: "OpenAI",
-    models: toOptions(["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]),
-    defaultModel: "gpt-4o-mini",
-    comingSoon: false,
-  },
-  {
-    value: "anthropic",
-    label: "Anthropic (Claude)",
-    models: ANTHROPIC_MODELS.map((m) => ({ value: m.id, label: m.label })),
-    defaultModel: ANTHROPIC_DEFAULT_MODEL,
-    comingSoon: false,
-  },
-  {
-    value: "ollama",
-    label: "Ollama (Local)",
-    models: toOptions(["llama3", "mistral", "codellama", "phi3"]),
-    defaultModel: "llama3",
-    comingSoon: true,
-  },
 ];
 
 export default function SetupPage() {
@@ -60,6 +22,7 @@ export default function SetupPage() {
   // Step 1 - Admin Account
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -69,19 +32,6 @@ export default function SetupPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("Hello! How can I help you today?");
   const [tone, setTone] = useState("friendly");
 
-  // Step 3 - AI Configuration
-  const [aiProvider, setAiProvider] = useState("openai");
-  const [aiModel, setAiModel] = useState("gpt-4o-mini");
-  const [aiApiKey, setAiApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  // Step 4 - Summary
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-
-  function currentModels() {
-    return PROVIDER_OPTIONS.find((p) => p.value === aiProvider)?.models || [];
-  }
-
   async function handleNext() {
     setError("");
     setLoading(true);
@@ -89,8 +39,13 @@ export default function SetupPage() {
     try {
       if (step === 0) {
         // Validate admin fields
-        if (!name.trim() || !username.trim() || !password) {
+        if (!name.trim() || !username.trim() || !email.trim() || !password) {
           setError("All fields are required.");
+          setLoading(false);
+          return;
+        }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+          setError("Enter a valid email address.");
           setLoading(false);
           return;
         }
@@ -124,6 +79,7 @@ export default function SetupPage() {
             action: "signup",
             name,
             username,
+            email: email.trim(),
             password,
             businessName: businessName.trim(),
             businessDesc: businessDesc.trim(),
@@ -137,30 +93,7 @@ export default function SetupPage() {
           setLoading(false);
           return;
         }
-        setCompletedSteps((prev) => [...prev, 0, 1]);
         setStep(2);
-      } else if (step === 2) {
-        // §46.4 — the real, tenant-scoped AI provider boundary, not the
-        // legacy /api/settings singleton.
-        const body: Record<string, string> = {
-          aiProvider,
-          aiModel,
-        };
-        if (aiApiKey.trim()) body.aiApiKey = aiApiKey.trim();
-
-        const res = await fetch("/api/settings/ai", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error || "Failed to save AI configuration.");
-          setLoading(false);
-          return;
-        }
-        setCompletedSteps((prev) => [...prev, 2]);
-        setStep(3);
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
@@ -233,6 +166,15 @@ export default function SetupPage() {
                 onChange={setUsername}
                 placeholder="Choose a username"
                 autoComplete="username"
+              />
+              <Field
+                id="email"
+                label="Email address"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="you@example.com"
+                autoComplete="email"
               />
               <Field
                 id="password"
@@ -323,127 +265,17 @@ export default function SetupPage() {
           </>
         )}
 
-        {/* Step 2: AI Configuration */}
+        {/* Step 2: Check your email */}
         {step === 2 && (
-          <>
-            <p className="text-sm text-owly-text-light mb-6">
-              Configure the AI model that powers your support agent.
+          <div id="checkEmail" role="status">
+            <p className="text-sm text-owly-text mb-4">
+              We sent a confirmation link to <strong>{email.trim()}</strong>. Open it to confirm your address, then
+              sign in to finish setting up your business. The link works once and expires in 24 hours.
             </p>
-            <div className="space-y-4">
-              <div>
-                <label
-                  htmlFor="aiProvider"
-                  className="block text-sm font-medium text-owly-text mb-1.5"
-                >
-                  AI Provider
-                </label>
-                <select
-                  id="aiProvider"
-                  value={aiProvider}
-                  onChange={(e) => {
-                    const prov = e.target.value;
-                    setAiProvider(prov);
-                    setAiModel(PROVIDER_OPTIONS.find((p) => p.value === prov)?.defaultModel || "");
-                  }}
-                  className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
-                >
-                  {PROVIDER_OPTIONS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                      {p.comingSoon ? " (coming soon)" : ""}
-                    </option>
-                  ))}
-                </select>
-                {PROVIDER_OPTIONS.find((p) => p.value === aiProvider)?.comingSoon && (
-                  <p className="mt-1.5 text-xs text-owly-text-light">
-                    Ollama support is coming soon — chat won&apos;t work with this provider selected yet. Pick OpenAI or Anthropic to get started today.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="aiModel"
-                  className="block text-sm font-medium text-owly-text mb-1.5"
-                >
-                  Model
-                </label>
-                <select
-                  id="aiModel"
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
-                >
-                  {currentModels().map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="aiApiKey"
-                  className="block text-sm font-medium text-owly-text mb-1.5"
-                >
-                  API Key
-                  {aiProvider === "ollama" && (
-                    <span className="ml-1 font-normal text-owly-text-light">
-                      (not required for local models)
-                    </span>
-                  )}
-                </label>
-                <div className="relative">
-                  <input
-                    id="aiApiKey"
-                    type={showApiKey ? "text" : "password"}
-                    value={aiApiKey}
-                    onChange={(e) => setAiApiKey(e.target.value)}
-                    placeholder={
-                      aiProvider === "ollama"
-                        ? "Optional"
-                        : "Enter your API key"
-                    }
-                    className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 pr-16 text-sm text-owly-text placeholder:text-owly-text-light focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-owly-primary hover:bg-owly-primary-50 transition-colors"
-                  >
-                    {showApiKey ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Step 3: Complete */}
-        {step === 3 && (
-          <>
-            <p className="text-sm text-owly-text-light mb-6">
-              Your business is ready to go.
+            <p className="text-sm text-owly-text-light">
+              If you do not see it, check your spam folder. After you sign in you can ask for a new link.
             </p>
-            <div className="space-y-3 mb-6">
-              <SummaryRow
-                done={completedSteps.includes(0)}
-                label="Owner account created"
-                detail={username}
-              />
-              <SummaryRow
-                done={completedSteps.includes(1)}
-                label="Business profile configured"
-                detail={businessName || "Business created"}
-              />
-              <SummaryRow
-                done={completedSteps.includes(2)}
-                label="AI provider configured"
-                detail={`${PROVIDER_OPTIONS.find((p) => p.value === aiProvider)?.label} / ${aiModel}`}
-              />
-            </div>
-          </>
+          </div>
         )}
 
         {/* Error */}
@@ -469,7 +301,7 @@ export default function SetupPage() {
           <div />
         )}
 
-        {step < 3 ? (
+        {step < 2 ? (
           <button
             type="button"
             onClick={handleNext}
@@ -483,8 +315,6 @@ export default function SetupPage() {
               </span>
             ) : step === 1 ? (
               "Create Business"
-            ) : step === 2 ? (
-              "Finish Setup"
             ) : (
               "Next"
             )}
@@ -492,10 +322,10 @@ export default function SetupPage() {
         ) : (
           <button
             type="button"
-            onClick={() => router.replace("/")}
+            onClick={() => router.replace("/login")}
             className="rounded-lg bg-owly-primary px-5 py-2 text-sm font-semibold text-white hover:bg-owly-primary-dark focus:outline-none focus:ring-2 focus:ring-owly-primary focus:ring-offset-2 transition-colors"
           >
-            Go to Dashboard
+            Go to sign in
           </button>
         )}
       </div>
@@ -539,50 +369,6 @@ function Field({
         placeholder={placeholder}
         className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text placeholder:text-owly-text-light focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
       />
-    </div>
-  );
-}
-
-function SummaryRow({
-  done,
-  label,
-  detail,
-}: {
-  done: boolean;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-owly-border bg-owly-bg px-4 py-3">
-      <div
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-          done
-            ? "bg-owly-success text-white"
-            : "bg-owly-border text-owly-text-light"
-        }`}
-      >
-        {done ? (
-          <svg
-            className="h-3 w-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={3}
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        ) : (
-          <span>-</span>
-        )}
-      </div>
-      <div>
-        <div className="text-sm font-medium text-owly-text">{label}</div>
-        <div className="text-xs text-owly-text-light">{detail}</div>
-      </div>
     </div>
   );
 }

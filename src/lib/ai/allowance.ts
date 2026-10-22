@@ -147,7 +147,7 @@ export async function getAllowanceUsage(businessId: string, kind: AllowanceKind,
   return { used, reserved, limit };
 }
 
-export type AllowanceStatus = "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured";
+export type AllowanceStatus = "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured" | "pending_verification";
 
 export interface CustomerAllowanceView {
   managed: true;
@@ -175,7 +175,8 @@ export async function getCustomerAllowanceView(businessId: string, now: Date = n
   const ratio = (u: AllowanceUsage) => (u.limit && u.limit > 0 ? (u.used + u.reserved) / u.limit : 1);
   const worst = Math.max(ratio(generation), ratio(embedding));
   let status: AllowanceStatus = "ok";
-  if (allowance.status !== "active") status = "suspended";
+  if (allowance.status === "pending_verification") status = "pending_verification";
+  else if (allowance.status !== "active") status = "suspended";
   else if (!policy) status = "not_configured";
   else if (worst >= 1) status = "exhausted";
   else if (worst >= 0.8) status = "near_limit";

@@ -101,6 +101,12 @@ describe("managed workspace AI settings", () => {
     expect((await parseJsonResponse(await GET(req("GET")))).status).toBe("not_configured");
   });
 
+  it("reports pending_verification while the owner has not confirmed their email", async () => {
+    const { GET } = await import("@/app/api/settings/ai/route");
+    await prisma.workspaceAiAllowance.update({ where: { businessId: a.businessId }, data: { status: "pending_verification" } });
+    expect((await parseJsonResponse(await GET(req("GET")))).status).toBe("pending_verification");
+  });
+
   it("refuses every write, including model, provider, key and limits", async () => {
     const { PUT } = await import("@/app/api/settings/ai/route");
     for (const body of [

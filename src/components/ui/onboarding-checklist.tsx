@@ -56,6 +56,12 @@ export function OnboardingChecklist() {
       const channels = channelsRes.ok ? await channelsRes.json() : [];
       const team = teamRes.ok ? (await teamRes.json()).data : [];
 
+      // Managed workspaces use the server-backed onboarding panel instead of this local checklist.
+      if (settings.managed === true) {
+        setItems([]);
+        return;
+      }
+
       const connectedChannels = Array.isArray(channels)
         ? channels.filter((c: { isActive: boolean }) => c.isActive)
         : [];
@@ -146,7 +152,7 @@ export function OnboardingChecklist() {
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Hide if dismissed or all complete
-  if (dismissed || allComplete || loading) {
+  if (dismissed || allComplete || loading || items.length === 0) {
     if (loading) {
       return null; // Don't flash loading state on dashboard
     }

@@ -32,6 +32,8 @@ const PLATFORM = new Set([
   // Account identity: ends a user's sessions (P3 reset). Saved follow-ups deliberately survive
   // logout and session end (owner decision 2026-10-15), so this reduces no delayed-work authority.
   "lib/identity/auth.ts",
+  // P3 recovery: email verification and password change write only the account row.
+  "lib/identity/account-service.ts",
   "lib/platform/admin-users/service.ts",
   "lib/platform/provisioning.ts",
 ]);

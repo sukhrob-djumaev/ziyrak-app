@@ -7,6 +7,10 @@ import {
   removeOperator,
   revokeAssignment,
 } from "@/lib/platform/access/operators";
+import {
+  inviteOperator,
+  revokeOperatorInvitation,
+} from "@/lib/platform/access/operator-invitations";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toErrorResponse } from "@/lib/observability/errors";
 
@@ -67,6 +71,12 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "provision":
         result = await provisionOperator(token, input);
+        break;
+      case "invite":
+        result = await inviteOperator(token, input);
+        break;
+      case "revokeInvitation":
+        result = await revokeOperatorInvitation(token, input);
         break;
       case "assign":
         result = await assignOperator(token, input);

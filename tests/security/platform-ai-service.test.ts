@@ -30,7 +30,7 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 import { prisma } from "@/lib/prisma/raw-client";
 import { readAiServiceConsole, savePolicy, setWorkspaceAllowance } from "@/lib/platform/ai-service";
 import { resolveAIConfig } from "@/lib/ai/config";
-import { acquirePolicyLock, releasePolicyLock } from "../helpers/policy-lock";
+import { acquirePolicyLock, releasePolicyLock, acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 
 let ws: SeededBusiness;
@@ -50,17 +50,19 @@ const policyInput = {
 
 beforeAll(async () => {
   await acquirePolicyLock();
+  await acquirePlatformLock();
   ws = await seedBusiness("platform-ai-service");
   const admin = await prisma.user.create({
     data: { username: `ai-admin-${Date.now()}`, password: "x", name: "Admin", platformRole: "super_admin" },
   });
   adminId = admin.id;
-});
+}, 120_000);
 afterAll(async () => {
   await prisma.aiServicePolicy.deleteMany({});
   await prisma.platformAccessAudit.deleteMany({ where: { actorUserId: adminId } });
   await cleanupBusiness(ws.businessId);
   await prisma.user.delete({ where: { id: adminId } });
+  await releasePlatformLock();
   await releasePolicyLock();
 });
 beforeEach(async () => {

@@ -261,9 +261,16 @@ export async function readOperatorConsole(token: string) {
       orderBy: { createdAt: "desc" },
       take: 201,
     });
+    const invitations = await tx.accountToken.findMany({
+      where: { purpose: "operator_invitation", usedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, email: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 201,
+    });
     return {
       evaluatedAt: new Date().toISOString(),
       operators: operators.slice(0, 200),
+      invitations: invitations.slice(0, 200),
       workspaces: workspaces
         .slice(0, 200)
         .map((w) => ({ ...w, channelConnections: w.channelConnections.slice(0, 200) })),
@@ -273,6 +280,7 @@ export async function readOperatorConsole(token: string) {
         operators.length > 200 ||
         workspaces.length > 200 ||
         assignments.length > 200 ||
+        invitations.length > 200 ||
         workspaces.some((w) => w.channelConnections.length > 200),
     };
   });

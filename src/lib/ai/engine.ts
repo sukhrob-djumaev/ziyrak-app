@@ -11,6 +11,7 @@ import {
   checkBlockedTopics,
   enforceResponseLength,
 } from "./guardrails";
+import { decideEscalation, type ToolOutcome } from "@/lib/ai/escalation";
 import { knowledgeRetriever } from "@/lib/knowledge/retriever";
 import { redactProviderMessage } from "@/lib/knowledge/indexing";
 import { resolveAIConfig, type ResolvedAIConfig } from "./config";
@@ -216,17 +217,31 @@ export async function chat(
   messages.push({ role: "user", content: userMessage });
 
   // Call AI
-  const { text: rawResponse, hasToolCalls, handoff } = await callAI(ctx, aiConfig, messages, conversationId);
+  const { text: rawResponse, hasToolCalls, handoff, toolOutcomes } = await callAI(ctx, aiConfig, messages, conversationId);
   const response = enforceResponseLength(rawResponse);
 
   // Save assistant message
   const savedMessage = await appendAssistantMessage(ctx, conversationId, response);
 
-  // Confidence scoring — §2.3's hasToolCalls bug: this now reflects whether
-  // a tool was actually used anywhere in this turn's (possibly recursive)
-  // tool-call loop, not a hardcoded false.
-  const confidence = estimateConfidence(response, knowledgeBase.length, hasToolCalls);
-  if (confidence.shouldEscalate || handoff) {
+  // R2 — escalation follows explicit rules (human request, no supporting knowledge or tool result, failed
+  // or pending tool, a reply that says it cannot help, explicit handoff). The old length/knowledge-count
+  // score is kept only as a logged heuristic diagnostic; it is not a probability and decides nothing.
+  const heuristic = estimateConfidence(response, knowledgeBase.length, hasToolCalls);
+  const decision = decideEscalation({
+    userMessage,
+    response,
+    retrievedCount: knowledgeBase.length,
+    toolOutcomes,
+    handoff,
+  });
+  logger.info("Escalation decision", {
+    businessId: ctx.businessId,
+    conversationId,
+    escalate: decision.escalate,
+    reasons: decision.reasons,
+    heuristicScore: heuristic.score,
+  });
+  if (decision.escalate) {
     await escalateConversation(ctx, conversationId);
   }
 
@@ -256,10 +271,11 @@ async function callAI(
   messages: AIMessage[],
   conversationId: string,
   depth = 0,
-  usedToolInThisTurn = false
-): Promise<{ text: string; hasToolCalls: boolean; handoff?: boolean }> {
+  usedToolInThisTurn = false,
+  toolOutcomes: ToolOutcome[] = []
+): Promise<{ text: string; hasToolCalls: boolean; handoff?: boolean; toolOutcomes: ToolOutcome[] }> {
   if (depth > (config.maxToolDepth ?? 5)) {
-    return { text: FALLBACK_DEPTH_EXCEEDED, hasToolCalls: usedToolInThisTurn };
+    return { text: FALLBACK_DEPTH_EXCEEDED, hasToolCalls: usedToolInThisTurn, toolOutcomes };
   }
 
   await assertAiProviderPermitted(ctx.businessId, config.provider);
@@ -310,7 +326,7 @@ async function callAI(
         conversationId,
         reason: error.reason,
       });
-      return { text: FALLBACK_ALLOWANCE_UNAVAILABLE, hasToolCalls: usedToolInThisTurn, handoff: true };
+      return { text: FALLBACK_ALLOWANCE_UNAVAILABLE, hasToolCalls: usedToolInThisTurn, handoff: true, toolOutcomes };
     }
     // The customer gets the honest fallback copy, never fabricated content;
     // the operator gets the reason. Never log the credential or prompt.
@@ -322,7 +338,7 @@ async function callAI(
       code: error instanceof AIProviderError ? error.code : "unknown",
       reason: redactProviderMessage(error instanceof Error ? error.message : String(error)),
     });
-    return { text: FALLBACK_PROVIDER_ERROR, hasToolCalls: usedToolInThisTurn };
+    return { text: FALLBACK_PROVIDER_ERROR, hasToolCalls: usedToolInThisTurn, toolOutcomes };
   }
 
   await recordAIInteraction(ctx, {
@@ -350,6 +366,7 @@ async function callAI(
         toolCallId: toolCall.id,
       });
 
+      toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status });
       messages.push({
         role: "tool",
         content: JSON.stringify(toolResult),
@@ -358,10 +375,10 @@ async function callAI(
     }
 
     // Continue the conversation with tool results
-    return callAI(ctx, config, messages, conversationId, depth + 1, true);
+    return callAI(ctx, config, messages, conversationId, depth + 1, true, toolOutcomes);
   }
 
-  return { text: result.text || "I apologize, I could not generate a response.", hasToolCalls: usedToolInThisTurn };
+  return { text: result.text || "I apologize, I could not generate a response.", hasToolCalls: usedToolInThisTurn, toolOutcomes };
 }
 
 /**

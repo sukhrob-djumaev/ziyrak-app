@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/raw-client";
 import {
@@ -12,6 +12,8 @@ import {
   revokeToken,
 } from "@/lib/identity/auth";
 import { provisionBusiness } from "@/lib/platform/provisioning";
+import { sendVerification, notifyAddressInUse } from "@/lib/identity/account-service";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { validateBody, signupSchema } from "@/lib/validations";
 import { AppError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
@@ -41,29 +43,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
+    // PLAN.md P3 — signup never signs anyone in: the answer is the same whether the address is
+    // new, unverified elsewhere or already verified by another account, so it cannot be used to
+    // learn who has an account. The owner confirms the address by email, then signs in.
+    const email = validation.data.email;
+    const RESPONSE = {
+      success: true,
+      verificationRequired: true,
+      message: "Check your email to confirm your address, then sign in.",
+    };
     try {
-      const { businessId, userId } = await provisionBusiness({
+      const holder = await prisma.user.findFirst({
+        where: { email, emailVerifiedAt: { not: null } },
+        select: { id: true },
+      });
+      if (holder) {
+        // Same cost as a real signup's password hashing, so timing does not separate the cases.
+        await hashPassword(validation.data.password);
+        notifyAddressInUse(email);
+        return NextResponse.json(RESPONSE, { status: 202 });
+      }
+      const { userId } = await provisionBusiness({
         businessName: validation.data.businessName,
         ownerUsername: validation.data.username,
         ownerPassword: validation.data.password,
         ownerName: validation.data.name,
+        ownerEmail: email,
         businessDesc: validation.data.businessDesc,
         welcomeMessage: validation.data.welcomeMessage,
         tone: validation.data.tone,
       });
-
-      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-      const response = NextResponse.json(
-        {
-          success: true,
-          user: { id: user.id, username: user.username, name: user.name },
-          business: { id: businessId, name: validation.data.businessName },
-        },
-        { status: 201 }
-      );
-      response.cookies.set(setAuthCookie(generateToken(user.id)));
-      response.cookies.set(workspaceCookie(businessId));
-      return response;
+      const budget = await checkRateLimit(`signup-mail:${createHash("sha256").update(email).digest("hex")}`, {
+        maxRequests: 3,
+        windowMs: 60 * 60 * 1000,
+      });
+      if (budget.allowed) {
+        await sendVerification(userId).catch((error) =>
+          // The workspace exists; the owner can sign in and ask for the link again.
+          logger.error("Signup verification mail failed", { error: error instanceof Error ? error.message : String(error) })
+        );
+      }
+      return NextResponse.json(RESPONSE, { status: 202 });
     } catch (error) {
       if (error instanceof AppError) {
         // Username collisions are reported as-is: this endpoint is

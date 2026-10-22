@@ -159,7 +159,7 @@ export const SCOPE_SCHEMA: Record<
         many: true,
       },
     },
-    scalars: ["id", "slug", "name", "status", "planId", "createdAt", "updatedAt"],
+    scalars: ["id", "slug", "name", "status", "activatedAt", "planId", "createdAt", "updatedAt"],
   },
   membership: {
     relations: {
@@ -457,6 +457,10 @@ export const SCOPE_SCHEMA: Record<
       "maxToolDepth",
       "createdAt",
     ],
+  },
+  onboardingState: {
+    relations: { business: { model: "business", many: false } },
+    scalars: ["businessId", "testReplyStatus", "testReplyAt", "testReplyReason", "updatedAt"],
   },
   accountToken: {
     relations: {},

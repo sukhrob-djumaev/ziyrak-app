@@ -62,6 +62,8 @@ const eslintConfig = defineConfig([
       // P3 account tokens: control-plane identity tokens, no tenant context exists yet.
       "src/lib/identity/account-tokens.ts",
       "src/lib/identity/account-service.ts",
+      // P3 onboarding: control-plane readiness/activation state for one explicit workspace id.
+      "src/lib/onboarding/service.ts",
       // P2 explicit legacy-settings transition: cross-workspace control-plane listing.
       "src/lib/ai/legacy-migration.ts",
       // First-run setup/login bootstrap: creates the Business/

@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { resolveCustomer } from "@/lib/customers/customer-resolver";
 import { chat } from "@/lib/ai/engine";
+import { isOnboardingInactive } from "@/lib/onboarding/service";
 import { evaluateRules, applyAutomationActions } from "@/lib/automations/automation";
 import { createNewConversation } from "@/lib/conversations/conversation-service";
 import type { ZiyrakEvent, MessageReceivedPayload } from "@/lib/events/types";
@@ -301,11 +302,19 @@ export async function processInboundMessage(
       conversation,
       matchedActions
     );
+    // P3: before the owner activates a signed-up workspace, visitors get a neutral notice and no
+    // AI work happens; the message is kept for the team.
+    const inactiveNotice = overrideResponse
+      ? undefined
+      : (await isOnboardingInactive(ctx.businessId))
+        ? "Thanks for your message. This business is still being set up, and a team member will get back to you."
+        : undefined;
+    const effectiveOverride = overrideResponse ?? inactiveNotice;
     const response = await chat(
       preparationCtx,
       conversation.id,
       event.payload.text,
-      overrideResponse ? { overrideResponse } : undefined
+      effectiveOverride ? { overrideResponse: effectiveOverride } : undefined
     );
     return { conversationId: conversation.id, response };
   };

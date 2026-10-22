@@ -25,6 +25,7 @@ export const signupSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(100)
     .regex(/^[A-Za-z0-9._@+-]+$/, "Username may only contain letters, numbers, and . _ @ + -"),
+  email: z.string().trim().toLowerCase().max(254).email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
   name: z.string().trim().max(200).optional(),
   businessDesc: z.string().max(2000).optional(),

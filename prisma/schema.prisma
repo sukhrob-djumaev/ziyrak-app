@@ -12,13 +12,16 @@ datasource db {
 // that cutover is Phase 2+. Populated by scripts/phase1-tenant-migration.ts.
 
 model Business {
-  id        String   @id @default(uuid())
-  slug      String   @unique
-  name      String
-  status    String   @default("active") // active, suspended, deleted
-  planId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  name        String
+  status      String    @default("active") // active, suspended, deleted
+  // P3: set when the owner explicitly activates the workspace after onboarding. Existing
+  // workspaces are backfilled by the migration so nobody is locked out.
+  activatedAt DateTime?
+  planId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   platformAssignments  PlatformAssignment[]
   supportGrants        SupportGrant[]
@@ -30,6 +33,7 @@ model Business {
   placement            TenantPlacement?
   infrastructurePolicy InfrastructurePolicy?
   aiAllowance          WorkspaceAiAllowance?
+  onboardingState      OnboardingState?
   aiUsageReservations  AiUsageReservation[]
 
   // Every tenant-owned model gains a businessId relation back to Business
@@ -1200,4 +1204,16 @@ model AccountToken {
 
   @@index([purpose, email])
   @@index([expiresAt])
+}
+
+// P3: the part of onboarding that cannot be derived from live data (the test reply result).
+// Knowledge and channel readiness are computed live; activation is Business.activatedAt.
+model OnboardingState {
+  businessId      String    @id
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  testReplyStatus String    @default("pending") // pending | passed | failed
+  testReplyAt     DateTime?
+  // Sanitized, customer-readable reason; never provider text.
+  testReplyReason String?
+  updatedAt       DateTime  @updatedAt
 }

@@ -58,12 +58,28 @@ export async function confirmEmail(token: string): Promise<{ userId: string } | 
       if (user.emailVerifiedAt) return { userId: user.id };
       // The partial unique index on verified addresses makes this the single winner.
       await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+      // Paid AI use waits for a verified owner: release the allowances this person owns. An
+      // operator suspension is a different status and is never lifted here.
+      await tx.workspaceAiAllowance.updateMany({
+        where: { status: "pending_verification", business: { memberships: { some: { userId: user.id, role: "owner" } } } },
+        data: { status: "active" },
+      });
       return { userId: user.id };
     });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") return null;
     throw error;
   }
+}
+
+/** Tells the holder of a verified address that someone tried to register with it. Never reveals anything to the requester. */
+export function notifyAddressInUse(email: string): void {
+  dispatch(
+    email,
+    "Someone tried to sign up with your email address",
+    "A sign-up was attempted with this email address, which already belongs to an account. " +
+      "If it was you, sign in or reset your password instead. If not, you can ignore this message; nothing was created."
+  );
 }
 
 /** Always resolves with the same value. Mail goes only to a verified, non-platform account. */

@@ -116,6 +116,8 @@ async function resolveConversationProfile(ctx: TenantContext): Promise<Conversat
   };
 }
 
+const NOT_CONFIGURED_NOTICE = "AI is not configured. Please add your API key in Settings > AI Configuration.";
+
 const BLOCKED_TOPIC_REDIRECT =
   "I'm not able to help with that directly, but I can connect you with a team member who can assist you. Would you like me to do that?";
 
@@ -168,7 +170,7 @@ export async function chat(
     // message" (Web Chat, PLAN.md §17.3/§46.7) would otherwise show a visitor
     // nothing at all while a new business is still mid-setup, and the owner
     // reading the transcript couldn't see what the customer was told.
-    const notice = "AI is not configured. Please add your API key in Settings > AI Configuration.";
+    const notice = NOT_CONFIGURED_NOTICE;
     const savedNotice = await appendAssistantMessage(ctx, conversationId, notice);
     notifyNewAssistantMessage(ctx, conversationId, { id: savedNotice.id, content: notice });
     return notice;
@@ -239,6 +241,14 @@ const FALLBACK_ALLOWANCE_UNAVAILABLE =
   "I'm unable to continue with automated replies right now, so I'm connecting you with a team member who can help.";
 const FALLBACK_PROVIDER_ERROR =
   "I'm temporarily unable to process your request. Please try again in a moment, or I can connect you with a team member.";
+
+/** Replies that mean "the assistant did not actually answer" (onboarding's test reply must not accept them). */
+export const NON_ANSWER_REPLIES: readonly string[] = [
+  NOT_CONFIGURED_NOTICE,
+  FALLBACK_DEPTH_EXCEEDED,
+  FALLBACK_PROVIDER_ERROR,
+  FALLBACK_ALLOWANCE_UNAVAILABLE,
+];
 
 async function callAI(
   ctx: TenantContext,

@@ -13,6 +13,12 @@ docs index: `docs/README.md`.
   security review); real mail delivery check NOT RUN (needs `PLATFORM_SMTP_*` sender settings and a real mailbox).
 - Workflow: token diet merged (`ede8031`); `chore/plan-slim` archives finished packages out of PLAN.md.
 
+## In flight (not merged)
+- Operator invitations: branch `feat/operator-invitations` (worktree `../owly-wt-operator-invitations`, commit `cbe71f2`),
+  tests-first, agent security review fixed, full unit 176 files/1766 passed on isolated DB `ziyrak_opinv_test_20261022`.
+  Browser journey and real mail NOT run. Awaiting owner approval to merge (then run browser suite + CI on exact head).
+- R2: proposal `docs/r2-ai-decision-quality-proposal-2026-10-22.md` awaits owner agreement on rules/thresholds.
+
 ## Next action
 1. Owner: decide the P3 completion tag (blocked on the real-mail check). `phase-p2-complete` is pushed and `chore/plan-slim`
    is merged (`c538d98`); main equals origin/main.

@@ -1,7 +1,9 @@
-# Latest session (2026-10-22, plan slim)
+# Latest session handoff (2026-10-22, overnight run)
 
-P3 merged to main (`470073b`, exact-head CI green); P2 tagged locally (`phase-p2-complete`, tag not pushed).
-Audit of PLAN/workflow redundancy -> branch `chore/plan-slim` (docs only): finished packages R1/R3/P1/P2/P3 moved
-unchanged to docs/milestone-archive.md with one-bullet summaries in PLAN (P3 open items kept live); stale
-Updated-2026-10-14 prose and repeated Phase 0 disclaimers removed; docs/README.md indexes every record.
-PLAN.md 1058 -> ~680 lines. No product code changed. Continuation: owner merge approval for plan-slim, tag decisions, then R2/R4.
+- Cleaned: removed empty leftover folders under `~/.codex/worktrees`; `CURRENT.md` reconciled; pushed `main`.
+- R2: wrote `docs/r2-ai-decision-quality-proposal-2026-10-22.md` (evidence: confidence bonuses unreachable at retrieval limit 8,
+  short correct replies score 0.5 and escalate; proposed rules E1-E5, thresholds, case-set plan). No behavior changed.
+- Operator invitations built on `feat/operator-invitations` (`cbe71f2`): library, routes, accept page, console UI, 14 tests,
+  shared platform test lock. Independent agent review: no escalation path; 3 low findings fixed. Full suite green on isolated DB.
+- Not done: browser journey for the new flow, real mail check, merge (needs owner approval), R2 implementation (needs approval).
+- Continue: owner reviews branch and R2 proposal; on merge approval run CI + browser suite on the exact head.

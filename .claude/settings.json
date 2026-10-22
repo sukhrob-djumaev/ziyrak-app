@@ -50,7 +50,9 @@
       "Bash(sleep:*)",
       "Bash(bash scripts/acceptance/:*)",
       "Read(//private/tmp/**)",
-      "Read(//Users/sukhrob/Development/Repos/JS/**)"
+      "Read(//Users/sukhrob/Development/Repos/JS/**)",
+      "Bash(python3 scripts/agent/:*)",
+      "Bash(bash scripts/agent/:*)"
     ],
     "deny": [
       "Bash(git reset --hard:*)",
@@ -65,6 +67,22 @@
       "Bash(git push:*)",
       "Bash(gh pr merge:*)",
       "Bash(gh release:*)"
+    ]
+  },
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent/session-start.sh\""
+          }
+        ]
+      }
     ]
   }
 }

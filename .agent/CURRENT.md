@@ -313,3 +313,13 @@ Owner declared P1 complete; tag phase-p1-complete on the commit containing this 
 ## Update20 (2026-10-22, P2 started)
 
 P1 complete and tagged. P2 proposal approved (docs/p2-managed-ai-proposal-2026-10-22.md, branch p2-managed-ai, worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/owly). Next: tests-first schema + reservation service, then resolution/enforcement, UI, migration script, security review, browser run, targeted real call with env keys. Prohibited: push/merge/deploy without approval.
+
+## Update21 (2026-10-22, P2 verified in development, awaiting merge approval)
+
+Branch p2-managed-ai (worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/owly), candidate ffbeeef plus
+this docs/harness commit. Implemented and verified per PLAN P2 result and
+docs/p2-managed-ai-implementation-2026-10-22.md: unit 167 files/1655, security review fixed, fresh-DB frozen
+browser J01-J26 + J27, live OpenAI check 3/3. Topology stopped, Redis container removed, ports free. DBs
+retained: ziyrak_test_p2_20261022* (tests), ziyrak_acceptance_p2_managed_20261022[b], ziyrak_test_p2_baseline_d.
+Needs owner: merge approval for p2-managed-ai (merge commit, then CI on the exact head); then P3 start needs
+explicit authorization. Prohibited: push/merge/deploy, P3, deleting DBs/worktrees without approval.

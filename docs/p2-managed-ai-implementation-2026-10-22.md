@@ -49,4 +49,13 @@ Status: implemented on branch `p2-managed-ai`; verification below. Not merged, n
 
 ## Verification record (update as evidence is added)
 
-See PLAN.md P2 result and `.agent/CURRENT.md`.
+- Unit/real-PG: 167 files, 1655 passed, 23 skipped on an isolated database (tsc, lint clean).
+- Independent agent security review (read-only): findings 1, 3, 5, 6 fixed with tests; finding 2
+  already covered (engine, test route and indexing stop on a missing key before any reservation);
+  findings 4 and 7 accepted (see limits).
+- Browser: candidate `ffbeeef`, fresh DB `ziyrak_acceptance_p2_managed_20261022b`, headless system
+  Chrome, stand-in provider, Redis 6381 (prefix ziyrak_acc_p2_final:). J01-J26 passed in one run; J27
+  passed on the same build after journey-script-only fixes (field clearing, numeric compare, generation-only
+  exhaustion check). Screenshots inspected: owner panel (normal and exhausted), super-admin console.
+- Real provider: `tests/integration/managed-ai-live.test.ts` against real OpenAI (3/3).
+- Not covered: windowed-browser mode; real provider through the browser; human review.

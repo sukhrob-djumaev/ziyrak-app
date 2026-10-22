@@ -501,8 +501,24 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   provider outages and missing setup are explicit. Existing encrypted tenant settings
   migrate through an explicit tested transition with backup/rollback considerations,
   no silent loss or surprise switch. Independent security review findings resolved.
-- **Result:** implementation not started; verification not run; production allowance
-  values and limit-facing behavior await a concrete owner-reviewed proposal.
+- **Result (2026-10-22, branch `p2-managed-ai`, candidate `ffbeeef`; not merged, not deployed):**
+  owner approved the proposal and all its recommendations
+  (`docs/p2-managed-ai-proposal-2026-10-22.md`). Implemented: control-plane policy/allowance/
+  reservation tables, reserve-call-settle metering of every generation, tool-loop, retry, test-reply,
+  indexing and query-embedding attempt, fail-closed handoff, customer read-only usage view, super-admin
+  console, expired-reservation sweep, explicit `legacy_byok` transition. Behavior, units and known limits:
+  `docs/p2-managed-ai-implementation-2026-10-22.md`. Evidence: tsc/lint clean; full unit/real-PG suite
+  167 files / 1655 passed / 23 skipped (Redis-gated; isolated DB); independent read-only agent security
+  review, confirmed findings fixed tests-first (policy model/error text in the knowledge test route, rate
+  limit release, idempotency-key reuse, console usage); fresh-DB frozen full browser run on `ffbeeef`:
+  J01-J26 passed in one run, J27 (managed AI: super-admin UI, owner read-only view and refused writes,
+  metered chat, exhaustion handoff, audit without key) passed after test-harness-only fixes on the same
+  build and database (one intermittent embedding-policy save failure in an earlier J27 attempt was not
+  reproduced in five later runs; its response body was not captured). Real provider: the credential-gated
+  `tests/integration/managed-ai-live.test.ts` passed against real OpenAI with the environment key
+  (chat settled usage equal to the provider-reported tokens; embedding settled; exhausted allowance made
+  no paid call). Limits: browser run used the stand-in provider and headless system Chrome; reviews are
+  agent reviews, not human; prompt estimate is characters / 3; owner merge approval pending.
 
 ### P3 — Accounts and customer onboarding
 

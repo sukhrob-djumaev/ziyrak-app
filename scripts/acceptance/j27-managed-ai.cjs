@@ -38,8 +38,9 @@ async function submit(page, selector, label) {
   );
   await page.click(selector);
   const response = await pending;
-  L.assert(response.status() === 200, label + " returned 200");
-  return response.json();
+  const body = await response.json();
+  L.assert(response.status() === 200, label + " returned 200" + (response.status() === 200 ? "" : ": " + JSON.stringify(body)));
+  return body;
 }
 (async () => {
   const browsers = [];
@@ -142,12 +143,15 @@ async function submit(page, selector, label) {
     await admin.select("#allowanceWorkspace", aId);
     await admin.select("#allowanceMode", "managed");
     L.assert((await submit(admin, "#saveAllowance", "Exhaust")).success === true, "Limit lowered");
-    const before = L.sql('SELECT count(*) FROM "AiUsageReservation" WHERE "businessId"=' + quote(aId));
+    // Knowledge-search embeddings have their own (still open) allowance; only paid generation must stop.
+    const genCount = () =>
+      L.sql('SELECT count(*) FROM "AiUsageReservation" WHERE "businessId"=' + quote(aId) + " AND kind='generation'");
+    const before = genCount();
     const blocked = await call(owner, "/api/chat", "POST", { message: "Another question please", customerContact: "j27b-" + suffix });
     L.assert(blocked.status === 200, "Inbound message is still accepted when the allowance is exhausted");
     L.assert(
-      L.sql('SELECT count(*) FROM "AiUsageReservation" WHERE "businessId"=' + quote(aId)) === before,
-      "No paid attempt was reserved after exhaustion"
+      genCount() === before,
+      "No paid generation attempt was reserved after exhaustion"
     );
     L.assert(
       L.sql(

@@ -7,7 +7,7 @@ archived by `scripts/agent/archive-state.sh` into `docs/state-archive/`; full hi
 ## Status
 - Phase: managed-service readiness milestone (see PLAN.md live board).
 - Done and merged on main: R1, R3, P1 (tag `phase-p1-complete`), P2 (merge 53f2738; main CI green on 09ab7f5).
-- P2 completion tag `phase-p2-complete`: NOT created, needs the owner's decision.
+- P2 complete: owner declared it 2026-10-22; tag `phase-p2-complete` on the commit containing this update (push of the tag needs approval).
 - P3 (accounts and customer onboarding): not started; needs explicit owner go-ahead.
 - Workflow change in review: branch `chore/token-diet` (PLAN.md split into live plan + docs/architecture-reference.md,
   compact state files, SessionStart hook, state archiver). Docs/tooling only; awaiting merge approval.

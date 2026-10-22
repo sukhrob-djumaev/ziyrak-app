@@ -150,27 +150,27 @@ export default function AiServicePage() {
             }}
           >
             <label>Kind
-              <select className={field} value={kind} onChange={(e) => { setKind(e.target.value); if (e.target.value === "embedding") setProvider("openai"); }}>
+              <select id="policyKind" className={field} value={kind} onChange={(e) => { setKind(e.target.value); if (e.target.value === "embedding") setProvider("openai"); }}>
                 <option value="generation">Generation</option><option value="embedding">Embedding</option>
               </select>
             </label>
-            <label>Display name<input className={field} value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
+            <label>Display name<input id="policyName" className={field} value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
             <label>Provider
-              <select className={field} value={provider} onChange={(e) => setProvider(e.target.value)}>
+              <select id="policyProvider" className={field} value={provider} onChange={(e) => setProvider(e.target.value)}>
                 <option value="openai">OpenAI</option>
                 {kind === "generation" && <option value="anthropic">Anthropic</option>}
               </select>
             </label>
-            <label>Model<input className={field} value={model} onChange={(e) => setModel(e.target.value)} required /></label>
+            <label>Model<input id="policyModel" className={field} value={model} onChange={(e) => setModel(e.target.value)} required /></label>
             <label>API key (leave empty to keep the current key for this provider)
-              <input className={field} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+              <input id="policyKey" className={field} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
             </label>
             <label>Max completion tokens<input className={field} inputMode="numeric" value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} /></label>
             <label>Temperature<input className={field} inputMode="decimal" value={temperature} onChange={(e) => setTemperature(e.target.value)} /></label>
             <label>Max prompt tokens<input className={field} inputMode="numeric" value={maxPromptTokens} onChange={(e) => setMaxPromptTokens(e.target.value)} /></label>
             <label>Max tool-loop depth<input className={field} inputMode="numeric" value={maxToolDepth} onChange={(e) => setMaxToolDepth(e.target.value)} /></label>
-            <label>Reason<input className={field} value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} required /></label>
-            <button className={button} disabled={busy}>Save policy</button>
+            <label>Reason<input id="policyReason" className={field} value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} required /></label>
+            <button id="savePolicy" className={button} disabled={busy}>Save policy</button>
           </form>
 
           <h2 className="mt-8 text-xl font-semibold">Workspace allowances</h2>
@@ -209,26 +209,26 @@ export default function AiServicePage() {
             }}
           >
             <label>Workspace
-              <select className={field} value={businessId} onChange={(e) => setBusinessId(e.target.value)} required>
+              <select id="allowanceWorkspace" className={field} value={businessId} onChange={(e) => setBusinessId(e.target.value)} required>
                 <option value="">Select a workspace</option>
                 {data.workspaces.map((w) => <option key={w.businessId} value={w.businessId}>{w.name}</option>)}
               </select>
             </label>
             <label>Mode
-              <select className={field} value={mode} onChange={(e) => setMode(e.target.value)}>
+              <select id="allowanceMode" className={field} value={mode} onChange={(e) => setMode(e.target.value)}>
                 <option value="managed">Managed by the platform</option>
                 <option value="legacy_byok">Workspace&apos;s own key</option>
               </select>
             </label>
             <label>Status
-              <select className={field} value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select id="allowanceStatus" className={field} value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="active">Active</option><option value="suspended">Suspended</option>
               </select>
             </label>
-            <label>Reply limit (tokens per month, empty keeps current)<input className={field} inputMode="numeric" value={genLimit} onChange={(e) => setGenLimit(e.target.value)} /></label>
-            <label>Knowledge limit (tokens per month, empty keeps current)<input className={field} inputMode="numeric" value={embLimit} onChange={(e) => setEmbLimit(e.target.value)} /></label>
-            <label>Reason<input className={field} value={allowanceReason} onChange={(e) => setAllowanceReason(e.target.value)} required /></label>
-            <button className={button} disabled={busy}>Save allowance</button>
+            <label>Reply limit (tokens per month, empty keeps current)<input id="allowanceGen" className={field} inputMode="numeric" value={genLimit} onChange={(e) => setGenLimit(e.target.value)} /></label>
+            <label>Knowledge limit (tokens per month, empty keeps current)<input id="allowanceEmb" className={field} inputMode="numeric" value={embLimit} onChange={(e) => setEmbLimit(e.target.value)} /></label>
+            <label>Reason<input id="allowanceReason" className={field} value={allowanceReason} onChange={(e) => setAllowanceReason(e.target.value)} required /></label>
+            <button id="saveAllowance" className={button} disabled={busy}>Save allowance</button>
           </form>
         </>
       )}

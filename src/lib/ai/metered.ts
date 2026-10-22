@@ -18,7 +18,7 @@ import {
  */
 export class AllowanceError extends Error {
   constructor(
-    public reason: "not_configured" | "suspended" | "exhausted" | "accounting_unavailable" | "prompt_too_large",
+    public reason: "not_configured" | "suspended" | "exhausted" | "accounting_unavailable" | "prompt_too_large" | "duplicate_attempt",
     message?: string
   ) {
     super(message ?? `AI allowance unavailable: ${reason}`);
@@ -44,7 +44,7 @@ export function estimateTokensFromText(text: string): number {
   return Math.ceil(text.length / 3);
 }
 
-const NEVER_BILLED: ReadonlySet<string> = new Set(["auth", "invalid_request"]);
+const NEVER_BILLED: ReadonlySet<string> = new Set(["auth", "invalid_request", "rate_limit"]);
 
 export async function meteredCall<T>(ctx: TenantContext, options: MeteredOptions<T>, call: () => Promise<T>): Promise<T> {
   if (!options.managed) return call();

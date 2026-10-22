@@ -73,6 +73,16 @@ describe("reserveAllowance", () => {
     expect(usage.reserved).toBe(60);
   });
 
+  it("refuses to reuse an idempotency key whose attempt already finished", async () => {
+    await prisma.aiUsageReservation.deleteMany({ where: { businessId: a.businessId } });
+    await setLimits(a.businessId, 1000);
+    const first = await reserveAllowance({ businessId: a.businessId, kind: "generation", tokens: 10, idempotencyKey: "reuse", now: NOW });
+    if (!first.ok) throw new Error("reserve failed");
+    await settleReservation(a.businessId, first.reservationId, 10);
+    const again = await reserveAllowance({ businessId: a.businessId, kind: "generation", tokens: 10, idempotencyKey: "reuse", now: NOW });
+    expect(again).toEqual({ ok: false, reason: "duplicate_attempt" });
+  });
+
   it("never exceeds the limit under concurrent reservations", async () => {
     await prisma.aiUsageReservation.deleteMany({ where: { businessId: b.businessId } });
     await setLimits(b.businessId, 100);

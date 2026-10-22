@@ -61,6 +61,15 @@ describe("meteredCall", () => {
     expect(await getAllowanceUsage(a.businessId, "generation")).toMatchObject({ used: 0, reserved: 0 });
   });
 
+  it("releases on a rate limit, which was rejected before any model work", async () => {
+    await expect(
+      meteredCall(a.ctx, { ...base, estimateTokens: 300, usageOf: () => 0 }, async () => {
+        throw new AIProviderError("rate_limit", "429", true);
+      })
+    ).rejects.toBeInstanceOf(AIProviderError);
+    expect(await getAllowanceUsage(a.businessId, "generation")).toMatchObject({ used: 0, reserved: 0 });
+  });
+
   it("keeps the bound charged when the outcome is unknown (timeout, unknown error)", async () => {
     await expect(
       meteredCall(a.ctx, { ...base, estimateTokens: 300, usageOf: () => 0 }, async () => {

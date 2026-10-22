@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "knowledge:read");
   if (!isAuthenticated(ctx)) return ctx;
 
+  let aiConfigManaged = false;
   try {
     const body = await request.json();
     const { question } = body;
@@ -32,8 +33,12 @@ export async function POST(request: NextRequest) {
     // against (Phase 2's assertDefaultBusinessOnly guard, removed now that
     // every business resolves its own config).
     const aiConfig = await resolveAIConfig(ctx);
+    aiConfigManaged = aiConfig.managed;
 
     if (!aiConfig.apiKey) {
+      if (aiConfig.managed) {
+        return NextResponse.json({ error: "The AI service is not available for this workspace." }, { status: 503 });
+      }
       return NextResponse.json(
         { error: "AI API key is not configured. Please configure it in Settings." },
         { status: 400 }
@@ -158,14 +163,19 @@ Your answer here...
     return NextResponse.json({
       answer,
       sources,
-      model: aiConfig.model,
+      // The platform policy model is not customer information for a managed workspace.
+      ...(aiConfig.managed ? {} : { model: aiConfig.model }),
       totalEntries: entries.length,
     });
   } catch (error) {
     logger.error("Failed to test knowledge base:", error);
     if (error instanceof AppError) return toErrorResponse(error);
-    const message =
-      error instanceof Error ? error.message : "Failed to test knowledge base";
+    // Provider text can echo part of a credential; a managed customer gets a generic message.
+    const message = aiConfigManaged
+      ? "The AI service could not answer right now. Try again later."
+      : error instanceof Error
+        ? error.message
+        : "Failed to test knowledge base";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

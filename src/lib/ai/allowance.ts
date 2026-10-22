@@ -14,7 +14,7 @@ export type AllowanceKind = "generation" | "embedding";
 
 export type ReserveResult =
   | { ok: true; reservationId: string }
-  | { ok: false; reason: "not_configured" | "suspended" | "exhausted" };
+  | { ok: false; reason: "not_configured" | "suspended" | "exhausted" | "duplicate_attempt" };
 
 export interface ReserveInput {
   businessId: string;
@@ -48,7 +48,13 @@ export async function reserveAllowance(input: ReserveInput): Promise<ReserveResu
     const existing = await tx.aiUsageReservation.findUnique({
       where: { businessId_idempotencyKey: { businessId: input.businessId, idempotencyKey: input.idempotencyKey } },
     });
-    if (existing) return { ok: true, reservationId: existing.id } as const;
+    if (existing) {
+      // A replay of an attempt still in flight shares its reservation; a finished attempt
+      // (settled, released or uncertain) must never authorize another provider call.
+      return existing.state === "reserved"
+        ? ({ ok: true, reservationId: existing.id } as const)
+        : ({ ok: false, reason: "duplicate_attempt" } as const);
+    }
 
     if (allowance.status !== "active") return { ok: false, reason: "suspended" } as const;
 

@@ -149,6 +149,23 @@ describe("setWorkspaceAllowance and the console", () => {
     await expect(setWorkspaceAllowance("t", { businessId: ws.businessId, mode: "managed", status: "active", reason: "x", extra: 1 })).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it("the console counts every charged row, not only settled ones", async () => {
+    const base = { businessId: ws.businessId, kind: "generation", periodStart: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)), expiresAt: new Date() };
+    await prisma.aiUsageReservation.deleteMany({ where: { businessId: ws.businessId } });
+    await prisma.aiUsageReservation.createMany({
+      data: [
+        { ...base, reservedTokens: 100, settledTokens: 40, state: "settled", idempotencyKey: "c1" },
+        { ...base, reservedTokens: 300, state: "uncertain", idempotencyKey: "c2" },
+        { ...base, reservedTokens: 50, state: "reserved", idempotencyKey: "c3" },
+        { ...base, reservedTokens: 999, state: "released", idempotencyKey: "c4" },
+      ],
+    });
+    await setWorkspaceAllowance("t", { businessId: ws.businessId, mode: "managed", status: "active", reason: "x" });
+    const row = (await readAiServiceConsole("t")).workspaces.find((w) => w.businessId === ws.businessId);
+    expect(row?.generationUsed).toBe(40 + 300 + 50);
+    await prisma.aiUsageReservation.deleteMany({ where: { businessId: ws.businessId } });
+  });
+
   it("the console lists policies and workspaces without any credential", async () => {
     await savePolicy("t", policyInput);
     await setWorkspaceAllowance("t", { businessId: ws.businessId, mode: "managed", status: "active", reason: "onboard" });

@@ -154,20 +154,20 @@ export async function readAiServiceConsole(token: string) {
       tx.business.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 500 }),
     ]);
     const periodStart = periodStartFor(new Date());
-    const usage = await tx.aiUsageReservation.groupBy({
-      by: ["businessId", "kind"],
+    const usage = await tx.aiUsageReservation.findMany({
       where: { periodStart, state: { not: "released" } },
-      _sum: { reservedTokens: true, settledTokens: true },
+      select: { businessId: true, kind: true, state: true, reservedTokens: true, settledTokens: true },
     });
     const byWorkspace = new Map(allowances.map((a) => [a.businessId, a]));
     return {
       policies: policies.map(policyView),
       workspaces: businesses.map((b) => {
         const a = byWorkspace.get(b.id);
+        // Charged = settled actuals + reserved bounds (open or uncertain).
         const used = (kind: string) =>
           usage
             .filter((u) => u.businessId === b.id && u.kind === kind)
-            .reduce((sum, u) => sum + (u._sum.settledTokens ?? u._sum.reservedTokens ?? 0), 0);
+            .reduce((sum, u) => sum + (u.state === "settled" ? (u.settledTokens ?? u.reservedTokens) : u.reservedTokens), 0);
         return {
           businessId: b.id,
           name: b.name,

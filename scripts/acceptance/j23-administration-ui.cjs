@@ -6,6 +6,22 @@ const L = require("./lib.cjs"),
 const { randomUUID } = require("node:crypto");
 const quote = (value) => "'" + String(value).replaceAll("'", "''") + "'";
 const suffix = randomUUID().slice(0, 8);
+// Clicks a submit control and, if the page sends no matching request shortly after, clicks it once more
+// (a click can land while a just-closed dialog is still settling).
+async function clickSending(page, label, path, method) {
+  let sent = false;
+  const onRequest = (r) => {
+    if (r.method() === method && new URL(r.url()).pathname === path) sent = true;
+  };
+  page.on("request", onRequest);
+  try {
+    await L.clickLast(page, "button", label);
+    for (let i = 0; i < 30 && !sent; i++) await L.sleep(100);
+    if (!sent) await L.clickLast(page, "button", label);
+  } finally {
+    page.off("request", onRequest);
+  }
+}
 async function mutation(page, path, method, action, status) {
   const pending = page.waitForResponse(
     (r) => new URL(r.url()).pathname === path && r.request().method() === method
@@ -330,7 +346,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await L.clickFirst(first.page, "button", "Invite User");
     await first.page.waitForSelector("#inviteEmail");
     await first.page.type("#inviteEmail", "j23_pending_" + suffix + "@example.test");
-    await mutation(first.page, "/api/admin/users", "POST", () => L.clickLast(first.page, "button", "Send Invitation"), 201);
+    await mutation(first.page, "/api/admin/users", "POST", () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"), 201);
     await first.page.waitForFunction(() => !document.querySelector("#inviteEmail"));
     await L.clickFirst(first.page, "button", "Invite User");
     await first.page.waitForSelector("#inviteEmail");
@@ -339,7 +355,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Send Invitation"),
+      () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"),
       409
     );
     await first.page.waitForFunction(() =>
@@ -374,7 +390,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Send Invitation"),
+      () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"),
       403
     );
     await first.page.waitForFunction(

@@ -209,7 +209,7 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **Completion criteria:** approved thresholds met, autonomous handoff exercised
   through the product, safety/isolation cases pass, provider/model/configuration
   and failures recorded. Do not describe the heuristic as a calibrated probability.
-- **Result:** implementation not started; policy/threshold decision pending;
+- **Result:** implementation not started; proposal of rules E1–E5, thresholds and case-set plan written ([proposal](docs/r2-ai-decision-quality-proposal-2026-10-22.md)), awaiting owner agreement; policy/threshold decision pending;
   verification not run. R1 and the P2/P3 managed customer flow precede final evaluation; case-set
   preparation can proceed independently. Record the actual managed policy version.
 

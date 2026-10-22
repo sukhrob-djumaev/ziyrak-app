@@ -107,7 +107,15 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       patterns: [{ urlPattern: L.BASE + "/api/admin/api-keys*", requestStage: "Response" }],
     });
     await page.goto(L.BASE + "/admin", { waitUntil: "load" });
-    await paused;
+    await Promise.race([
+      paused,
+      new Promise((_, reject) =>
+        setTimeout(async () => {
+          const seen = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 400)).catch(() => "");
+          reject(new Error("the held key read never happened; page: " + seen));
+        }, 30000)
+      ),
+    ]);
     L.assert(first.responseStatusCode === 200, "Held actual initial key read was authorized");
   }
   await L.clickFirst(page, "button", "API Keys");

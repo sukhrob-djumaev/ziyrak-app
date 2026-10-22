@@ -200,7 +200,11 @@ exports.clickFirst = async (page, sel, text) => {
     sel,
     text
   );
-  if (!ok) throw new Error(`no '${sel}' with text '${text}'`);
+  if (!ok) {
+    const seen = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((n) => n.textContent.trim().slice(0, 40)).slice(0, 12), sel).catch(() => []);
+    const body = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 300)).catch(() => "");
+    throw new Error(`no '${sel}' with text '${text}' (saw ${JSON.stringify(seen)}; page: ${body})`);
+  }
 };
 exports.XFF = { A: "10.0.1.11", B: "10.0.1.12", agentA: "10.0.1.13", anon: "10.0.1.99" };
 // Send a message through the embedded widget as a visitor and time each hop.
@@ -278,6 +282,7 @@ exports.sql = (q) =>
 // ---------------------------------------------------------------------------
 const failures = [];
 exports.assert = (cond, msg) => {
+  if (cond && process.env.ACC_TRACE) console.error("PASS: " + msg);
   if (!cond) {
     failures.push(msg);
     console.error("ASSERT FAIL: " + msg);

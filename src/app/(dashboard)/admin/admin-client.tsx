@@ -300,9 +300,11 @@ export default function AdminClient({
   }, [request]);
   useEffect(() => {
     void fetchUsers();
-    void fetchInvitations();
+    // Pending invitations need workspace-wide team authority; asking without it would be read as a
+    // loss of authority by this page, so a restricted administrator never requests them.
+    if (capabilities.manageUsers) void fetchInvitations();
     void fetchApiKeys();
-  }, [fetchUsers, fetchInvitations, fetchApiKeys]);
+  }, [fetchUsers, fetchInvitations, fetchApiKeys, capabilities.manageUsers]);
 
   // ---------------------------------------------------------------------------
   // User CRUD

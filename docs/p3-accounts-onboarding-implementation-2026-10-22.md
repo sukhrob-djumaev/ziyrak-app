@@ -2,7 +2,7 @@
 
 Design and decisions: `docs/p3-accounts-onboarding-proposal-2026-10-22.md` (approved by the owner 2026-10-22).
 Status: implemented on branch `p3-onboarding`; verified below. Not merged, not deployed. The controlled
-real-mail delivery check is NOT done (needs sender credentials), so email delivery is not claimed ready.
+real-mail delivery check was NOT RUN, so email delivery is not claimed ready. Operator invitations are deferred.
 
 ## Behavior
 
@@ -38,9 +38,12 @@ real-mail delivery check is NOT done (needs sender credentials), so email delive
 
 ## Known limits and residual risks (accepted or open)
 
-- Platform mail is captured to a file in tests and browser journeys; real delivery is a separate manual check (open).
-- Operator invitations are NOT built: super admins still provision operators with a chosen password (P1 flow). Open item
-  for the owner.
+- Controlled real mail delivery check: NOT RUN (owner skipped it for now, 2026-10-22). Platform mail is captured to a file in
+  tests and browser journeys; email delivery is NOT claimed ready. Retry condition: `PLATFORM_SMTP_*` sender settings and a real
+  recipient mailbox.
+- Operator invitations: DEFERRED to a follow-up (owner decision, 2026-10-22). Reason: they add a new account-creation surface
+  (a platform role created from an emailed link) that needs its own tests-first work and security review. Super admins still
+  create operators with a chosen password (P1 flow); workspace invitations never grant a platform role.
 - A timing difference remains between known and unknown forgot-password addresses (one token insert, rate limited).
 - Sessions already open as server-sent streams are checked at connect, not on each event.
 - The onboarding test conversation appears in the conversation list as an escalated "Onboarding test".

@@ -71,3 +71,10 @@ before claiming email delivery ready.
    verified). Agree?
 5. **Onboarding steps and gate:** knowledge ready, channel setup, successful test reply, explicit
    activation, as above. Agree?
+
+## 5. Owner decisions (2026-10-22)
+
+Recommendations 2-5 accepted as proposed. For 1, the owner's mailbox (suhrob1113@gmail.com) is the
+real recipient for the controlled delivery check. Sender: platform SMTP from environment variables;
+the sender credentials (for example a Gmail app password) are still needed before the real delivery
+check and are not required to build or to run the capture-adapter tests and browser journeys.

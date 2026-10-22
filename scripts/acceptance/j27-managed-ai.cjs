@@ -25,7 +25,10 @@ const call = (page, path, method, body) =>
     body
   );
 async function setValue(page, selector, value) {
-  await page.click(selector, { clickCount: 3 });
+  await page.$eval(selector, (el) => {
+    el.focus();
+    el.select();
+  });
   await page.keyboard.press("Backspace");
   if (value) await page.type(selector, value);
 }
@@ -127,7 +130,11 @@ async function submit(page, selector, label) {
     await owner.reload({ waitUntil: "networkidle0" });
     await L.clickFirst(owner, "button", "AI Configuration");
     await owner.waitForSelector('[data-testid="managed-ai-panel"]');
-    L.assert(!(await L.text(owner)).includes("0 of 100,000 tokens used\n"), "The owner's usage view reflects the spend");
+    const usedShown = (await L.text(owner)).match(/([\d,]+) of 100,000 tokens used/);
+    L.assert(
+      usedShown && Number(usedShown[1].replace(/,/g, "")) > 0,
+      "The owner's usage view reflects the spend"
+    );
 
     // Exhaust the allowance via the console: paid work stops, conversation is handed to a human.
     await setValue(admin, "#allowanceGen", "1");
@@ -167,7 +174,7 @@ async function submit(page, selector, label) {
     const restored = await call(owner, "/api/settings/ai", "GET");
     L.assert(restored.body?.managed === undefined, "A sees its normal AI settings again");
     L.assert(
-      L.sql('SELECT count(*) FROM "PlatformAccessAudit" WHERE action LIKE \'ai.%\' AND reason LIKE \'J27%\'') >= "5" &&
+      Number(L.sql('SELECT count(*) FROM "PlatformAccessAudit" WHERE action LIKE \'ai.%\' AND reason LIKE \'J27%\'')) >= 5 &&
         !L.sql('SELECT string_agg(details::text, \' \') FROM "PlatformAccessAudit" WHERE action LIKE \'ai.%\'').includes(KEY),
       "Every change is audited without the key"
     );

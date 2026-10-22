@@ -25,6 +25,7 @@ type WorkspaceRow = {
 };
 type Console = { policies: Policy[]; workspaces: WorkspaceRow[] };
 const field = "w-full rounded border border-owly-border bg-owly-bg p-2";
+const cell = "pr-4 py-1 align-top";
 const button = "rounded bg-owly-primary px-4 py-2 text-white disabled:opacity-50";
 
 export default function AiServicePage() {
@@ -112,15 +113,15 @@ export default function AiServicePage() {
           {message && <p role="status">{message}</p>}
 
           <h2 className="mt-6 text-xl font-semibold">Policies</h2>
-          <table className="mt-2 w-full text-left text-sm" aria-label="Policies">
+          <table className="mt-2 w-full table-auto text-left text-sm" aria-label="Policies">
             <thead>
-              <tr><th>Kind</th><th>Version</th><th>Name</th><th>Provider</th><th>Model</th><th>Key</th><th>Active</th></tr>
+              <tr><th className={cell}>Kind</th><th className={cell}>Version</th><th className={cell}>Name</th><th className={cell}>Provider</th><th className={cell}>Model</th><th className={cell}>Key</th><th className={cell}>Active</th></tr>
             </thead>
             <tbody>
               {data.policies.map((p) => (
                 <tr key={p.id}>
-                  <td>{p.kind}</td><td>{p.version}</td><td>{p.displayName}</td><td>{p.provider}</td><td>{p.model}</td>
-                  <td>{p.hasCredential ? "set" : "missing"}</td><td>{p.active ? "yes" : "no"}</td>
+                  <td className={cell}>{p.kind}</td><td className={cell}>{p.version}</td><td className={cell}>{p.displayName}</td><td className={cell}>{p.provider}</td><td className={cell}>{p.model}</td>
+                  <td className={cell}>{p.hasCredential ? "set" : "missing"}</td><td className={cell}>{p.active ? "yes" : "no"}</td>
                 </tr>
               ))}
             </tbody>
@@ -174,16 +175,16 @@ export default function AiServicePage() {
           </form>
 
           <h2 className="mt-8 text-xl font-semibold">Workspace allowances</h2>
-          <table className="mt-2 w-full text-left text-sm" aria-label="Workspace allowances">
+          <table className="mt-2 w-full table-auto text-left text-sm" aria-label="Workspace allowances">
             <thead>
-              <tr><th>Workspace</th><th>Mode</th><th>Status</th><th>Replies used / limit</th><th>Knowledge used / limit</th></tr>
+              <tr><th className={cell}>Workspace</th><th className={cell}>Mode</th><th className={cell}>Status</th><th className={cell}>Replies used / limit</th><th className={cell}>Knowledge used / limit</th></tr>
             </thead>
             <tbody>
               {data.workspaces.map((w) => (
                 <tr key={w.businessId}>
-                  <td>{w.name}</td><td>{w.mode}</td><td>{w.status ?? "-"}</td>
-                  <td>{w.generationUsed.toLocaleString()} / {w.generationLimitTokens?.toLocaleString() ?? "-"}</td>
-                  <td>{w.embeddingUsed.toLocaleString()} / {w.embeddingLimitTokens?.toLocaleString() ?? "-"}</td>
+                  <td className={cell}>{w.name}</td><td className={cell}>{w.mode}</td><td className={cell}>{w.status ?? "-"}</td>
+                  <td className={cell}>{w.generationUsed.toLocaleString()} / {w.generationLimitTokens?.toLocaleString() ?? "-"}</td>
+                  <td className={cell}>{w.embeddingUsed.toLocaleString()} / {w.embeddingLimitTokens?.toLocaleString() ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

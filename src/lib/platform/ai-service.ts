@@ -36,7 +36,7 @@ const allowanceInput = z
   .object({
     businessId: z.string().min(1).max(128),
     mode: z.enum(["managed", "legacy_byok"]),
-    status: z.enum(["active", "suspended"]),
+    status: z.enum(["active", "suspended", "pending_verification"]),
     generationLimitTokens: tokens.optional(),
     embeddingLimitTokens: tokens.optional(),
     reason,

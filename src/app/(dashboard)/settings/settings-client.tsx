@@ -411,7 +411,7 @@ function GeneralSection({
 
 interface ManagedAiView {
   serviceName: string | null;
-  status: "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured";
+  status: "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured" | "pending_verification";
   generation: { used: number; reserved: number; limit: number };
   embedding: { used: number; reserved: number; limit: number };
   resetsAt: string;
@@ -424,6 +424,7 @@ const MANAGED_STATUS_TEXT: Record<ManagedAiView["status"], string> = {
     "This period's AI usage limit is reached. Automated replies are paused and new conversations go to your team until the limit resets or your administrator raises it.",
   suspended: "AI replies are paused for this workspace. Contact your platform administrator.",
   not_configured: "The AI service is not available yet. Contact your platform administrator.",
+  pending_verification: "Confirm your email address to start using the AI assistant.",
 };
 
 function ManagedAiPanel({ view }: { view: ManagedAiView }) {

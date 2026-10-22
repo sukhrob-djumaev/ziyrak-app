@@ -19,7 +19,7 @@ async function askTicket(text) { const b = await L.launch("visitor-j13"); const 
   // A fresh, action-scoped viewer/profile makes this denial path repeatable:
   // a retry must not inherit an old authenticated browser session or account.
   const viewerUsername = `viewer_b_${id1.slice(0, 8)}`;
-  out.createViewer = (await call(op, "POST", "/api/admin/users", { username: viewerUsername, password: "Viewer-Pass-2026!", name: "Vera Viewer", role: "viewer" })).s;
+  out.createViewer = (await L.createMember(op, { username: viewerUsername, password: "Viewer-Pass-2026!", name: "Vera Viewer", role: "viewer" })).status;
   const vb = await L.launch(`viewer-b-${id1}`); const vp = await vb.newPage(); await vp.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.7.31" });
   await vp.goto(L.BASE + "/login", { waitUntil: "networkidle0" }); await vp.type("input#username,input[name=username]", viewerUsername); await vp.type("input[type=password]", "Viewer-Pass-2026!"); await L.clickFirst(vp, "button", "Sign In"); await vp.waitForFunction(() => !location.pathname.startsWith("/login"), { timeout: 10000 }).catch(() => {}); await L.sleep(800);
   out.viewerLoggedInAs = (await call(vp, "GET", "/api/auth")).j.user?.username;

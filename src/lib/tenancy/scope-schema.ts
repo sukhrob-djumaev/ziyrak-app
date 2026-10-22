@@ -458,6 +458,14 @@ export const SCOPE_SCHEMA: Record<
       "createdAt",
     ],
   },
+  onboardingState: {
+    relations: { business: { model: "business", many: false } },
+    scalars: ["businessId", "testReplyStatus", "testReplyAt", "testReplyReason", "activatedAt", "updatedAt"],
+  },
+  accountToken: {
+    relations: {},
+    scalars: ["id", "purpose", "tokenHash", "userId", "email", "payload", "expiresAt", "usedAt", "createdAt"],
+  },
   databaseProfile: {
     relations: {},
     scalars: ["id", "connectionSecretRef", "region", "createdAt"],

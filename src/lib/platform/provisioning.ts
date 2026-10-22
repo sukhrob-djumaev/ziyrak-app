@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/identity/auth";
 import { DEFAULT_TOOL_POLICIES } from "@/lib/tools/policy";
 import { AppError } from "@/lib/observability/errors";
+import { normalizeEmail } from "@/lib/identity/account-tokens";
 
 /**
  * PLAN.md §7/§46.7 task 3 — the one place a brand-new `Business` is created
@@ -30,6 +31,8 @@ export interface ProvisionBusinessInput {
   ownerUsername: string;
   ownerPassword: string;
   ownerName?: string;
+  /** P3: when given, the owner starts with an unverified email and the workspace starts inactive. */
+  ownerEmail?: string;
   businessDesc?: string;
   welcomeMessage?: string;
   tone?: string;
@@ -101,6 +104,7 @@ export async function provisionBusiness(
     try {
       return await prisma.$transaction(async (tx) => {
         await reserveNewUsername(tx, username);
+        const ownerEmail = input.ownerEmail ? normalizeEmail(input.ownerEmail) : null;
         const business = await tx.business.create({
           data: { slug, name: input.businessName.trim(), status: "active" },
         });
@@ -108,8 +112,15 @@ export async function provisionBusiness(
         await tx.tenantPlacement.create({ data: { businessId: business.id } });
 
         const user = await tx.user.create({
-          data: { username, password: passwordHash, name: input.ownerName?.trim() || username },
+          data: { username, password: passwordHash, name: input.ownerName?.trim() || username, email: ownerEmail },
         });
+        if (ownerEmail) {
+          // Managed AI starts waiting for the owner's verified email (paid use is gated on identity).
+          await tx.workspaceAiAllowance.create({ data: { businessId: business.id, mode: "managed", status: "pending_verification" } });
+          // A signup with an email starts inactive until the owner finishes onboarding; seed and
+          // script callers have no onboarding row and are active at once.
+          await tx.onboardingState.create({ data: { businessId: business.id } });
+        }
 
         await tx.membership.create({
           data: { businessId: business.id, userId: user.id, role: "owner" },

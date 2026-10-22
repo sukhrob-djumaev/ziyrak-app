@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma/raw-client";
-import { hashPassword } from "@/lib/identity/auth";
 import { ROLES, hasPermission } from "@/lib/rbac/rbac";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { effectiveResourceScope } from "@/lib/tenancy/resource-query";
 import { lockTenantWrites } from "@/lib/tenancy/work-lifecycle";
-import { reserveNewUsername } from "../username-reservation";
 
-function assertWorkspaceDelegation(
+export function assertWorkspaceDelegation(
   ctx: TenantContext,
   permission: "admin:create" | "admin:update" | "admin:delete"
 ) {
@@ -124,49 +122,9 @@ export async function list(ctx: TenantContext, params: ListParams) {
   };
 }
 
-export interface CreateInput {
-  username: string;
-  password: string;
-  name?: string;
-  role?: string;
-}
-
-// A new team member can never be granted "owner" through this generic
-// add-member flow — ownership transfer is its own explicit, deliberate
-// action (§9.1), not a side effect of inviting someone.
-const INVITABLE_ROLES = ROLES.filter((r) => r !== "owner");
-
-export async function create(ctx: TenantContext, input: CreateInput) {
-  assertWorkspaceDelegation(ctx, "admin:create");
-  const username = input.username.trim();
-  const existing = await prisma.user.findUnique({ where: { username } });
-  if (existing) throw new AppError(409, "CONFLICT", "Username already exists");
-
-  const role = INVITABLE_ROLES.includes(input.role as (typeof INVITABLE_ROLES)[number])
-    ? input.role!
-    : "viewer";
-
-  const hashed = await hashPassword(input.password);
-  const user = await prisma.$transaction(async (tx) => {
-    await reserveNewUsername(tx, username);
-    return tx.user.create({
-      data: { username, password: hashed, name: input.name?.trim() || username },
-    });
-  });
-
-  const db = getScopedPrisma(ctx);
-  const membership = await db.membership.create({
-    data: {
-      businessId: ctx.businessId,
-      userId: user.id,
-      role,
-      scopeMode: "workspace",
-      customerProfileAccess: effectiveResourceScope(ctx).customerProfileAccess,
-    },
-  });
-
-  return toView({ ...membership, user });
-}
+// A new team member can never be granted "owner" through invitation: ownership transfer is its
+// own explicit, deliberate action (§9.1).
+export const INVITABLE_ROLES = ROLES.filter((r) => r !== "owner");
 
 /** Real connection rows only (no per-type placeholders), so same-type connections are assignable. */
 export async function listConnectionOptions(ctx: TenantContext) {
@@ -186,7 +144,7 @@ export interface UpdateInput {
   scope?: unknown;
 }
 
-type RequestedScope =
+export type RequestedScope =
   | { kind: "workspace"; customerProfileAccess: "none" | "read" | "write" }
   | {
       kind: "connections";
@@ -196,7 +154,7 @@ type RequestedScope =
 
 // Exactly the shapes the editor can express; anything else (including "unclassified", unknown
 // keys and a connection list on a workspace scope) is a validation error before any write.
-function parseRequestedScope(input: unknown): RequestedScope {
+export function parseRequestedScope(input: unknown): RequestedScope {
   const invalid = () => new AppError(400, "VALIDATION_ERROR", "Invalid access scope");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
   const raw = input as Record<string, unknown>;

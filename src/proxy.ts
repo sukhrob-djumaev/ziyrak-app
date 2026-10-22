@@ -97,7 +97,7 @@ export async function proxy(request: NextRequest) {
   // channel webhook endpoints authenticated via provider signature (or,
   // for the Web Chat widget reserved here per §46.2 task 5, a
   // per-connection publishable token) rather than a JWT/API key.
-  const publicPagePaths = ["/login", "/setup"];
+  const publicPagePaths = ["/login", "/setup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"];
   const isPublic =
     publicPagePaths.some((p) => pathname.startsWith(p)) || isPublicApiPath(pathname);
 

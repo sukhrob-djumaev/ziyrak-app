@@ -1,82 +1,44 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { prisma } from "@/lib/prisma/raw-client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRequest, parseJsonResponse } from "../helpers/request";
-import { ROLES } from "@/lib/rbac/rbac";
+import { AppError } from "@/lib/observability/errors";
 
-const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+const createInvitation = vi.fn();
+vi.mock("@/lib/platform/admin-users/invitations", () => ({ createInvitation: (...args: unknown[]) => createInvitation(...args) }));
 
-const INVITABLE_ROLES = ROLES.filter((r) => r !== "owner");
-
-describe("POST /api/admin/users — role list regression (§2.4), now Membership-based (§46.1/§46.2)", () => {
+/**
+ * PLAN.md P3 — POST /api/admin/users is an invitation to a recipient address, never an account
+ * with a password chosen by the inviter. Role, scope and authority rules are exercised against real
+ * Postgres in tests/repository/invitations.test.ts; this pins the route's contract.
+ */
+describe("POST /api/admin/users (invitation)", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.user.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-      id: "new-user",
-      username: data.username,
-      name: data.name,
-    }));
-    mockPrisma.membership.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-      id: "new-membership",
-      role: data.role,
-      createdAt: new Date("2026-01-01"),
-    }));
+    createInvitation.mockReset();
+    createInvitation.mockResolvedValue({ id: "inv-1", email: "new@example.test", role: "agent" });
   });
 
-  it("rejects the previously-accepted 'editor' role by falling back to a real role, never persisting 'editor'", async () => {
+  it("invites by email and role, returning the invitation (never credentials)", async () => {
     const { POST } = await import("@/app/api/admin/users/route");
-    const request = createRequest("/api/admin/users", {
-      method: "POST",
-      body: { username: "newuser", password: "password123", role: "editor" },
-    });
-
-    const response = await POST(request);
+    const response = await POST(createRequest("/api/admin/users", { method: "POST", body: { email: "new@example.test", role: "agent" } }));
     const data = await parseJsonResponse(response);
-
     expect(response.status).toBe(201);
-    expect(data.role).not.toBe("editor");
-    expect(ROLES).toContain(data.role);
+    expect(data.invitation).toMatchObject({ id: "inv-1", email: "new@example.test", role: "agent" });
+    expect(JSON.stringify(data)).not.toMatch(/password|token/i);
+    expect(createInvitation.mock.calls[0][1]).toMatchObject({ email: "new@example.test", role: "agent" });
   });
 
-  it.each(INVITABLE_ROLES)("accepts the real RBAC role '%s'", async (role) => {
+  it("requires an email, and ignores any password a caller tries to send", async () => {
     const { POST } = await import("@/app/api/admin/users/route");
-    const request = createRequest("/api/admin/users", {
-      method: "POST",
-      body: { username: `user-${role}`, password: "password123", role },
-    });
-
-    const response = await POST(request);
-    const data = await parseJsonResponse(response);
-
-    expect(response.status).toBe(201);
-    expect(data.role).toBe(role);
+    expect((await POST(createRequest("/api/admin/users", { method: "POST", body: { username: "x", password: "password123" } }))).status).toBe(400);
+    await POST(createRequest("/api/admin/users", { method: "POST", body: { email: "a@example.test", role: "viewer", password: "password123", username: "x" } }));
+    expect(JSON.stringify(createInvitation.mock.calls[0][1])).not.toContain("password123");
   });
 
-  it("never grants 'owner' through the generic invite flow (§9.1) — falls back to 'viewer'", async () => {
+  it("defaults the role to viewer when omitted and surfaces refusals from the service", async () => {
     const { POST } = await import("@/app/api/admin/users/route");
-    const request = createRequest("/api/admin/users", {
-      method: "POST",
-      body: { username: "would-be-owner", password: "password123", role: "owner" },
-    });
-
-    const response = await POST(request);
-    const data = await parseJsonResponse(response);
-
-    expect(response.status).toBe(201);
-    expect(data.role).toBe("viewer");
-  });
-
-  it("still defaults to 'viewer' when role is omitted", async () => {
-    const { POST } = await import("@/app/api/admin/users/route");
-    const request = createRequest("/api/admin/users", {
-      method: "POST",
-      body: { username: "no-role-user", password: "password123" },
-    });
-
-    const response = await POST(request);
-    const data = await parseJsonResponse(response);
-
-    expect(response.status).toBe(201);
-    expect(data.role).toBe("viewer");
+    await POST(createRequest("/api/admin/users", { method: "POST", body: { email: "a@example.test" } }));
+    expect(createInvitation.mock.calls[0][1]).toMatchObject({ role: "viewer" });
+    createInvitation.mockRejectedValue(new AppError(403, "FORBIDDEN", "Ownership is transferred through its own flow, not by invitation"));
+    const refused = await POST(createRequest("/api/admin/users", { method: "POST", body: { email: "a@example.test", role: "owner" } }));
+    expect(refused.status).toBe(403);
   });
 });

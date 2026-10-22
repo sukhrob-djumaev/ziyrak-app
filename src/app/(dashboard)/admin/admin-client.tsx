@@ -12,8 +12,6 @@ import {
   Copy,
   Check,
   AlertTriangle,
-  Eye,
-  EyeOff,
   ToggleLeft,
   ToggleRight,
   Users,
@@ -136,8 +134,13 @@ export default function AdminClient({
     name: "",
     username: "",
     password: "",
+    email: "",
     role: "viewer",
   });
+  const [invitations, setInvitations] = useState<
+    { id: string; email: string; role: string; expiresAt: string }[]
+  >([]);
+  const [inviteNotice, setInviteNotice] = useState("");
   const [accessForm, setAccessForm] = useState<{
     kind: "workspace" | "connections";
     connectionIds: string[];
@@ -169,9 +172,6 @@ export default function AdminClient({
   const [deleteKeyTarget, setDeleteKeyTarget] = useState<ApiKeyItem | null>(null);
   const [deletingKey, setDeletingKey] = useState(false);
 
-  // --- Show password toggle ---
-  const [showPassword, setShowPassword] = useState(false);
-
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
@@ -192,11 +192,10 @@ export default function AdminClient({
     setDeleteUserTarget(null);
     setShowKeyModal(false);
     setDeleteKeyTarget(null);
-    setUserForm({ name: "", username: "", password: "", role: "viewer" });
+    setUserForm({ name: "", username: "", password: "", email: "", role: "viewer" });
     setAccessForm({ kind: "workspace", connectionIds: [], profile: "write" });
     setConnectionOptions([]);
     setKeyForm({ name: "" });
-    setShowPassword(false);
     setUserError("");
     setDeleteUserError("");
     setKeyError("");
@@ -273,6 +272,21 @@ export default function AdminClient({
       setLoadingUsers(false);
     }
   }, [request]);
+  const fetchInvitations = useCallback(async () => {
+    try {
+      const result = await request("/api/admin/invitations");
+      if (result?.response.ok && result.fresh()) setInvitations(result.body.data);
+    } catch (err) {
+      console.error("Failed to fetch invitations:", err);
+    }
+  }, [request]);
+  async function revokeInvite(id: string) {
+    const result = await request(`/api/admin/invitations/${id}`, { method: "DELETE" });
+    if (result?.response.ok) {
+      setInviteNotice("Invitation revoked.");
+      await fetchInvitations();
+    }
+  }
   const fetchApiKeys = useCallback(async () => {
     setLoadingKeys(true);
     try {
@@ -286,8 +300,11 @@ export default function AdminClient({
   }, [request]);
   useEffect(() => {
     void fetchUsers();
+    // Pending invitations need workspace-wide team authority; asking without it would be read as a
+    // loss of authority by this page, so a restricted administrator never requests them.
+    if (capabilities.manageUsers) void fetchInvitations();
     void fetchApiKeys();
-  }, [fetchUsers, fetchApiKeys]);
+  }, [fetchUsers, fetchInvitations, fetchApiKeys, capabilities.manageUsers]);
 
   // ---------------------------------------------------------------------------
   // User CRUD
@@ -331,25 +348,21 @@ export default function AdminClient({
         name: user.name,
         username: user.username,
         password: "",
+        email: "",
         role: user.role,
       });
     } else {
       setEditingUser(null);
-      setUserForm({ name: "", username: "", password: "", role: "viewer" });
+      setUserForm({ name: "", username: "", password: "", email: "", role: "viewer" });
     }
-    setShowPassword(false);
     setShowUserModal(true);
   }
 
   async function saveUser() {
     if (!capabilities.manageUsers || editingUser?.role === "owner") return;
     setUserError("");
-    if (!editingUser && (!userForm.username.trim() || !userForm.password)) {
-      setUserError("Username and password are required.");
-      return;
-    }
-    if (!editingUser && userForm.password.length < 6) {
-      setUserError("Password must be at least 6 characters.");
+    if (!editingUser && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(userForm.email.trim())) {
+      setUserError("Enter the email address of the person to invite.");
       return;
     }
 
@@ -381,9 +394,8 @@ export default function AdminClient({
               };
       }
       if (!editingUser) {
-        payload.name = userForm.name.trim();
-        payload.username = userForm.username.trim();
-        payload.password = userForm.password;
+        // People choose their own username and password when they accept the invitation.
+        payload.email = userForm.email.trim();
       }
 
       const result = await request(url, {
@@ -396,7 +408,9 @@ export default function AdminClient({
       const { response: res, body: data } = result;
       if (res.ok) {
         setShowUserModal(false);
+        if (!editingUser) setInviteNotice(`Invitation sent to ${userForm.email.trim()}.`);
         await fetchUsers();
+        await fetchInvitations();
       } else {
         setUserError(errorText(data, "Failed to save user."));
       }
@@ -583,10 +597,38 @@ export default function AdminClient({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-owly-primary hover:bg-owly-primary-dark rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add User
+                  Invite User
                 </button>
               )}
             </div>
+            {inviteNotice && (
+              <p id="inviteNotice" role="status" className="px-5 py-2 text-xs text-owly-text border-b border-owly-border">
+                {inviteNotice}
+              </p>
+            )}
+            {invitations.length > 0 && (
+              <div id="pendingInvitations" className="px-5 py-3 border-b border-owly-border">
+                <p className="text-xs font-medium text-owly-text mb-2">Pending invitations</p>
+                <ul className="space-y-1">
+                  {invitations.map((inv) => (
+                    <li key={inv.id} data-invitation={inv.id} className="flex items-center justify-between text-xs text-owly-text-light">
+                      <span>
+                        {inv.email} · {inv.role} · expires {new Date(inv.expiresAt).toLocaleDateString()}
+                      </span>
+                      {capabilities.manageUsers && (
+                        <button
+                          type="button"
+                          onClick={() => void revokeInvite(inv.id)}
+                          className="font-medium text-owly-danger hover:underline"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {loadingUsers ? (
               <div className="flex items-center justify-center py-12">
@@ -824,7 +866,7 @@ export default function AdminClient({
           <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
               <h3 className="font-semibold text-owly-text">
-                {editingUser ? "Edit User" : "Add User"}
+                {editingUser ? "Edit User" : "Invite User"}
               </h3>
               <button
                 onClick={() => setShowUserModal(false)}
@@ -844,52 +886,20 @@ export default function AdminClient({
 
               {!editingUser && (
                 <div>
-                  <label className="block text-xs font-medium text-owly-text mb-1.5">Name</label>
-                  <input
-                    type="text"
-                    value={userForm.name}
-                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                    placeholder="Full name"
-                    className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
-                  />
-                </div>
-              )}
-              {!editingUser && (
-                <div>
-                  <label className="block text-xs font-medium text-owly-text mb-1.5">
-                    Username
+                  <label htmlFor="inviteEmail" className="block text-xs font-medium text-owly-text mb-1.5">
+                    Email address
                   </label>
                   <input
-                    type="text"
-                    value={userForm.username}
-                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
-                    placeholder="Username for login"
+                    id="inviteEmail"
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    placeholder="colleague@example.com"
                     className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
                   />
-                </div>
-              )}
-
-              {!editingUser && (
-                <div>
-                  <label className="block text-xs font-medium text-owly-text mb-1.5">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={userForm.password}
-                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                      placeholder="Minimum 6 characters"
-                      className="w-full px-3 py-2 pr-10 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+                  <p className="mt-1 text-xs text-owly-text-light">
+                    They receive a link to join and choose their own username and password.
+                  </p>
                 </div>
               )}
               <div>
@@ -999,7 +1009,7 @@ export default function AdminClient({
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary hover:bg-owly-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingUser && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {editingUser ? "Save Changes" : "Create User"}
+                {editingUser ? "Save Changes" : "Send Invitation"}
               </button>
             </div>
           </div>

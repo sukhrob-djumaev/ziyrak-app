@@ -59,6 +59,13 @@ const eslintConfig = defineConfig([
       // P2 managed-AI allowance: control-plane reservation accounting that
       // must lock the platform-owned allowance row across workspaces/processes.
       "src/lib/ai/allowance.ts",
+      // P3 account tokens: control-plane identity tokens, no tenant context exists yet.
+      "src/lib/identity/account-tokens.ts",
+      "src/lib/identity/account-service.ts",
+      // P3 onboarding: control-plane readiness/activation state for one explicit workspace id.
+      "src/lib/onboarding/service.ts",
+      // P3 invitations: control-plane token/account/membership work bound to one explicit workspace id.
+      "src/lib/platform/admin-users/invitations.ts",
       // P2 explicit legacy-settings transition: cross-workspace control-plane listing.
       "src/lib/ai/legacy-migration.ts",
       // First-run setup/login bootstrap: creates the Business/

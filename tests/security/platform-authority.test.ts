@@ -984,22 +984,40 @@ describe("operator names share the public/workspace identity namespace", () => {
             workspaceIds.add(result.businessId);
             return result;
           }
-          const users = await import("@/lib/platform/admin-users/service");
-          const result = await users.create(
-            {
-              businessId: x.workspace.id,
-              role: "owner",
-              actor: { kind: "user", userId: a.user.id },
-              dataConnection: "shared-default",
-              resourceScope: { kind: "workspace", customerProfileAccess: "write" },
-            },
-            { username: input.username.toUpperCase(), password: input.password, role: "viewer" }
-          );
-          const row = await prisma.user.findUniqueOrThrow({
-            where: { username: input.username.toUpperCase() },
+          // The invitation path creates the person's own account at acceptance; the shared name
+          // reservation must refuse a case-variant of the operator being provisioned.
+          const { CaptureMailTransport, setMailTransportForTesting } = await import("@/lib/mail/transport");
+          const { createInvitation, acceptInvitation } = await import("@/lib/platform/admin-users/invitations");
+          const { AppError } = await import("@/lib/observability/errors");
+          const capture = new CaptureMailTransport();
+          setMailTransportForTesting(capture);
+          const inviter = await prisma.user.create({
+            data: { username: "platform-fixture-owner-" + randomUUID(), password: "unused-synthetic-hash", name: "Synthetic owner", email: `owner-${randomUUID()}@example.test`, emailVerifiedAt: new Date() },
           });
-          ids.add(row.id);
-          return result;
+          ids.add(inviter.id);
+          await prisma.membership.create({ data: { businessId: x.workspace.id, userId: inviter.id, role: "owner" } });
+          try {
+            await createInvitation(
+              {
+                businessId: x.workspace.id,
+                role: "owner",
+                actor: { kind: "user", userId: inviter.id },
+                dataConnection: "shared-default",
+                resourceScope: { kind: "workspace", customerProfileAccess: "write" },
+              },
+              { email: `invited-${randomUUID()}@example.test`, role: "viewer" }
+            );
+          } finally {
+            setMailTransportForTesting(null);
+          }
+          const token = capture.messages[0].text.match(/token=([A-Za-z0-9_-]+)/)![1];
+          const accepted = await acceptInvitation({
+            token,
+            signup: { username: input.username.toUpperCase(), password: input.password },
+          });
+          if (!accepted.ok) throw new AppError(accepted.code === "USERNAME_TAKEN" ? 409 : 400, accepted.code, accepted.code);
+          ids.add(accepted.userId);
+          return accepted;
         })();
         const observed = other
           .then(

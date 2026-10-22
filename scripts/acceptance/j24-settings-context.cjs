@@ -68,27 +68,8 @@ async function provisionAdmin(owner) {
     password: "Synthetic-" + randomUUID(),
     name: "Synthetic Settings admin " + suffix,
   };
-  await L.clickFirst(owner, "button", "Add User");
-  await owner.waitForSelector('input[placeholder="Full name"]');
-  await owner.type('input[placeholder="Full name"]', input.name);
-  await owner.type('input[placeholder="Username for login"]', input.username);
-  await owner.type('input[placeholder="Minimum 6 characters"]', input.password);
-  await owner.select(".fixed select", "admin");
-  const response = await mutation(
-    owner,
-    "/api/admin/users",
-    "POST",
-    () => L.clickLast(owner, "button", "Create User"),
-    201
-  );
-  const saved = await response.json();
-  L.assert(
-    saved.id && saved.userId && saved.role === "admin",
-    "Real UI created scoped membership/account"
-  );
-  await owner.waitForFunction(
-    () => !document.querySelector('input[placeholder="Username for login"]')
-  );
+  const saved = await L.inviteViaUi(owner, { ...input, role: "admin" });
+  L.assert(saved.id && saved.userId && saved.role === "admin", "Real UI created scoped membership/account");
   return { ...input, ...saved };
 }
 async function lateReadContext(page, switcher, a, b, expectedB) {
@@ -369,21 +350,38 @@ async function lateReadContext(page, switcher, a, b, expectedB) {
       "Fresh full run has no preexisting Default Business"
     );
     const account = { username: "j24_legacy_" + suffix, password: "Synthetic-" + randomUUID() };
+    const legacyEmail = `j24_legacy_${suffix}@example.test`;
     const signup = await fetch(L.BASE + "/api/auth", {
       method: "POST",
       headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.249" },
       body: JSON.stringify({
         action: "signup",
         ...account,
+        email: legacyEmail,
         name: "Synthetic legacy owner",
         businessName: "Synthetic legacy " + suffix,
       }),
     });
+    // P3: signup answers 202 and signs nobody in.
     L.assert(
-      signup.status === 201,
+      signup.status === 202,
       "Synthetic legacy owner provisioned through product signup API"
     );
-    const legacyId = (await signup.json()).business.id;
+    const legacyId = L.sql(
+      'SELECT m."businessId" FROM "Membership" m JOIN "User" u ON u.id=m."userId" WHERE u.username=' +
+        quote(account.username)
+    );
+    // The default workspace is a legacy, activated workspace: this prerequisite confirms the address
+    // through the real verification link and marks onboarding done so Settings is reachable as before.
+    const legacyMail = await L.waitForMail(legacyEmail, { match: /verify-email/ });
+    const confirmed = await fetch(L.BASE + "/api/auth/verify-email", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.248" },
+      body: JSON.stringify({ token: legacyMail.token }),
+    });
+    L.assert(confirmed.ok, "Legacy owner confirmed the emailed link");
+    L.sql('UPDATE "WorkspaceAiAllowance" SET mode=\'legacy_byok\', status=\'active\' WHERE "businessId"=' + quote(legacyId));
+    L.sql('UPDATE "OnboardingState" SET "activatedAt"=now() WHERE "businessId"=' + quote(legacyId));
     L.sql("UPDATE \"Business\" SET slug='default' WHERE id=" + quote(legacyId));
     const legacyBrowser = await L.launch("j24-legacy-" + suffix);
     browsers.push(legacyBrowser);
@@ -547,6 +545,6 @@ async function lateReadContext(page, switcher, a, b, expectedB) {
     for (const browser of browsers.reverse()) await browser.close();
   }
 })().catch((error) => {
-  console.error("J24: " + error.message);
+  console.error("J24: " + (error.stack || error.message));
   process.exitCode = 1;
 });

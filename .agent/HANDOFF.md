@@ -1,10 +1,9 @@
-# Latest session (2026-10-22, token diet)
+# Latest session (2026-10-22, P3)
 
-Evaluated the agent workflow cost: PLAN.md was 495 KB and the start-up ritual read it whole plus
-implementation-history and a 26 KB CURRENT.md. Branch `chore/token-diet` (docs/tooling only, no product code):
-- PLAN.md 4141 -> ~1040 lines; §§0-46 moved unchanged to docs/architecture-reference.md (§44.4 stays in PLAN).
-- CURRENT.md/HANDOFF.md compacted; originals in docs/state-archive/.
-- AGENTS.md start-up and finish steps now targeted; scripts/agent/session-start.sh (SessionStart hook) prints
-  orientation; scripts/agent/archive-state.sh keeps the state files small; log-triage subagent on a cheaper model.
-Verification: no product code changed; checks are the script runs and a diff review (see commit).
-Continuation: owner merge approval, then P2 tag decision and P3 go-ahead. Earlier sessions: docs/state-archive/.
+Built P3 on branch `p3-onboarding`: hashed single-use account tokens, email-first signup that signs nobody in, verified
+email, non-enumerating reset that ends sessions, self-service email adoption, recipient-bound invitations replacing
+admin-set passwords, resumable onboarding with a recorded test reply and explicit activation, inactive-workspace gate,
+UI and journeys. Merged main (token diet, P2 completion) into the branch.
+Verified: unit 1748/23 skipped, independent agent security review fixed, fresh-DB full browser 28/28 on 01d9b59 (stand-in
+AI, captured mail). Owner decisions: operator invitations deferred; real-mail check not run (no delivery claim).
+Continuation: owner merge approval for `p3-onboarding`. Details: docs/p3-accounts-onboarding-implementation-2026-10-22.md.

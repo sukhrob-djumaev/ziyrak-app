@@ -132,6 +132,12 @@ export default function LoginPage() {
         </button>
       </form>
 
+      <p className="mt-4 text-center text-sm">
+        <Link id="forgotPasswordLink" href="/forgot-password" className="font-medium text-owly-primary hover:underline">
+          Forgot your password?
+        </Link>
+      </p>
+
       <p className="mt-6 text-center text-sm text-owly-text-light">
         New here?{" "}
         <Link href="/setup" className="font-medium text-owly-primary hover:underline">

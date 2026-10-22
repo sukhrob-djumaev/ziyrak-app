@@ -223,7 +223,7 @@ export default function AiServicePage() {
             </label>
             <label>Status
               <select id="allowanceStatus" className={field} value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="active">Active</option><option value="suspended">Suspended</option>
+                <option value="active">Active</option><option value="suspended">Suspended</option><option value="pending_verification">Waiting for owner email</option>
               </select>
             </label>
             <label>Reply limit (tokens per month, empty keeps current)<input id="allowanceGen" className={field} inputMode="numeric" value={genLimit} onChange={(e) => setGenLimit(e.target.value)} /></label>

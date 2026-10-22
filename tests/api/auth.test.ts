@@ -17,6 +17,10 @@ vi.mock("@/lib/identity/auth", async (importOriginal) => {
 });
 
 vi.mock("@/lib/platform/provisioning", () => ({ provisionBusiness: vi.fn() }));
+vi.mock("@/lib/identity/account-service", () => ({
+  sendVerification: vi.fn().mockResolvedValue(undefined),
+  notifyAddressInUse: vi.fn(),
+}));
 
 describe("POST /api/auth", () => {
   beforeEach(() => {
@@ -114,11 +118,12 @@ describe("POST /api/auth", () => {
       action: "signup",
       businessName: "Acme",
       username: "newowner",
+      email: "owner@example.test",
       password: "secure1234",
       name: "New Owner",
     };
 
-    it("creates a business through provisioning and signs the owner in", async () => {
+    it("creates a business through provisioning and asks the owner to confirm their email (no session)", async () => {
       const { provisionBusiness } = await import("@/lib/platform/provisioning");
       (provisionBusiness as ReturnType<typeof vi.fn>).mockResolvedValue({
         businessId: "biz-new",
@@ -135,12 +140,12 @@ describe("POST /api/auth", () => {
       );
       const data = await parseJsonResponse(response);
 
-      expect(response.status).toBe(201);
-      expect(data.success).toBe(true);
-      expect(data.business).toEqual({ id: "biz-new", name: "Acme" });
-      expect(response.headers.get("set-cookie")).toContain("owly-token=");
+      expect(response.status).toBe(202);
+      expect(data).toMatchObject({ success: true, verificationRequired: true });
+      expect(data.business).toBeUndefined();
+      expect(response.headers.get("set-cookie")).toBeNull();
       expect(provisionBusiness).toHaveBeenCalledWith(
-        expect.objectContaining({ businessName: "Acme", ownerUsername: "newowner" })
+        expect.objectContaining({ businessName: "Acme", ownerUsername: "newowner", ownerEmail: "owner@example.test" })
       );
     });
 
@@ -161,7 +166,7 @@ describe("POST /api/auth", () => {
       const response = await POST(
         createRequest("/api/auth", { method: "POST", body: { ...validSignup, username: "second" } })
       );
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(202);
     });
 
     it("never forwards a client-supplied business id or role to provisioning", async () => {

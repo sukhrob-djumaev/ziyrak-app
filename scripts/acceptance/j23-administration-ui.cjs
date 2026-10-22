@@ -6,12 +6,32 @@ const L = require("./lib.cjs"),
 const { randomUUID } = require("node:crypto");
 const quote = (value) => "'" + String(value).replaceAll("'", "''") + "'";
 const suffix = randomUUID().slice(0, 8);
+// Clicks a submit control and, if the page sends no matching request shortly after, clicks it once more
+// (a click can land while a just-closed dialog is still settling).
+async function clickSending(page, label, path, method) {
+  let sent = false;
+  const onRequest = (r) => {
+    if (r.method() === method && new URL(r.url()).pathname === path) sent = true;
+  };
+  page.on("request", onRequest);
+  try {
+    await L.clickLast(page, "button", label);
+    for (let i = 0; i < 30 && !sent; i++) await L.sleep(100);
+    if (!sent) await L.clickLast(page, "button", label);
+  } finally {
+    page.off("request", onRequest);
+  }
+}
 async function mutation(page, path, method, action, status) {
   const pending = page.waitForResponse(
     (r) => new URL(r.url()).pathname === path && r.request().method() === method
   );
   await action();
-  const response = await pending;
+  const response = await pending.catch(async (error) => {
+    await L.shot(page, "j23-no-response").catch(() => {});
+    const seen = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 600)).catch(() => "");
+    throw new Error(`no response to ${method} ${path} (expected ${status}): ${error.message} | page: ${seen}`);
+  });
   L.assert(response.status() === status, `${method} ${path} actual UI response ${status}`);
   return response;
 }
@@ -22,23 +42,7 @@ async function createUser(owner, role, label) {
     name: `Synthetic ${label} ${suffix}`,
     role,
   };
-  await L.clickFirst(owner, "button", "Add User");
-  await owner.waitForSelector('input[placeholder="Full name"]');
-  await owner.type('input[placeholder="Full name"]', input.name);
-  await owner.type('input[placeholder="Username for login"]', input.username);
-  await owner.type('input[placeholder="Minimum 6 characters"]', input.password);
-  await owner.select(".fixed select", role);
-  const response = await mutation(
-    owner,
-    "/api/admin/users",
-    "POST",
-    () => L.clickLast(owner, "button", "Create User"),
-    201
-  );
-  const saved = await response.json();
-  await owner.waitForFunction(
-    () => !document.querySelector('input[placeholder="Username for login"]')
-  );
+  const saved = await L.inviteViaUi(owner, input);
   L.assert(
     saved.userId && saved.id && saved.role === role,
     "Actual UI provisioned expected membership/account"
@@ -119,7 +123,15 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       patterns: [{ urlPattern: L.BASE + "/api/admin/api-keys*", requestStage: "Response" }],
     });
     await page.goto(L.BASE + "/admin", { waitUntil: "load" });
-    await paused;
+    await Promise.race([
+      paused,
+      new Promise((_, reject) =>
+        setTimeout(async () => {
+          const seen = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 400)).catch(() => "");
+          reject(new Error("the held key read never happened; page: " + seen));
+        }, 30000)
+      ),
+    ]);
     L.assert(first.responseStatusCode === 200, "Held actual initial key read was authorized");
   }
   await L.clickFirst(page, "button", "API Keys");
@@ -330,29 +342,33 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await first.page.waitForSelector("table tbody tr");
     // Duplicate username returns a real nested409 error. It must render text,
     // keep the allowed dialog usable and produce no React object-render exception.
-    await L.clickFirst(first.page, "button", "Add User");
-    await first.page.type('input[placeholder="Full name"]', "Synthetic duplicate");
-    await first.page.type('input[placeholder="Username for login"]', admin.username);
-    await first.page.type('input[placeholder="Minimum 6 characters"]', "Synthetic-" + randomUUID());
+    // A second invitation to an address that already has one pending is a real nested 409.
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_pending_" + suffix + "@example.test");
+    await mutation(first.page, "/api/admin/users", "POST", () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"), 201);
+    await first.page.waitForFunction(() => !document.querySelector("#inviteEmail"));
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_pending_" + suffix + "@example.test");
     await mutation(
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Create User"),
+      () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"),
       409
     );
     await first.page.waitForFunction(() =>
-      document.body.innerText.includes("Username already exists")
+      document.body.innerText.includes("already pending")
     );
     L.assert(
       first.errors.pageErrors.length === 0,
       "Nested error renders readable text without exception"
     );
     await L.clickLast(first.page, "button", "Cancel");
-    await L.clickFirst(first.page, "button", "Add User");
-    await first.page.type('input[placeholder="Full name"]', "Synthetic denied actor");
-    await first.page.type('input[placeholder="Username for login"]', "j23_denied_" + suffix);
-    await first.page.type('input[placeholder="Minimum 6 characters"]', "Synthetic-" + randomUUID());
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_denied_" + suffix + "@example.test");
     await owner.evaluate(
       (username) =>
         [...document.querySelectorAll("table tbody tr")]
@@ -374,7 +390,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Create User"),
+      () => clickSending(first.page, "Send Invitation", "/api/admin/users", "POST"),
       403
     );
     await first.page.waitForFunction(
@@ -396,11 +412,9 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     const restrictedBrowser = await L.launch("j23-restricted-" + suffix);
     browsers.push(restrictedBrowser);
     const second = await login(restrictedBrowser, restricted, "198.51.100.242");
-    await L.clickFirst(second.page, "button", "Add User");
-    await second.page.type(
-      'input[placeholder="Minimum 6 characters"]',
-      "Synthetic-unsubmitted-input"
-    );
+    await L.clickFirst(second.page, "button", "Invite User");
+    await second.page.waitForSelector("#inviteEmail");
+    await second.page.type("#inviteEmail", "j23_unsubmitted_" + suffix + "@example.test");
     L.sql(
       'UPDATE "Membership" SET "scopeMode"=\'connections\',"customerProfileAccess"=\'none\' WHERE id=' +
         quote(restricted.id)
@@ -414,12 +428,12 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await second.page.waitForFunction(
       () =>
         ![...document.querySelectorAll("button")].some(
-          (button) => button.textContent.trim() === "Add User"
+          (button) => button.textContent.trim() === "Invite User"
         )
     );
     L.assert(
-      !(await second.page.$('input[placeholder="Minimum 6 characters"]')),
-      "Scope refresh unmounts dialog/password"
+      !(await second.page.$("#inviteEmail")),
+      "Scope refresh unmounts the invitation dialog and its input"
     );
     L.assert(
       (await L.text(second.page)).includes("API Keys") &&
@@ -525,6 +539,6 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     for (const browser of browsers.reverse()) await browser.close();
   }
 })().catch((error) => {
-  console.error("J23: " + error.message);
+  console.error("J23: " + (error.stack || error.message));
   process.exitCode = 1;
 });

@@ -35,7 +35,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | 2 | **R3 — Operational safety** | Complete locally; residuals decided 2026-10-21; not deployed | Puppeteer 25 (PR #29) removes extract-zip: 0 production / 5 high full (braces lint tooling, accepted) advisories. |
 | 3 | **P1 — Platform and workspace access** | Complete locally 2026-10-22 (tag `phase-p1-complete`); not deployed | Workspace/resource boundaries, secured operators, support and delayed-work authority; evidence in the P1 closure record. |
 | 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console; completion tag awaits owner decision. |
-| 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
+| 5 | **P3 — Accounts and customer onboarding** | Implemented and verified in development on branch `p3-onboarding` (2026-10-22); not merged. Real-mail delivery check not run; operator invitations deferred | Verified email, reset, invitations and resumable onboarding to activation; see the P3 result. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
 | 7 | **R4 — Final functional acceptance** | Not started / not run | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
 | 8 | **R5 — Final Ziyrak naming and branding** | Not started / not run | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
@@ -553,7 +553,23 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   account recovery and existing-account migration pass; no activation on failed
   required setup, hidden provider errors or unverified identity. Independent security
   review resolved. Real Meta acceptance remains separate when that channel is claimed.
-- **Result:** implementation not started; verification not run.
+- **Result (2026-10-22, branch `p3-onboarding`; not merged, not deployed):** owner approved the proposal
+  (`docs/p3-accounts-onboarding-proposal-2026-10-22.md`). Implemented per
+  `docs/p3-accounts-onboarding-implementation-2026-10-22.md`. Evidence: tsc/lint clean; unit/real-PG 176 files /
+  1748 passed / 23 skipped (isolated DB); independent agent security review, confirmed findings fixed tests-first;
+  fresh-DB frozen full browser run on candidate `01d9b59`, all 28 journeys passed (J01 signup/verify/sign-in through
+  the real wizard and captured mail, J23-J26 via invitations, J27, new J28), stand-in AI, platform mail captured to
+  a file, headless system Chrome. Limits: agent reviews not human; no windowed-browser run; no real provider through
+  the browser.
+  **Open items (owner decisions 2026-10-22):**
+  - *Operator invitations: deferred to a follow-up.* Reason: they add a new account-creation surface (a platform
+    role created from an emailed link) that needs its own tests-first work and its own security review. Super admins
+    still create operators with a chosen password (the P1 flow); the workspace-invitation path never grants a
+    platform role.
+  - *Controlled real mail delivery check: NOT RUN (skipped by the owner for now).* Email delivery is NOT claimed
+    ready; every mail result above is the local capture adapter. Retry condition: SMTP sender settings
+    (`PLATFORM_SMTP_*`) in the environment and a real recipient mailbox.
+  - Owner merge approval for the branch.
 
 ### R2 — AI decision quality
 

@@ -16,6 +16,8 @@ import { DEFAULT_TOOL_POLICIES } from "@/lib/tools/policy";
 import { generateBusinessSlug } from "@/lib/platform/provisioning";
 import { cleanupBusiness } from "../helpers/tenant-fixtures";
 import { NextRequest } from "next/server";
+import { getMailTransport, type CaptureMailTransport } from "@/lib/mail/transport";
+import { confirmEmail } from "@/lib/identity/account-service";
 
 /**
  * PLAN.md §46.7 task 3/acceptance: a real signup creates an isolated,
@@ -33,20 +35,39 @@ async function signup(overrides: Record<string, unknown> = {}) {
     action: "signup",
     businessName: `Acme ${uniq()}`,
     username: `owner-${uniq()}`,
+    email: `owner-${uniq()}@example.test`,
     password: "a-decent-password",
     name: "Owner",
     ...overrides,
   };
   const response = await POST(createRequest("/api/auth", { method: "POST", body }));
-  const data = await parseJsonResponse(response);
-  if (data.business?.id) {
-    createdBusinessIds.push(data.business.id);
-    recordWorkspaceSelection(data.user.id, data.business.id);
+  const data: Record<string, any> = await parseJsonResponse(response); // eslint-disable-line @typescript-eslint/no-explicit-any
+  // P3: signup answers 202 and signs nobody in. To keep these provisioning assertions about the
+  // business that was created, confirm the owner's address from the captured mail and sign in.
+  if (response.status === 202) {
+    const user = await prisma.user.findUnique({ where: { username: String(body.username) } });
+    const membership = user ? await prisma.membership.findFirst({ where: { userId: user.id } }) : null;
+    if (user && membership) {
+      data.user = { id: user.id, username: user.username };
+      data.business = { id: membership.businessId };
+      createdBusinessIds.push(membership.businessId);
+      recordWorkspaceSelection(user.id, membership.businessId);
+      const mailbox = getMailTransport() as CaptureMailTransport;
+      const link = [...mailbox.messages].reverse().find((m) => m.to === String(body.email).toLowerCase());
+      const token = link?.text.match(/token=([A-Za-z0-9_-]+)/)?.[1];
+      if (token) await confirmEmail(token);
+      const login = await (await import("@/app/api/auth/route")).POST(
+        createRequest("/api/auth", { method: "POST", body: { action: "login", username: body.username, password: body.password } })
+      );
+      (response as Response & { __session?: string }).__session = /owly-token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1] ?? "";
+    }
   }
   return { response, data, body };
 }
 
 function cookieOf(response: Response): string {
+  const attached = (response as Response & { __session?: string }).__session;
+  if (attached !== undefined) return attached;
   const raw = response.headers.get("set-cookie") ?? "";
   return /owly-token=([^;]+)/.exec(raw)?.[1] ?? "";
 }
@@ -62,7 +83,7 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
       welcomeMessage: "Hi from Acme!",
       tone: "professional",
     });
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(202);
     const businessId = data.business.id as string;
 
     const business = await prisma.business.findUniqueOrThrow({ where: { id: businessId } });
@@ -196,8 +217,8 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
     const name = `Twin Cafe ${uniq()}`;
     const a = await signup({ businessName: name });
     const b = await signup({ businessName: name });
-    expect(a.response.status).toBe(201);
-    expect(b.response.status).toBe(201);
+    expect(a.response.status).toBe(202);
+    expect(b.response.status).toBe(202);
     const [rowA, rowB] = await Promise.all([
       prisma.business.findUniqueOrThrow({ where: { id: a.data.business.id } }),
       prisma.business.findUniqueOrThrow({ where: { id: b.data.business.id } }),
@@ -205,7 +226,7 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
     expect(rowA.slug).not.toBe(rowB.slug);
 
     const username = `dup-${uniq()}`;
-    expect((await signup({ username })).response.status).toBe(201);
+    expect((await signup({ username })).response.status).toBe(202);
     const ghost = `Should Not Exist ${uniq()}`;
     const again = await signup({ username, businessName: ghost });
     expect(again.response.status).toBe(409);
@@ -224,11 +245,11 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
       signup({ username, businessName: `Race Biz X ${tag}` }),
       signup({ username, businessName: `Race Biz Y ${tag}` }),
     ]);
-    expect([x.response.status, y.response.status].sort()).toEqual([201, 409]);
+    expect([x.response.status, y.response.status].sort()).toEqual([202, 409]);
 
     expect(await prisma.business.count({ where: { name: { contains: tag } } })).toBe(1);
-    const winner = x.response.status === 201 ? x : y;
-    const loser = x.response.status === 201 ? y : x;
+    const winner = x.response.status === 202 ? x : y;
+    const loser = x.response.status === 202 ? y : x;
     expect(await prisma.user.count({ where: { username } })).toBe(1);
     expect(await prisma.membership.count({ where: { businessId: winner.data.business.id } })).toBe(
       1

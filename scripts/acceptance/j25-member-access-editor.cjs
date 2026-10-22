@@ -79,24 +79,12 @@ async function openEdit(owner, username) {
       password: "Synthetic-" + randomUUID(),
       name: `Synthetic J25 ${suffix}`,
     };
-    await L.clickFirst(owner, "button", "Add User");
-    await owner.waitForSelector('input[placeholder="Full name"]');
-    await owner.type('input[placeholder="Full name"]', member.name);
-    await owner.type('input[placeholder="Username for login"]', member.username);
-    await owner.type('input[placeholder="Minimum 6 characters"]', member.password);
-    await owner.select(".fixed select", "agent");
-    const created = await (
-      await mutation(
-        owner,
-        "/api/admin/users",
-        "POST",
-        () => L.clickLast(owner, "button", "Create User"),
-        201
-      )
-    ).json();
-    await owner.waitForFunction(
-      () => !document.querySelector('input[placeholder="Username for login"]')
-    );
+    const created = await L.inviteViaUi(owner, {
+      name: member.name,
+      username: member.username,
+      password: member.password,
+      role: "agent",
+    });
     await owner.waitForFunction(
       (name) =>
         [...document.querySelectorAll("table tbody tr")].some((r) => r.textContent.includes(name)),

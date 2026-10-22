@@ -295,3 +295,92 @@ exports.finish = (journeyLabel, out) => {
     console.error(`\n${journeyLabel}: all assertions passed.`);
   }
 };
+
+// ---------------------------------------------------------------------------
+// P3: captured platform mail and invitation helpers. The web process writes every message it would
+// send to <work>/mail.jsonl (MAIL_TRANSPORT=capture); nothing leaves the machine.
+// ---------------------------------------------------------------------------
+const MAIL_FILE = path.join(SP, "mail.jsonl");
+exports.MAIL_FILE = MAIL_FILE;
+exports.mailMessages = () =>
+  fs.existsSync(MAIL_FILE)
+    ? fs.readFileSync(MAIL_FILE, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line))
+    : [];
+/** Waits for a message to `address` (optionally matching `match`) that arrived after `after`, returns { text, token, link }. */
+exports.waitForMail = async (address, { match = /./, after = 0, timeoutMs = 20000 } = {}) => {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const hit = exports
+      .mailMessages()
+      .reverse()
+      .find((m) => m.to === String(address).toLowerCase() && Date.parse(m.at) >= after && match.test(m.text));
+    if (hit) {
+      const token = hit.text.match(/token=([A-Za-z0-9_-]+)/)?.[1];
+      return { ...hit, token, link: hit.text.match(/https?:\/\/\S+/)?.[0] };
+    }
+    if (Date.now() > deadline) throw new Error("No mail to " + address + " within " + timeoutMs + "ms");
+    await exports.sleep(250);
+  }
+};
+let xff = 0;
+const nextIp = () => `198.51.100.${(Date.now() + ++xff) % 250 + 2}`;
+/**
+ * Invites an address from an authenticated admin/owner page, then accepts the invitation as the new
+ * person (own username/password), as the product requires. Returns the same shape the old direct
+ * creation did: { status, body: <membership view> }.
+ */
+exports.createMember = async (page, { name, username, password, role, email, scope }) => {
+  const address = email || `${username}@example.test`.toLowerCase();
+  const startedAt = Date.now() - 1000;
+  const invite = await page.evaluate(
+    async (payload) => {
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    },
+    { email: address, role, ...(scope ? { scope } : {}) }
+  );
+  if (invite.status !== 201) return invite;
+  const mail = await exports.waitForMail(address, { after: startedAt, match: /accept-invitation/ });
+  const accepted = await fetch(BASE + "/api/auth/invitation/accept", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": nextIp() },
+    body: JSON.stringify({ token: mail.token, username, password, name }),
+  });
+  if (!accepted.ok) return { status: accepted.status, body: await accepted.json().catch(() => null) };
+  const list = await page.evaluate(async () => (await (await fetch("/api/admin/users?limit=100")).json()).data);
+  const member = list.find((u) => u.username === username);
+  return { status: 201, body: member };
+};
+
+/**
+ * The real admin UI: opens "Invite User", invites `<username>@example.test`, then the new person accepts
+ * with their own credentials. Returns the membership view (id, userId, role, ...) and the invite response.
+ */
+exports.inviteViaUi = async (page, { name, username, password, role }) => {
+  const email = `${username}@example.test`.toLowerCase();
+  const startedAt = Date.now() - 1000;
+  await exports.clickFirst(page, "button", "Invite User");
+  await page.waitForSelector("#inviteEmail");
+  await page.type("#inviteEmail", email);
+  await page.select(".fixed select", role);
+  const posted = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/admin/users" && r.request().method() === "POST");
+  await exports.clickLast(page, "button", "Send Invitation");
+  const response = await posted;
+  exports.assert(response.status() === 201, "UI invitation returned 201 for " + role);
+  await page.waitForFunction(() => !document.querySelector("#inviteEmail"));
+  const mail = await exports.waitForMail(email, { after: startedAt, match: /accept-invitation/ });
+  const accepted = await fetch(BASE + "/api/auth/invitation/accept", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": nextIp() },
+    body: JSON.stringify({ token: mail.token, username, password, name }),
+  });
+  exports.assert(accepted.ok, "invited person created their own account: " + username);
+  const members = await page.evaluate(async () => (await (await fetch("/api/admin/users?limit=100")).json()).data);
+  const saved = members.find((u) => u.username === username);
+  exports.assert(saved && saved.role === role, "membership exists with the invited role: " + username);
+  return saved;
+};

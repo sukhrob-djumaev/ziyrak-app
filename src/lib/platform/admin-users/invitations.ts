@@ -43,6 +43,13 @@ export interface InvitationView {
   scope: RequestedScope;
 }
 
+const pendingFor = (businessId: string) => ({
+  purpose: "invitation",
+  usedAt: null,
+  expiresAt: { gt: new Date() },
+  payload: { path: ["businessId"], equals: businessId },
+});
+
 export async function createInvitation(ctx: TenantContext, raw: { email: string; role: string; scope?: unknown }): Promise<InvitationView> {
   assertWorkspaceDelegation(ctx, "admin:create");
   const parsed = input.safeParse(raw);
@@ -62,6 +69,9 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
     const known = await prisma.channelConnection.count({ where: { businessId: ctx.businessId, id: { in: scope.connectionIds } } });
     if (known !== scope.connectionIds.length) throw new AppError(400, "VALIDATION_ERROR", "Unknown connection for this workspace");
   }
+  // One open invitation per address and workspace: revoke it to send a different one (also stops mail flooding).
+  const open = await prisma.accountToken.count({ where: { email, ...pendingFor(ctx.businessId) } });
+  if (open > 0) throw new AppError(409, "CONFLICT", "An invitation for this address is already pending. Revoke it to send a new one.");
   const inviterUserId = ctx.actor.kind === "user" ? ctx.actor.userId : "";
   const [business, inviter] = await Promise.all([
     prisma.business.findUniqueOrThrow({ where: { id: ctx.businessId }, select: { name: true } }),
@@ -85,13 +95,6 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
   const row = await prisma.accountToken.findUniqueOrThrow({ where: { id }, select: { expiresAt: true } });
   return { id, email, role, scope, expiresAt: row.expiresAt };
 }
-
-const pendingFor = (businessId: string) => ({
-  purpose: "invitation",
-  usedAt: null,
-  expiresAt: { gt: new Date() },
-  payload: { path: ["businessId"], equals: businessId },
-});
 
 export async function listInvitations(ctx: TenantContext): Promise<InvitationView[]> {
   assertWorkspaceDelegation(ctx, "admin:create");

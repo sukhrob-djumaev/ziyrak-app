@@ -78,7 +78,7 @@ const call = (page, path, method, body) =>
       password: "Synthetic-" + randomUUID(),
       name: `Synthetic J26 ${suffix}`,
     };
-    const made = await call(owner, "/api/admin/users", "POST", {
+    const made = await L.createMember(owner, {
       name: agent.name,
       username: agent.username,
       password: agent.password,

@@ -83,23 +83,26 @@ async function api(page, path) {
         password: randomUUID() + "!",
         name: `Role matrix ${role} ${suffix}`,
       };
-      await L.clickFirst(owner, "button", "Add User");
-      await owner.waitForSelector('input[placeholder="Full name"]');
-      await owner.type('input[placeholder="Full name"]', account.name);
-      await owner.type('input[placeholder="Username for login"]', account.username);
-      await owner.type('input[placeholder="Minimum 6 characters"]', account.password);
+      // P3: the real UI invites an email address; the new person then accepts with their own credentials.
+      const email = `${account.username}@example.test`.toLowerCase();
+      const startedAt = Date.now() - 1000;
+      await L.clickFirst(owner, "button", "Invite User");
+      await owner.waitForSelector("#inviteEmail");
+      await owner.type("#inviteEmail", email);
       await owner.select(".fixed select", role);
       const creating = owner.waitForResponse(
         (r) => new URL(r.url()).pathname === "/api/admin/users" && r.request().method() === "POST"
       );
-      await L.clickLast(owner, "button", "Create User");
-      L.assert(
-        (await creating).status() === 201,
-        `${role}: actual secured UI created a new account`
-      );
-      await owner.waitForFunction(
-        () => !document.querySelector('input[placeholder="Username for login"]')
-      );
+      await L.clickLast(owner, "button", "Send Invitation");
+      L.assert((await creating).status() === 201, `${role}: actual secured UI sent an invitation`);
+      await owner.waitForFunction(() => !document.querySelector("#inviteEmail"));
+      const mail = await L.waitForMail(email, { after: startedAt, match: /accept-invitation/ });
+      const accepted = await fetch(L.BASE + "/api/auth/invitation/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Forwarded-For": `198.51.100.${10 + accounts.length}` },
+        body: JSON.stringify({ token: mail.token, username: account.username, password: account.password, name: account.name }),
+      });
+      L.assert(accepted.ok, `${role}: the invited person created their own account`);
       const saved = L.sql(
         `SELECT m.role||'|'||m."scopeMode"||'|'||coalesce(u."platformRole"::text,'none') FROM "User" u JOIN "Membership" m ON m."userId"=u.id WHERE u.username=${quote(account.username)}`
       );
@@ -179,7 +182,7 @@ async function api(page, path) {
       const presentation = await page.evaluate(() => ({
         denied: document.body.innerText.includes("Access denied"),
         controls: [...document.querySelectorAll("button")].some((button) =>
-          ["Add User", "API Keys", "Generate New Key"].includes(button.textContent.trim())
+          ["Invite User", "API Keys", "Generate New Key"].includes(button.textContent.trim())
         ),
         navigation: !!document.querySelector('nav a[href="/admin"]'),
       }));

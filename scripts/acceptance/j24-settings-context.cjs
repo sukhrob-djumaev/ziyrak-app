@@ -68,27 +68,8 @@ async function provisionAdmin(owner) {
     password: "Synthetic-" + randomUUID(),
     name: "Synthetic Settings admin " + suffix,
   };
-  await L.clickFirst(owner, "button", "Add User");
-  await owner.waitForSelector('input[placeholder="Full name"]');
-  await owner.type('input[placeholder="Full name"]', input.name);
-  await owner.type('input[placeholder="Username for login"]', input.username);
-  await owner.type('input[placeholder="Minimum 6 characters"]', input.password);
-  await owner.select(".fixed select", "admin");
-  const response = await mutation(
-    owner,
-    "/api/admin/users",
-    "POST",
-    () => L.clickLast(owner, "button", "Create User"),
-    201
-  );
-  const saved = await response.json();
-  L.assert(
-    saved.id && saved.userId && saved.role === "admin",
-    "Real UI created scoped membership/account"
-  );
-  await owner.waitForFunction(
-    () => !document.querySelector('input[placeholder="Username for login"]')
-  );
+  const saved = await L.inviteViaUi(owner, { ...input, role: "admin" });
+  L.assert(saved.id && saved.userId && saved.role === "admin", "Real UI created scoped membership/account");
   return { ...input, ...saved };
 }
 async function lateReadContext(page, switcher, a, b, expectedB) {

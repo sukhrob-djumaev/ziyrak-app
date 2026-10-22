@@ -84,6 +84,15 @@ describe("creating invitations", () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it("allows one open invitation per address and workspace; revoking frees it", async () => {
+    const { res, email } = await invite();
+    await expect(createInvitation(human(a, "owner"), { email, role: "viewer" })).rejects.toMatchObject({ statusCode: 409 });
+    // Another workspace may invite the same address independently.
+    await expect(createInvitation(human(b, "owner"), { email, role: "viewer" })).resolves.toBeTruthy();
+    await revokeInvitation(human(a, "owner"), res.id);
+    await expect(createInvitation(human(a, "owner"), { email, role: "viewer" })).resolves.toBeTruthy();
+  });
+
   it("lists and revokes only this workspace's pending invitations", async () => {
     const { res } = await invite();
     const other = await createInvitation(human(b, "owner"), { email: addr(), role: "viewer" });

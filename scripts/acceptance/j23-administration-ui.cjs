@@ -22,23 +22,7 @@ async function createUser(owner, role, label) {
     name: `Synthetic ${label} ${suffix}`,
     role,
   };
-  await L.clickFirst(owner, "button", "Add User");
-  await owner.waitForSelector('input[placeholder="Full name"]');
-  await owner.type('input[placeholder="Full name"]', input.name);
-  await owner.type('input[placeholder="Username for login"]', input.username);
-  await owner.type('input[placeholder="Minimum 6 characters"]', input.password);
-  await owner.select(".fixed select", role);
-  const response = await mutation(
-    owner,
-    "/api/admin/users",
-    "POST",
-    () => L.clickLast(owner, "button", "Create User"),
-    201
-  );
-  const saved = await response.json();
-  await owner.waitForFunction(
-    () => !document.querySelector('input[placeholder="Username for login"]')
-  );
+  const saved = await L.inviteViaUi(owner, input);
   L.assert(
     saved.userId && saved.id && saved.role === role,
     "Actual UI provisioned expected membership/account"
@@ -330,29 +314,33 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await first.page.waitForSelector("table tbody tr");
     // Duplicate username returns a real nested409 error. It must render text,
     // keep the allowed dialog usable and produce no React object-render exception.
-    await L.clickFirst(first.page, "button", "Add User");
-    await first.page.type('input[placeholder="Full name"]', "Synthetic duplicate");
-    await first.page.type('input[placeholder="Username for login"]', admin.username);
-    await first.page.type('input[placeholder="Minimum 6 characters"]', "Synthetic-" + randomUUID());
+    // A second invitation to an address that already has one pending is a real nested 409.
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_pending_" + suffix + "@example.test");
+    await mutation(first.page, "/api/admin/users", "POST", () => L.clickLast(first.page, "button", "Send Invitation"), 201);
+    await first.page.waitForFunction(() => !document.querySelector("#inviteEmail"));
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_pending_" + suffix + "@example.test");
     await mutation(
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Create User"),
+      () => L.clickLast(first.page, "button", "Send Invitation"),
       409
     );
     await first.page.waitForFunction(() =>
-      document.body.innerText.includes("Username already exists")
+      document.body.innerText.includes("already pending")
     );
     L.assert(
       first.errors.pageErrors.length === 0,
       "Nested error renders readable text without exception"
     );
     await L.clickLast(first.page, "button", "Cancel");
-    await L.clickFirst(first.page, "button", "Add User");
-    await first.page.type('input[placeholder="Full name"]', "Synthetic denied actor");
-    await first.page.type('input[placeholder="Username for login"]', "j23_denied_" + suffix);
-    await first.page.type('input[placeholder="Minimum 6 characters"]', "Synthetic-" + randomUUID());
+    await L.clickFirst(first.page, "button", "Invite User");
+    await first.page.waitForSelector("#inviteEmail");
+    await first.page.type("#inviteEmail", "j23_denied_" + suffix + "@example.test");
     await owner.evaluate(
       (username) =>
         [...document.querySelectorAll("table tbody tr")]
@@ -374,7 +362,7 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
       first.page,
       "/api/admin/users",
       "POST",
-      () => L.clickLast(first.page, "button", "Create User"),
+      () => L.clickLast(first.page, "button", "Send Invitation"),
       403
     );
     await first.page.waitForFunction(
@@ -396,11 +384,9 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     const restrictedBrowser = await L.launch("j23-restricted-" + suffix);
     browsers.push(restrictedBrowser);
     const second = await login(restrictedBrowser, restricted, "198.51.100.242");
-    await L.clickFirst(second.page, "button", "Add User");
-    await second.page.type(
-      'input[placeholder="Minimum 6 characters"]',
-      "Synthetic-unsubmitted-input"
-    );
+    await L.clickFirst(second.page, "button", "Invite User");
+    await second.page.waitForSelector("#inviteEmail");
+    await second.page.type("#inviteEmail", "j23_unsubmitted_" + suffix + "@example.test");
     L.sql(
       'UPDATE "Membership" SET "scopeMode"=\'connections\',"customerProfileAccess"=\'none\' WHERE id=' +
         quote(restricted.id)
@@ -414,12 +400,12 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     await second.page.waitForFunction(
       () =>
         ![...document.querySelectorAll("button")].some(
-          (button) => button.textContent.trim() === "Add User"
+          (button) => button.textContent.trim() === "Invite User"
         )
     );
     L.assert(
-      !(await second.page.$('input[placeholder="Minimum 6 characters"]')),
-      "Scope refresh unmounts dialog/password"
+      !(await second.page.$("#inviteEmail")),
+      "Scope refresh unmounts the invitation dialog and its input"
     );
     L.assert(
       (await L.text(second.page)).includes("API Keys") &&

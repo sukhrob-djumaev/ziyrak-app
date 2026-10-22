@@ -232,6 +232,9 @@ async function start(what = "all") {
     DATABASE_URL: process.env.ACC_DB,
     DIRECT_DATABASE_URL: process.env.ACC_DB,
     NODE_ENV: "production",
+    // P3: platform mail is captured to a file the journeys read; nothing is delivered anywhere.
+    MAIL_TRANSPORT: "capture",
+    MAIL_CAPTURE_FILE: path.join(work, "mail.jsonl"),
   };
   if (env.ACC_REAL_AI !== "1") env.OPENAI_BASE_URL = "http://127.0.0.1:4010/v1";
   else delete env.OPENAI_BASE_URL;

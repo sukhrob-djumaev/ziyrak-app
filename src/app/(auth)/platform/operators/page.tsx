@@ -19,9 +19,11 @@ type Assignment = {
   revokedAt: string | null;
   connectionScopes: { connectionId: string }[];
 };
+type Invitation = { id: string; email: string; expiresAt: string };
 type Console = {
   evaluatedAt: string;
   operators: Operator[];
+  invitations: Invitation[];
   workspaces: Workspace[];
   assignments: Assignment[];
   allowedOperations: string[];
@@ -40,6 +42,8 @@ export default function OperatorsPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [provisionReason, setProvisionReason] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteReason, setInviteReason] = useState("");
   const [operatorId, setOperatorId] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [scopeKind, setScopeKind] = useState("connections");
@@ -222,6 +226,84 @@ export default function OperatorsPage() {
             <button id="createOperator" className={button} disabled={busy} type="submit">
               Create operator
             </button>
+          </form>
+          <form
+            className="mt-8 space-y-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (
+                await mutate(
+                  { action: "invite", email: inviteEmail, reason: inviteReason },
+                  "Invitation sent."
+                )
+              ) {
+                setInviteEmail("");
+                setInviteReason("");
+              }
+            }}
+          >
+            <h2 className="text-xl font-semibold">Invite operator by email</h2>
+            <p className="text-sm">
+              The person chooses their own username and password from the emailed link (valid for 3
+              days). The address must not already belong to an account.
+            </p>
+            <label className="block" htmlFor="inviteOperatorEmail">
+              Email address
+            </label>
+            <input
+              id="inviteOperatorEmail"
+              type="email"
+              className={field}
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+              maxLength={254}
+              disabled={busy}
+              autoComplete="off"
+            />
+            <label className="block" htmlFor="inviteOperatorReason">
+              Reason for this invitation
+            </label>
+            <textarea
+              id="inviteOperatorReason"
+              className={field}
+              value={inviteReason}
+              onChange={(e) => setInviteReason(e.target.value)}
+              required
+              maxLength={1000}
+              disabled={busy}
+            />
+            <button id="inviteOperator" className={button} disabled={busy} type="submit">
+              Send invitation
+            </button>
+            {data.invitations.length > 0 && (
+              <ul id="operatorInvitations" className="space-y-2">
+                {data.invitations.map((invitation) => (
+                  <li key={invitation.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span>
+                      {invitation.email} — expires {new Date(invitation.expiresAt).toLocaleString()}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded border border-owly-border px-3 py-1 disabled:opacity-50"
+                      disabled={busy}
+                      onClick={() =>
+                        mutate(
+                          {
+                            action: "revokeInvitation",
+                            invitationId: invitation.id,
+                            reason: inviteReason.trim() || "Invitation revoked by super admin",
+                          },
+                          "Invitation revoked."
+                        )
+                      }
+                    >
+                      Revoke
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </form>
           <form
             className="mt-8 space-y-3"

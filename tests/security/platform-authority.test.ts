@@ -1,10 +1,11 @@
-import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { randomUUID, createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { NextRequest } from "next/server";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
 vi.mock("@/lib/identity/route-auth", async (original) => original());
 import { prisma } from "@/lib/prisma/raw-client";
+import { acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock";
 import { generateToken, revokeToken } from "@/lib/identity/auth";
 import * as audit from "@/lib/platform/access/audit";
 import {
@@ -34,10 +35,14 @@ const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const previousBootstrap = process.env.PLATFORM_BOOTSTRAP_PROOF_SHA256;
 const previousRecovery = process.env.PLATFORM_RECOVERY_PROOF_SHA256;
 beforeAll(async () => {
+  await acquirePlatformLock();
   // This file owns the singleton only in a fresh isolated test database.
   // Never remove or reset another environment's platform authority.
   if (await prisma.platformControl.findUnique({ where: { id: "authority" } }))
     throw new Error("Platform tests require an unconfigured isolated database");
+}, 120_000);
+afterAll(async () => {
+  await releasePlatformLock();
 });
 beforeEach(() => {
   process.env.PLATFORM_BOOTSTRAP_PROOF_SHA256 = hash(bootstrapProof);
@@ -2445,5 +2450,350 @@ describe("P1 request-local support text-message read", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(Array.isArray(body) ? body : body.data).toHaveLength(6);
+  });
+});
+
+// Operator invitations: a super admin invites a NEW platform identity by email. Acceptance
+// creates the operator inside the platform control lock, re-checking the inviter and the control
+// generation, and never signs anyone in or promotes an existing account.
+import { CaptureMailTransport, setMailTransportForTesting } from "@/lib/mail/transport";
+import {
+  inviteOperator,
+  listOperatorInvitations,
+  revokeOperatorInvitation,
+  previewOperatorInvitation,
+  acceptOperatorInvitation,
+} from "@/lib/platform/access/operator-invitations";
+import { verifyPassword } from "@/lib/identity/auth";
+
+describe("operator invitations, isolated real Postgres", () => {
+  const mail = new CaptureMailTransport();
+  const emails = new Set<string>();
+  const addr = () => {
+    const email = `opinv-${randomUUID()}@example.test`;
+    emails.add(email);
+    return email;
+  };
+  const tokenIn = (text: string) => text.match(/token=([A-Za-z0-9_-]+)/)?.[1] ?? "";
+  const signup = () => ({
+    username: "invited-op-" + randomUUID(),
+    password: "Synthetic-invited-" + randomUUID(),
+    name: "Invited operator",
+  });
+  const invite = async (superToken: string, email = addr()) => {
+    await inviteOperator(superToken, { email, reason: "Synthetic operator invitation" });
+    return { email, token: tokenIn(mail.messages.at(-1)!.text) };
+  };
+  beforeEach(async () => {
+    setMailTransportForTesting(mail);
+    mail.messages.length = 0;
+    const { resetRateLimitsForTesting } = await import("@/lib/rate-limit");
+    await resetRateLimitsForTesting();
+  });
+  afterEach(async () => {
+    setMailTransportForTesting(null);
+    const created = await prisma.user.findMany({
+      where: { email: { in: [...emails] } },
+      select: { id: true },
+    });
+    for (const u of created) ids.add(u.id);
+    await prisma.accountToken.deleteMany({ where: { email: { in: [...emails] } } });
+    emails.clear();
+  });
+
+  it("lets only the current super admin invite, mails a hashed single-use link and audits it", async () => {
+    const a = await superAccount();
+    const { email, token } = await invite(a.token);
+    expect(mail.messages).toHaveLength(1);
+    expect(mail.messages[0].to).toBe(email);
+    expect(token.length).toBeGreaterThan(20);
+    const row = await prisma.accountToken.findFirstOrThrow({ where: { email } });
+    expect(row.purpose).toBe("operator_invitation");
+    expect(row.tokenHash).not.toContain(token);
+    expect(await prisma.user.count({ where: { email } })).toBe(0);
+    const audits = await prisma.platformAccessAudit.findMany({
+      where: { actorUserId: a.user.id, action: "operator.invite" },
+    });
+    expect(audits).toHaveLength(1);
+    expect(JSON.stringify(audits[0].details)).not.toContain(token);
+    const listed = await listOperatorInvitations(a.token);
+    expect(listed.map((i) => i.email)).toContain(email);
+    expect(JSON.stringify(listed)).not.toContain(token);
+  });
+
+  it("refuses non-super-admin callers and invalid input without sending mail", async () => {
+    const a = await superAccount();
+    const op = await operator(a.token);
+    const stranger = await account(true);
+    for (const t of [op.token, stranger.token])
+      await expect(
+        inviteOperator(t, { email: addr(), reason: "Synthetic denied invite" })
+      ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(inviteOperator(a.token, { email: "not-an-email", reason: "x" })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await expect(
+      inviteOperator(a.token, { email: addr(), reason: "" })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mail.messages).toHaveLength(0);
+  });
+
+  it("allows one open invitation per address and rate limits sending", async () => {
+    const a = await superAccount();
+    const { email } = await invite(a.token);
+    await expect(
+      inviteOperator(a.token, { email, reason: "Synthetic duplicate" })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mail.messages).toHaveLength(1);
+    let limited = false;
+    for (let i = 0; i < 25 && !limited; i++) {
+      try {
+        await inviteOperator(a.token, { email: addr(), reason: "Synthetic flood" });
+      } catch (error) {
+        limited = (error as { statusCode?: number }).statusCode === 429;
+        if (!limited) throw error;
+      }
+    }
+    expect(limited).toBe(true);
+  });
+
+  it("refuses an address already verified by an existing account", async () => {
+    const a = await superAccount();
+    const email = addr();
+    const holder = await prisma.user.create({
+      data: {
+        username: "holder-" + randomUUID(),
+        password: "unused-synthetic-hash",
+        name: "Holder",
+        email,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    ids.add(holder.id);
+    await expect(
+      inviteOperator(a.token, { email, reason: "Synthetic holder invite" })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mail.messages).toHaveLength(0);
+  });
+
+  it("voids the invitation when the mail cannot be sent", async () => {
+    const a = await superAccount();
+    const email = addr();
+    vi.spyOn(mail, "send").mockRejectedValueOnce(new Error("smtp down"));
+    await expect(
+      inviteOperator(a.token, { email, reason: "Synthetic mail failure" })
+    ).rejects.toMatchObject({ statusCode: 503 });
+    expect(await listOperatorInvitations(a.token)).toHaveLength(0);
+    expect(
+      await prisma.platformAccessAudit.count({
+        where: { actorUserId: a.user.id, action: "operator.invite.mail_failed" },
+      })
+    ).toBe(1);
+  });
+
+  it("refuses an address claimed by an unverified account, and does not spend budget on conflicts", async () => {
+    const a = await superAccount();
+    const email = addr();
+    const squatter = await prisma.user.create({
+      data: { username: "squat-" + randomUUID(), password: "unused-synthetic-hash", name: "S", email },
+    });
+    ids.add(squatter.id);
+    await expect(
+      inviteOperator(a.token, { email, reason: "Synthetic squat invite" })
+    ).rejects.toMatchObject({ statusCode: 409 });
+    for (let i = 0; i < 5; i++)
+      await expect(
+        inviteOperator(a.token, { email, reason: "Synthetic repeat" })
+      ).rejects.toMatchObject({ statusCode: 409 });
+    await prisma.user.delete({ where: { id: squatter.id } });
+    await inviteOperator(a.token, { email, reason: "Synthetic after cleanup" });
+    expect(mail.messages).toHaveLength(1);
+  });
+
+  it("previews only the recipient address, and nothing for a bad link", async () => {
+    const a = await superAccount();
+    const { email, token } = await invite(a.token);
+    expect(await previewOperatorInvitation(token)).toEqual({ email });
+    expect(await previewOperatorInvitation("x".repeat(43))).toBeNull();
+  });
+
+  it("creates a new operator with the chosen credentials, no membership and no session", async () => {
+    const a = await superAccount();
+    const { email, token } = await invite(a.token);
+    const creds = signup();
+    const result = await acceptOperatorInvitation({ token, signup: creds });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    ids.add(result.userId);
+    expect(result).not.toHaveProperty("token");
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: result.userId } });
+    expect(user.platformRole).toBe("operator");
+    expect(user.email).toBe(email);
+    expect(user.emailVerifiedAt).not.toBeNull();
+    expect(await verifyPassword(creds.password, user.password)).toBe(true);
+    expect(await prisma.membership.count({ where: { userId: user.id } })).toBe(0);
+    const audit = await prisma.platformAccessAudit.findMany({
+      where: { action: "operator.invitation.accept", actorUserId: user.id },
+    });
+    expect(audit).toHaveLength(1);
+    expect(JSON.stringify(audit)).not.toContain(creds.password);
+    expect(await acceptOperatorInvitation({ token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    expect(await listOperatorInvitations(a.token)).toHaveLength(0);
+  });
+
+  it("lets exactly one of several concurrent acceptances win", async () => {
+    const a = await superAccount();
+    const { token } = await invite(a.token);
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () => acceptOperatorInvitation({ token, signup: signup() }))
+    );
+    const won = results.filter((r) => r.ok);
+    for (const r of won) if (r.ok) ids.add(r.userId);
+    expect(won).toHaveLength(1);
+  });
+
+  it("does not burn the link on a weak password or a taken username", async () => {
+    const a = await superAccount();
+    const { token } = await invite(a.token);
+    expect(
+      await acceptOperatorInvitation({ token, signup: { ...signup(), password: "short" } })
+    ).toEqual({ ok: false, code: "INVALID_PASSWORD" });
+    const taken = await account();
+    expect(
+      await acceptOperatorInvitation({
+        token,
+        signup: { ...signup(), username: taken.user.username.toUpperCase() },
+      })
+    ).toEqual({ ok: false, code: "USERNAME_TAKEN" });
+    const ok = await acceptOperatorInvitation({ token, signup: signup() });
+    expect(ok).toMatchObject({ ok: true });
+    if (ok.ok) ids.add(ok.userId);
+  });
+
+  it("refuses expired, revoked and wrong-purpose links", async () => {
+    const a = await superAccount();
+    const expired = await invite(a.token);
+    await prisma.accountToken.updateMany({
+      where: { email: expired.email },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    expect(await acceptOperatorInvitation({ token: expired.token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    const revoked = await invite(a.token);
+    const [row] = (await listOperatorInvitations(a.token)).filter((i) => i.email === revoked.email);
+    await revokeOperatorInvitation(a.token, { invitationId: row.id, reason: "Synthetic revoke" });
+    expect(await acceptOperatorInvitation({ token: revoked.token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    expect(
+      (
+        await prisma.platformAccessAudit.findMany({ where: { action: "operator.invitation.revoke" } })
+      ).length
+    ).toBeGreaterThan(0);
+    // A workspace invitation token must never create a platform account.
+    const { issueAccountToken } = await import("@/lib/identity/account-tokens");
+    const email = addr();
+    const wrong = await issueAccountToken({
+      purpose: "invitation",
+      email,
+      ttlMs: 60_000,
+      payload: { businessId: "x", role: "agent", scope: { kind: "workspace", customerProfileAccess: "none" }, inviterUserId: a.user.id },
+    });
+    expect(await acceptOperatorInvitation({ token: wrong.token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    expect(await previewOperatorInvitation(wrong.token)).toBeNull();
+  });
+
+  it("never promotes an existing account that verified the address after the invite", async () => {
+    const a = await superAccount();
+    const { email, token } = await invite(a.token);
+    const holder = await prisma.user.create({
+      data: {
+        username: "late-holder-" + randomUUID(),
+        password: "unused-synthetic-hash",
+        name: "Late holder",
+        email,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    ids.add(holder.id);
+    expect(await acceptOperatorInvitation({ token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: holder.id } })).platformRole).toBeNull();
+  });
+
+  it("serves the public routes with one generic refusal, no-store and no session cookie", async () => {
+    const preview = await import("@/app/api/auth/operator-invitation/preview/route");
+    const accept = await import("@/app/api/auth/operator-invitation/accept/route");
+    const post = (path: string, body: unknown) =>
+      new NextRequest("http://localhost:3000" + path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    const bad = await preview.POST(post("/api/auth/operator-invitation/preview", { token: "nope" }));
+    expect(bad.status).toBe(400);
+    const a = await superAccount();
+    const { email, token } = await invite(a.token);
+    const good = await preview.POST(post("/api/auth/operator-invitation/preview", { token }));
+    expect(good.status).toBe(200);
+    expect(await good.json()).toEqual({ email });
+    expect(good.headers.get("cache-control")).toContain("no-store");
+    const creds = signup();
+    const res = await accept.POST(post("/api/auth/operator-invitation/accept", { token, ...creds }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    const user = await prisma.user.findFirstOrThrow({ where: { email } });
+    ids.add(user.id);
+    const replay = await accept.POST(post("/api/auth/operator-invitation/accept", { token, ...signup() }));
+    expect(replay.status).toBe(400);
+    expect((await replay.json()).code).toBe("INVALID_LINK");
+  });
+
+  it("requires a same-origin super admin request for the console invite action", async () => {
+    const { POST } = await import("@/app/api/platform/operators/route");
+    const a = await superAccount();
+    const op = await operator(a.token);
+    const call = (who: { token: string }, headers: Record<string, string>) => {
+      const request = new NextRequest("http://localhost:3000/api/platform/operators", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify({ action: "invite", email: addr(), reason: "Synthetic route invite" }),
+      });
+      request.cookies.set("owly-token", who.token);
+      return POST(request);
+    };
+    expect((await call(a, {})).status).toBe(403);
+    expect((await call(op, { origin: "http://localhost:3000" })).status).toBe(403);
+    expect(mail.messages).toHaveLength(0);
+    expect((await call(a, { origin: "http://localhost:3000" })).status).toBe(200);
+    expect(mail.messages).toHaveLength(1);
+  });
+
+  it("voids open invitations when the inviter loses authority or the platform is recovered", async () => {
+    const a = await superAccount();
+    const { token } = await invite(a.token);
+    const b = await account();
+    await recoverPlatform(b.token, {
+      targetUserId: b.user.id,
+      proof: recoveryProof,
+      reason: "Synthetic recovery",
+      expectedGeneration: (await readPlatformAuthority(a.token)).generation,
+    });
+    expect(await acceptOperatorInvitation({ token, signup: signup() })).toEqual({
+      ok: false,
+      code: "INVALID_LINK",
+    });
+    expect(await prisma.user.count({ where: { platformRole: "operator", name: "Invited operator" } })).toBe(0);
   });
 });

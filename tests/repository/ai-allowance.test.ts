@@ -162,3 +162,18 @@ describe("settle, release and recovery", () => {
     expect((await getAllowanceUsage(a.businessId, "generation", NOW)).used).toBe(5);
   });
 });
+
+describe("recurring reservation sweep job", () => {
+  it("the job handler moves expired reservations to uncertain and leaves live ones", async () => {
+    const { runAiReservationSweep } = await import("@/lib/jobs/handlers/sweep-ai-reservations");
+    await prisma.aiUsageReservation.deleteMany({ where: { businessId: a.businessId } });
+    await setLimits(a.businessId, 1000);
+    const dead = await reserveAllowance({ businessId: a.businessId, kind: "generation", tokens: 5, idempotencyKey: "dead", ttlMs: 1 });
+    const live = await reserveAllowance({ businessId: a.businessId, kind: "generation", tokens: 5, idempotencyKey: "live", ttlMs: 3_600_000 });
+    if (!dead.ok || !live.ok) throw new Error("reserve failed");
+    await new Promise((r) => setTimeout(r, 20));
+    await runAiReservationSweep();
+    expect((await prisma.aiUsageReservation.findUniqueOrThrow({ where: { id: dead.reservationId } })).state).toBe("uncertain");
+    expect((await prisma.aiUsageReservation.findUniqueOrThrow({ where: { id: live.reservationId } })).state).toBe("reserved");
+  });
+});

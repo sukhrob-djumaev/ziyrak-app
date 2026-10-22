@@ -33,6 +33,7 @@ import "@/lib/conversations/inbound";
 import "@/lib/jobs/handlers/deliver-webhook";
 import "@/lib/jobs/handlers/sweep-sla-breaches";
 import "@/lib/jobs/handlers/sweep-retention";
+import "@/lib/jobs/handlers/sweep-ai-reservations";
 import "@/lib/jobs/handlers/send-followup";
 import "@/lib/jobs/handlers/retry-delivery";
 import "@/lib/jobs/handlers/execute-campaign";

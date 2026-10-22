@@ -8,6 +8,7 @@
     "start": "next start",
     "worker": "tsx src/worker.ts",
     "knowledge:reindex": "tsx scripts/reindex-knowledge.ts",
+    "ai:legacy-migration": "tsx scripts/ai-legacy-migration.ts",
     "infra": "tsx scripts/infra.ts",
     "lint": "eslint",
     "test": "vitest run",

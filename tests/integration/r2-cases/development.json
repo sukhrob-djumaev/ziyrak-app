@@ -528,10 +528,10 @@
    "secretElsewhere": false,
    "turns": [
     {
-     "user": "Do you offer emergency treatment on Sundays?",
+     "user": "Do you accept my dental insurance plan?",
      "expect": "decline_or_escalate",
      "forbiddenPatterns": [
-      "(yes|we do|we offer)[^.]*(emergency|sunday)"
+      "(yes|we do|we accept)[^.]*insurance"
      ]
     }
    ]

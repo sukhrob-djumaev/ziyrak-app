@@ -140,3 +140,46 @@ export async function getAllowanceUsage(businessId: string, kind: AllowanceKind,
   const limit = allowance ? (kind === "generation" ? allowance.generationLimitTokens : allowance.embeddingLimitTokens) : null;
   return { used, reserved, limit };
 }
+
+export type AllowanceStatus = "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured";
+
+export interface CustomerAllowanceView {
+  managed: true;
+  serviceName: string | null;
+  status: AllowanceStatus;
+  generation: { used: number; reserved: number; limit: number };
+  embedding: { used: number; reserved: number; limit: number };
+  /** Start of the next period, when the allowance resets. */
+  resetsAt: string;
+}
+
+/**
+ * The only allowance projection a customer endpoint may return: display name,
+ * usage and limits. No provider, model, credential or policy internals.
+ * Returns null for a workspace that is not in managed mode.
+ */
+export async function getCustomerAllowanceView(businessId: string, now: Date = new Date()): Promise<CustomerAllowanceView | null> {
+  const allowance = await prisma.workspaceAiAllowance.findUnique({ where: { businessId } });
+  if (!allowance || allowance.mode !== "managed") return null;
+  const [generation, embedding, policy] = await Promise.all([
+    getAllowanceUsage(businessId, "generation", now),
+    getAllowanceUsage(businessId, "embedding", now),
+    prisma.aiServicePolicy.findFirst({ where: { kind: "generation", active: true }, orderBy: { version: "desc" } }),
+  ]);
+  const ratio = (u: AllowanceUsage) => (u.limit && u.limit > 0 ? (u.used + u.reserved) / u.limit : 1);
+  const worst = Math.max(ratio(generation), ratio(embedding));
+  let status: AllowanceStatus = "ok";
+  if (allowance.status !== "active") status = "suspended";
+  else if (!policy) status = "not_configured";
+  else if (worst >= 1) status = "exhausted";
+  else if (worst >= 0.8) status = "near_limit";
+  const start = periodStartFor(now);
+  return {
+    managed: true,
+    serviceName: policy?.displayName ?? null,
+    status,
+    generation: { used: generation.used, reserved: generation.reserved, limit: allowance.generationLimitTokens },
+    embedding: { used: embedding.used, reserved: embedding.reserved, limit: allowance.embeddingLimitTokens },
+    resetsAt: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)).toISOString(),
+  };
+}

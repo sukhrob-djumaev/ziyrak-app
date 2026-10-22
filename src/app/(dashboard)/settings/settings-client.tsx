@@ -409,15 +409,73 @@ function GeneralSection({
   );
 }
 
+interface ManagedAiView {
+  serviceName: string | null;
+  status: "ok" | "near_limit" | "exhausted" | "suspended" | "not_configured";
+  generation: { used: number; reserved: number; limit: number };
+  embedding: { used: number; reserved: number; limit: number };
+  resetsAt: string;
+}
+
+const MANAGED_STATUS_TEXT: Record<ManagedAiView["status"], string> = {
+  ok: "Your AI assistant is running normally.",
+  near_limit: "You are close to this period's AI usage limit. Replies continue until the limit is reached.",
+  exhausted:
+    "This period's AI usage limit is reached. Automated replies are paused and new conversations go to your team until the limit resets or your administrator raises it.",
+  suspended: "AI replies are paused for this workspace. Contact your platform administrator.",
+  not_configured: "The AI service is not available yet. Contact your platform administrator.",
+};
+
+function ManagedAiPanel({ view }: { view: ManagedAiView }) {
+  const rows = [
+    { label: "Replies and tools", usage: view.generation },
+    { label: "Knowledge search", usage: view.embedding },
+  ];
+  return (
+    <div className="space-y-5" data-testid="managed-ai-panel">
+      <div>
+        <p className="text-sm text-owly-text-light">Managed AI service</p>
+        <p className="text-base font-medium">{view.serviceName ?? "Not available"}</p>
+      </div>
+      <p className="text-sm" data-testid="managed-ai-status">
+        {MANAGED_STATUS_TEXT[view.status]}
+      </p>
+      {rows.map(({ label, usage }) => {
+        const pct = usage.limit > 0 ? Math.min(100, Math.round(((usage.used + usage.reserved) / usage.limit) * 100)) : 100;
+        return (
+          <div key={label}>
+            <div className="flex justify-between text-sm">
+              <span>{label}</span>
+              <span>
+                {usage.used.toLocaleString()} of {usage.limit.toLocaleString()} tokens used
+              </span>
+            </div>
+            <div className="h-2 rounded bg-owly-bg" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+              <div className="h-2 rounded bg-owly-primary" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-sm text-owly-text-light">
+        Usage resets on {new Date(view.resetsAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })} (UTC).
+        Limits are usage caps, not invoices.
+      </p>
+    </div>
+  );
+}
+
 function AISection({
   data,
   update,
   aiConfigured,
+  managedAi,
 }: {
   data: SettingsData;
   update: (field: keyof SettingsData, value: string | number) => void;
   aiConfigured: boolean;
+  managedAi: ManagedAiView | null;
 }) {
+  if (managedAi) return <ManagedAiPanel view={managedAi} />;
   const modelOptions: Record<string, { value: string; label: string }[]> = {
     openai: [
       { value: "gpt-4o", label: "GPT-4o" },
@@ -856,6 +914,7 @@ export default function SettingsClient({
   // Only a successful current legacy read may enable those Default Business panels.
   const [legacyAvailable, setLegacyAvailable] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [managedAi, setManagedAi] = useState<ManagedAiView | null>(null);
 
   const addToast = useCallback((type: "success" | "error", message: string) => {
     if (!authority.current.active || authority.current.blocked) return;
@@ -882,6 +941,7 @@ export default function SettingsClient({
     timers.current.clear();
     setData({ ...defaultSettings });
     setAiConfigured(false);
+    setManagedAi(null);
     setLegacyAvailable(false);
     setToasts([]);
     setActiveTab("general");
@@ -1005,6 +1065,7 @@ export default function SettingsClient({
       legacySecretBaseline.current = legacyMasks;
       setData(merged);
       setAiConfigured(ai.aiConfigured === true);
+      setManagedAi(ai.managed === true ? (ai as ManagedAiView) : null);
       setLegacyAvailable(legacyAvailableNow);
     } catch (error) {
       if (!current()) return;
@@ -1089,7 +1150,7 @@ export default function SettingsClient({
 
   const sectionRenderers: Record<SectionKey, React.ReactNode> = {
     general: <GeneralSection data={data} update={update} />,
-    ai: <AISection data={data} update={update} aiConfigured={aiConfigured} />,
+    ai: <AISection data={data} update={update} aiConfigured={aiConfigured} managedAi={managedAi} />,
     voice: <VoiceSection data={data} update={update} />,
     phone: <PhoneSection data={data} update={update} />,
     email: <EmailSection data={data} update={update} />,
@@ -1202,7 +1263,7 @@ export default function SettingsClient({
 
             {sectionRenderers[activeTab]}
 
-            {canUpdate && <SaveButton onClick={saveSection} saving={saving} />}
+            {canUpdate && !(activeTab === "ai" && managedAi) && <SaveButton onClick={saveSection} saving={saving} />}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma } from "@/lib/prisma/raw-client";
 import { CaptureMailTransport, setMailTransportForTesting, MailNotConfiguredError, getMailTransport } from "@/lib/mail/transport";
-import { sendVerification, confirmEmail, requestPasswordReset, completePasswordReset } from "@/lib/identity/account-service";
+import { sendVerification, confirmEmail, requestPasswordReset, completePasswordReset, startEmailChange } from "@/lib/identity/account-service";
 import { generateToken, verifyActiveToken, hashPassword, verifyPassword } from "@/lib/identity/auth";
 
 const mail = new CaptureMailTransport();
@@ -136,6 +136,56 @@ describe("password reset", () => {
     const u = await user(to);
     await sendVerification(u.id);
     expect(await completePasswordReset(tokenIn(mail.messages[0]), "A-brand-new-password-9")).toBeNull();
+  });
+});
+
+describe("adopting or changing an email (self-service)", () => {
+  const PW = "Old-password-123";
+  it("an account without an email adds one: nothing is stored until the link from the new mailbox is used", async () => {
+    const u = await user(null);
+    const to = addr();
+    expect(await startEmailChange(u.id, to, PW)).toEqual({ accepted: true });
+    expect(mail.messages.map((m) => m.to)).toEqual([to]);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).email).toBeNull();
+    expect(await confirmEmail(tokenIn(mail.messages[0]))).toEqual({ userId: u.id });
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).toMatchObject({ email: to, emailVerifiedAt: expect.any(Date) });
+  });
+
+  it("requires the current password, so a stolen session cannot bind a new mailbox", async () => {
+    const u = await user(null);
+    expect(await startEmailChange(u.id, addr(), "wrong-password-1")).toBeNull();
+    expect(mail.messages).toHaveLength(0);
+  });
+
+  it("looks identical when the address is already verified by someone else, mails no link, and warns the holder", async () => {
+    const holderEmail = addr();
+    await user(holderEmail, true);
+    const u = await user(null);
+    const free = await startEmailChange(u.id, addr(), PW);
+    mail.messages.length = 0;
+    expect(await startEmailChange(u.id, holderEmail, PW)).toEqual(free);
+    expect(mail.messages.map((m) => m.to)).toEqual([holderEmail]);
+    expect(mail.messages[0].text).not.toMatch(/token=/);
+  });
+
+  it("keeps the old verified address until the new one is confirmed, then retires the old reset path", async () => {
+    const oldAddr = addr();
+    const next = addr();
+    const u = await user(oldAddr, true);
+    await startEmailChange(u.id, next, PW);
+    const changeToken = tokenIn(mail.messages[0]);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).email).toBe(oldAddr);
+    await requestPasswordReset(oldAddr);
+    const staleReset = tokenIn(mail.messages[1]);
+    expect(await confirmEmail(changeToken)).toEqual({ userId: u.id });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).email).toBe(next);
+    expect(await completePasswordReset(staleReset, "A-brand-new-password-9")).toBeNull();
+  });
+
+  it("refuses platform accounts", async () => {
+    const p = await user(addr(), true, { platformRole: "operator" });
+    expect(await startEmailChange(p.id, addr(), PW)).toBeNull();
+    expect(mail.messages).toHaveLength(0);
   });
 });
 

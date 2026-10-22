@@ -119,3 +119,23 @@ describe("email verification endpoints", () => {
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0);
   });
 });
+
+describe("/api/auth/email", () => {
+  it("requires a session; reads own state; changes only with the current password; answers alike for taken addresses", async () => {
+    const { GET, POST } = await import("@/app/api/auth/email/route");
+    expect((await GET(createRequest("/api/auth/email"))).status).toBe(401);
+    expect((await POST(post("/api/auth/email", { email: addr(), password: "Old-password-123" }))).status).toBe(401);
+    const u = await user(addr(), false);
+    await prisma.user.update({ where: { id: u.id }, data: { email: null } });
+    const cookies = { "owly-token": generateToken(u.id) };
+    expect(await parseJsonResponse(await GET(createRequest("/api/auth/email", { cookies })))).toEqual({ email: null, verified: false });
+    expect((await POST(post("/api/auth/email", { email: addr(), password: "wrong-password-1" }, cookies))).status).toBe(400);
+    expect(mail.messages).toHaveLength(0);
+    const taken = addr();
+    await user(taken, true);
+    const free = await POST(post("/api/auth/email", { email: addr(), password: "Old-password-123" }, cookies));
+    const conflict = await POST(post("/api/auth/email", { email: taken, password: "Old-password-123" }, cookies));
+    expect(conflict.status).toBe(free.status);
+    expect(await parseJsonResponse(conflict)).toEqual(await parseJsonResponse(free));
+  });
+});

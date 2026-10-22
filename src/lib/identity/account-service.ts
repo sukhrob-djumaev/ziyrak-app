@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/observability/logger";
 import { getMailTransport } from "@/lib/mail/transport";
-import { hashPassword, endAllSessions } from "./auth";
+import { hashPassword, verifyPassword, endAllSessions } from "./auth";
 import { issueAccountToken, consumeAccountToken, normalizeEmail } from "./account-tokens";
 
 /**
@@ -50,14 +50,22 @@ export async function sendVerification(userId: string): Promise<void> {
 export async function confirmEmail(token: string): Promise<{ userId: string } | null> {
   const consumed = await consumeAccountToken({ token, purpose: "verify_email" });
   if (!consumed?.userId) return null;
+  const isChange = Boolean((consumed.payload as { change?: boolean } | null)?.change);
   try {
     return await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: consumed.userId! }, select: { id: true, email: true, emailVerifiedAt: true } });
-      // The address must still be the one the token was issued to.
-      if (!user || !user.email || normalizeEmail(user.email) !== consumed.email) return null;
-      if (user.emailVerifiedAt) return { userId: user.id };
-      // The partial unique index on verified addresses makes this the single winner.
-      await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+      const user = await tx.user.findUnique({
+        where: { id: consumed.userId! },
+        select: { id: true, email: true, emailVerifiedAt: true, platformRole: true },
+      });
+      if (!user || user.platformRole) return null;
+      if (!isChange) {
+        // Signup link: the address must still be the one the token was issued to.
+        if (!user.email || normalizeEmail(user.email) !== consumed.email) return null;
+        if (user.emailVerifiedAt) return { userId: user.id };
+      }
+      // Adopting/changing: possession of the new mailbox (this link) is the proof. The partial
+      // unique index on verified addresses makes this the single winner.
+      await tx.user.update({ where: { id: user.id }, data: { email: consumed.email, emailVerifiedAt: new Date() } });
       // Paid AI use waits for a verified owner: release the allowances this person owns. An
       // operator suspension is a different status and is never lifted here.
       await tx.workspaceAiAllowance.updateMany({
@@ -70,6 +78,35 @@ export async function confirmEmail(token: string): Promise<{ userId: string } | 
     if ((error as { code?: string }).code === "P2002") return null;
     throw error;
   }
+}
+
+/**
+ * Self-service: add or change the account's email. Needs the current password (a stolen session
+ * cannot bind a new mailbox). Nothing is stored until the link sent to the NEW address is used, and
+ * the old verified address keeps working until then. The answer never says whether the address is
+ * already taken; the holder of a verified address is warned instead.
+ */
+export async function startEmailChange(userId: string, rawEmail: string, currentPassword: string): Promise<{ accepted: true } | null> {
+  const email = normalizeEmail(String(rawEmail ?? ""));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) return null;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, password: true, platformRole: true } });
+  if (!user || user.platformRole) return null;
+  if (typeof currentPassword !== "string" || !(await verifyPassword(currentPassword, user.password))) return null;
+  const holder = await prisma.user.findFirst({ where: { email, emailVerifiedAt: { not: null }, id: { not: userId } }, select: { id: true } });
+  if (holder) {
+    notifyAddressInUse(email);
+    return { accepted: true };
+  }
+  const { token } = await issueAccountToken({ purpose: "verify_email", email, userId, ttlMs: VERIFY_EMAIL_TTL_MS, payload: { change: true } });
+  await getMailTransport().send({
+    to: email,
+    subject: "Confirm your email address",
+    text:
+      "Confirm this email address for your account:\n\n" +
+      `${appUrl()}/verify-email?token=${token}\n\n` +
+      "The link works once and expires in 24 hours. If you did not ask for this, ignore this message.",
+  });
+  return { accepted: true };
 }
 
 /** Tells the holder of a verified address that someone tried to register with it. Never reveals anything to the requester. */
@@ -121,4 +158,10 @@ export async function completePasswordReset(token: string, newPassword: string):
   await prisma.user.update({ where: { id: user.id }, data: { password: await hashPassword(newPassword) } });
   await endAllSessions(user.id);
   return { userId: user.id };
+}
+
+/** The account's own email state (never another person's). */
+export async function readAccountEmail(userId: string): Promise<{ email: string | null; verified: boolean }> {
+  const row = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } });
+  return { email: row?.email ?? null, verified: Boolean(row?.emailVerifiedAt) };
 }

@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { OnboardingChecklist } from "@/components/ui/onboarding-checklist";
 import { OnboardingPanel } from "@/components/ui/onboarding-panel";
+import { AccountEmailBanner } from "@/components/ui/account-email-banner";
 import { LiveRefresh } from "@/components/live-refresh";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
@@ -83,6 +84,7 @@ export default async function DashboardPage() {
         description="Overview of your customer support activity"
       />
       <div className="flex-1 overflow-auto p-6 space-y-6">
+        <AccountEmailBanner />
         <OnboardingPanel />
         <OnboardingChecklist />
 

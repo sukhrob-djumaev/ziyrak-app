@@ -1,9 +1,7 @@
-# Latest session (2026-10-22, P3)
+# Latest session (2026-10-22, plan slim)
 
-Built P3 on branch `p3-onboarding`: hashed single-use account tokens, email-first signup that signs nobody in, verified
-email, non-enumerating reset that ends sessions, self-service email adoption, recipient-bound invitations replacing
-admin-set passwords, resumable onboarding with a recorded test reply and explicit activation, inactive-workspace gate,
-UI and journeys. Merged main (token diet, P2 completion) into the branch.
-Verified: unit 1748/23 skipped, independent agent security review fixed, fresh-DB full browser 28/28 on 01d9b59 (stand-in
-AI, captured mail). Owner decisions: operator invitations deferred; real-mail check not run (no delivery claim).
-Continuation: owner merge approval for `p3-onboarding`. Details: docs/p3-accounts-onboarding-implementation-2026-10-22.md.
+P3 merged to main (`470073b`, exact-head CI green); P2 tagged locally (`phase-p2-complete`, tag not pushed).
+Audit of PLAN/workflow redundancy -> branch `chore/plan-slim` (docs only): finished packages R1/R3/P1/P2/P3 moved
+unchanged to docs/milestone-archive.md with one-bullet summaries in PLAN (P3 open items kept live); stale
+Updated-2026-10-14 prose and repeated Phase 0 disclaimers removed; docs/README.md indexes every record.
+PLAN.md 1058 -> ~680 lines. No product code changed. Continuation: owner merge approval for plan-slim, tag decisions, then R2/R4.

@@ -28,7 +28,10 @@ CREATE INDEX "AccountToken_purpose_email_idx" ON "AccountToken"("purpose", "emai
 CREATE INDEX "AccountToken_expiresAt_idx" ON "AccountToken"("expiresAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE INDEX "User_email_idx" ON "User"("email");
+
+-- A verified address identifies exactly one account; unverified claims may coexist until proven.
+CREATE UNIQUE INDEX "User_verified_email_key" ON "User"("email") WHERE "emailVerifiedAt" IS NOT NULL;
 
 -- AddForeignKey
 ALTER TABLE "AccountToken" ADD CONSTRAINT "AccountToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

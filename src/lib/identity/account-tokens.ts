@@ -36,11 +36,11 @@ export async function issueAccountToken(input: IssueInput): Promise<{ token: str
   const token = randomBytes(32).toString("base64url");
   const email = normalizeEmail(input.email);
   const row = await prisma.$transaction(async (tx) => {
-    // Older unused tokens for the same purpose and recipient stop working (invitations are per
-    // invite, so they keep their own lifetime).
+    // Older unused tokens for the same purpose, recipient and account stop working (two accounts
+    // claiming one address must not cancel each other's links; invitations keep their own lifetime).
     if (input.purpose !== "invitation") {
       await tx.accountToken.updateMany({
-        where: { purpose: input.purpose, email, usedAt: null },
+        where: { purpose: input.purpose, email, usedAt: null, userId: input.userId ?? null },
         data: { usedAt: new Date() },
       });
     }

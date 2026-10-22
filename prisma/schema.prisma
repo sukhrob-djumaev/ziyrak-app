@@ -105,6 +105,8 @@ model User {
   platformAccessAudits PlatformAccessAudit[]
   issuedApiKeys        ApiKey[]
   platformControl      PlatformControl?
+
+  @@index([email])
 }
 
 // P1 control-plane authority and explicit resource scope. No public role assignment.

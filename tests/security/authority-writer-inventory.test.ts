@@ -29,6 +29,9 @@ const RAW_FENCED = new Set(["lib/platform/admin-users/service.ts"]);
 const PLATFORM = new Set([
   "lib/platform/access/authority.ts",
   "lib/platform/access/operators.ts",
+  // Account identity: ends a user's sessions (P3 reset). Saved follow-ups deliberately survive
+  // logout and session end (owner decision 2026-10-15), so this reduces no delayed-work authority.
+  "lib/identity/auth.ts",
   "lib/platform/admin-users/service.ts",
   "lib/platform/provisioning.ts",
 ]);

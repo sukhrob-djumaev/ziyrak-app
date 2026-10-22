@@ -84,15 +84,21 @@ model Membership {
 }
 
 model User {
-  id              String        @id @default(uuid())
-  username        String        @unique
-  password        String
-  name            String        @default("")
-  isPlatformAdmin Boolean       @default(false) // Historical display flag; grants no platform authority.
-  platformRole    PlatformRole?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 String        @id @default(uuid())
+  username           String        @unique
+  password           String
+  name               String        @default("")
+  isPlatformAdmin    Boolean       @default(false) // Historical display flag; grants no platform authority.
+  platformRole       PlatformRole?
+  // P3: verified email identity. Nullable for existing username accounts until they adopt one.
+  email              String?       @unique
+  emailVerifiedAt    DateTime?
+  // P3: sessions issued before this instant are ended (password reset/change).
+  sessionsValidAfter DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
+  accountTokens        AccountToken[]
   memberships          Membership[]
   platformAssignments  PlatformAssignment[]
   supportGrants        SupportGrant[]
@@ -1173,4 +1179,23 @@ model AiUsageReservation {
   @@unique([businessId, idempotencyKey])
   @@index([businessId, kind, periodStart, state])
   @@index([state, expiresAt])
+}
+
+// ==================== ACCOUNT TOKENS (PLAN.md P3) ====================
+// Expiring, single-use verification / password-reset / invitation tokens. Only a SHA-256 of the
+// random secret is stored; the secret exists only in the emailed link. Control-plane only.
+model AccountToken {
+  id        String    @id @default(uuid())
+  purpose   String // "verify_email" | "reset_password" | "invitation"
+  tokenHash String    @unique
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String // lowercased recipient the token is bound to
+  payload   Json? // invitations: workspace, role, scope, inviter
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([purpose, email])
+  @@index([expiresAt])
 }

@@ -47,6 +47,8 @@ export interface TokenPayload {
   jti?: string;
   /** Expiry, seconds since the epoch. */
   exp?: number;
+  /** Issued-at, seconds since the epoch (set by the signer). */
+  iat?: number;
 }
 
 /** Signature and expiry only — no database. See `verifyActiveToken` for the revocation-aware check. */
@@ -67,7 +69,18 @@ export async function verifyActiveToken(token: string): Promise<TokenPayload | n
   const payload = verifyToken(token);
   if (!payload) return null;
   if (payload.jti && (await prisma.revokedToken.findUnique({ where: { jti: payload.jti }, select: { jti: true } }))) return null;
+  // P3: a password reset/change ends every session issued before it. A token with no `iat`
+  // (never produced by this signer) is treated as issued at the epoch, so it dies at the cutoff.
+  const account = await prisma.user.findUnique({ where: { id: payload.userId }, select: { sessionsValidAfter: true } });
+  if (account?.sessionsValidAfter && (payload.iat ?? 0) * 1000 < account.sessionsValidAfter.getTime()) return null;
   return payload;
+}
+
+/** Ends every session issued to this user before now (password reset/change). */
+export async function endAllSessions(userId: string, now: Date = new Date()): Promise<void> {
+  // Second resolution matches the token's `iat`; sessions issued in the same second as the cutoff are kept.
+  const cutoff = new Date(Math.floor(now.getTime() / 1000) * 1000);
+  await prisma.user.update({ where: { id: userId }, data: { sessionsValidAfter: cutoff } });
 }
 
 /**

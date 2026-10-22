@@ -12,6 +12,7 @@ export const CONTROL_PLANE_ONLY_MODELS = [
   "user",
   "tenantPlacement",
   "infrastructurePolicy",
+  "accountToken",
   "workspaceAiAllowance",
   "aiUsageReservation",
   "aiServicePolicy",

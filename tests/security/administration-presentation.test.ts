@@ -64,13 +64,13 @@ describe("P1 Administration actual cookie/membership SSR presentation", () => {
       select(actors.get(role)!);
       const output = await html(React.createElement(AdminPage));
       expect(output).toContain("Access denied");
-      expect(output).not.toMatch(/Add User|API Keys|Generate New Key|No users found/);
+      expect(output).not.toMatch(/Invite User|API Keys|Generate New Key|No users found/);
     }
   );
   it.each(["owner", "admin"])("%s retains legitimate Administration controls", async (role) => {
     select(actors.get(role)!);
     const output = await html(React.createElement(AdminPage));
-    expect(output).toContain("Add User");
+    expect(output).toContain("Invite User");
     expect(output).toContain("API Keys");
     expect(output).not.toContain("Access denied");
   });
@@ -83,7 +83,7 @@ describe("P1 Administration actual cookie/membership SSR presentation", () => {
     select(actor.userId);
     const output = await html(React.createElement(AdminPage));
     expect(output).toContain("API Keys");
-    expect(output).not.toContain("Add User");
+    expect(output).not.toContain("Invite User");
     expect(output).not.toContain("Access denied");
   });
   it.each(["supervisor", "agent", "viewer"])(

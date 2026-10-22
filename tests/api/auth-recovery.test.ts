@@ -51,6 +51,17 @@ describe("POST /api/auth/forgot-password", () => {
     expect(mail.messages.map((m) => m.to)).toEqual([known]);
   });
 
+  it("another client cannot use up the address's own budget (per client+address, with a wider per-address ceiling)", async () => {
+    const { POST } = await import("@/app/api/auth/forgot-password/route");
+    const to = addr();
+    await user(to, true);
+    const asClient = (ip: string) => createRequest("/api/auth/forgot-password", { method: "POST", body: { email: to }, headers: { "x-forwarded-for": ip } });
+    for (let i = 0; i < 5; i++) await POST(asClient("203.0.113.9"));
+    expect(mail.messages).toHaveLength(3); // that client is capped at three
+    await POST(asClient("203.0.113.77")); // a different client still gets a link
+    expect(mail.messages).toHaveLength(4);
+  });
+
   it("stops mailing after three requests per address per hour, with the same response", async () => {
     const { POST } = await import("@/app/api/auth/forgot-password/route");
     const to = addr();

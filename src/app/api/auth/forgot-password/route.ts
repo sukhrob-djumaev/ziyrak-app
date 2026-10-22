@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requestPasswordReset } from "@/lib/identity/account-service";
 import { normalizeEmail } from "@/lib/identity/account-tokens";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 
 /**
  * PLAN.md P3 — public. The answer never depends on whether the address exists,
@@ -18,8 +19,11 @@ export async function POST(request: NextRequest) {
   const normalized = normalizeEmail(email);
   if (normalized && normalized.length <= 254) {
     const key = createHash("sha256").update(normalized).digest("hex");
-    const allowed = await checkRateLimit(`pwreset:email:${key}`, { maxRequests: 3, windowMs: 60 * 60 * 1000 });
-    if (allowed.allowed) await requestPasswordReset(normalized);
+    // A client can only use up its own allowance for an address; the wider per-address ceiling
+    // bounds what any number of clients can send to one inbox.
+    const own = await checkRateLimit(`pwreset:pair:${getClientIp(request)}:${key}`, { maxRequests: 3, windowMs: 60 * 60 * 1000 });
+    const ceiling = await checkRateLimit(`pwreset:email:${key}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
+    if (own.allowed && ceiling.allowed) await requestPasswordReset(normalized);
   }
   return NextResponse.json(RESPONSE);
 }

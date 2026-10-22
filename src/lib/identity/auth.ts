@@ -78,8 +78,9 @@ export async function verifyActiveToken(token: string): Promise<TokenPayload | n
 
 /** Ends every session issued to this user before now (password reset/change). */
 export async function endAllSessions(userId: string, now: Date = new Date()): Promise<void> {
-  // Second resolution matches the token's `iat`; sessions issued in the same second as the cutoff are kept.
-  const cutoff = new Date(Math.floor(now.getTime() / 1000) * 1000);
+  // Second resolution matches the token's `iat`. The cutoff is the NEXT whole second, so a session
+  // minted in the same second as the reset ends too; signing in again a moment later works.
+  const cutoff = new Date(Math.ceil(now.getTime() / 1000) * 1000);
   await prisma.user.update({ where: { id: userId }, data: { sessionsValidAfter: cutoff } });
 }
 

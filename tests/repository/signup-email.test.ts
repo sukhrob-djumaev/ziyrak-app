@@ -89,6 +89,8 @@ describe("POST /api/auth signup", () => {
     const res = await POST(signup({ username, email }));
     expect(res.status).toBe(202);
     expect(res.headers.get("set-cookie")).toBeNull();
+    // The verification mail is sent after the response; wait for it.
+    for (let i = 0; i < 50 && mail.messages.length === 0; i++) await new Promise((r) => setTimeout(r, 20));
     expect(mail.messages.map((m) => m.to)).toEqual([email.toLowerCase()]);
     const user = await prisma.user.findUniqueOrThrow({ where: { username } });
     userIds.push(user.id);
@@ -128,6 +130,29 @@ describe("POST /api/auth signup", () => {
     userIds.push(created.id);
     for (const m of await prisma.membership.findMany({ where: { userId: created.id } })) businessIds.push(m.businessId);
     expect(created.email).toBe(shared.toLowerCase());
+  });
+
+  it("reports a taken username the same way whether or not the address is verified elsewhere (no address oracle)", async () => {
+    const { POST } = await import("@/app/api/auth/route");
+    const taken = await provision({ ownerEmail: addr() });
+    const takenName = (await prisma.user.findUniqueOrThrow({ where: { id: taken.userId } })).username;
+    const holderEmail = addr();
+    const holder = await provision({ ownerEmail: holderEmail });
+    await prisma.user.update({ where: { id: holder.userId }, data: { emailVerifiedAt: new Date() } });
+    const free = await POST(signup({ username: takenName, email: addr() }));
+    const contested = await POST(signup({ username: takenName, email: holderEmail }));
+    expect(contested.status).toBe(free.status);
+    expect(await parseJsonResponse(contested)).toEqual(await parseJsonResponse(free));
+  });
+
+  it("warns the holder of a verified address at most three times an hour", async () => {
+    const { POST } = await import("@/app/api/auth/route");
+    const holderEmail = addr();
+    const holder = await provision({ ownerEmail: holderEmail });
+    await prisma.user.update({ where: { id: holder.userId }, data: { emailVerifiedAt: new Date() } });
+    mail.messages.length = 0;
+    for (let i = 0; i < 6; i++) await POST(signup({ username: uname(), email: holderEmail }));
+    expect(mail.messages.filter((m) => m.to === holderEmail.toLowerCase())).toHaveLength(3);
   });
 
   it("still reports a taken username", async () => {

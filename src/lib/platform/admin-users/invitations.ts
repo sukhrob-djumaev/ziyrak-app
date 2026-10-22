@@ -8,6 +8,8 @@ import { hashPassword } from "@/lib/identity/auth";
 import { getMailTransport } from "@/lib/mail/transport";
 import { issueAccountToken, peekAccountToken, normalizeEmail } from "@/lib/identity/account-tokens";
 import { passwordProblem } from "@/lib/identity/account-service";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { createHash } from "node:crypto";
 import { reserveNewUsername } from "../username-reservation";
 import { assertWorkspaceDelegation, parseRequestedScope, INVITABLE_ROLES, type RequestedScope } from "./service";
 
@@ -72,6 +74,13 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
   // One open invitation per address and workspace: revoke it to send a different one (also stops mail flooding).
   const open = await prisma.accountToken.count({ where: { email, ...pendingFor(ctx.businessId) } });
   if (open > 0) throw new AppError(409, "CONFLICT", "An invitation for this address is already pending. Revoke it to send a new one.");
+  // Inviting people needs a confirmed identity of your own, and mail is budgeted per workspace and
+  // per recipient address so an invitation cannot be used to flood or phish an inbox.
+  const sender = ctx.actor.kind === "user" ? await prisma.user.findUnique({ where: { id: ctx.actor.userId }, select: { emailVerifiedAt: true } }) : null;
+  if (!sender?.emailVerifiedAt) throw new AppError(403, "EMAIL_NOT_VERIFIED", "Confirm your own email address before inviting people.");
+  const perWorkspace = await checkRateLimit(`invite:ws:${ctx.businessId}`, { maxRequests: 20, windowMs: 60 * 60 * 1000 });
+  const perAddress = await checkRateLimit(`invite:addr:${createHash("sha256").update(email).digest("hex")}`, { maxRequests: 3, windowMs: 24 * 60 * 60 * 1000 });
+  if (!perWorkspace.allowed || !perAddress.allowed) throw new AppError(429, "RATE_LIMIT_EXCEEDED", "Too many invitations. Try again later.");
   const inviterUserId = ctx.actor.kind === "user" ? ctx.actor.userId : "";
   const [business, inviter] = await Promise.all([
     prisma.business.findUniqueOrThrow({ where: { id: ctx.businessId }, select: { name: true } }),
@@ -173,6 +182,16 @@ export async function acceptInvitation(args: {
         data: { usedAt: new Date() },
       });
       if (claimed.count !== 1) throw new Rollback({ ok: false, code: "INVALID_LINK" });
+
+      // The inviter's authority is judged inside the same transaction that grants the membership.
+      const inviterNow = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId } });
+      if (
+        !inviterNow ||
+        !hasPermission(inviterNow.role, "admin:create") ||
+        inviterNow.scopeMode !== "workspace" ||
+        rank[payload.scope.customerProfileAccess] > rank[inviterNow.customerProfileAccess as keyof typeof rank]
+      )
+        throw new Rollback({ ok: false, code: "INVALID_LINK" });
 
       let userId = holder?.id;
       if (!userId) {

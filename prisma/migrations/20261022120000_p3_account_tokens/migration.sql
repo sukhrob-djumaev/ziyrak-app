@@ -41,9 +41,6 @@ CREATE INDEX "AccountToken_purpose_email_idx" ON "AccountToken"("purpose", "emai
 CREATE INDEX "AccountToken_expiresAt_idx" ON "AccountToken"("expiresAt");
 
 -- CreateIndex
-
-
--- CreateIndex
 CREATE INDEX "User_email_idx" ON "User"("email");
 
 -- AddForeignKey

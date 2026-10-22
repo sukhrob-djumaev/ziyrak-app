@@ -226,6 +226,17 @@ async function call(
   ) as Promise<Response>;
 }
 
+/** Platform mail is sent after the signup response; wait for the captured message. */
+async function mailTo(address: string): Promise<{ text: string }> {
+  const mailbox = getMailTransport() as CaptureMailTransport;
+  for (let i = 0; i < 100; i++) {
+    const hit = [...mailbox.messages].reverse().find((m) => m.to === address);
+    if (hit) return hit;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error("No mail captured for " + address);
+}
+
 async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
   const username = `${label}-${uniq()}`;
   const password = "e2e-password-123";
@@ -233,7 +244,6 @@ async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
 
   const { POST: authPost } = await import("@/app/api/auth/route");
   const email = `${label}-${uniq()}@example.test`;
-  const mailbox = getMailTransport() as CaptureMailTransport;
   const signup = await authPost(
     createRequest("/api/auth", {
       method: "POST",
@@ -245,7 +255,7 @@ async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
   const owner = await prisma.user.findUniqueOrThrow({ where: { username } });
   const businessId = (await prisma.membership.findFirstOrThrow({ where: { userId: owner.id } })).businessId;
   recordWorkspaceSelection(owner.id, businessId);
-  const verifyMail = [...mailbox.messages].reverse().find((m) => m.to === email)!;
+  const verifyMail = await mailTo(email);
   expect(await confirmEmail(verifyMail.text.match(/token=([A-Za-z0-9_-]+)/)![1])).toEqual({ userId: owner.id });
   // This suite exercises the assistant on the workspace's own AI key and an activated workspace;
   // managed AI, onboarding and activation have their own suites (P2/P3).
@@ -298,7 +308,7 @@ async function signupAndConfigure(label: string, marker: string): Promise<Biz> {
     role: "agent",
   });
   expect(invite.status).toBe(201);
-  const inviteMail = [...mailbox.messages].reverse().find((m) => m.to === agentEmail)!;
+  const inviteMail = await mailTo(agentEmail);
   const accepted = await acceptInvitation({
     token: inviteMail.text.match(/token=([A-Za-z0-9_-]+)/)![1],
     signup: { username: agentName, password: "agent-password-1", name: "First Agent" },

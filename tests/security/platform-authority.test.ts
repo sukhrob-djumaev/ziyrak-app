@@ -992,7 +992,7 @@ describe("operator names share the public/workspace identity namespace", () => {
           const capture = new CaptureMailTransport();
           setMailTransportForTesting(capture);
           const inviter = await prisma.user.create({
-            data: { username: "platform-fixture-owner-" + randomUUID(), password: "unused-synthetic-hash", name: "Synthetic owner" },
+            data: { username: "platform-fixture-owner-" + randomUUID(), password: "unused-synthetic-hash", name: "Synthetic owner", email: `owner-${randomUUID()}@example.test`, emailVerifiedAt: new Date() },
           });
           ids.add(inviter.id);
           await prisma.membership.create({ data: { businessId: x.workspace.id, userId: inviter.id, role: "owner" } });

@@ -34,6 +34,12 @@ describe("endAllSessions", () => {
     expect(await verifyActiveToken(generateToken(a.ownerUserId))).not.toBeNull();
   });
 
+  it("also ends a session minted in the same second as the reset", async () => {
+    const t = generateToken(a.ownerUserId);
+    await endAllSessions(a.ownerUserId);
+    expect(await verifyActiveToken(t)).toBeNull();
+  });
+
   it("does not affect another account's sessions", async () => {
     const other = generateToken(b.ownerUserId);
     await wait(1100);

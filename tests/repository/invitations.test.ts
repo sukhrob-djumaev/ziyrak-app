@@ -42,6 +42,10 @@ beforeAll(async () => {
   setMailTransportForTesting(mail);
   a = await seedBusiness("inv-a");
   b = await seedBusiness("inv-b");
+  // Inviters must have a confirmed email (P3): confirm the seeded owners' addresses.
+  for (const owner of [a, b]) {
+    await prisma.user.update({ where: { id: owner.ownerUserId }, data: { email: `owner-${owner.ownerUserId}@example.test`, emailVerifiedAt: new Date() } });
+  }
 });
 afterAll(async () => {
   setMailTransportForTesting(null);
@@ -49,8 +53,43 @@ afterAll(async () => {
   await cleanupBusiness(b.businessId);
   await prisma.user.deleteMany({ where: { id: { in: extraUsers } } });
 });
-beforeEach(() => {
+beforeEach(async () => {
   mail.messages.length = 0;
+  const { resetRateLimitsForTesting } = await import("@/lib/rate-limit");
+  await resetRateLimitsForTesting();
+});
+
+describe("invitation abuse limits", () => {
+  it("needs an inviter with a confirmed email", async () => {
+    const unverified = await seedBusiness("inv-unverified");
+    try {
+      await expect(createInvitation(human(unverified, "owner"), { email: addr(), role: "viewer" })).rejects.toMatchObject({ statusCode: 403 });
+      expect(mail.messages).toHaveLength(0);
+    } finally {
+      await cleanupBusiness(unverified.businessId);
+    }
+  });
+
+  it("caps invitations per address per day and per workspace per hour", async () => {
+    const target = addr();
+    for (let i = 0; i < 3; i++) {
+      const sent = await createInvitation(human(a, "owner"), { email: target, role: "viewer" });
+      await revokeInvitation(human(a, "owner"), sent.id);
+    }
+    await expect(createInvitation(human(a, "owner"), { email: target, role: "viewer" })).rejects.toMatchObject({ statusCode: 429 });
+    const { resetRateLimitsForTesting } = await import("@/lib/rate-limit");
+    await resetRateLimitsForTesting();
+    let refused = 0;
+    for (let i = 0; i < 25; i++) {
+      try {
+        await createInvitation(human(a, "owner"), { email: addr(), role: "viewer" });
+      } catch (error) {
+        if ((error as { statusCode?: number }).statusCode === 429) refused++;
+      }
+    }
+    expect(refused).toBeGreaterThan(0);
+    await resetRateLimitsForTesting();
+  });
 });
 
 describe("creating invitations", () => {
@@ -154,6 +193,7 @@ describe("accepting as a new person", () => {
     expect(await acceptInvitation({ token: revoked.token, signup: { ...signup, username: newName() } })).toMatchObject({ ok: false, code: "INVALID_LINK" });
 
     const admin = await addMember(a.businessId, "admin");
+    await prisma.user.update({ where: { id: admin.userId }, data: { email: addr(), emailVerifiedAt: new Date() } });
     const adminCtx: TenantContext = { ...human(a, "admin"), actor: { kind: "user", userId: admin.userId } };
     const byAdmin = await createInvitation(adminCtx, { email: addr(), role: "agent" });
     const adminToken = tokenIn(mail.messages.at(-1)!.text);

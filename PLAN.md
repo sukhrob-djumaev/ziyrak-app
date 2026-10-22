@@ -33,7 +33,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | --- | --- | --- | --- |
 | 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
 | 2 | **R3 — Operational safety** | Complete locally; residuals decided 2026-10-21; not deployed | Puppeteer 25 (PR #29) removes extract-zip: 0 production / 5 high full (braces lint tooling, accepted) advisories. |
-| 3 | **P1 — Platform and workspace access** | In progress; full acceptance open | Workspace/resource boundaries and secured operators; support/delayed integration remains open. |
+| 3 | **P1 — Platform and workspace access** | Complete locally 2026-10-22 (tag `phase-p1-complete`); not deployed | Workspace/resource boundaries, secured operators, support and delayed-work authority; evidence in the P1 closure record. |
 | 4 | **P2 — Managed AI and usage limits** | Not started / not run | P1 permission boundaries; platform-managed keys/models and enforced workspace caps. |
 | 5 | **P3 — Accounts and customer onboarding** | Not started / not run | P1 invitations/access and P2 managed AI; verified signup through first useful reply. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
@@ -469,8 +469,7 @@ The live board above owns ordering and status; CURRENT points to the next eligib
   three independent agent reviews, not human ones. Per-row evidence:
   `docs/p1-closure-matrix-2026-10-19.md`, `docs/p1-whole-surface-review-2026-10-21.md`. Open
   limits: windowed-browser mode not covered by the recorded run; per-workspace e-mail settings are
-  future work. Owner decision needed: declare P1 complete / tag `phase-p1-complete`, or name
-  further work.
+  future work. Owner declared P1 complete on 2026-10-22 (tag `phase-p1-complete`).
 
 ### P2 — Managed AI and usage limits
 

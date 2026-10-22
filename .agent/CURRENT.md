@@ -305,3 +305,7 @@ p1-closure merged into main as f7fa7fa and pushed; exact-head CI green. Code ide
 (browser 26/26, unit 1597/1619, tsc/lint clean). PLAN P1 closure-candidate record and matrix rows
 11/14 updated this session (docs only). P1 is NOT declared complete: owner must decide to close P1
 (tag) or name more work. Prohibited: P2/P3 start, tag, deploy, deleting DBs/worktrees without approval.
+
+## Update19 (2026-10-22, P1 complete)
+
+Owner declared P1 complete; tag phase-p1-complete on the commit containing this update. Not deployed. Next eligible: P2 (needs owner go-ahead for the new phase). Tag push needs approval.

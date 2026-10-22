@@ -11,7 +11,11 @@ async function mutation(page, path, method, action, status) {
     (r) => new URL(r.url()).pathname === path && r.request().method() === method
   );
   await action();
-  const response = await pending;
+  const response = await pending.catch(async (error) => {
+    await L.shot(page, "j23-no-response").catch(() => {});
+    const seen = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 600)).catch(() => "");
+    throw new Error(`no response to ${method} ${path} (expected ${status}): ${error.message} | page: ${seen}`);
+  });
   L.assert(response.status() === status, `${method} ${path} actual UI response ${status}`);
   return response;
 }
@@ -511,6 +515,6 @@ async function keyFlow(page, { actorId, businessId, connectionId, holdInitial = 
     for (const browser of browsers.reverse()) await browser.close();
   }
 })().catch((error) => {
-  console.error("J23: " + error.message);
+  console.error("J23: " + (error.stack || error.message));
   process.exitCode = 1;
 });

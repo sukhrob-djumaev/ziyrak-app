@@ -80,7 +80,7 @@ describe("invitation abuse limits", () => {
     const { resetRateLimitsForTesting } = await import("@/lib/rate-limit");
     await resetRateLimitsForTesting();
     let refused = 0;
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 55; i++) {
       try {
         await createInvitation(human(a, "owner"), { email: addr(), role: "viewer" });
       } catch (error) {

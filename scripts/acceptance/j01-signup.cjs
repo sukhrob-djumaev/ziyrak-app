@@ -41,7 +41,7 @@ async function clickText(p, sel, text) {
     await L.shot(p, `j1-${key}-check-email`);
     const wizardText = (await L.text(p)).slice(0, 500);
     L.assert(wizardText.includes(email), `${key}: the wizard tells the owner which address was mailed`);
-    L.assert(!/AI|API key|provider/i.test(wizardText), `${key}: signup shows no AI setup`);
+    L.assert(!/\bAI\b|API key|provider/.test(wizardText), `${key}: signup shows no AI setup`);
     const cookiesAfterSignup = (await p.cookies()).filter((k) => k.name === "owly-token");
     L.assert(cookiesAfterSignup.length === 0, `${key}: signup signs nobody in`);
 
@@ -66,7 +66,7 @@ async function clickText(p, sel, text) {
     // Controlled prerequisite for the rest of the suite (see header).
     const biz = L.sql('SELECT m."businessId" FROM "Membership" m JOIN "User" u ON u.id=m."userId" WHERE u.username=\'' + c.user + "' AND m.role='owner'");
     L.assert(biz, `${key}: owner workspace exists`);
-    L.assert(L.sql('SELECT "emailVerifiedAt" IS NOT NULL FROM "User" WHERE username=\'' + c.user + "'") === "t", `${key}: email is verified`);
+    L.assert(L.sql('SELECT "emailVerifiedAt" IS NOT NULL FROM "User" WHERE username=\'' + c.user + "'") === "true", `${key}: email is verified`);
     L.sql('UPDATE "WorkspaceAiAllowance" SET mode=\'legacy_byok\', status=\'active\' WHERE "businessId"=\'' + biz + "'");
     L.sql('UPDATE "OnboardingState" SET "activatedAt"=now() WHERE "businessId"=\'' + biz + "'");
     const apiKey = REAL_AI ? REAL_AI_KEY : "sk-standin-" + key.toLowerCase() + "-not-a-real-key";

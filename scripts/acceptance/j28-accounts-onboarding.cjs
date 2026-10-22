@@ -126,7 +126,7 @@ const step = (page, id) => page.$eval(`li[data-step="${id}"]`, (e) => e.dataset.
     await owner.p.waitForFunction(() => !document.querySelector("#activateWorkspace")?.disabled);
     await owner.p.click("#activateWorkspace");
     await owner.p.waitForFunction(() => !document.querySelector("#onboardingPanel"), { timeout: 20000 });
-    L.assert(L.sql(`SELECT "activatedAt" IS NOT NULL FROM "OnboardingState" WHERE "businessId"=${quote(bizId)}`) === "t", "activation is recorded");
+    L.assert(L.sql(`SELECT "activatedAt" IS NOT NULL FROM "OnboardingState" WHERE "businessId"=${quote(bizId)}`) === "true", "activation is recorded");
     const live = await call(owner.p, "/api/chat", "POST", { message: "When do you open?", customerContact: "j28-visitor2-" + suffix });
     L.assert(live.status === 200 && !/being set up/i.test(live.body?.response ?? "") && (live.body?.response ?? "").length > 0, "after activation the assistant answers");
     await L.shot(owner.p, "j28-activated");
@@ -185,7 +185,7 @@ const step = (page, id) => page.$eval(`li[data-step="${id}"]`, (e) => e.dataset.
     await g.p.type("#invitePassword", guest.pass);
     await Promise.all([g.p.waitForNavigation({ waitUntil: "networkidle0", timeout: 20000 }).catch(() => {}), g.p.click("#acceptInvitation")]);
     await L.sleep(1000);
-    L.assert(L.sql(`SELECT m.role||'|'||u."emailVerifiedAt" IS NOT NULL FROM "Membership" m JOIN "User" u ON u.id=m."userId" WHERE u.username=${quote(guest.user)} AND m."businessId"=${quote(bizId)}`) !== "", "the guest has a membership and a verified address");
+    L.assert(L.sql(`SELECT m.role||'|'||(u."emailVerifiedAt" IS NOT NULL) FROM "Membership" m JOIN "User" u ON u.id=m."userId" WHERE u.username=${quote(guest.user)} AND m."businessId"=${quote(bizId)}`) === "viewer|true", "the guest has the invited role and a verified address");
     L.assert((await call(g.p, "/api/admin/users", "GET")).status === 403, "the invited viewer cannot reach administration");
     const replayInvite = await call(g.p, "/api/auth/invitation/accept", "POST", { token: imail.token, username: "again_" + suffix, password: "Whatever-123456" });
     L.assert(replayInvite.status === 400, "an invitation link cannot be reused");
@@ -236,7 +236,7 @@ const step = (page, id) => page.$eval(`li[data-step="${id}"]`, (e) => e.dataset.
     await lg.p.type("#accountEmailPassword", legacy.pass);
     await lg.p.click("#accountEmailSubmit");
     const lmail = await L.waitForMail(legacy.email, { after: lstart, match: /verify-email/ });
-    L.assert(L.sql(`SELECT email IS NULL FROM "User" WHERE username=${quote(legacy.user)}`) === "t", "nothing is stored until the new mailbox confirms");
+    L.assert(L.sql(`SELECT email IS NULL FROM "User" WHERE username=${quote(legacy.user)}`) === "true", "nothing is stored until the new mailbox confirms");
     const lp = await lg.b.newPage();
     await lp.setExtraHTTPHeaders({ "X-Forwarded-For": "198.51.100.241" });
     await lp.goto(lmail.link, { waitUntil: "networkidle0" });

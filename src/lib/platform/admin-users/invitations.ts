@@ -78,7 +78,7 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
   // per recipient address so an invitation cannot be used to flood or phish an inbox.
   const sender = ctx.actor.kind === "user" ? await prisma.user.findUnique({ where: { id: ctx.actor.userId }, select: { emailVerifiedAt: true } }) : null;
   if (!sender?.emailVerifiedAt) throw new AppError(403, "EMAIL_NOT_VERIFIED", "Confirm your own email address before inviting people.");
-  const perWorkspace = await checkRateLimit(`invite:ws:${ctx.businessId}`, { maxRequests: 20, windowMs: 60 * 60 * 1000 });
+  const perWorkspace = await checkRateLimit(`invite:ws:${ctx.businessId}`, { maxRequests: 50, windowMs: 60 * 60 * 1000 });
   const perAddress = await checkRateLimit(`invite:addr:${createHash("sha256").update(email).digest("hex")}`, { maxRequests: 3, windowMs: 24 * 60 * 60 * 1000 });
   if (!perWorkspace.allowed || !perAddress.allowed) throw new AppError(429, "RATE_LIMIT_EXCEEDED", "Too many invitations. Try again later.");
   const inviterUserId = ctx.actor.kind === "user" ? ctx.actor.userId : "";

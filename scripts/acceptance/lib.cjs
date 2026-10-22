@@ -379,8 +379,18 @@ exports.inviteViaUi = async (page, { name, username, password, role }) => {
     body: JSON.stringify({ token: mail.token, username, password, name }),
   });
   exports.assert(accepted.ok, "invited person created their own account: " + username);
+  // The person accepted outside this page, so the administration table is stale until it is reloaded.
+  await page.reload({ waitUntil: "networkidle0" });
+  await page.waitForSelector("table tbody tr");
   const members = await page.evaluate(async () => (await (await fetch("/api/admin/users?limit=100")).json()).data);
   const saved = members.find((u) => u.username === username);
   exports.assert(saved && saved.role === role, "membership exists with the invited role: " + username);
   return saved;
 };
+
+// A journey that hangs (for example a browser that will not close) must fail the suite instead of
+// stalling it: exit non-zero after the watchdog period (default 25 minutes, the slowest journey needs ~7).
+setTimeout(() => {
+  console.error("Journey watchdog: exceeded " + (process.env.ACC_JOURNEY_TIMEOUT_MS || 1500000) + "ms");
+  process.exit(124);
+}, Number(process.env.ACC_JOURNEY_TIMEOUT_MS || 1500000)).unref();

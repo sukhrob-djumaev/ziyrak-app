@@ -1,26 +1,27 @@
 # Current task (reconciled 2026-10-22)
 
-Keep this file under ~60 lines: status, next action, blockers, prohibitions. Older updates are
-archived by `scripts/agent/archive-state.sh` into `docs/state-archive/`; full history before the
-2026-10-22 compaction is in `docs/state-archive/current-through-2026-10-22.md`.
+Keep this file under ~60 lines: status, next action, blockers, prohibitions. Older updates are archived by
+`scripts/agent/archive-state.py` into `docs/state-archive/`. Finished-package detail: `docs/milestone-archive.md`;
+docs index: `docs/README.md`.
 
 ## Status
-- Phase: managed-service readiness milestone (see PLAN.md live board).
-- Done and merged on main: R1, R3, P1 (tag `phase-p1-complete`), P2 (complete 2026-10-22; tag `phase-p2-complete`).
-- P3 (accounts and customer onboarding): implemented and verified in development on branch `p3-onboarding`
-  (candidate `01d9b59`: unit 1748 passed/23 skipped, agent security review fixed, all 28 browser journeys passed).
-  NOT merged. Docs: `docs/p3-accounts-onboarding-implementation-2026-10-22.md`, PLAN P3 result.
-- P3 open items (owner decisions 2026-10-22): operator invitations deferred to a follow-up (new account-creation
-  surface; needs its own tests-first work and security review; super admins still create operators with a chosen
-  password). Real mail delivery check NOT RUN (no email-delivery-ready claim); needs SMTP sender settings.
+- Milestone: managed-service readiness (PLAN.md live board).
+- Done and merged on main: R1, R3, P1 (`phase-p1-complete`), P2 (`phase-p2-complete`, local tag), P3 (merge `470073b`, exact-head CI green).
+- P3 verified: unit 1748 passed/23 skipped, agent security review fixed, browser 28/28 on build `01d9b59`
+  (stand-in AI, captured mail). No completion tag; not deployed.
+- P3 open items (owner decisions 2026-10-22): operator invitations deferred to a follow-up (own tests-first work and
+  security review); real mail delivery check NOT RUN (needs `PLATFORM_SMTP_*` sender settings and a real mailbox).
+- Workflow: token diet merged (`ede8031`); `chore/plan-slim` archives finished packages out of PLAN.md.
 
 ## Next action
-1. Owner: approve merging `p3-onboarding` (merge commit, then CI on the exact head); decide when to run the real mail check.
-2. After merge: decide the next package (operator invitations follow-up, R2/R4, or the real mail check).
+1. Owner: decide the P3 completion tag; push tag `phase-p2-complete` if wanted; approve `chore/plan-slim` merge.
+2. Next eligible work per the board: R2 (AI decision quality) needs explicit owner go-ahead and policy/threshold decisions;
+   R4 final acceptance after R1–R3 and P1–P3 (real mail and the R1 provider boundary are inputs to it).
 
 ## Retained resources (do not delete without approval)
-- Test/acceptance DBs: ziyrak_test_p2_*, ziyrak_acceptance_p2_*, ziyrak_test_p3_20261022, ziyrak_acceptance_p3_20261022[b-f], ziyrak_test_p2_baseline_d.
-- Worktrees under /Users/sukhrob/.codex/worktrees/ (p2-managed-ai, p3-onboarding, token-diet and older finished branches).
+- Test/acceptance DBs for P2/P3 runs and worktrees under /Users/sukhrob/.codex/worktrees/ (finished branches listed
+  for cleanup review, not yet approved).
 
 ## Prohibited without approval
-Push/merge/deploy/tag, starting another package, deleting DBs or worktrees, touching live port 7700 or the live worker checkout.
+Push tags, deploy, start R2/R4/R5, build operator invitations, delete DBs or worktrees, touch live port 7700 or the live
+worker checkout.

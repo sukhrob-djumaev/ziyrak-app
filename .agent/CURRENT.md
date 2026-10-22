@@ -323,3 +323,7 @@ browser J01-J26 + J27, live OpenAI check 3/3. Topology stopped, Redis container 
 retained: ziyrak_test_p2_20261022* (tests), ziyrak_acceptance_p2_managed_20261022[b], ziyrak_test_p2_baseline_d.
 Needs owner: merge approval for p2-managed-ai (merge commit, then CI on the exact head); then P3 start needs
 explicit authorization. Prohibited: push/merge/deploy, P3, deleting DBs/worktrees without approval.
+
+## Update22 (2026-10-22, P2 merged)
+
+Owner approved the merge; p2-managed-ai merged into main (merge commit, exact-head CI pending). P2 completion tag not created: needs owner decision. P3 starts only on explicit go-ahead (owner said: after the merge). Prohibited: deploy, deleting DBs/worktrees without approval.

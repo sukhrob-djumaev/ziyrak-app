@@ -39,6 +39,7 @@ const FORBIDDEN_FOR_EXISTING =
  */
 const RAW_SQL = [
   "app/api/health/route.ts",
+  "lib/ai/allowance.ts",
   "lib/platform/access/authority.ts",
   "lib/platform/dedicated-database.ts",
   "lib/platform/username-reservation.ts",

@@ -29,6 +29,8 @@ model Business {
   apiKeys              ApiKey[]
   placement            TenantPlacement?
   infrastructurePolicy InfrastructurePolicy?
+  aiAllowance          WorkspaceAiAllowance?
+  aiUsageReservations  AiUsageReservation[]
 
   // Every tenant-owned model gains a businessId relation back to Business
   // (§7.1, §12), contracted in the same migration that makes each model's
@@ -1120,4 +1122,55 @@ model ActionExecution {
   @@unique([businessId, idempotencyKey])
   @@index([businessId, status])
   @@index([businessId, conversationId])
+}
+
+// ==================== MANAGED AI (PLAN.md P2, docs/p2-managed-ai-proposal-2026-10-22.md) ====================
+// Control-plane only. Tenants never read or write these; customer APIs expose a safe projection.
+
+model AiServicePolicy {
+  id              String   @id @default(uuid())
+  kind            String // "generation" | "embedding"
+  version         Int
+  active          Boolean  @default(false)
+  displayName     String
+  provider        String
+  model           String
+  credentialRef   String? // SecretResolver envelope; never returned to any client
+  maxTokens       Int      @default(1024)
+  temperature     Float    @default(0.7)
+  maxPromptTokens Int      @default(12000)
+  maxToolDepth    Int      @default(5)
+  createdAt       DateTime @default(now())
+
+  @@unique([kind, version])
+}
+
+model WorkspaceAiAllowance {
+  businessId            String   @id
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  mode                  String   @default("managed") // "managed" | "legacy_byok"
+  status                String   @default("active") // "active" | "suspended"
+  generationLimitTokens Int      @default(500000)
+  embeddingLimitTokens  Int      @default(1000000)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AiUsageReservation {
+  id             String   @id @default(uuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  kind           String // "generation" | "embedding"
+  periodStart    DateTime // first instant of the UTC calendar month
+  reservedTokens Int
+  settledTokens  Int?
+  state          String // "reserved" | "settled" | "released" | "uncertain"
+  idempotencyKey String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, kind, periodStart, state])
+  @@index([state, expiresAt])
 }

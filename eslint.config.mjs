@@ -56,6 +56,9 @@ const eslintConfig = defineConfig([
       // read in this file goes through getScopedPrisma(ctx)'s BusinessConfig
       // lookup like everything else.
       "src/lib/ai/config.ts",
+      // P2 managed-AI allowance: control-plane reservation accounting that
+      // must lock the platform-owned allowance row across workspaces/processes.
+      "src/lib/ai/allowance.ts",
       // First-run setup/login bootstrap: creates the Business/
       // TenantPlacement/User/Membership a TenantContext would itself be
       // resolved from, and resolves login against User before any ctx

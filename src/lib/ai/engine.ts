@@ -18,6 +18,7 @@ import { aiProviderRegistry } from "./providers/registry";
 import { assertAiProviderPermitted } from "@/lib/platform/infrastructure-policy";
 import { AIProviderError, type AIProvider, type CompletionRequest, type CompletionResult } from "./providers/types";
 import { recordAIInteraction } from "./usage";
+import { meteredCall, AllowanceError, estimateTokensFromText } from "./metered";
 import {
   appendCustomerMessage,
   appendAssistantMessage,
@@ -213,7 +214,7 @@ export async function chat(
   messages.push({ role: "user", content: userMessage });
 
   // Call AI
-  const { text: rawResponse, hasToolCalls } = await callAI(ctx, aiConfig, messages, conversationId);
+  const { text: rawResponse, hasToolCalls, handoff } = await callAI(ctx, aiConfig, messages, conversationId);
   const response = enforceResponseLength(rawResponse);
 
   // Save assistant message
@@ -223,7 +224,7 @@ export async function chat(
   // a tool was actually used anywhere in this turn's (possibly recursive)
   // tool-call loop, not a hardcoded false.
   const confidence = estimateConfidence(response, knowledgeBase.length, hasToolCalls);
-  if (confidence.shouldEscalate) {
+  if (confidence.shouldEscalate || handoff) {
     await escalateConversation(ctx, conversationId);
   }
 
@@ -234,6 +235,8 @@ export async function chat(
 
 const FALLBACK_DEPTH_EXCEEDED =
   "I apologize, but I'm having trouble processing your request. Let me connect you with a team member.";
+const FALLBACK_ALLOWANCE_UNAVAILABLE =
+  "I'm unable to continue with automated replies right now, so I'm connecting you with a team member who can help.";
 const FALLBACK_PROVIDER_ERROR =
   "I'm temporarily unable to process your request. Please try again in a moment, or I can connect you with a team member.";
 
@@ -244,8 +247,8 @@ async function callAI(
   conversationId: string,
   depth = 0,
   usedToolInThisTurn = false
-): Promise<{ text: string; hasToolCalls: boolean }> {
-  if (depth > 5) {
+): Promise<{ text: string; hasToolCalls: boolean; handoff?: boolean }> {
+  if (depth > (config.maxToolDepth ?? 5)) {
     return { text: FALLBACK_DEPTH_EXCEEDED, hasToolCalls: usedToolInThisTurn };
   }
 
@@ -266,14 +269,39 @@ async function callAI(
 
   let result: CompletionResult;
   try {
-    result = await completeWithOneRetry(provider, {
+    const request: CompletionRequest = {
       messages,
       tools: availableTools.map(toProviderToolDefinition),
       maxTokens: config.maxTokens,
       temperature: config.temperature,
       model: config.model,
-    });
+    };
+    // P2 — every provider attempt (each tool-loop iteration and the retry) is
+    // metered separately for a managed workspace; unmanaged ones pass through.
+    const promptTokens = estimateTokensFromText(JSON.stringify(messages) + JSON.stringify(request.tools ?? []));
+    result = await completeWithOneRetry(provider, request, (attempt) =>
+      meteredCall(
+        ctx,
+        {
+          kind: "generation",
+          managed: config.managed,
+          estimateTokens: promptTokens + config.maxTokens,
+          promptTokens,
+          maxPromptTokens: config.maxPromptTokens,
+          usageOf: (r: CompletionResult) => r.usage.totalTokens,
+        },
+        attempt
+      )
+    );
   } catch (error) {
+    if (error instanceof AllowanceError) {
+      logger.warn("AI allowance unavailable; handing the conversation to a human", {
+        businessId: ctx.businessId,
+        conversationId,
+        reason: error.reason,
+      });
+      return { text: FALLBACK_ALLOWANCE_UNAVAILABLE, hasToolCalls: usedToolInThisTurn, handoff: true };
+    }
     // The customer gets the honest fallback copy, never fabricated content;
     // the operator gets the reason. Never log the credential or prompt.
     logger.warn("AI provider call failed; replying with fallback copy", {
@@ -332,12 +360,16 @@ async function callAI(
  * user-facing fallback message. A non-retryable error (auth, invalid
  * request) or a second failed attempt propagates to the caller unchanged.
  */
-async function completeWithOneRetry(provider: AIProvider, request: CompletionRequest): Promise<CompletionResult> {
+async function completeWithOneRetry(
+  provider: AIProvider,
+  request: CompletionRequest,
+  meter: (attempt: () => Promise<CompletionResult>) => Promise<CompletionResult>
+): Promise<CompletionResult> {
   try {
-    return await provider.complete(request);
+    return await meter(() => provider.complete(request));
   } catch (error) {
     if (error instanceof AIProviderError && error.retryable) {
-      return provider.complete(request);
+      return meter(() => provider.complete(request));
     }
     throw error;
   }

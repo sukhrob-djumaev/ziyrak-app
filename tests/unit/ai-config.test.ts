@@ -50,6 +50,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
       maxTokens: 1500,
       temperature: 0.4,
       apiKey: "sk-ant-own-key",
+      managed: false,
     });
     expect(mockPrisma.settings.findUnique).not.toHaveBeenCalled();
   });
@@ -83,6 +84,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
       maxTokens: 2048,
       temperature: 0.7,
       apiKey: "sk-legacy-key",
+      managed: false,
     });
   });
 
@@ -239,7 +241,7 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     });
 
     const config = await resolveEmbeddingConfig(otherBusinessCtx);
-    expect(config).toEqual({ provider: "openai", apiKey: "sk-shared-key" });
+    expect(config).toEqual({ provider: "openai", apiKey: "sk-shared-key", managed: false });
   });
 
   it("embedding config uses its own dedicated credential over the generation one when both are set", async () => {
@@ -260,6 +262,6 @@ describe("resolveAIConfig/resolveEmbeddingConfig (§46.4/§10.4) — precedence"
     });
 
     const config = await resolveEmbeddingConfig(otherBusinessCtx);
-    expect(config).toEqual({ provider: "openai", apiKey: "sk-embedding-key" });
+    expect(config).toEqual({ provider: "openai", apiKey: "sk-embedding-key", managed: false });
   });
 });

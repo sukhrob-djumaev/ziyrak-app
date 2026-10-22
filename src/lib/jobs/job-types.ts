@@ -33,6 +33,8 @@ export interface SweepRetentionPayload {
   businessId: string;
 }
 
+export const SWEEP_AI_RESERVATIONS_JOB = "sweep-ai-reservations";
+
 export const RETRY_DELIVERY_JOB = "retry-delivery";
 export interface RetryDeliveryPayload {
   businessId: string;

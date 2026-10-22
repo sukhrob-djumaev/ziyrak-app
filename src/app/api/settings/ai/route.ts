@@ -12,6 +12,8 @@ import { isSupportedAnthropicModel, unsupportedAnthropicModelMessage } from "@/l
 import { PLATFORM_AI_DEFAULTS } from "@/lib/platform/defaults";
 import { logger } from "@/lib/observability/logger";
 import { reindexStaleEntries } from "@/lib/knowledge/service";
+import { getCustomerAllowanceView } from "@/lib/ai/allowance";
+import { errorResponse } from "@/lib/observability/errors";
 
 /**
  * PLAN.md §46.4/§10.4 — the real, tenant-scoped AI provider/embedding
@@ -70,6 +72,10 @@ export async function GET(request: NextRequest) {
   if (!isAuthenticated(ctx)) return ctx;
 
   try {
+    // P2 — a managed workspace sees service name and usage only, never provider/model/key.
+    const managedView = await getCustomerAllowanceView(ctx.businessId);
+    if (managedView) return NextResponse.json(managedView);
+
     const db = getScopedPrisma(ctx);
     const config = await db.businessConfig.upsert({
       where: { businessId: ctx.businessId },
@@ -89,6 +95,10 @@ export async function PUT(request: NextRequest) {
   if (!isAuthenticated(ctx)) return ctx;
 
   try {
+    // P2 — provider, model, key and limits of a managed workspace belong to the platform.
+    if (await getCustomerAllowanceView(ctx.businessId)) {
+      return errorResponse(403, "AI_MANAGED", "AI service settings for this workspace are managed by the platform.");
+    }
     const body = await request.json();
     const validation = validateBody(updateAISettingsSchema, body);
     if (!validation.success) {

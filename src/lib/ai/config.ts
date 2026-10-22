@@ -57,11 +57,16 @@ export interface ResolvedAIConfig {
   maxTokens: number;
   temperature: number;
   apiKey: string | null;
+  /** True when the platform service policy (P2) supplied this configuration; calls are metered. */
+  managed: boolean;
+  maxPromptTokens?: number;
+  maxToolDepth?: number;
 }
 
 export interface ResolvedEmbeddingConfig {
   provider: string;
   apiKey: string | null;
+  managed: boolean;
 }
 
 /**
@@ -152,7 +157,54 @@ async function resolveLegacySettings(ctx: TenantContext): Promise<LegacyAIConfig
   };
 }
 
+/**
+ * P2 — a workspace with a `WorkspaceAiAllowance` row in mode "managed" uses the
+ * platform service policy only. No allowance row, or mode "legacy_byok", keeps
+ * the pre-P2 resolution unchanged (existing tenant keys never switch silently).
+ */
+async function isManagedWorkspace(ctx: TenantContext): Promise<boolean> {
+  const allowance = await rawPrisma.workspaceAiAllowance.findUnique({
+    where: { businessId: ctx.businessId },
+    select: { mode: true },
+  });
+  return allowance?.mode === "managed";
+}
+
+async function loadActivePolicy(kind: "generation" | "embedding") {
+  return rawPrisma.aiServicePolicy.findFirst({ where: { kind, active: true }, orderBy: { version: "desc" } });
+}
+
+async function resolveManagedAIConfig(): Promise<ResolvedAIConfig> {
+  const policy = await loadActivePolicy("generation");
+  if (!policy) {
+    const provider = PLATFORM_AI_DEFAULTS.aiProvider;
+    return {
+      provider,
+      model: defaultModelForProvider(provider),
+      maxTokens: PLATFORM_AI_DEFAULTS.maxTokens,
+      temperature: PLATFORM_AI_DEFAULTS.temperature,
+      apiKey: null,
+      managed: true,
+    };
+  }
+  const provider = normalizeProviderName(policy.provider);
+  const apiKey = policy.credentialRef
+    ? await decryptCredential(policy.credentialRef, AIProviderCredentialSchema, provider)
+    : null;
+  return {
+    provider,
+    model: policy.model,
+    maxTokens: policy.maxTokens,
+    temperature: policy.temperature,
+    apiKey,
+    managed: true,
+    maxPromptTokens: policy.maxPromptTokens,
+    maxToolDepth: policy.maxToolDepth,
+  };
+}
+
 export async function resolveAIConfig(ctx: TenantContext): Promise<ResolvedAIConfig> {
+  if (await isManagedWorkspace(ctx)) return resolveManagedAIConfig();
   const db = getScopedPrisma(ctx);
   const config = await db.businessConfig.findUnique({ where: { businessId: ctx.businessId } });
 
@@ -163,7 +215,7 @@ export async function resolveAIConfig(ctx: TenantContext): Promise<ResolvedAICon
 
   if (config?.aiCredentialRef) {
     const apiKey = await decryptCredential(config.aiCredentialRef, AIProviderCredentialSchema, provider);
-    return { provider, model, maxTokens, temperature, apiKey };
+    return { provider, model, maxTokens, temperature, apiKey, managed: false };
   }
 
   // The legacy fallback: only for the Default Business, and only while
@@ -195,14 +247,24 @@ export async function resolveAIConfig(ctx: TenantContext): Promise<ResolvedAICon
         maxTokens: legacy.maxTokens,
         temperature: legacy.temperature,
         apiKey: legacy.apiKey,
+        managed: false,
       };
     }
   }
 
-  return { provider, model, maxTokens, temperature, apiKey: null };
+  return { provider, model, maxTokens, temperature, apiKey: null, managed: false };
 }
 
 export async function resolveEmbeddingConfig(ctx: TenantContext): Promise<ResolvedEmbeddingConfig> {
+  if (await isManagedWorkspace(ctx)) {
+    const policy = await loadActivePolicy("embedding");
+    if (!policy) return { provider: PLATFORM_AI_DEFAULTS.aiProvider, apiKey: null, managed: true };
+    const provider = normalizeProviderName(policy.provider);
+    const apiKey = policy.credentialRef
+      ? await decryptCredential(policy.credentialRef, EmbeddingProviderCredentialSchema, provider)
+      : null;
+    return { provider, apiKey, managed: true };
+  }
   const db = getScopedPrisma(ctx);
   const config = await db.businessConfig.findUnique({ where: { businessId: ctx.businessId } });
 
@@ -211,7 +273,7 @@ export async function resolveEmbeddingConfig(ctx: TenantContext): Promise<Resolv
 
   if (config?.embeddingCredentialRef) {
     const apiKey = await decryptCredential(config.embeddingCredentialRef, EmbeddingProviderCredentialSchema, provider);
-    return { provider, apiKey };
+    return { provider, apiKey, managed: false };
   }
 
   // §22.2 — reuse the generation credential for embeddings when the
@@ -220,14 +282,14 @@ export async function resolveEmbeddingConfig(ctx: TenantContext): Promise<Resolv
   // doesn't need to enter it twice.
   if (config?.aiCredentialRef && provider === generationProvider) {
     const apiKey = await decryptCredential(config.aiCredentialRef, AIProviderCredentialSchema, provider);
-    if (apiKey) return { provider, apiKey };
+    if (apiKey) return { provider, apiKey, managed: false };
   }
 
   const hasOwnEmbeddingConfig = Boolean(config?.embeddingProvider || config?.aiCredentialRef);
   if (!hasOwnEmbeddingConfig) {
     const legacy = await resolveLegacySettings(ctx);
-    if (legacy) return { provider, apiKey: legacy.apiKey };
+    if (legacy) return { provider, apiKey: legacy.apiKey, managed: false };
   }
 
-  return { provider, apiKey: null };
+  return { provider, apiKey: null, managed: false };
 }

@@ -1,9 +1,9 @@
-# Latest session handoff (2026-10-22, overnight run)
+# Latest session handoff (2026-10-23)
 
-- Cleaned: removed empty leftover folders under `~/.codex/worktrees`; `CURRENT.md` reconciled; pushed `main`.
-- R2: wrote `docs/r2-ai-decision-quality-proposal-2026-10-22.md` (evidence: confidence bonuses unreachable at retrieval limit 8,
-  short correct replies score 0.5 and escalate; proposed rules E1-E5, thresholds, case-set plan). No behavior changed.
-- Operator invitations built on `feat/operator-invitations` (`cbe71f2`): library, routes, accept page, console UI, 14 tests,
-  shared platform test lock. Independent agent review: no escalation path; 3 low findings fixed. Full suite green on isolated DB.
-- Not done: browser journey for the new flow, real mail check, merge (needs owner approval), R2 implementation (needs approval).
-- Continue: owner reviews branch and R2 proposal; on merge approval run CI + browser suite on the exact head.
+- Merged operator invitations (`fae51d8`, CI green on exact head). Pushed main.
+- R2 implemented on `feat/r2-decision-quality` (PR #31): rule-based escalation, case set (40 dev / 60 eval), scorer, live runner.
+  Real-model results: dev run 3 and evaluation run 4 meet all thresholds. Evaluation runs 1 and 3 failed because of scorer/case-pattern
+  defects (not product); disclosed in the record. A fresh evaluation set is needed for an unbiased claim.
+- Not done: browser suite on the combined build (machine load was 21+ in the morning), a journey for operator invitations, J11 handoff
+  check for R2, real mail check, R2 merge, P3 tag.
+- Continue: wait for a quiet machine, merge main into R2 branch, build, run `scripts/acceptance` per `run-all.sh` on a fresh DB.

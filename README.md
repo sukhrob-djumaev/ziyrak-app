@@ -1,6 +1,6 @@
 # Ziyrak AI
 
-Ziyrak is a multi-tenant customer-support application developed from Ziyrak. Its approved
+Ziyrak is a multi-tenant customer-support application developed from Owly (the former name). Its approved
 product direction is a managed AI service: businesses create private workspaces,
 configure their knowledge and channels, and use AI managed by Ziyrak. A separate
 worker handles queued inbound messages, knowledge indexing and scheduled actions.

@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
  */
 const SCANNED = ["src", "public", "README.md", "SECURITY.md", "CONTRIBUTING.md", "package.json"];
 const ALLOWED = [
+  /developed from Owly \(the former name\)/, // historical provenance statement in README
   /owly-token/, // session cookie name: renaming would sign everyone out (compat exception)
   /owly:/, // default Redis key prefix: renaming would orphan queues/cache (compat exception)
   /X-Owly-Signature/, // legacy webhook signature header, sent alongside X-Ziyrak-Signature

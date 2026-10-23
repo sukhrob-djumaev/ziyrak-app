@@ -20,8 +20,10 @@ docs index: `docs/README.md`.
 - Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `ziyrak_acceptance_r2_20261023{a,b,c}`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
 
 ## Next action
-1. R1 targeted Meta recipient-visible reply check (may be blocked by Meta test-account lock 131031; owner decides waiver), then R4 per standing authorization.
-2. R4 final acceptance needs real mail and the R1 provider boundary as inputs; a fresh unbiased R2 evaluation set is optional.
+1. R4 final acceptance (STARTED 2026-10-23, owner approved). Started UTC: see In flight. Helper works in a new worktree.
+2. R1 targeted Meta recipient-visible reply check: WAIVED by owner 2026-10-23 (Meta test-account lock 131031). R4 must record it
+   as an explicit waiver (recipient-visible Meta delivery not verified), not a pass. Real mail already passed in P3.
+3. A fresh unbiased R2 evaluation set is optional.
 
 ## Retained resources (do not delete without approval)
 - Test/acceptance DBs for P2/P3 runs (not checked: `psql` could not list them from this shell).
@@ -39,5 +41,5 @@ Continue to the next eligible task. Still stop for: tags, deploys, releases, for
 milestone/phase, real credentials or mail, port 7700.
 
 ## Prohibited without approval
-Push tags, deploy, start R4/R5, delete DBs or worktrees, touch live port 7700 or the live
+Push tags, deploy, start R5, delete DBs or worktrees, touch live port 7700 or the live
 worker checkout.

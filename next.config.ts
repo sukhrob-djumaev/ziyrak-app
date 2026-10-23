@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: { agentUpgrade: "security" },
   serverExternalPackages: ["whatsapp-web.js", "puppeteer"],
   async headers() {
     return [

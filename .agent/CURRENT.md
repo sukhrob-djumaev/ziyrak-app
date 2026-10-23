@@ -28,6 +28,10 @@ docs index: `docs/README.md`.
 - `/Users/sukhrob/.codex/worktrees/*` (10 dirs, e.g. p3-onboarding) are empty (0B, no `.git`) and no longer git
   worktrees; leftover empty folders, safe to remove once approved.
 
+## Worker start command (owner terminal; auto-compacts at 200k, stop with `touch .agent/STOP`)
+`cd ~/Development/Repos/JS/owly && CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude --model sonnet --settings '{"enabledPlugins":{"dart-flutter@dart-flutter":false}}'`
+then type `/loop /ziyrak continue`.
+
 ## Standing authorization (owner, 2026-10-23)
 Within the approved milestone, merge a PR to main without asking when CI is green on its exact head AND the plan's required
 browser run is green on the combined build; then push main and re-check CI on the new head. Never merge on red/pending/skipped.

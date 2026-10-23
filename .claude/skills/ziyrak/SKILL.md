@@ -49,7 +49,7 @@ small. These rules change how much is read, never what is checked.
   and prints one CI verdict line, so nothing polls), and `scripts/agent/merge-gate.sh <n>` (prints `MERGE_OK <sha>`
   only when every check on the exact head is green and the PR is clean; the merge then pins that sha).
 - **Dispatcher size.** Check `python3 scripts/agent/usage.py --context` once per invocation; above 400,000, finish
-  bookkeeping, stop the loop and ask the owner to restart (auto-compact is set by `start-worker.sh`).
+  bookkeeping, stop the loop and ask the owner to restart (auto-compact comes from the worker start command in CURRENT).
 - **Cost per task.** Record `python3 scripts/agent/usage.py --since <task start UTC>` (input, cache, output
   tokens incl. helpers) on the task's line in HANDOFF, so expensive tasks are visible.
 - **Don't re-read what is known.** A SessionStart hook already prints git state and the head of CURRENT; on a
@@ -115,6 +115,6 @@ The dispatcher then:
 
 ## 6. Context size
 
-The worker is started with `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000` (`scripts/agent/start-worker.sh`), so it
+The worker is started with `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000` (start command in `.agent/CURRENT.md`), so it
 compacts itself and the loop goes on. After a compaction re-read only §1. If the context stays above ~400k,
 finish bookkeeping, stop the loop and ask the owner to restart the worker.

@@ -39,9 +39,15 @@ small. These rules change how much is read, never what is checked.
   handover loses nothing. After a compaction a helper re-reads that file first.
 - **Hand over before a helper grows big.** Past ~150k context, update the progress file and return
   `CONTINUE <path>`; the dispatcher starts a fresh helper.
-- **Models.** Dispatcher/bookkeeping: sonnet (it only sequences). Helpers: sonnet for routine verification,
-  browser runs, state and docs; opus for security-sensitive implementation and any independent security review.
-  Log reading: `log-triage` (haiku). Pass `model` explicitly on every Agent call.
+- **Models: balanced, quality slightly ahead of time and tokens** (owner, 2026-10-23). Never use the newest top tier
+  (fable). Dispatcher and bookkeeping: sonnet. Helpers: sonnet by default, including implementation and browser
+  runs; opus for security-sensitive code (auth, tenant isolation, secrets, crypto, webhooks, payments), independent
+  security/code review, and any task that failed once on sonnet. Log reading: `log-triage` (haiku). Pass `model`
+  explicitly on every Agent call. Never trade a check away for tokens: reduce what is read, not what is verified.
+- **Scripts instead of model turns.** Use `scripts/agent/verify.sh [--tests <paths>]` (tsc, lint, optional vitest;
+  one line per step, logs in `.agent/progress/logs`), `scripts/agent/ci-wait.sh pr <n>|sha <commit> [min]` (blocks
+  and prints one CI verdict line, so nothing polls), and `scripts/agent/merge-gate.sh <n>` (prints `MERGE_OK <sha>`
+  only when every check on the exact head is green and the PR is clean; the merge then pins that sha).
 - **Dispatcher size.** Check `python3 scripts/agent/usage.py --context` once per invocation; above 400,000, finish
   bookkeeping, stop the loop and ask the owner to restart (auto-compact is set by `start-worker.sh`).
 - **Cost per task.** Record `python3 scripts/agent/usage.py --since <task start UTC>` (input, cache, output

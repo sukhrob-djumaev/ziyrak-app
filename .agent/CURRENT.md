@@ -19,6 +19,8 @@ docs index: `docs/README.md`.
   28/28 incl. J11 on the combined build. Record `docs/r2-ai-decision-quality-implementation-2026-10-23.md`.
 - Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `ziyrak_acceptance_r2_20261023{a,b,c}`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
 
+- R4: IN FLIGHT since 2026-10-23T14:48Z; progress file `.agent/progress/r4.md`.
+
 ## Next action
 1. R4 final acceptance (STARTED 2026-10-23, owner approved). Started UTC: see In flight. Helper works in a new worktree.
 2. R1 targeted Meta recipient-visible reply check: WAIVED by owner 2026-10-23 (Meta test-account lock 131031). R4 must record it

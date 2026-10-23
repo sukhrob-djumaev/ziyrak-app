@@ -22,7 +22,7 @@ docs index: `docs/README.md`.
 - R4: MERGED (PR #33, `14e09ce`, exact-head CI green). Local/stand-in verification passed: vitest 1807, browser 30/30 on build `7043d16`. R1 Meta reply check WAIVED by owner; smoke suites not run; not deployed.
 
 ## Next action
-1. R5 (naming/branding) needs owner approval to start (prohibited until then). Owner decisions pending: cleanup of R4 worktree/DBs/Redis/topology; Next 16.4.0 security-advisory upgrade (`next upgrade --agent=security`); tags.
+1. R5 STARTED 2026-10-24 (owner: "approve, do"). Also approved: R4 cleanup (worktree ../owly-wt-r4, its DBs, Redis, topology) and the Next security upgrade as its own commit. Tags still need an explicit tag name from the owner. Progress `.agent/progress/r5.md`.
 3. A fresh unbiased R2 evaluation set is optional.
 
 ## Retained resources (do not delete without approval)
@@ -41,5 +41,5 @@ Continue to the next eligible task. Still stop for: tags, deploys, releases, for
 milestone/phase, real credentials or mail, port 7700.
 
 ## Prohibited without approval
-Push tags, deploy, start R5, delete DBs or worktrees, touch live port 7700 or the live
+Push tags, deploy, delete DBs or worktrees, touch live port 7700 or the live
 worker checkout.

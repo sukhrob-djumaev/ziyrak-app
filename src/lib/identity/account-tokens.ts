@@ -11,7 +11,7 @@ import type { Prisma } from "@/generated/prisma/client";
  * or wrong-recipient attempt does not consume the token. Issuing a new token of
  * the same purpose and recipient invalidates the older ones.
  */
-export type AccountTokenPurpose = "verify_email" | "reset_password" | "invitation";
+export type AccountTokenPurpose = "verify_email" | "reset_password" | "invitation" | "operator_invitation";
 
 export interface IssueInput {
   purpose: AccountTokenPurpose;
@@ -19,6 +19,8 @@ export interface IssueInput {
   ttlMs: number;
   userId?: string;
   payload?: Prisma.InputJsonValue;
+  /** Issue inside the caller's transaction (control-plane writes that must commit with their audit row). */
+  tx?: Prisma.TransactionClient;
 }
 
 export interface ConsumedToken {
@@ -35,10 +37,10 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 export async function issueAccountToken(input: IssueInput): Promise<{ token: string; id: string }> {
   const token = randomBytes(32).toString("base64url");
   const email = normalizeEmail(input.email);
-  const row = await prisma.$transaction(async (tx) => {
+  const write = async (tx: Prisma.TransactionClient) => {
     // Older unused tokens for the same purpose, recipient and account stop working (two accounts
     // claiming one address must not cancel each other's links; invitations keep their own lifetime).
-    if (input.purpose !== "invitation") {
+    if (input.purpose !== "invitation" && input.purpose !== "operator_invitation") {
       await tx.accountToken.updateMany({
         where: { purpose: input.purpose, email, usedAt: null, userId: input.userId ?? null },
         data: { usedAt: new Date() },
@@ -55,7 +57,8 @@ export async function issueAccountToken(input: IssueInput): Promise<{ token: str
       },
       select: { id: true },
     });
-  });
+  };
+  const row = input.tx ? await write(input.tx) : await prisma.$transaction(write);
   return { token, id: row.id };
 }
 

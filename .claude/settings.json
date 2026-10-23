@@ -52,7 +52,27 @@
       "Read(//private/tmp/**)",
       "Read(//Users/sukhrob/Development/Repos/JS/**)",
       "Bash(python3 scripts/agent/:*)",
-      "Bash(bash scripts/agent/:*)"
+      "Bash(bash scripts/agent/:*)",
+      "Bash(python3 -:*)",
+      "Bash(sed:*)",
+      "Bash(docker exec:*)",
+      "Bash(export:*)",
+      "Bash(source:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git grep:*)",
+      "Bash(git pull --ff-only:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh run watch:*)",
+      "Bash(timeout:*)",
+      "Bash(echo:*)",
+      "Bash(mkdir:*)",
+      "Bash(uptime:*)",
+      "Bash(ps:*)",
+      "Edit(//private/tmp/**)",
+      "Write(//private/tmp/**)"
     ],
     "deny": [
       "Bash(git reset --hard:*)",
@@ -61,10 +81,14 @@
       "Bash(rm -rf:*)",
       "Bash(pkill:*)",
       "Bash(killall:*)",
-      "Bash(*:7700*)"
+      "Bash(*:7700*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * --delete*)",
+      "Bash(git push origin :*)"
     ],
     "ask": [
-      "Bash(git push:*)",
       "Bash(gh pr merge:*)",
       "Bash(gh release:*)"
     ]

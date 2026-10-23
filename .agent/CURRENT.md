@@ -13,14 +13,16 @@ docs index: `docs/README.md`.
   security review); real mail delivery check NOT RUN (needs `PLATFORM_SMTP_*` sender settings and a real mailbox).
 - Workflow: token diet merged (`ede8031`); `chore/plan-slim` archives finished packages out of PLAN.md.
 
-## In flight (not merged)
-- Operator invitations: branch `feat/operator-invitations` (worktree `../owly-wt-operator-invitations`, commit `cbe71f2`),
-  tests-first, agent security review fixed, full unit 176 files/1766 passed on isolated DB `ziyrak_opinv_test_20261022`.
-  Browser journey and real mail NOT run. Awaiting owner approval to merge (then run browser suite + CI on exact head).
-- R2: proposal `docs/r2-ai-decision-quality-proposal-2026-10-22.md` awaits owner agreement on rules/thresholds.
+## In flight
+- Operator invitations: MERGED to main (`fae51d8`, PR #30, exact-head CI green `cbe71f2`). Post-merge full browser suite and a
+  journey for the new flow NOT run yet (plan rerun trigger: auth/routing change). Real mail NOT run.
+- R2: branch `feat/r2-decision-quality` (PR #31, worktree `../owly-wt-r2`), implemented and live-evaluated: all approved thresholds met in
+  run 4 (`gpt-4o-mini`), with disclosed scorer fixes after evaluation exposure. Record `docs/r2-ai-decision-quality-implementation-2026-10-23.md`.
+  NOT merged: needs CI on exact head and the browser handoff journey (J11) on the combined build.
+- Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
 
 ## Next action
-1. Owner: decide the P3 completion tag (blocked on the real-mail check). `phase-p2-complete` is pushed and `chore/plan-slim`
+1. Run the full browser suite on a build of main + R2 (quiet machine, short foreground runs); then merge R2 if green. Owner: decide the P3 tag (blocked on real mail). `phase-p2-complete` is pushed and `chore/plan-slim`
    is merged (`c538d98`); main equals origin/main.
 2. Next eligible work per the board: R2 (AI decision quality) needs explicit owner go-ahead and policy/threshold decisions;
    R4 final acceptance after R1–R3 and P1–P3 (real mail and the R1 provider boundary are inputs to it).
@@ -30,6 +32,12 @@ docs index: `docs/README.md`.
 - `/Users/sukhrob/.codex/worktrees/*` (10 dirs, e.g. p3-onboarding) are empty (0B, no `.git`) and no longer git
   worktrees; leftover empty folders, safe to remove once approved.
 
+## Standing authorization (owner, 2026-10-23)
+Within the approved milestone, merge a PR to main without asking when CI is green on its exact head AND the plan's required
+browser run is green on the combined build; then push main and re-check CI on the new head. Never merge on red/pending/skipped.
+Continue to the next eligible task. Still stop for: tags, deploys, releases, force-push, deleting DBs/worktrees/branches, new
+milestone/phase, real credentials or mail, port 7700.
+
 ## Prohibited without approval
-Push tags, deploy, start R2/R4/R5, build operator invitations, delete DBs or worktrees, touch live port 7700 or the live
+Push tags, deploy, start R4/R5, delete DBs or worktrees, touch live port 7700 or the live
 worker checkout.

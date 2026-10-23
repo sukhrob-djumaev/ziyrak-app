@@ -64,3 +64,15 @@ real-mail delivery check was NOT RUN, so email delivery is not claimed ready. Op
   banner. Earlier attempts on previous builds failed for journey-script and one real regression (restricted
   administrators requested invitations and the page treated the 403 as lost authority; fixed) and are not counted.
 - Not covered: real mail delivery, windowed-browser mode, real provider through the browser, human review.
+
+## Follow-up: operator invitations (branch `feat/operator-invitations`, 2026-10-22)
+
+A super admin invites a NEW platform identity by email (`/api/platform/operators` actions `invite` / `revokeInvitation`; public
+`/accept-operator-invitation`, `/api/auth/operator-invitation/{preview,accept}`). Token purpose `operator_invitation` (3 days, hashed,
+single use); the invitee chooses username and password (12-72 bytes); acceptance runs in the platform control lock and re-checks the
+inviter is still the current super admin and the control generation is unchanged (recovery or demotion voids open invitations);
+any existing account with the address blocks the invite; nobody is promoted or signed in; every step is audited. Budgets: 10/h per
+actor, 3/day per address, spent only after conflict checks. Tests: 14 new cases in `tests/security/platform-authority.test.ts`;
+shared `acquirePlatformLock` serializes the super-admin singleton across test files. Independent read-only agent review: no
+escalation path; three low findings fixed (unverified-holder squat, budget spent on conflicts, mail-failure audit row).
+Verification: unit/real-PG 176 files, 1765 passed/23 skipped before the review fixes; platform files rerun after. NOT run: browser journey, real mail.

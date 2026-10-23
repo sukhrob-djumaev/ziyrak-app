@@ -66,7 +66,7 @@ async function currentAccount(tx: Prisma.TransactionClient, session: RevocableSe
   return user;
 }
 /** Shared serialization boundary for bootstrap/recovery and privileged control writes. */
-async function controlTransaction<T>(callback: (tx: Prisma.TransactionClient) => Promise<T>) {
+export async function controlTransaction<T>(callback: (tx: Prisma.TransactionClient) => Promise<T>) {
   return prisma.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(92842, 0)`;

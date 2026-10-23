@@ -62,5 +62,6 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 ## P3 — accounts and onboarding
 
 - [p3-accounts-onboarding-implementation-2026-10-22.md](p3-accounts-onboarding-implementation-2026-10-22.md) — P3 accounts and customer onboarding: implementation record (2026-10-22)
+- [r2-ai-decision-quality-implementation-2026-10-23.md](r2-ai-decision-quality-implementation-2026-10-23.md) — R2 implementation and live evaluation record (2026-10-23)
 - [r2-ai-decision-quality-proposal-2026-10-22.md](r2-ai-decision-quality-proposal-2026-10-22.md) — R2 AI decision quality: escalation rules, thresholds and case-set plan, awaiting owner agreement (2026-10-22)
 - [p3-accounts-onboarding-proposal-2026-10-22.md](p3-accounts-onboarding-proposal-2026-10-22.md) — P3 accounts and customer onboarding: proposal for owner review (2026-10-22)

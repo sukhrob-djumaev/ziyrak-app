@@ -209,9 +209,7 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **Completion criteria:** approved thresholds met, autonomous handoff exercised
   through the product, safety/isolation cases pass, provider/model/configuration
   and failures recorded. Do not describe the heuristic as a calibrated probability.
-- **Result:** implementation not started; proposal of rules E1–E5, thresholds and case-set plan written ([proposal](docs/r2-ai-decision-quality-proposal-2026-10-22.md)), awaiting owner agreement; policy/threshold decision pending;
-  verification not run. R1 and the P2/P3 managed customer flow precede final evaluation; case-set
-  preparation can proceed independently. Record the actual managed policy version.
+- **Result:** implemented on branch `feat/r2-decision-quality` (not merged): rule-based escalation E1–E4, retained case set, live runner. Real-model evaluation (`gpt-4o-mini`, managed policy v1, 60 evaluation cases × 3) met every approved threshold in run 4, after scorer fixes that exposed the evaluation set (disclosed). Autonomous handoff through the product (browser J11) not yet run. Record: [R2 implementation](docs/r2-ai-decision-quality-implementation-2026-10-23.md).
 
 ### R4 — Final functional acceptance
 

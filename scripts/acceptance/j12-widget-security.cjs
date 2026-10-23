@@ -11,6 +11,9 @@ const get = async (path, headers = {}) => { const r = await fetch(L.BASE + path,
 (async () => {
   const out = { cases: {} }; const c = out.cases;
   const newConv = () => crypto.randomUUID();
+  // Chosen before this journey's own probes run: an ungrounded probe now escalates its own conversation (R2 no_support),
+  // so picking the first escalated conversation afterwards would select the probe's conversation, not J11's.
+  const aConv = (await (async () => { const b = await L.launch(creds.A.profile); const p = await b.newPage(); await p.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.6.11" }); await p.goto(L.BASE + "/tickets", { waitUntil: "networkidle0" }); const id = await p.evaluate(async () => (await (await fetch("/api/conversations")).json()).data.find((x) => x.status === "escalated").id); await b.close(); return id; })());
   c["CONTROL valid token + connection + allowed origin"] = await post(A.conn, A.token, OA, newConv());
   c["forged token (same connection, right origin)"] = await post(A.conn, "zy_pub_" + "0".repeat(48), OA, newConv());
   c["empty token"] = await post(A.conn, "", OA, newConv());
@@ -21,7 +24,6 @@ const get = async (path, headers = {}) => { const r = await fetch(L.BASE + path,
   c["A's token+connection with NO Origin header"] = await post(A.conn, A.token, null, newConv());
   c["nonexistent connection id"] = await post(crypto.randomUUID(), A.token, OA, newConv());
   // conversation-id reuse across connection/business
-  const aConv = (await (async () => { const b = await L.launch(creds.A.profile); const p = await b.newPage(); await p.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.6.11" }); await p.goto(L.BASE + "/tickets", { waitUntil: "networkidle0" }); const id = await p.evaluate(async () => (await (await fetch("/api/conversations")).json()).data.find((x) => x.status === "escalated").id); await b.close(); return id; })());
   c["B's VALID token/origin writing into A's conversation id"] = await post(B.conn, B.token, OB, aConv, "injected via B widget");
   const pollA = (conn, token, origin, conv, visitor) => fetch(`${L.BASE}/api/channels/webchat/${conn}/messages?token=${encodeURIComponent(token)}&conversationId=${conv}&visitorId=${visitor}`, { headers: { Origin: origin } }).then((r) => r.status);
   c["B's VALID creds READING A's conversation (poll)"] = await pollA(B.conn, B.token, OB, aConv, "any-visitor");

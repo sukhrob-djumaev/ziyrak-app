@@ -32,7 +32,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console; completion tag awaits owner decision. |
 | 5 | **P3 — Accounts and customer onboarding** | Merged 2026-10-22 (`470073b`, exact-head CI green); not deployed. Tag `phase-p3-complete` on `2b64578` (exact-head CI green 2026-10-23). Real-mail delivery check passed 2026-10-23; operator invitations merged (`fae51d8`), browser journey J29 in PR #32 | Verified email, reset, invitations and resumable onboarding to activation; see the P3 summary under Finished packages. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
-| 7 | **R4 — Final functional acceptance** | Not started / not run | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
+| 7 | **R4 — Final functional acceptance** | Local verification passed; Meta waived; not deployed | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
 | 8 | **R5 — Final Ziyrak naming and branding** | Not started / not run | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
 
 Keep the R identifiers stable for earlier evidence; P identifies newly approved
@@ -237,7 +237,13 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
   are explicit; implementation and deployment verification are recorded separately;
   CURRENT/HANDOFF identify the boundary. A blocked required provider check leaves
   that criterion and milestone closure open while eligible work continues.
-- **Result:** implementation not started; verification not run. R5 follows this
+- **Result (2026-10-24):** local/stand-in verification PASSED on candidate `7043d16` (source digest `4a726ed5`; only
+  test scripts differ from main `9e6dab0`): tsc, lint, vitest 178 files/1807 passed/4 skipped (isolated DB); full browser
+  suite 30/30 incl. new `j30-new-business-journey` (no customer AI key, managed AI, human handoff, cap exhaustion,
+  second-workspace isolation), production web + separate worker, fresh DB, stand-in AI, captured mail. R1 Meta
+  recipient-visible reply check: WAIVED by owner (not verified). Real mail passed in P3 (Gmail SMTP); R2 real-model
+  evidence exists. `test:smoke:*` provider suites NOT run (no pass claimed). Not deployed; deployment verification open.
+  R5 follows this
   functional acceptance; its changes require the affected checks on the final tree.
   No Phase 9 completion tag, new phase or customer rollout is implied.
 

@@ -14,13 +14,13 @@ docs index: `docs/README.md`.
 - Workflow: token diet merged (`ede8031`); `chore/plan-slim` archives finished packages out of PLAN.md.
 
 ## In flight
-- Operator invitations: merged (`fae51d8`). Browser journey J29 added in PR #32 (passes on main's build); merge when exact-head CI is green.
+- P3: COMPLETE, tag `phase-p3-complete` on `2b64578` (2026-10-23): real mail passed (Gmail SMTP, owner confirmed receipt), browser 28/28 incl. J11 on combined build, J29 merged (PR #32), exact-head CI green. Not deployed.
 - R2: MERGED (`6225d00`). Live evaluation: all approved thresholds met (dev run 3, eval run 4, `gpt-4o-mini`) with disclosed scorer fixes; browser
   28/28 incl. J11 on the combined build. Record `docs/r2-ai-decision-quality-implementation-2026-10-23.md`.
 - Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `ziyrak_acceptance_r2_20261023{a,b,c}`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
 
 ## Next action
-1. Merge PR #32 (J29) when exact-head CI is green. Owner: P3 tag decision (blocked on real mail), real-mail check inputs.
+1. R1 targeted Meta recipient-visible reply check (may be blocked by Meta test-account lock 131031; owner decides waiver), then R4 per standing authorization.
 2. R4 final acceptance needs real mail and the R1 provider boundary as inputs; a fresh unbiased R2 evaluation set is optional.
 
 ## Retained resources (do not delete without approval)

@@ -26,6 +26,29 @@ Arguments: `start` | `continue` (default) | `status`.
    recipient-visible replies prove different things.
 6. Surface protocol conflicts (PLAN rule 11); do not resolve them silently.
 
+## 0b. Token discipline (dispatcher and helpers)
+
+Cost is almost entirely re-reading context: every tool call re-sends the whole conversation. Keep every conversation
+small. These rules change how much is read, never what is checked.
+
+- **Read ranges, not files.** `grep -n` or `sed -n 'a,bp'` for the part needed; never print a whole file over ~150
+  lines; pipe long output through `tail -n 40` / `head`, or save it to a file and grep it.
+- **Logs go to files, verdicts come back.** Test, build and browser output is written under the scratchpad or
+  `.agent/progress/` and read through `log-triage` (haiku) or `grep`. Screenshots only when text cannot decide.
+- **Progress as you go.** Helpers append to `.agent/progress/<task>.md` after every step, so compaction or a
+  handover loses nothing. After a compaction a helper re-reads that file first.
+- **Hand over before a helper grows big.** Past ~150k context, update the progress file and return
+  `CONTINUE <path>`; the dispatcher starts a fresh helper.
+- **Models.** Dispatcher/bookkeeping: sonnet (it only sequences). Helpers: sonnet for routine verification,
+  browser runs, state and docs; opus for security-sensitive implementation and any independent security review.
+  Log reading: `log-triage` (haiku). Pass `model` explicitly on every Agent call.
+- **Dispatcher size.** Check `python3 scripts/agent/usage.py --context` once per invocation; above 400,000, finish
+  bookkeeping, stop the loop and ask the owner to restart (auto-compact is set by `start-worker.sh`).
+- **Cost per task.** Record `python3 scripts/agent/usage.py --since <task start UTC>` (input, cache, output
+  tokens incl. helpers) on the task's line in HANDOFF, so expensive tasks are visible.
+- **Don't re-read what is known.** A SessionStart hook already prints git state and the head of CURRENT; on a
+  wakeup read CURRENT only when the pass needs it. Never read PLAN or archives whole.
+
 ## 1. Every invocation starts like this
 
 1. `git rev-parse --show-toplevel` ends in `owly`; branch is `main` or a task branch named in CURRENT. Else stop.

@@ -38,9 +38,7 @@ real-mail delivery check was NOT RUN, so email delivery is not claimed ready. Op
 
 ## Known limits and residual risks (accepted or open)
 
-- Controlled real mail delivery check: NOT RUN (owner skipped it for now, 2026-10-22). Platform mail is captured to a file in
-  tests and browser journeys; email delivery is NOT claimed ready. Retry condition: `PLATFORM_SMTP_*` sender settings and a real
-  recipient mailbox.
+- Controlled real mail delivery check: PASSED 2026-10-23. One message sent through the product SMTP transport (`getMailTransport`, Gmail smtp.gmail.com:587, App Password) to a real mailbox; the owner confirmed receipt in the inbox. Proves outbound delivery from a personal Gmail sender only, not a business sender domain or the full verify/reset token flow over real mail.
 - Operator invitations: DEFERRED to a follow-up (owner decision, 2026-10-22). Reason: they add a new account-creation surface
   (a platform role created from an emailed link) that needs its own tests-first work and security review. Super admins still
   create operators with a chosen password (P1 flow); workspace invitations never grant a platform role.

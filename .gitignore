@@ -46,3 +46,7 @@ next-env.d.ts
 # Browser acceptance harness output (profiles, screenshots, snippets, evidence)
 /scripts/acceptance/.work/
 scripts/loadtest/.work/
+
+# agent worker runtime state
+.agent/progress/
+.agent/STOP

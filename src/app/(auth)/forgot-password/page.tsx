@@ -26,21 +26,21 @@ export default function ForgotPasswordPage() {
     }
   }
   return (
-    <div className="bg-owly-surface rounded-2xl shadow-lg border border-owly-border p-8">
-      <h1 className="text-2xl font-bold text-owly-text">Reset your password</h1>
+    <div className="bg-ziyrak-surface rounded-2xl shadow-lg border border-ziyrak-border p-8">
+      <h1 className="text-2xl font-bold text-ziyrak-text">Reset your password</h1>
       {done ? (
-        <p id="forgotDone" role="status" className="mt-4 text-sm text-owly-text">
+        <p id="forgotDone" role="status" className="mt-4 text-sm text-ziyrak-text">
           If that address belongs to an account, a reset link is on its way. The link works once and expires in one hour.
         </p>
       ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <label htmlFor="email" className="block text-sm font-medium text-owly-text">Email address</label>
-          <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent" />
-          {error && <p role="alert" className="text-sm text-owly-danger">{error}</p>}
-          <button id="sendReset" type="submit" disabled={busy} className="w-full rounded-lg bg-owly-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-owly-primary-dark disabled:opacity-60">Send reset link</button>
+          <label htmlFor="email" className="block text-sm font-medium text-ziyrak-text">Email address</label>
+          <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3.5 py-2.5 text-sm text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:border-transparent" />
+          {error && <p role="alert" className="text-sm text-ziyrak-danger">{error}</p>}
+          <button id="sendReset" type="submit" disabled={busy} className="w-full rounded-lg bg-ziyrak-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark disabled:opacity-60">Send reset link</button>
         </form>
       )}
-      <p className="mt-6 text-center text-sm"><Link href="/login" className="font-medium text-owly-primary hover:underline">Back to sign in</Link></p>
+      <p className="mt-6 text-center text-sm"><Link href="/login" className="font-medium text-ziyrak-primary hover:underline">Back to sign in</Link></p>
     </div>
   );
 }

@@ -215,10 +215,10 @@ export default function BusinessHoursPage() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-owly-surface border border-owly-border rounded-xl p-6 animate-pulse"
+                className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-6 animate-pulse"
               >
-                <div className="h-5 bg-owly-border rounded w-1/4 mb-4" />
-                <div className="h-10 bg-owly-border rounded w-full" />
+                <div className="h-5 bg-ziyrak-border rounded w-1/4 mb-4" />
+                <div className="h-10 bg-ziyrak-border rounded w-full" />
               </div>
             ))}
           </div>
@@ -284,13 +284,13 @@ export default function BusinessHoursPage() {
           </div>
 
           {/* Enable Toggle */}
-          <div className="bg-owly-surface border border-owly-border rounded-xl p-5">
+          <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-owly-text">
+                <h3 className="text-sm font-semibold text-ziyrak-text">
                   Business Hours
                 </h3>
-                <p className="text-xs text-owly-text-light mt-0.5">
+                <p className="text-xs text-ziyrak-text-light mt-0.5">
                   When enabled, customers will see your availability status and
                   offline message outside business hours.
                 </p>
@@ -301,7 +301,7 @@ export default function BusinessHoursPage() {
                 }
                 className={cn(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
-                  config.enabled ? "bg-owly-primary" : "bg-owly-border"
+                  config.enabled ? "bg-ziyrak-primary" : "bg-ziyrak-border"
                 )}
               >
                 <span
@@ -315,8 +315,8 @@ export default function BusinessHoursPage() {
           </div>
 
           {/* Timezone */}
-          <div className="bg-owly-surface border border-owly-border rounded-xl p-5">
-            <label className="block text-sm font-semibold text-owly-text mb-2">
+          <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
+            <label className="block text-sm font-semibold text-ziyrak-text mb-2">
               Timezone
             </label>
             <select
@@ -324,7 +324,7 @@ export default function BusinessHoursPage() {
               onChange={(e) =>
                 setConfig((c) => ({ ...c, timezone: e.target.value }))
               }
-              className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg bg-owly-surface text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary transition-theme"
+              className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-surface text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-theme"
             >
               {timezones.map((tz) => (
                 <option key={tz} value={tz}>
@@ -335,8 +335,8 @@ export default function BusinessHoursPage() {
           </div>
 
           {/* Weekly Schedule */}
-          <div className="bg-owly-surface border border-owly-border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-owly-text mb-4">
+          <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-ziyrak-text mb-4">
               Weekly Schedule
             </h3>
             <div className="space-y-3">
@@ -350,14 +350,14 @@ export default function BusinessHoursPage() {
                     className={cn(
                       "flex items-center gap-4 p-3 rounded-lg border transition-colors",
                       isOpen
-                        ? "bg-owly-bg border-owly-border"
-                        : "bg-owly-bg/50 border-owly-border/50"
+                        ? "bg-ziyrak-bg border-ziyrak-border"
+                        : "bg-ziyrak-bg/50 border-ziyrak-border/50"
                     )}
                   >
                     <span
                       className={cn(
                         "text-sm font-medium w-28 flex-shrink-0",
-                        isOpen ? "text-owly-text" : "text-owly-text-light"
+                        isOpen ? "text-ziyrak-text" : "text-ziyrak-text-light"
                       )}
                     >
                       {label}
@@ -367,7 +367,7 @@ export default function BusinessHoursPage() {
                       onClick={() => toggleDay(key)}
                       className={cn(
                         "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
-                        isOpen ? "bg-owly-primary" : "bg-owly-border"
+                        isOpen ? "bg-ziyrak-primary" : "bg-ziyrak-border"
                       )}
                     >
                       <span
@@ -385,7 +385,7 @@ export default function BusinessHoursPage() {
                           onChange={(e) =>
                             updateDayTime(key, "start", e.target.value)
                           }
-                          className="px-2.5 py-1.5 text-sm border border-owly-border rounded-lg bg-owly-surface text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30 transition-theme"
+                          className="px-2.5 py-1.5 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-surface text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 transition-theme"
                         >
                           {timeOptions.map((t) => (
                             <option key={t} value={t}>
@@ -393,13 +393,13 @@ export default function BusinessHoursPage() {
                             </option>
                           ))}
                         </select>
-                        <span className="text-xs text-owly-text-light">to</span>
+                        <span className="text-xs text-ziyrak-text-light">to</span>
                         <select
                           value={times.end}
                           onChange={(e) =>
                             updateDayTime(key, "end", e.target.value)
                           }
-                          className="px-2.5 py-1.5 text-sm border border-owly-border rounded-lg bg-owly-surface text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30 transition-theme"
+                          className="px-2.5 py-1.5 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-surface text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 transition-theme"
                         >
                           {timeOptions.map((t) => (
                             <option key={t} value={t}>
@@ -409,7 +409,7 @@ export default function BusinessHoursPage() {
                         </select>
                       </div>
                     ) : (
-                      <span className="text-sm text-owly-text-light italic">
+                      <span className="text-sm text-ziyrak-text-light italic">
                         Closed
                       </span>
                     )}
@@ -420,11 +420,11 @@ export default function BusinessHoursPage() {
           </div>
 
           {/* Offline Message */}
-          <div className="bg-owly-surface border border-owly-border rounded-xl p-5">
-            <label className="block text-sm font-semibold text-owly-text mb-2">
+          <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
+            <label className="block text-sm font-semibold text-ziyrak-text mb-2">
               Offline Message
             </label>
-            <p className="text-xs text-owly-text-light mb-3">
+            <p className="text-xs text-ziyrak-text-light mb-3">
               This message will be shown to customers when your support team is
               outside business hours.
             </p>
@@ -437,7 +437,7 @@ export default function BusinessHoursPage() {
                 }))
               }
               rows={3}
-              className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg bg-owly-surface text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary transition-theme resize-none"
+              className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-surface text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-theme resize-none"
               placeholder="Enter the message customers will see when you're offline..."
             />
           </div>
@@ -445,7 +445,7 @@ export default function BusinessHoursPage() {
           {/* Save Button */}
           <div className="flex items-center justify-end gap-3 pb-6">
             {saved && (
-              <span className="flex items-center gap-1.5 text-sm text-owly-success font-medium animate-fade-in">
+              <span className="flex items-center gap-1.5 text-sm text-ziyrak-success font-medium animate-fade-in">
                 <Check className="h-4 w-4" />
                 Changes saved
               </span>
@@ -453,7 +453,7 @@ export default function BusinessHoursPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-owly-primary text-white rounded-lg hover:bg-owly-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-5 py-2.5 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             >
               {saving ? (
                 "Saving..."

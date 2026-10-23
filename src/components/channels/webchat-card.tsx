@@ -115,24 +115,24 @@ export function WebChatCard() {
   }
 
   return (
-    <div className="bg-owly-surface rounded-xl border border-owly-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-owly-border flex items-center gap-3">
+    <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-ziyrak-border flex items-center gap-3">
         <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
           <Globe className="h-5 w-5 text-blue-600" />
         </div>
         <div>
-          <h3 className="font-semibold text-owly-text">Web Chat</h3>
-          <p className="text-xs text-owly-text-light mt-0.5">Embed a chat widget on your website</p>
+          <h3 className="font-semibold text-ziyrak-text">Web Chat</h3>
+          <p className="text-xs text-ziyrak-text-light mt-0.5">Embed a chat widget on your website</p>
         </div>
       </div>
 
       <div className="px-5 py-4 space-y-4">
         {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-owly-primary" />
+          <Loader2 className="h-5 w-5 animate-spin text-ziyrak-primary" />
         ) : (
           <>
             <div>
-              <label htmlFor="webchat-origins" className="block text-xs font-medium text-owly-text-light mb-1">
+              <label htmlFor="webchat-origins" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 Allowed origins (one per line)
               </label>
               <textarea
@@ -141,23 +141,23 @@ export function WebChatCard() {
                 value={originsText}
                 onChange={(e) => setOriginsText(e.target.value)}
                 placeholder="https://www.example.com"
-                className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg bg-owly-bg text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30"
+                className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30"
               />
-              <p className="text-xs text-owly-text-light mt-1">
+              <p className="text-xs text-ziyrak-text-light mt-1">
                 Only pages served from these exact origins (scheme + host + port) can use the widget.
               </p>
             </div>
 
             {issued && (
-              <div className="rounded-lg border border-owly-border bg-owly-bg p-3">
-                <p className="text-xs font-medium text-owly-text mb-2">
+              <div className="rounded-lg border border-ziyrak-border bg-ziyrak-bg p-3">
+                <p className="text-xs font-medium text-ziyrak-text mb-2">
                   Paste this on your site. The token is shown only once — rotate it to get a new one.
                 </p>
-                <pre className="text-xs whitespace-pre-wrap break-all text-owly-text">{issued.embedSnippet}</pre>
+                <pre className="text-xs whitespace-pre-wrap break-all text-ziyrak-text">{issued.embedSnippet}</pre>
                 <button
                   type="button"
                   onClick={copySnippet}
-                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-owly-primary"
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-ziyrak-primary"
                 >
                   {copied ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? "Copied" : "Copy snippet"}
@@ -170,13 +170,13 @@ export function WebChatCard() {
         )}
       </div>
 
-      <div className="px-5 py-3 border-t border-owly-border bg-owly-bg/50 flex items-center gap-2">
+      <div className="px-5 py-3 border-t border-ziyrak-border bg-ziyrak-bg/50 flex items-center gap-2">
         {!connection ? (
           <button
             type="button"
             onClick={handleCreate}
             disabled={busy || loading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary rounded-lg disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
             Create widget
@@ -187,7 +187,7 @@ export function WebChatCard() {
               type="button"
               onClick={handleSaveOrigins}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary rounded-lg disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               Save origins
@@ -196,7 +196,7 @@ export function WebChatCard() {
               type="button"
               onClick={handleRotate}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-owly-text border border-owly-border rounded-lg disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-ziyrak-text border border-ziyrak-border rounded-lg disabled:opacity-50"
             >
               <RefreshCw className="h-4 w-4" />
               Rotate token

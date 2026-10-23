@@ -1,6 +1,6 @@
 # Approvals and Tool Policies
 
-Owly's AI can take actions during a conversation — creating tickets, sending internal emails, triggering webhooks (see [AI Tool System](AI-Tool-System)). **Tool policies** let you decide what the AI may do on its own, and **approvals** let a person check the actions you want reviewed before they run.
+Ziyrak's AI can take actions during a conversation — creating tickets, sending internal emails, triggering webhooks (see [AI Tool System](AI-Tool-System)). **Tool policies** let you decide what the AI may do on its own, and **approvals** let a person check the actions you want reviewed before they run.
 
 Both live on one page: **Approvals** in the sidebar (under *Team*).
 
@@ -39,7 +39,7 @@ A tool you have changed is marked **Customised**, with **Reset to default**. A t
 ### A sensible starting point
 
 - Leave low-risk tools (`create_ticket`, `get_customer_history`) as they are.
-- Turn on **Needs human approval** for anything that contacts someone or reaches outside Owly, such as `send_internal_email` or `trigger_webhook`, until you trust how the AI uses it.
+- Turn on **Needs human approval** for anything that contacts someone or reaches outside Ziyrak, such as `send_internal_email` or `trigger_webhook`, until you trust how the AI uses it.
 
 ---
 

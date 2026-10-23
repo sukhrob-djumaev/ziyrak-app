@@ -3,7 +3,7 @@
 # (transaction pooling) sits between every app/worker replica and Postgres.
 # Runtime DB traffic goes through PgBouncer (DATABASE_URL); migrations and
 # pg-boss, which need session features (advisory locks), use the direct URL.
-x-owly-env: &owly-env
+x-ziyrak-env: &ziyrak-env
   DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly?schema=public
   DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
   DATABASE_POOL_MAX: "10"
@@ -89,12 +89,12 @@ services:
 
   app:
     build: .
-    image: owly:local
+    image: ziyrak:local
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      <<: *owly-env
+      <<: *ziyrak-env
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     env_file:
       - .env
@@ -123,14 +123,14 @@ services:
   # workers independently of web replicas" is only a deployment-config
   # change (a replica count), never an architectural one.
   worker:
-    image: owly:local
+    image: ziyrak:local
     restart: unless-stopped
     # `exec node --import tsx` (not `npm run worker`): npm as PID 1 swallows
     # SIGTERM, so the worker could not drain in-flight jobs on stop/scale-down.
     command: ["sh", "-c", "npx prisma migrate deploy && exec node --import tsx src/worker.ts"]
     stop_grace_period: 45s
     environment:
-      <<: *owly-env
+      <<: *ziyrak-env
     env_file:
       - .env
     depends_on:
@@ -152,13 +152,13 @@ services:
   # drives it). Explicit services on distinct host ports rather than
   # `--scale`, so the harness can address each replica directly.
   app-2:
-    image: owly:local
+    image: ziyrak:local
     profiles: ["scale"]
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3000"
     environment:
-      <<: *owly-env
+      <<: *ziyrak-env
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     env_file:
       - .env
@@ -167,13 +167,13 @@ services:
         condition: service_healthy
 
   worker-2:
-    image: owly:local
+    image: ziyrak:local
     profiles: ["scale"]
     restart: unless-stopped
     command: ["node", "--import", "tsx", "src/worker.ts"]
     stop_grace_period: 45s
     environment:
-      <<: *owly-env
+      <<: *ziyrak-env
     env_file:
       - .env
     depends_on:

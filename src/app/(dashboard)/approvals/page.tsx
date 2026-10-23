@@ -153,8 +153,8 @@ export default function ApprovalsPage() {
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 tab === key
-                  ? "bg-owly-primary text-white"
-                  : "bg-owly-surface border border-owly-border text-owly-text-light hover:text-owly-text"
+                  ? "bg-ziyrak-primary text-white"
+                  : "bg-ziyrak-surface border border-ziyrak-border text-ziyrak-text-light hover:text-ziyrak-text"
               )}
             >
               {key === "pending"
@@ -174,7 +174,7 @@ export default function ApprovalsPage() {
           <PoliciesPanel />
         ) : loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-owly-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-ziyrak-primary" />
           </div>
         ) : forbidden ? (
           <EmptyState
@@ -208,16 +208,16 @@ export default function ApprovalsPage() {
               return (
                 <li
                   key={action.id}
-                  className="bg-owly-surface border border-owly-border rounded-xl p-5"
+                  className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5"
                   data-testid="approval-row"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-owly-text">{toolLabel(action.tool)}</h3>
+                        <h3 className="font-semibold text-ziyrak-text">{toolLabel(action.tool)}</h3>
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </div>
-                      <p className="text-sm text-owly-text-light">
+                      <p className="text-sm text-ziyrak-text-light">
                         Requested by {requesterLabel(action.requestedBy)} ·{" "}
                         {timeAgo(action.createdAt)}
                         {action.conversationId && (
@@ -225,7 +225,7 @@ export default function ApprovalsPage() {
                             {" · "}
                             <Link
                               href={`/conversations?id=${action.conversationId}`}
-                              className="inline-flex items-center gap-1 text-owly-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-ziyrak-primary hover:underline"
                             >
                               <MessageSquare className="h-3.5 w-3.5" /> View conversation
                             </Link>
@@ -238,13 +238,13 @@ export default function ApprovalsPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setDecision({ action, kind: "reject" })}
-                          className="px-3 py-2 rounded-lg border border-owly-border text-sm font-medium text-owly-text hover:bg-owly-bg"
+                          className="px-3 py-2 rounded-lg border border-ziyrak-border text-sm font-medium text-ziyrak-text hover:bg-ziyrak-bg"
                         >
                           Reject
                         </button>
                         <button
                           onClick={() => setDecision({ action, kind: "approve" })}
-                          className="px-3 py-2 rounded-lg bg-owly-primary text-white text-sm font-medium hover:opacity-90"
+                          className="px-3 py-2 rounded-lg bg-ziyrak-primary text-white text-sm font-medium hover:opacity-90"
                         >
                           Approve
                         </button>
@@ -256,7 +256,7 @@ export default function ApprovalsPage() {
                     <div className="mt-3">
                       <button
                         onClick={() => toggle(action.id)}
-                        className="inline-flex items-center gap-1 text-sm text-owly-text-light hover:text-owly-text"
+                        className="inline-flex items-center gap-1 text-sm text-ziyrak-text-light hover:text-ziyrak-text"
                       >
                         {open ? (
                           <ChevronDown className="h-4 w-4" />
@@ -269,8 +269,8 @@ export default function ApprovalsPage() {
                         <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
                           {fields.map((field) => (
                             <div key={field.key} className="contents">
-                              <dt className="text-owly-text-light">{field.key}</dt>
-                              <dd className="text-owly-text break-words">{field.value || "—"}</dd>
+                              <dt className="text-ziyrak-text-light">{field.key}</dt>
+                              <dd className="text-ziyrak-text break-words">{field.value || "—"}</dd>
                             </div>
                           ))}
                         </dl>
@@ -283,7 +283,7 @@ export default function ApprovalsPage() {
                       <p
                         className={cn(
                           "mt-3 text-sm",
-                          action.status === "failed" ? "text-owly-danger" : "text-owly-text-light"
+                          action.status === "failed" ? "text-ziyrak-danger" : "text-ziyrak-text-light"
                         )}
                       >
                         {action.errorMessage ?? action.result?.message}

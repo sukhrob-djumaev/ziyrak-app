@@ -1,7 +1,7 @@
 import { logger } from "@/lib/observability/logger";
 
 /**
- * Plugin System for Owly
+ * Plugin System for Ziyrak
  * Allows extending functionality via standardized hooks.
  *
  * PLAN.md §44.2/§46.6 task 7 — DEPRECATED from the tenant-facing product
@@ -29,7 +29,7 @@ export interface PluginHook {
   handler: (context: PluginContext, data: unknown) => Promise<unknown>;
 }
 
-export interface OwlyPlugin {
+export interface ZiyrakPlugin {
   id: string;
   name: string;
   version: string;
@@ -40,13 +40,13 @@ export interface OwlyPlugin {
 }
 
 // Plugin registry
-const plugins = new Map<string, OwlyPlugin>();
+const plugins = new Map<string, ZiyrakPlugin>();
 const hookRegistry = new Map<string, PluginHook[]>();
 
 /**
  * Register a plugin.
  */
-export async function registerPlugin(plugin: OwlyPlugin): Promise<boolean> {
+export async function registerPlugin(plugin: ZiyrakPlugin): Promise<boolean> {
   if (plugins.has(plugin.id)) {
     logger.warn(`Plugin already registered: ${plugin.id}`);
     return false;

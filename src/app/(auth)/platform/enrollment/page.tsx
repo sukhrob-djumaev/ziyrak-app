@@ -91,7 +91,7 @@ export default function PlatformEnrollmentPage() {
   }
   const available = entry && (entry.bootstrapAvailable || entry.recoveryAvailable);
   return (
-    <section className="rounded-2xl border border-owly-border bg-owly-surface p-8 shadow-lg">
+    <section className="rounded-2xl border border-ziyrak-border bg-ziyrak-surface p-8 shadow-lg">
       <h1 className="text-2xl font-bold">Platform enrollment</h1>
       {entry ? (
         <>
@@ -164,7 +164,7 @@ export default function PlatformEnrollmentPage() {
               <button
                 type="submit"
                 disabled={busy || !confirmed || !proof || !reason.trim()}
-                className="rounded bg-owly-primary px-4 py-2 text-white disabled:opacity-50"
+                className="rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50"
               >
                 {busy
                   ? "Updating…"
@@ -185,7 +185,7 @@ export default function PlatformEnrollmentPage() {
         )
       )}
       {error && (
-        <p role="alert" className="mt-4 text-owly-danger">
+        <p role="alert" className="mt-4 text-ziyrak-danger">
           {error}
         </p>
       )}
@@ -194,16 +194,16 @@ export default function PlatformEnrollmentPage() {
           {message}
         </p>
       )}
-      <Link href="/workspaces" className="mt-6 inline-block text-owly-primary">
+      <Link href="/workspaces" className="mt-6 inline-block text-ziyrak-primary">
         Choose a workspace
       </Link>
       {entry?.role && (
-        <Link href="/platform/support" className="mt-3 block text-owly-primary">
+        <Link href="/platform/support" className="mt-3 block text-ziyrak-primary">
           Manage support grants
         </Link>
       )}
       {entry?.role === "super_admin" && (
-        <Link href="/platform/operators" className="mt-3 block text-owly-primary">
+        <Link href="/platform/operators" className="mt-3 block text-ziyrak-primary">
           Manage platform operators
         </Link>
       )}

@@ -1,70 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  --owly-primary: #4A7C9B;
-  --owly-primary-dark: #2D5A7B;
-  --owly-primary-light: #A8D0E6;
-  --owly-primary-50: #EDF5FA;
-  --owly-primary-100: #D6E8F2;
-  --owly-accent: #C4956A;
-  --owly-accent-light: #E0C4A8;
-  --owly-bg: #F8FAFC;
-  --owly-surface: #FFFFFF;
-  --owly-text: #1E293B;
-  --owly-text-light: #64748B;
-  --owly-border: #E2E8F0;
-  --owly-sidebar: #1E293B;
-  --owly-sidebar-hover: #334155;
-  --owly-sidebar-active: #4A7C9B;
-  --owly-success: #22C55E;
-  --owly-warning: #F59E0B;
-  --owly-danger: #EF4444;
+  --ziyrak-primary: #4A7C9B;
+  --ziyrak-primary-dark: #2D5A7B;
+  --ziyrak-primary-light: #A8D0E6;
+  --ziyrak-primary-50: #EDF5FA;
+  --ziyrak-primary-100: #D6E8F2;
+  --ziyrak-accent: #C4956A;
+  --ziyrak-accent-light: #E0C4A8;
+  --ziyrak-bg: #F8FAFC;
+  --ziyrak-surface: #FFFFFF;
+  --ziyrak-text: #1E293B;
+  --ziyrak-text-light: #64748B;
+  --ziyrak-border: #E2E8F0;
+  --ziyrak-sidebar: #1E293B;
+  --ziyrak-sidebar-hover: #334155;
+  --ziyrak-sidebar-active: #4A7C9B;
+  --ziyrak-success: #22C55E;
+  --ziyrak-warning: #F59E0B;
+  --ziyrak-danger: #EF4444;
 }
 
 .dark {
-  --owly-primary: #5A9CBB;
-  --owly-primary-dark: #4A8CAB;
-  --owly-primary-light: #3A6C8B;
-  --owly-primary-50: #1A2A3A;
-  --owly-primary-100: #1E3448;
-  --owly-accent: #D4A57A;
-  --owly-accent-light: #4A3A2A;
-  --owly-bg: #0F172A;
-  --owly-surface: #1E293B;
-  --owly-text: #F1F5F9;
-  --owly-text-light: #94A3B8;
-  --owly-border: #334155;
-  --owly-sidebar: #0F172A;
-  --owly-sidebar-hover: #1E293B;
-  --owly-sidebar-active: #4A7C9B;
+  --ziyrak-primary: #5A9CBB;
+  --ziyrak-primary-dark: #4A8CAB;
+  --ziyrak-primary-light: #3A6C8B;
+  --ziyrak-primary-50: #1A2A3A;
+  --ziyrak-primary-100: #1E3448;
+  --ziyrak-accent: #D4A57A;
+  --ziyrak-accent-light: #4A3A2A;
+  --ziyrak-bg: #0F172A;
+  --ziyrak-surface: #1E293B;
+  --ziyrak-text: #F1F5F9;
+  --ziyrak-text-light: #94A3B8;
+  --ziyrak-border: #334155;
+  --ziyrak-sidebar: #0F172A;
+  --ziyrak-sidebar-hover: #1E293B;
+  --ziyrak-sidebar-active: #4A7C9B;
 }
 
 @theme inline {
-  --color-owly-primary: var(--owly-primary);
-  --color-owly-primary-dark: var(--owly-primary-dark);
-  --color-owly-primary-light: var(--owly-primary-light);
-  --color-owly-primary-50: var(--owly-primary-50);
-  --color-owly-primary-100: var(--owly-primary-100);
-  --color-owly-accent: var(--owly-accent);
-  --color-owly-accent-light: var(--owly-accent-light);
-  --color-owly-bg: var(--owly-bg);
-  --color-owly-surface: var(--owly-surface);
-  --color-owly-text: var(--owly-text);
-  --color-owly-text-light: var(--owly-text-light);
-  --color-owly-border: var(--owly-border);
-  --color-owly-sidebar: var(--owly-sidebar);
-  --color-owly-sidebar-hover: var(--owly-sidebar-hover);
-  --color-owly-sidebar-active: var(--owly-sidebar-active);
-  --color-owly-success: var(--owly-success);
-  --color-owly-warning: var(--owly-warning);
-  --color-owly-danger: var(--owly-danger);
+  --color-ziyrak-primary: var(--ziyrak-primary);
+  --color-ziyrak-primary-dark: var(--ziyrak-primary-dark);
+  --color-ziyrak-primary-light: var(--ziyrak-primary-light);
+  --color-ziyrak-primary-50: var(--ziyrak-primary-50);
+  --color-ziyrak-primary-100: var(--ziyrak-primary-100);
+  --color-ziyrak-accent: var(--ziyrak-accent);
+  --color-ziyrak-accent-light: var(--ziyrak-accent-light);
+  --color-ziyrak-bg: var(--ziyrak-bg);
+  --color-ziyrak-surface: var(--ziyrak-surface);
+  --color-ziyrak-text: var(--ziyrak-text);
+  --color-ziyrak-text-light: var(--ziyrak-text-light);
+  --color-ziyrak-border: var(--ziyrak-border);
+  --color-ziyrak-sidebar: var(--ziyrak-sidebar);
+  --color-ziyrak-sidebar-hover: var(--ziyrak-sidebar-hover);
+  --color-ziyrak-sidebar-active: var(--ziyrak-sidebar-active);
+  --color-ziyrak-success: var(--ziyrak-success);
+  --color-ziyrak-warning: var(--ziyrak-warning);
+  --color-ziyrak-danger: var(--ziyrak-danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--owly-bg);
-  color: var(--owly-text);
+  background: var(--ziyrak-bg);
+  color: var(--ziyrak-text);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
@@ -79,12 +79,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--owly-border);
+  background: var(--ziyrak-border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--owly-text-light);
+  background: var(--ziyrak-text-light);
 }
 
 /* Animations */
@@ -158,7 +158,7 @@ body {
 
 /* Focus ring */
 .focus-ring:focus-visible {
-  outline: 2px solid var(--owly-primary);
+  outline: 2px solid var(--ziyrak-primary);
   outline-offset: 2px;
 }
 

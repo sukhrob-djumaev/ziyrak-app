@@ -1,7 +1,7 @@
 #!/bin/sh
 # PLAN.md §46.8 task 5 — real multi-replica load test: 2 app replicas + 2 worker
 # replicas in containers (the production image) behind PgBouncer, with shared
-# Redis and Postgres, in an isolated compose project (owlyload). Usage:
+# Redis and Postgres, in an isolated compose project (ziyrakload). Usage:
 #   scripts/loadtest/run.sh [redis|no-redis|both|up|down]     (default: both)
 #   `up` leaves the Redis-on topology running (for debugging; the stand-in LLM
 #   keeps running too); `down` tears it down.
@@ -13,7 +13,7 @@ set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here/../.."
 mode="${1:-both}"
-P=owlyload
+P=ziyrakload
 COMPOSE="docker compose -p $P -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale"
 export SECRET_KEY_V1=loadtest-secret-key-v1-not-a-real-secret
 export JWT_SECRET=loadtest-jwt-secret-not-a-real-secret
@@ -28,8 +28,8 @@ cleanup() {
 if [ "$mode" = down ]; then pkill -f scripts/acceptance/llm-standin.cjs 2>/dev/null || true; cleanup; exit 0; fi
 [ "$mode" = up ] || trap cleanup EXIT INT TERM
 
-if [ -z "$(docker images -q owly:local)" ]; then
-  echo "Building owly:local ..."; $COMPOSE build app
+if [ -z "$(docker images -q ziyrak:local)" ]; then
+  echo "Building ziyrak:local ..."; $COMPOSE build app
 fi
 
 echo "Starting Postgres ..."

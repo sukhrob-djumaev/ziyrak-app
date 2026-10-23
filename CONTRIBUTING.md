@@ -1,6 +1,6 @@
-# Contributing to Owly
+# Contributing to Ziyrak
 
-Thanks for your interest in contributing to Owly! This guide will help you get started.
+Thanks for your interest in contributing to Ziyrak! This guide will help you get started.
 
 ## Development Setup
 
@@ -26,7 +26,7 @@ npm run dev
 ## Code Style
 
 - **TypeScript** for all code
-- **Tailwind CSS** for styling with the Owly custom color system (`owly-primary`, `owly-surface`, etc.)
+- **Tailwind CSS** for styling with the Ziyrak custom color system (`ziyrak-primary`, `ziyrak-surface`, etc.)
 - **Conventional commits**: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`
 - **Zod validation** on all API request bodies (`src/lib/validations.ts`)
 - **Structured logging** via `logger` from `src/lib/logger.ts` (never use `console.log`/`console.error`)

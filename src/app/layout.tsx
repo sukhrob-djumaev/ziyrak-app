@@ -10,10 +10,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Owly - AI Customer Support",
+  title: "Ziyrak - AI Customer Support",
   description: "Open-source AI-powered customer support agent",
   icons: {
-    icon: "/owly.png",
+    icon: "/ziyrak.png",
   },
 };
 

@@ -50,9 +50,9 @@ export default function WorkspacesPage() {
     }
   }
   return (
-    <section className="rounded-2xl border border-owly-border bg-owly-surface p-8 shadow-lg">
-      <h1 className="text-2xl font-bold text-owly-text">Choose a workspace</h1>
-      <p className="mt-2 text-sm text-owly-text-light">Open the workspace you want to work in.</p>
+    <section className="rounded-2xl border border-ziyrak-border bg-ziyrak-surface p-8 shadow-lg">
+      <h1 className="text-2xl font-bold text-ziyrak-text">Choose a workspace</h1>
+      <p className="mt-2 text-sm text-ziyrak-text-light">Open the workspace you want to work in.</p>
       {loading ? (
         <p className="mt-6" role="status">
           Loading workspaces…
@@ -64,10 +64,10 @@ export default function WorkspacesPage() {
               key={workspace.id}
               disabled={pending !== null}
               onClick={() => choose(workspace.id)}
-              className="w-full rounded-lg border border-owly-border p-4 text-left hover:bg-owly-bg disabled:opacity-60"
+              className="w-full rounded-lg border border-ziyrak-border p-4 text-left hover:bg-ziyrak-bg disabled:opacity-60"
             >
               <span className="block font-semibold">{workspace.name}</span>
-              <span className="text-sm capitalize text-owly-text-light">{workspace.role}</span>
+              <span className="text-sm capitalize text-ziyrak-text-light">{workspace.role}</span>
             </button>
           ))}
           {!workspaces.length && !error && (
@@ -76,11 +76,11 @@ export default function WorkspacesPage() {
         </div>
       )}
       {error && (
-        <p role="alert" className="mt-4 text-sm text-owly-danger">
+        <p role="alert" className="mt-4 text-sm text-ziyrak-danger">
           {error}
         </p>
       )}
-      <Link href="/login" className="mt-6 inline-block text-sm text-owly-primary">
+      <Link href="/login" className="mt-6 inline-block text-sm text-ziyrak-primary">
         Back to sign in
       </Link>
     </section>

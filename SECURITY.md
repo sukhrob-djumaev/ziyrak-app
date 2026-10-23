@@ -9,7 +9,7 @@
 
 ## Security Features
 
-Owly includes the following security measures out of the box:
+Ziyrak includes the following security measures out of the box:
 
 - **JWT authentication** with httpOnly, secure, sameSite cookies
 - **bcrypt password hashing** with 12 salt rounds
@@ -19,7 +19,7 @@ Owly includes the following security measures out of the box:
 - **Secret masking** in API responses (API keys, passwords, tokens replaced with `***`)
 - **XSS protection** via HTML entity escaping in email templates
 - **CRLF injection prevention** in email subject lines
-- **Webhook signatures** using HMAC-SHA256 (`X-Owly-Signature` header)
+- **Webhook signatures** using HMAC-SHA256 (`X-Ziyrak-Signature` header; `X-Owly-Signature` is still sent with the same value for receivers created before the rename)
 - **Request ID tracking** for audit trail (`X-Request-Id` header)
 - **Non-root Docker container** (UID 1001)
 - **Structured logging** (no secrets in log output)

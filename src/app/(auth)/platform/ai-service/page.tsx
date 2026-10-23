@@ -24,9 +24,9 @@ type WorkspaceRow = {
   embeddingUsed: number;
 };
 type Console = { policies: Policy[]; workspaces: WorkspaceRow[] };
-const field = "w-full rounded border border-owly-border bg-owly-bg p-2";
+const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
-const button = "rounded bg-owly-primary px-4 py-2 text-white disabled:opacity-50";
+const button = "rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50";
 
 export default function AiServicePage() {
   const router = useRouter();
@@ -93,7 +93,7 @@ export default function AiServicePage() {
   }
 
   return (
-    <section className="rounded-2xl border border-owly-border bg-owly-surface p-6 shadow-lg">
+    <section className="rounded-2xl border border-ziyrak-border bg-ziyrak-surface p-6 shadow-lg">
       <h1 className="text-2xl font-bold">Managed AI service</h1>
       {denied ? (
         <p role="alert" className="mt-4">

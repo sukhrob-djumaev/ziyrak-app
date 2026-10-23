@@ -44,28 +44,28 @@ export function AccountEmailBanner() {
 
   if (!state || state.verified) return null;
   return (
-    <div id="accountEmailBanner" className="bg-owly-surface rounded-xl border border-owly-border px-5 py-4 text-sm text-owly-text">
+    <div id="accountEmailBanner" className="bg-ziyrak-surface rounded-xl border border-ziyrak-border px-5 py-4 text-sm text-ziyrak-text">
       <p>
         {state.email
           ? `Confirm ${state.email} to secure your account and enable password recovery.`
           : "Add and confirm an email address to secure your account and enable password recovery."}{" "}
-        <button id="accountEmailOpen" type="button" onClick={() => setOpen((v) => !v)} className="font-medium text-owly-primary hover:underline">
+        <button id="accountEmailOpen" type="button" onClick={() => setOpen((v) => !v)} className="font-medium text-ziyrak-primary hover:underline">
           {open ? "Close" : state.email ? "Use a different address" : "Add email"}
         </button>
       </p>
       {open && (
         <form onSubmit={submit} className="mt-3 grid gap-2 sm:max-w-md">
           <label htmlFor="accountEmail" className="text-xs font-medium">Email address</label>
-          <input id="accountEmail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-lg border border-owly-border bg-owly-bg px-3 py-2" />
+          <input id="accountEmail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3 py-2" />
           <label htmlFor="accountEmailPassword" className="text-xs font-medium">Current password</label>
-          <input id="accountEmailPassword" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-lg border border-owly-border bg-owly-bg px-3 py-2" autoComplete="current-password" />
-          <button id="accountEmailSubmit" type="submit" disabled={busy} className="rounded-lg bg-owly-primary px-3 py-2 font-semibold text-white disabled:opacity-60">
+          <input id="accountEmailPassword" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3 py-2" autoComplete="current-password" />
+          <button id="accountEmailSubmit" type="submit" disabled={busy} className="rounded-lg bg-ziyrak-primary px-3 py-2 font-semibold text-white disabled:opacity-60">
             Send confirmation link
           </button>
         </form>
       )}
       {message && <p role="status" className="mt-2">{message}</p>}
-      {error && <p role="alert" className="mt-2 text-owly-danger">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-ziyrak-danger">{error}</p>}
     </div>
   );
 }

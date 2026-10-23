@@ -59,7 +59,7 @@ interface ApiKeyItem {
 // ---------------------------------------------------------------------------
 
 const roleBadgeStyles: Record<string, string> = {
-  admin: "bg-owly-primary-50 text-owly-primary-dark border border-owly-primary-100",
+  admin: "bg-ziyrak-primary-50 text-ziyrak-primary-dark border border-ziyrak-primary-100",
   editor: "bg-amber-50 text-amber-700 border border-amber-200",
   viewer: "bg-gray-100 text-gray-600 border border-gray-200",
 };
@@ -554,14 +554,14 @@ export default function AdminClient({
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Tab switcher */}
-        <div className="flex gap-1 bg-owly-bg rounded-lg p-1 w-fit">
+        <div className="flex gap-1 bg-ziyrak-bg rounded-lg p-1 w-fit">
           <button
             onClick={() => setActiveTab("users")}
             className={cn(
               "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors",
               activeTab === "users"
-                ? "bg-owly-surface text-owly-text shadow-sm"
-                : "text-owly-text-light hover:text-owly-text"
+                ? "bg-ziyrak-surface text-ziyrak-text shadow-sm"
+                : "text-ziyrak-text-light hover:text-ziyrak-text"
             )}
           >
             <Users className="h-4 w-4" />
@@ -572,8 +572,8 @@ export default function AdminClient({
             className={cn(
               "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors",
               activeTab === "apikeys"
-                ? "bg-owly-surface text-owly-text shadow-sm"
-                : "text-owly-text-light hover:text-owly-text"
+                ? "bg-ziyrak-surface text-ziyrak-text shadow-sm"
+                : "text-ziyrak-text-light hover:text-ziyrak-text"
             )}
           >
             <Key className="h-4 w-4" />
@@ -583,18 +583,18 @@ export default function AdminClient({
 
         {/* ================= USERS TAB ================= */}
         {activeTab === "users" && (
-          <div className="bg-owly-surface rounded-xl border border-owly-border">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
+          <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
               <div>
-                <h3 className="font-semibold text-owly-text">Admin Users</h3>
-                <p className="text-xs text-owly-text-light mt-0.5">
+                <h3 className="font-semibold text-ziyrak-text">Admin Users</h3>
+                <p className="text-xs text-ziyrak-text-light mt-0.5">
                   {users.length} user{users.length !== 1 ? "s" : ""} total
                 </p>
               </div>
               {capabilities.manageUsers && (
                 <button
                   onClick={() => openUserModal()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-owly-primary hover:bg-owly-primary-dark rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Invite User
@@ -602,16 +602,16 @@ export default function AdminClient({
               )}
             </div>
             {inviteNotice && (
-              <p id="inviteNotice" role="status" className="px-5 py-2 text-xs text-owly-text border-b border-owly-border">
+              <p id="inviteNotice" role="status" className="px-5 py-2 text-xs text-ziyrak-text border-b border-ziyrak-border">
                 {inviteNotice}
               </p>
             )}
             {invitations.length > 0 && (
-              <div id="pendingInvitations" className="px-5 py-3 border-b border-owly-border">
-                <p className="text-xs font-medium text-owly-text mb-2">Pending invitations</p>
+              <div id="pendingInvitations" className="px-5 py-3 border-b border-ziyrak-border">
+                <p className="text-xs font-medium text-ziyrak-text mb-2">Pending invitations</p>
                 <ul className="space-y-1">
                   {invitations.map((inv) => (
-                    <li key={inv.id} data-invitation={inv.id} className="flex items-center justify-between text-xs text-owly-text-light">
+                    <li key={inv.id} data-invitation={inv.id} className="flex items-center justify-between text-xs text-ziyrak-text-light">
                       <span>
                         {inv.email} · {inv.role} · expires {new Date(inv.expiresAt).toLocaleDateString()}
                       </span>
@@ -619,7 +619,7 @@ export default function AdminClient({
                         <button
                           type="button"
                           onClick={() => void revokeInvite(inv.id)}
-                          className="font-medium text-owly-danger hover:underline"
+                          className="font-medium text-ziyrak-danger hover:underline"
                         >
                           Revoke
                         </button>
@@ -632,54 +632,54 @@ export default function AdminClient({
 
             {loadingUsers ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-owly-text-light" />
+                <Loader2 className="h-5 w-5 animate-spin text-ziyrak-text-light" />
               </div>
             ) : users.length === 0 ? (
               <div className="px-5 py-12 text-center">
-                <Users className="h-10 w-10 mx-auto mb-3 text-owly-text-light opacity-40" />
-                <p className="text-sm font-medium text-owly-text-light">No users found</p>
+                <Users className="h-10 w-10 mx-auto mb-3 text-ziyrak-text-light opacity-40" />
+                <p className="text-sm font-medium text-ziyrak-text-light">No users found</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-owly-border">
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                    <tr className="border-b border-ziyrak-border">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Name
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Username
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Role
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Access
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Created
                       </th>
-                      <th className="text-right text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-right text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-owly-border">
+                  <tbody className="divide-y divide-ziyrak-border">
                     {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-owly-bg/50 transition-colors">
+                      <tr key={user.id} className="hover:bg-ziyrak-bg/50 transition-colors">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-owly-primary-50 text-owly-primary text-sm font-semibold">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-ziyrak-primary-50 text-ziyrak-primary text-sm font-semibold">
                               {user.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium text-owly-text">{user.name}</span>
+                            <span className="text-sm font-medium text-ziyrak-text">{user.name}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-sm text-owly-text-light">{user.username}</td>
+                        <td className="px-5 py-3 text-sm text-ziyrak-text-light">{user.username}</td>
                         <td className="px-5 py-3">
                           <RoleBadge role={user.role} />
                         </td>
-                        <td className="px-5 py-3 text-sm text-owly-text-light">
+                        <td className="px-5 py-3 text-sm text-ziyrak-text-light">
                           {!user.scope
                             ? "-"
                             : user.scope.kind === "workspace"
@@ -688,7 +688,7 @@ export default function AdminClient({
                                 ? `${user.scope.connectionIds.length} channel${user.scope.connectionIds.length === 1 ? "" : "s"}`
                                 : "Not set"}
                         </td>
-                        <td className="px-5 py-3 text-sm text-owly-text-light">
+                        <td className="px-5 py-3 text-sm text-ziyrak-text-light">
                           {formatDate(user.createdAt)}
                         </td>
                         <td className="px-5 py-3">
@@ -696,7 +696,7 @@ export default function AdminClient({
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => openUserModal(user)}
-                                className="p-1.5 text-owly-text-light hover:text-owly-primary hover:bg-owly-primary-50 rounded transition-colors"
+                                className="p-1.5 text-ziyrak-text-light hover:text-ziyrak-primary hover:bg-ziyrak-primary-50 rounded transition-colors"
                                 title="Edit user"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
@@ -706,7 +706,7 @@ export default function AdminClient({
                                   setDeleteUserError("");
                                   setDeleteUserTarget(user);
                                 }}
-                                className="p-1.5 text-owly-text-light hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 text-ziyrak-text-light hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="Delete user"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -725,18 +725,18 @@ export default function AdminClient({
 
         {/* ================= API KEYS TAB ================= */}
         {activeTab === "apikeys" && (
-          <div className="bg-owly-surface rounded-xl border border-owly-border">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
+          <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
               <div>
-                <h3 className="font-semibold text-owly-text">API Keys</h3>
-                <p className="text-xs text-owly-text-light mt-0.5">
+                <h3 className="font-semibold text-ziyrak-text">API Keys</h3>
+                <p className="text-xs text-ziyrak-text-light mt-0.5">
                   Manage API access keys for integrations
                 </p>
               </div>
               {capabilities.createKeys && (
                 <button
                   onClick={openKeyModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-owly-primary hover:bg-owly-primary-dark rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Generate New Key
@@ -746,13 +746,13 @@ export default function AdminClient({
 
             {loadingKeys ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-owly-text-light" />
+                <Loader2 className="h-5 w-5 animate-spin text-ziyrak-text-light" />
               </div>
             ) : apiKeys.length === 0 ? (
               <div className="px-5 py-12 text-center">
-                <Key className="h-10 w-10 mx-auto mb-3 text-owly-text-light opacity-40" />
-                <p className="text-sm font-medium text-owly-text-light">No API keys yet</p>
-                <p className="text-xs text-owly-text-light mt-1">
+                <Key className="h-10 w-10 mx-auto mb-3 text-ziyrak-text-light opacity-40" />
+                <p className="text-sm font-medium text-ziyrak-text-light">No API keys yet</p>
+                <p className="text-xs text-ziyrak-text-light mt-1">
                   Generate a key to enable API access for integrations.
                 </p>
               </div>
@@ -760,43 +760,43 @@ export default function AdminClient({
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-owly-border">
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                    <tr className="border-b border-ziyrak-border">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Name
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Key
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Status
                       </th>
-                      <th className="text-left text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-left text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Last Used
                       </th>
-                      <th className="text-right text-xs font-medium text-owly-text-light px-5 py-3">
+                      <th className="text-right text-xs font-medium text-ziyrak-text-light px-5 py-3">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-owly-border">
+                  <tbody className="divide-y divide-ziyrak-border">
                     {apiKeys.map((apiKey) => (
                       <tr
                         key={apiKey.id}
                         className={cn(
-                          "hover:bg-owly-bg/50 transition-colors",
+                          "hover:bg-ziyrak-bg/50 transition-colors",
                           !apiKey.isActive && "opacity-60"
                         )}
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2">
-                            <Key className="h-4 w-4 text-owly-text-light" />
-                            <span className="text-sm font-medium text-owly-text">
+                            <Key className="h-4 w-4 text-ziyrak-text-light" />
+                            <span className="text-sm font-medium text-ziyrak-text">
                               {apiKey.name}
                             </span>
                           </div>
                         </td>
                         <td className="px-5 py-3">
-                          <code className="text-xs bg-owly-bg px-2 py-1 rounded font-mono text-owly-text-light">
+                          <code className="text-xs bg-ziyrak-bg px-2 py-1 rounded font-mono text-ziyrak-text-light">
                             {apiKey.keyPrefix}
                           </code>
                         </td>
@@ -812,7 +812,7 @@ export default function AdminClient({
                             {apiKey.isActive ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-sm text-owly-text-light">
+                        <td className="px-5 py-3 text-sm text-ziyrak-text-light">
                           {apiKey.lastUsedAt ? formatDate(apiKey.lastUsedAt) : "Never"}
                         </td>
                         <td className="px-5 py-3">
@@ -823,8 +823,8 @@ export default function AdminClient({
                                 className={cn(
                                   "p-1.5 rounded transition-colors",
                                   apiKey.isActive
-                                    ? "text-owly-primary hover:bg-owly-primary-50"
-                                    : "text-owly-text-light hover:bg-gray-100"
+                                    ? "text-ziyrak-primary hover:bg-ziyrak-primary-50"
+                                    : "text-ziyrak-text-light hover:bg-gray-100"
                                 )}
                                 title={apiKey.isActive ? "Deactivate" : "Activate"}
                               >
@@ -838,7 +838,7 @@ export default function AdminClient({
                             {capabilities.deleteKeys && (
                               <button
                                 onClick={() => setDeleteKeyTarget(apiKey)}
-                                className="p-1.5 text-owly-text-light hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 text-ziyrak-text-light hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="Delete key"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -863,14 +863,14 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowUserModal(false)}
           />
-          <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
-              <h3 className="font-semibold text-owly-text">
+          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
+              <h3 className="font-semibold text-ziyrak-text">
                 {editingUser ? "Edit User" : "Invite User"}
               </h3>
               <button
                 onClick={() => setShowUserModal(false)}
-                className="p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
+                className="p-1 text-ziyrak-text-light hover:text-ziyrak-text rounded transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -886,7 +886,7 @@ export default function AdminClient({
 
               {!editingUser && (
                 <div>
-                  <label htmlFor="inviteEmail" className="block text-xs font-medium text-owly-text mb-1.5">
+                  <label htmlFor="inviteEmail" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                     Email address
                   </label>
                   <input
@@ -895,19 +895,19 @@ export default function AdminClient({
                     value={userForm.email}
                     onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
                     placeholder="colleague@example.com"
-                    className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                    className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary bg-ziyrak-surface text-ziyrak-text"
                   />
-                  <p className="mt-1 text-xs text-owly-text-light">
+                  <p className="mt-1 text-xs text-ziyrak-text-light">
                     They receive a link to join and choose their own username and password.
                   </p>
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">Role</label>
+                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">Role</label>
                 <select
                   value={userForm.role}
                   onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                  className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary bg-ziyrak-surface text-ziyrak-text"
                 >
                   <option value="admin">Admin - Full access</option>
                   <option value="supervisor">
@@ -919,7 +919,7 @@ export default function AdminClient({
               </div>
               {editingUser?.scope && (
                 <fieldset className="space-y-2" aria-label="Channel access">
-                  <legend className="block text-xs font-medium text-owly-text mb-1.5">
+                  <legend className="block text-xs font-medium text-ziyrak-text mb-1.5">
                     Channel access
                   </legend>
                   {editingUser.scope.kind === "unclassified" && (
@@ -927,7 +927,7 @@ export default function AdminClient({
                       This member has no access scope yet and sees nothing until you save one.
                     </p>
                   )}
-                  <label className="flex items-center gap-2 text-sm text-owly-text">
+                  <label className="flex items-center gap-2 text-sm text-ziyrak-text">
                     <input
                       type="radio"
                       name="access-kind"
@@ -936,7 +936,7 @@ export default function AdminClient({
                     />
                     Whole workspace
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-owly-text">
+                  <label className="flex items-center gap-2 text-sm text-ziyrak-text">
                     <input
                       type="radio"
                       name="access-kind"
@@ -948,12 +948,12 @@ export default function AdminClient({
                   {accessForm.kind === "connections" && (
                     <div className="ml-6 space-y-1">
                       {connectionOptions.length === 0 && (
-                        <p className="text-xs text-owly-text-light">No channels available.</p>
+                        <p className="text-xs text-ziyrak-text-light">No channels available.</p>
                       )}
                       {connectionOptions.map((option) => (
                         <label
                           key={option.id}
-                          className="flex items-center gap-2 text-sm text-owly-text"
+                          className="flex items-center gap-2 text-sm text-ziyrak-text"
                         >
                           <input
                             type="checkbox"
@@ -968,13 +968,13 @@ export default function AdminClient({
                             }
                           />
                           {option.name}{" "}
-                          <span className="text-xs text-owly-text-light">({option.type})</span>
+                          <span className="text-xs text-ziyrak-text-light">({option.type})</span>
                         </label>
                       ))}
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-medium text-owly-text mb-1.5">
+                    <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
                       Customer profiles
                     </label>
                     <select
@@ -985,7 +985,7 @@ export default function AdminClient({
                           profile: e.target.value as "none" | "read" | "write",
                         })
                       }
-                      className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                      className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary bg-ziyrak-surface text-ziyrak-text"
                     >
                       <option value="none">No access</option>
                       <option value="read">Read only</option>
@@ -996,17 +996,17 @@ export default function AdminClient({
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setShowUserModal(false)}
-                className="px-4 py-2 text-sm font-medium text-owly-text-light hover:text-owly-text rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ziyrak-text-light hover:text-ziyrak-text rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={saveUser}
                 disabled={savingUser}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary hover:bg-owly-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingUser && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingUser ? "Save Changes" : "Send Invitation"}
@@ -1023,17 +1023,17 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setDeleteUserTarget(null)}
           />
-          <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-sm mx-4">
+          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-owly-text">Delete User</h3>
+                <h3 className="font-semibold text-ziyrak-text">Delete User</h3>
               </div>
-              <p className="text-sm text-owly-text-light">
+              <p className="text-sm text-ziyrak-text-light">
                 Are you sure you want to delete{" "}
-                <span className="font-medium text-owly-text">{deleteUserTarget.name}</span>? This
+                <span className="font-medium text-ziyrak-text">{deleteUserTarget.name}</span>? This
                 action cannot be undone.
               </p>
               {deleteUserError && (
@@ -1043,10 +1043,10 @@ export default function AdminClient({
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setDeleteUserTarget(null)}
-                className="px-4 py-2 text-sm font-medium text-owly-text-light hover:text-owly-text rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ziyrak-text-light hover:text-ziyrak-text rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -1070,12 +1070,12 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowKeyModal(false)}
           />
-          <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
-              <h3 className="font-semibold text-owly-text">Generate New API Key</h3>
+          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
+              <h3 className="font-semibold text-ziyrak-text">Generate New API Key</h3>
               <button
                 onClick={() => setShowKeyModal(false)}
-                className="p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
+                className="p-1 text-ziyrak-text-light hover:text-ziyrak-text rounded transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1090,28 +1090,28 @@ export default function AdminClient({
               )}
 
               <div>
-                <label className="block text-xs font-medium text-owly-text mb-1.5">Key Name</label>
+                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">Key Name</label>
                 <input
                   type="text"
                   value={keyForm.name}
                   onChange={(e) => setKeyForm({ name: e.target.value })}
                   placeholder="e.g. Production API, Webhook Integration"
-                  className="w-full px-3 py-2 text-sm border border-owly-border rounded-lg focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary bg-owly-surface text-owly-text"
+                  className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary bg-ziyrak-surface text-ziyrak-text"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setShowKeyModal(false)}
-                className="px-4 py-2 text-sm font-medium text-owly-text-light hover:text-owly-text rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ziyrak-text-light hover:text-ziyrak-text rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={createKey}
                 disabled={savingKey}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary hover:bg-owly-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingKey && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Generate Key
@@ -1125,13 +1125,13 @@ export default function AdminClient({
       {newKeyValue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-owly-border">
+          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-full bg-green-50">
                   <Check className="h-4 w-4 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-owly-text">API Key Generated</h3>
+                <h3 className="font-semibold text-ziyrak-text">API Key Generated</h3>
               </div>
             </div>
 
@@ -1142,12 +1142,12 @@ export default function AdminClient({
               </div>
 
               <div className="relative">
-                <code className="block w-full px-3 py-3 bg-owly-bg border border-owly-border rounded-lg text-sm font-mono text-owly-text break-all select-all">
+                <code className="block w-full px-3 py-3 bg-ziyrak-bg border border-ziyrak-border rounded-lg text-sm font-mono text-ziyrak-text break-all select-all">
                   {newKeyValue}
                 </code>
                 <button
                   onClick={copyKeyToClipboard}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-owly-surface border border-owly-border text-owly-text-light hover:text-owly-text hover:bg-owly-bg transition-colors"
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-ziyrak-surface border border-ziyrak-border text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-bg transition-colors"
                   title="Copy to clipboard"
                 >
                   {keyCopied ? (
@@ -1159,10 +1159,10 @@ export default function AdminClient({
               </div>
             </div>
 
-            <div className="flex items-center justify-end px-5 py-4 border-t border-owly-border">
+            <div className="flex items-center justify-end px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setNewKeyValue("")}
-                className="px-4 py-2 text-sm font-medium text-white bg-owly-primary hover:bg-owly-primary-dark rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
               >
                 Done
               </button>
@@ -1178,24 +1178,24 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setDeleteKeyTarget(null)}
           />
-          <div className="relative bg-owly-surface rounded-xl shadow-xl border border-owly-border w-full max-w-sm mx-4">
+          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-owly-text">Delete API Key</h3>
+                <h3 className="font-semibold text-ziyrak-text">Delete API Key</h3>
               </div>
-              <p className="text-sm text-owly-text-light">
+              <p className="text-sm text-ziyrak-text-light">
                 Are you sure you want to delete the key{" "}
-                <span className="font-medium text-owly-text">{deleteKeyTarget.name}</span>? Any
+                <span className="font-medium text-ziyrak-text">{deleteKeyTarget.name}</span>? Any
                 integrations using this key will stop working immediately.
               </p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-owly-border">
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setDeleteKeyTarget(null)}
-                className="px-4 py-2 text-sm font-medium text-owly-text-light hover:text-owly-text rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ziyrak-text-light hover:text-ziyrak-text rounded-lg transition-colors"
               >
                 Cancel
               </button>

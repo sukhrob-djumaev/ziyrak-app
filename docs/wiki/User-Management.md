@@ -1,6 +1,6 @@
 # User Management
 
-The Admin page provides user account management and API key administration for your Owly instance. This page is accessible from the sidebar under the "Admin" section.
+The Admin page provides user account management and API key administration for your Ziyrak instance. This page is accessible from the sidebar under the "Admin" section.
 
 ![Admin Page](../screenshots/16-admin.png)
 
@@ -10,7 +10,7 @@ The Admin page provides user account management and API key administration for y
 
 The Admin page has two tabs:
 
-1. **Users** -- Manage admin accounts that can access the Owly dashboard.
+1. **Users** -- Manage admin accounts that can access the Ziyrak dashboard.
 2. **API Keys** -- Manage API keys for programmatic access (covered in the [API Keys](API-Keys) page).
 
 Only authenticated users can access this page. The user management features described here are available under the "Users" tab.
@@ -19,7 +19,7 @@ Only authenticated users can access this page. The user management features desc
 
 ## Roles
 
-Owly supports three roles with different access levels:
+Ziyrak supports three roles with different access levels:
 
 | Role | Dashboard Access | Manage Content | System Settings | User Management |
 |------|-----------------|----------------|-----------------|-----------------|
@@ -29,7 +29,7 @@ Owly supports three roles with different access levels:
 
 ### Role Descriptions
 
-- **Admin**: Complete control over the Owly instance. Can manage all settings, users, knowledge base, conversations, tickets, channels, and integrations. At least one admin account must exist at all times.
+- **Admin**: Complete control over the Ziyrak instance. Can manage all settings, users, knowledge base, conversations, tickets, channels, and integrations. At least one admin account must exist at all times.
 - **Editor**: Can manage content-related features such as knowledge base entries, canned responses, and conversation handling. Cannot modify system settings, user accounts, or API keys.
 - **Viewer**: Read-only access to the dashboard. Can view conversations, tickets, analytics, and other data but cannot create, modify, or delete anything.
 
@@ -85,7 +85,7 @@ There is no "current password" verification when an admin changes another user's
 
 ### Last Admin Protection
 
-Owly prevents deleting the last remaining admin account. If you attempt to delete a user and they are the only account with the `admin` role, the operation will be rejected with an error message. This safeguard ensures you cannot lock yourself out of the system.
+Ziyrak prevents deleting the last remaining admin account. If you attempt to delete a user and they are the only account with the `admin` role, the operation will be rejected with an error message. This safeguard ensures you cannot lock yourself out of the system.
 
 To delete an admin account when it is the last one:
 

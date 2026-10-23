@@ -120,7 +120,7 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
           key={t.id}
           className={cn(
             "flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all animate-in slide-in-from-right",
-            t.type === "success" ? "bg-owly-success text-white" : "bg-owly-danger text-white"
+            t.type === "success" ? "bg-ziyrak-success text-white" : "bg-ziyrak-danger text-white"
           )}
         >
           {t.type === "success" ? (
@@ -150,15 +150,15 @@ function FormField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-owly-text">{label}</label>
-      {description && <p className="text-xs text-owly-text-light">{description}</p>}
+      <label className="block text-sm font-medium text-ziyrak-text">{label}</label>
+      {description && <p className="text-xs text-ziyrak-text-light">{description}</p>}
       {children}
     </div>
   );
 }
 
 const inputClasses =
-  "w-full px-3 py-2 text-sm border border-owly-border rounded-lg bg-owly-bg text-owly-text placeholder:text-owly-text-light/60 focus:outline-none focus:ring-2 focus:ring-owly-primary/30 focus:border-owly-primary transition-colors";
+  "w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text placeholder:text-ziyrak-text-light/60 focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-colors";
 
 function TextInput({
   value,
@@ -270,7 +270,7 @@ function PasswordInput({
       <button
         type="button"
         onClick={() => setVisible(!visible)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-owly-text-light hover:text-owly-text rounded transition-colors"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-ziyrak-text-light hover:text-ziyrak-text rounded transition-colors"
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -302,9 +302,9 @@ function SliderInput({
         min={min}
         max={max}
         step={step}
-        className="flex-1 h-2 rounded-full appearance-none bg-owly-border accent-owly-primary cursor-pointer"
+        className="flex-1 h-2 rounded-full appearance-none bg-ziyrak-border accent-ziyrak-primary cursor-pointer"
       />
-      <span className="text-sm font-medium text-owly-text w-16 text-right">
+      <span className="text-sm font-medium text-ziyrak-text w-16 text-right">
         {displayValue ?? value}
       </span>
     </div>
@@ -317,15 +317,15 @@ function SliderInput({
 
 function SaveButton({ onClick, saving }: { onClick: () => void; saving: boolean }) {
   return (
-    <div className="flex justify-end pt-4 border-t border-owly-border">
+    <div className="flex justify-end pt-4 border-t border-ziyrak-border">
       <button
         onClick={onClick}
         disabled={saving}
         className={cn(
           "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors",
           saving
-            ? "bg-owly-primary/60 text-white cursor-not-allowed"
-            : "bg-owly-primary hover:bg-owly-primary-dark text-white"
+            ? "bg-ziyrak-primary/60 text-white cursor-not-allowed"
+            : "bg-ziyrak-primary hover:bg-ziyrak-primary-dark text-white"
         )}
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -435,7 +435,7 @@ function ManagedAiPanel({ view }: { view: ManagedAiView }) {
   return (
     <div className="space-y-5" data-testid="managed-ai-panel">
       <div>
-        <p className="text-sm text-owly-text-light">Managed AI service</p>
+        <p className="text-sm text-ziyrak-text-light">Managed AI service</p>
         <p className="text-base font-medium">{view.serviceName ?? "Not available"}</p>
       </div>
       <p className="text-sm" data-testid="managed-ai-status">
@@ -451,13 +451,13 @@ function ManagedAiPanel({ view }: { view: ManagedAiView }) {
                 {usage.used.toLocaleString()} of {usage.limit.toLocaleString()} tokens used
               </span>
             </div>
-            <div className="h-2 rounded bg-owly-bg" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-              <div className="h-2 rounded bg-owly-primary" style={{ width: `${pct}%` }} />
+            <div className="h-2 rounded bg-ziyrak-bg" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+              <div className="h-2 rounded bg-ziyrak-primary" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );
       })}
-      <p className="text-sm text-owly-text-light">
+      <p className="text-sm text-ziyrak-text-light">
         Usage resets on {new Date(view.resetsAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })} (UTC).
         Limits are usage caps, not invoices.
       </p>
@@ -607,8 +607,8 @@ function VoiceSection({
 }) {
   return (
     <div className="space-y-5">
-      <div className="p-4 rounded-lg bg-owly-primary-50/50 border border-owly-primary/20">
-        <p className="text-sm text-owly-text">
+      <div className="p-4 rounded-lg bg-ziyrak-primary-50/50 border border-ziyrak-primary/20">
+        <p className="text-sm text-ziyrak-text">
           Connect your ElevenLabs account to enable AI-powered voice responses for phone calls.
         </p>
       </div>
@@ -642,8 +642,8 @@ function PhoneSection({
 }) {
   return (
     <div className="space-y-5">
-      <div className="p-4 rounded-lg bg-owly-primary-50/50 border border-owly-primary/20">
-        <p className="text-sm text-owly-text">
+      <div className="p-4 rounded-lg bg-ziyrak-primary-50/50 border border-ziyrak-primary/20">
+        <p className="text-sm text-ziyrak-text">
           Configure Twilio to enable phone call support. You will need an active Twilio account with
           a phone number.
         </p>
@@ -684,8 +684,8 @@ function EmailSection({
     <div className="space-y-6">
       {/* SMTP */}
       <div>
-        <h4 className="text-sm font-semibold text-owly-text mb-4 flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-owly-primary" />
+        <h4 className="text-sm font-semibold text-ziyrak-text mb-4 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-ziyrak-primary" />
           Outgoing Mail (SMTP)
         </h4>
         <div className="space-y-4">
@@ -737,8 +737,8 @@ function EmailSection({
 
       {/* IMAP */}
       <div>
-        <h4 className="text-sm font-semibold text-owly-text mb-4 flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-owly-primary" />
+        <h4 className="text-sm font-semibold text-ziyrak-text mb-4 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-ziyrak-primary" />
           Incoming Mail (IMAP)
         </h4>
         <div className="space-y-4">
@@ -790,13 +790,13 @@ function WhatsAppSection({
 }) {
   return (
     <div className="space-y-5">
-      <div className="p-4 rounded-lg bg-owly-primary-50/50 border border-owly-primary/20">
-        <p className="text-sm text-owly-text">
+      <div className="p-4 rounded-lg bg-ziyrak-primary-50/50 border border-ziyrak-primary/20">
+        <p className="text-sm text-ziyrak-text">
           Choose between WhatsApp Web (free, requires QR scan) or the official WhatsApp Business API
           (paid, more reliable).
         </p>
       </div>
-      <FormField label="Connection Mode" description="Select how Owly connects to WhatsApp.">
+      <FormField label="Connection Mode" description="Select how Ziyrak connects to WhatsApp.">
         <SelectInput
           value={data.whatsappMode}
           onChange={(v) => update("whatsappMode", v)}
@@ -1171,9 +1171,9 @@ export default function SettingsClient({
   if (loading) {
     return (
       <>
-        <Header title="Settings" description="Configure your Owly instance" />
+        <Header title="Settings" description="Configure your Ziyrak instance" />
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-owly-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-ziyrak-primary" />
         </div>
       </>
     );
@@ -1182,16 +1182,16 @@ export default function SettingsClient({
   if (loadError) {
     return (
       <>
-        <Header title="Settings" description="Configure your Owly instance" />
+        <Header title="Settings" description="Configure your Ziyrak instance" />
         <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-4xl mx-auto bg-owly-surface rounded-xl border border-owly-border p-6 flex items-start gap-3">
+          <div className="max-w-4xl mx-auto bg-ziyrak-surface rounded-xl border border-ziyrak-border p-6 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-owly-text">Settings could not be loaded</h3>
-              <p className="text-sm text-owly-text-light mt-0.5">{loadError}</p>
+              <h3 className="text-sm font-semibold text-ziyrak-text">Settings could not be loaded</h3>
+              <p className="text-sm text-ziyrak-text-light mt-0.5">{loadError}</p>
               <button
                 onClick={() => void load()}
-                className="mt-3 rounded-lg border border-owly-border px-3 py-2 text-sm"
+                className="mt-3 rounded-lg border border-ziyrak-border px-3 py-2 text-sm"
               >
                 Retry
               </button>
@@ -1205,11 +1205,11 @@ export default function SettingsClient({
 
   return (
     <>
-      <Header title="Settings" description="Configure your Owly instance" />
+      <Header title="Settings" description="Configure your Ziyrak instance" />
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl mx-auto">
           {/* Tab navigation */}
-          <div className="flex gap-1 p-1 bg-owly-bg rounded-xl border border-owly-border mb-6 overflow-x-auto">
+          <div className="flex gap-1 p-1 bg-ziyrak-bg rounded-xl border border-ziyrak-border mb-6 overflow-x-auto">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
@@ -1220,8 +1220,8 @@ export default function SettingsClient({
                   className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                     isActive
-                      ? "bg-owly-surface text-owly-primary shadow-sm"
-                      : "text-owly-text-light hover:text-owly-text hover:bg-owly-surface/50"
+                      ? "bg-ziyrak-surface text-ziyrak-primary shadow-sm"
+                      : "text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-surface/50"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -1232,10 +1232,10 @@ export default function SettingsClient({
           </div>
 
           {!legacyAvailable && (
-            <p className="text-sm text-owly-text-light mb-4">
+            <p className="text-sm text-ziyrak-text-light mb-4">
               Channel credentials (email, SMS, phone, WhatsApp, Telegram, Web Chat) are configured
               per channel in{" "}
-              <Link href="/channels" className="text-owly-primary hover:underline">
+              <Link href="/channels" className="text-ziyrak-primary hover:underline">
                 Channels
               </Link>
               .
@@ -1243,12 +1243,12 @@ export default function SettingsClient({
           )}
 
           {/* Section content */}
-          <div className="bg-owly-surface rounded-xl border border-owly-border p-6 space-y-6">
+          <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border p-6 space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-owly-text">
+              <h3 className="text-lg font-semibold text-ziyrak-text">
                 {tabs.find((t) => t.key === activeTab)?.label}
               </h3>
-              <p className="text-sm text-owly-text-light mt-0.5">
+              <p className="text-sm text-ziyrak-text-light mt-0.5">
                 {activeTab === "general" &&
                   "Configure your business identity and communication preferences."}
                 {activeTab === "ai" &&

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Phone channel enables Owly to handle incoming voice calls with AI-powered responses. The integration combines three services: Twilio for telephony infrastructure, OpenAI Whisper for speech-to-text transcription, and ElevenLabs for natural text-to-speech synthesis. Together, these create a seamless voice support experience where customers call your number, speak naturally, and receive spoken AI responses.
+The Phone channel enables Ziyrak to handle incoming voice calls with AI-powered responses. The integration combines three services: Twilio for telephony infrastructure, OpenAI Whisper for speech-to-text transcription, and ElevenLabs for natural text-to-speech synthesis. Together, these create a seamless voice support experience where customers call your number, speak naturally, and receive spoken AI responses.
 
 ![Channels](../screenshots/12-channels.png)
 *The Channels page showing WhatsApp, Email, and Phone channel cards with their connection status and configuration options.*
@@ -14,10 +14,10 @@ The Phone channel enables Owly to handle incoming voice calls with AI-powered re
 The phone call flow follows this pipeline:
 
 ```
-Customer calls  -->  Twilio receives call  -->  Webhook to Owly
+Customer calls  -->  Twilio receives call  -->  Webhook to Ziyrak
      |
      v
-Owly greets caller (TwiML Say/Gather)
+Ziyrak greets caller (TwiML Say/Gather)
      |
      v
 Customer speaks  -->  Twilio STT (or Whisper)  -->  Text transcription
@@ -36,9 +36,9 @@ Gather continues  -->  Loop for follow-up questions
 
 1. **Incoming call:** A customer dials your Twilio phone number.
 2. **Webhook trigger:** Twilio sends a POST request to your configured webhook URL (`/api/channels/phone/incoming`) with the caller's phone number (`From`) and a unique call identifier (`CallSid`).
-3. **Call log creation:** Owly creates a call log record in the database with the call SID, caller number, and in-progress status.
+3. **Call log creation:** Ziyrak creates a call log record in the database with the call SID, caller number, and in-progress status.
 4. **Conversation lookup:** The system checks for an existing active or escalated conversation for the caller's phone number. If none exists, a new conversation is created with the name "Phone Caller."
-5. **Welcome message:** Owly responds with TwiML that speaks a welcome message (configurable in Settings) and sets up a `<Gather>` element to capture the caller's speech.
+5. **Welcome message:** Ziyrak responds with TwiML that speaks a welcome message (configurable in Settings) and sets up a `<Gather>` element to capture the caller's speech.
 6. **Speech capture:** Twilio listens for the caller's speech input with automatic speech timeout detection and multi-language support (`language="auto"`).
 7. **Speech processing:** When the caller finishes speaking, Twilio sends the transcribed speech (`SpeechResult`) to the gather callback URL (`/api/channels/phone/gather`).
 8. **AI response:** The transcribed text is passed to the AI engine via the `chat()` function, which generates a contextual response.
@@ -63,7 +63,7 @@ You need the following from your Twilio account:
 
 ### Configuration Steps
 
-**Step 1:** Navigate to **Settings** in the Owly sidebar.
+**Step 1:** Navigate to **Settings** in the Ziyrak sidebar.
 
 **Step 2:** Click the **Phone** tab.
 
@@ -79,33 +79,33 @@ You need the following from your Twilio account:
 
 ### Webhook URL Configuration
 
-For incoming calls to reach Owly, you must configure your Twilio phone number to point to the correct webhook URL.
+For incoming calls to reach Ziyrak, you must configure your Twilio phone number to point to the correct webhook URL.
 
 **Step 1:** Log in to the [Twilio Console](https://console.twilio.com).
 
 **Step 2:** Navigate to **Phone Numbers** > **Manage** > **Active Numbers**.
 
-**Step 3:** Click on the phone number you want to use with Owly.
+**Step 3:** Click on the phone number you want to use with Ziyrak.
 
 **Step 4:** Under the **Voice & Fax** section, configure:
 
 | Setting | Value |
 |---------|-------|
 | **A CALL COMES IN** | Webhook |
-| **URL** | `https://your-owly-domain.com/api/channels/phone/incoming` |
+| **URL** | `https://your-ziyrak-domain.com/api/channels/phone/incoming` |
 | **HTTP Method** | `POST` |
 
-**Step 5:** Optionally, configure the **Call Status Changes** webhook to: `https://your-owly-domain.com/api/channels/phone/status`
+**Step 5:** Optionally, configure the **Call Status Changes** webhook to: `https://your-ziyrak-domain.com/api/channels/phone/status`
 
 **Step 6:** Save the configuration.
 
-> **Important:** The webhook URL must be publicly accessible from the internet. If you are running Owly locally for development, use a tunneling service such as ngrok to expose your local server. Example: `ngrok http 3000` will give you a public URL like `https://abc123.ngrok.io` that you can use as the webhook base URL.
+> **Important:** The webhook URL must be publicly accessible from the internet. If you are running Ziyrak locally for development, use a tunneling service such as ngrok to expose your local server. Example: `ngrok http 3000` will give you a public URL like `https://abc123.ngrok.io` that you can use as the webhook base URL.
 
 ---
 
 ## ElevenLabs Setup
 
-ElevenLabs provides high-quality text-to-speech synthesis, giving Owly a natural-sounding voice for phone interactions.
+ElevenLabs provides high-quality text-to-speech synthesis, giving Ziyrak a natural-sounding voice for phone interactions.
 
 ### Prerequisites
 
@@ -116,7 +116,7 @@ ElevenLabs provides high-quality text-to-speech synthesis, giving Owly a natural
 
 ### Configuration Steps
 
-**Step 1:** Navigate to **Settings** in the Owly sidebar.
+**Step 1:** Navigate to **Settings** in the Ziyrak sidebar.
 
 **Step 2:** Click the **Voice** tab.
 
@@ -125,13 +125,13 @@ ElevenLabs provides high-quality text-to-speech synthesis, giving Owly a natural
 | Field | Description |
 |-------|-------------|
 | **ElevenLabs API Key** | Your API key from the ElevenLabs dashboard |
-| **Voice ID** | The ID of the voice you want Owly to use for spoken responses |
+| **Voice ID** | The ID of the voice you want Ziyrak to use for spoken responses |
 
 **Step 4:** Click **Save**.
 
 ### Voice Settings
 
-Owly uses the following voice synthesis parameters:
+Ziyrak uses the following voice synthesis parameters:
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
@@ -147,7 +147,7 @@ Owly uses the following voice synthesis parameters:
 
 ## Speech-to-Text (Whisper)
 
-Owly includes a speech-to-text capability using the OpenAI Whisper model. The `transcribeAudio()` function accepts a raw audio buffer and returns the transcribed text.
+Ziyrak includes a speech-to-text capability using the OpenAI Whisper model. The `transcribeAudio()` function accepts a raw audio buffer and returns the transcribed text.
 
 ### How STT Works
 
@@ -161,7 +161,7 @@ Owly includes a speech-to-text capability using the OpenAI Whisper model. The `t
 
 ## Parallel Call Handling
 
-Owly can handle multiple simultaneous phone calls because each call operates independently:
+Ziyrak can handle multiple simultaneous phone calls because each call operates independently:
 
 - Each incoming call receives its own unique `CallSid` from Twilio.
 - Each call creates or resumes a separate conversation in the database.
@@ -174,7 +174,7 @@ There is no shared state between concurrent calls, so the system scales naturall
 
 ## Call Logs and Summaries
 
-Owly maintains a detailed log for every phone call.
+Ziyrak maintains a detailed log for every phone call.
 
 ### Call Log Fields
 
@@ -198,7 +198,7 @@ All speech exchanges during the call are also stored as messages within the asso
 
 ## TwiML Response Structure
 
-Owly generates TwiML (Twilio Markup Language) XML responses to control call behavior.
+Ziyrak generates TwiML (Twilio Markup Language) XML responses to control call behavior.
 
 ### Welcome/Gather Response
 
@@ -224,7 +224,7 @@ The callback URL for each `<Gather>` includes the conversation ID and call SID a
 
 ### Public URL Requirement
 
-Twilio must be able to reach your Owly instance via a public HTTPS URL. Local development setups require a tunneling service (such as ngrok or Cloudflare Tunnel).
+Twilio must be able to reach your Ziyrak instance via a public HTTPS URL. Local development setups require a tunneling service (such as ngrok or Cloudflare Tunnel).
 
 ### Latency
 
@@ -275,7 +275,7 @@ Review each provider's pricing page and monitor your usage to avoid unexpected c
 
 ### Webhook Errors in Twilio Console
 
-- Confirm the Owly application is running and the webhook endpoints return valid TwiML.
+- Confirm the Ziyrak application is running and the webhook endpoints return valid TwiML.
 - Check that the response Content-Type is `text/xml`.
 - Review server logs for unhandled exceptions in the incoming call or gather handlers.
 

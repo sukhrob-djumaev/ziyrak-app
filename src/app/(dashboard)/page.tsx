@@ -115,15 +115,15 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-owly-surface rounded-xl border border-owly-border">
-            <div className="px-5 py-4 border-b border-owly-border">
-              <h3 className="font-semibold text-owly-text">
+          <div className="lg:col-span-2 bg-ziyrak-surface rounded-xl border border-ziyrak-border">
+            <div className="px-5 py-4 border-b border-ziyrak-border">
+              <h3 className="font-semibold text-ziyrak-text">
                 Recent Conversations
               </h3>
             </div>
-            <div className="divide-y divide-owly-border">
+            <div className="divide-y divide-ziyrak-border">
               {stats.recentConversations.length === 0 ? (
-                <div className="px-5 py-12 text-center text-owly-text-light">
+                <div className="px-5 py-12 text-center text-ziyrak-text-light">
                   <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-40" />
                   <p className="font-medium">No conversations yet</p>
                   <p className="text-sm mt-1">
@@ -139,27 +139,27 @@ export default async function DashboardPage() {
                   return (
                     <div
                       key={conv.id}
-                      className="px-5 py-3.5 hover:bg-owly-primary-50/50 transition-colors cursor-pointer"
+                      className="px-5 py-3.5 hover:bg-ziyrak-primary-50/50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-owly-primary-50 text-owly-primary mt-0.5">
+                        <div className="p-2 rounded-lg bg-ziyrak-primary-50 text-ziyrak-primary mt-0.5">
                           <ChannelIcon className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium text-sm text-owly-text truncate">
+                            <p className="font-medium text-sm text-ziyrak-text truncate">
                               {conv.customerName}
                             </p>
-                            <span className="text-xs text-owly-text-light flex-shrink-0 ml-2">
+                            <span className="text-xs text-ziyrak-text-light flex-shrink-0 ml-2">
                               {formatRelativeTime(conv.updatedAt)}
                             </span>
                           </div>
-                          <p className="text-xs text-owly-text-light mt-0.5">
+                          <p className="text-xs text-ziyrak-text-light mt-0.5">
                             {getChannelLabel(conv.channel)} -{" "}
                             {conv._count.messages} messages
                           </p>
                           {lastMessage && (
-                            <p className="text-sm text-owly-text-light mt-1 truncate">
+                            <p className="text-sm text-ziyrak-text-light mt-1 truncate">
                               {lastMessage.content}
                             </p>
                           )}
@@ -178,9 +178,9 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-owly-surface rounded-xl border border-owly-border">
-              <div className="px-5 py-4 border-b border-owly-border">
-                <h3 className="font-semibold text-owly-text">
+            <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
+              <div className="px-5 py-4 border-b border-ziyrak-border">
+                <h3 className="font-semibold text-ziyrak-text">
                   Channel Overview
                 </h3>
               </div>
@@ -214,21 +214,21 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-owly-surface rounded-xl border border-owly-border">
-              <div className="px-5 py-4 border-b border-owly-border">
-                <h3 className="font-semibold text-owly-text">Quick Stats</h3>
+            <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
+              <div className="px-5 py-4 border-b border-ziyrak-border">
+                <h3 className="font-semibold text-ziyrak-text">Quick Stats</h3>
               </div>
               <div className="p-5 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-owly-text-light">Total Messages</span>
+                  <span className="text-ziyrak-text-light">Total Messages</span>
                   <span className="font-medium">{stats.totalMessages}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-owly-text-light">Total Tickets</span>
+                  <span className="text-ziyrak-text-light">Total Tickets</span>
                   <span className="font-medium">{stats.totalTickets}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-owly-text-light">
+                  <span className="text-ziyrak-text-light">
                     Avg. Resolution Rate
                   </span>
                   <span className="font-medium">{stats.resolutionRate}%</span>

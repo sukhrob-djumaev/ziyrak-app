@@ -19,12 +19,10 @@ docs index: `docs/README.md`.
   28/28 incl. J11 on the combined build. Record `docs/r2-ai-decision-quality-implementation-2026-10-23.md`.
 - Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `ziyrak_acceptance_r2_20261023{a,b,c}`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
 
-- R4: verification complete 2026-10-24 (PR from `test/r4-acceptance`, awaiting owner merge); Meta check waived; not deployed.
+- R4: MERGED (PR #33, `14e09ce`, exact-head CI green). Local/stand-in verification passed: vitest 1807, browser 30/30 on build `7043d16`. R1 Meta reply check WAIVED by owner; smoke suites not run; not deployed.
 
 ## Next action
-1. R4 final acceptance (STARTED 2026-10-23, owner approved). Started UTC: see In flight. Helper works in a new worktree.
-2. R1 targeted Meta recipient-visible reply check: WAIVED by owner 2026-10-23 (Meta test-account lock 131031). R4 must record it
-   as an explicit waiver (recipient-visible Meta delivery not verified), not a pass. Real mail already passed in P3.
+1. R5 (naming/branding) needs owner approval to start (prohibited until then). Owner decisions pending: cleanup of R4 worktree/DBs/Redis/topology; Next 16.4.0 security-advisory upgrade (`next upgrade --agent=security`); tags.
 3. A fresh unbiased R2 evaluation set is optional.
 
 ## Retained resources (do not delete without approval)

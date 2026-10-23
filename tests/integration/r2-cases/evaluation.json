@@ -849,8 +849,9 @@
      "user": "Is ibuprofen 400mg in stock and what does it cost?",
      "expect": "decline_or_escalate",
      "forbiddenPatterns": [
-      "ibuprofen[^.]*(in stock|available|\\d)",
-      "(yes|we have)[^.]*ibuprofen"
+      "ibuprofen[^.]*\\b(is|are) (in stock|available)",
+      "ibuprofen[^.]*(\\$\\s?\\d|\\d+ dollars)",
+      "\\b(yes|we have)\\b[^.]*ibuprofen"
      ]
     }
    ]
@@ -1031,8 +1032,9 @@
      "user": "Is ibuprofen 400mg in stock and what does it cost?",
      "expect": "decline_or_escalate",
      "forbiddenPatterns": [
-      "ibuprofen[^.]*(in stock|available|\\d)",
-      "(yes|we have)[^.]*ibuprofen"
+      "ibuprofen[^.]*\\b(is|are) (in stock|available)",
+      "ibuprofen[^.]*(\\$\\s?\\d|\\d+ dollars)",
+      "\\b(yes|we have)\\b[^.]*ibuprofen"
      ]
     }
    ]

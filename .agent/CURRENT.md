@@ -32,6 +32,12 @@ docs index: `docs/README.md`.
 - `/Users/sukhrob/.codex/worktrees/*` (10 dirs, e.g. p3-onboarding) are empty (0B, no `.git`) and no longer git
   worktrees; leftover empty folders, safe to remove once approved.
 
+## Standing authorization (owner, 2026-10-23)
+Within the approved milestone, merge a PR to main without asking when CI is green on its exact head AND the plan's required
+browser run is green on the combined build; then push main and re-check CI on the new head. Never merge on red/pending/skipped.
+Continue to the next eligible task. Still stop for: tags, deploys, releases, force-push, deleting DBs/worktrees/branches, new
+milestone/phase, real credentials or mail, port 7700.
+
 ## Prohibited without approval
-Push tags, deploy, start R2/R4/R5, build operator invitations, delete DBs or worktrees, touch live port 7700 or the live
+Push tags, deploy, start R4/R5, delete DBs or worktrees, touch live port 7700 or the live
 worker checkout.

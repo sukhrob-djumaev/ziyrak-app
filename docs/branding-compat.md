@@ -15,6 +15,6 @@ Owly/Owl text in `src`, `public`, README, SECURITY, CONTRIBUTING and `package.js
 | Helm chart `helm/owly`, helper names `owly.*`, image `ghcr.io/hesper-labs/owly` | Deployed release and registry names. | New chart/registry path with a release migration plan. |
 | GitHub URLs `Hesper-Labs/owly`, `hsperus/owly` | Upstream repository provenance and license links. | None needed. |
 | Legacy localStorage keys `owly-theme`, `owly-onboarding-dismissed` | Read once and migrated to `ziyrak-theme` / `ziyrak-onboarding-dismissed`. | Remove migration code later. |
-| `public/ziyrak.png` artwork | The file was renamed, but the picture is still the former owl mascot. | Replace with the final Ziyrak logo (owner supplies art). |
+| `public/ziyrak.png` artwork | Square crop of the final Ziyrak mark (brain + bolt), supplied by the owner 2026-10-24; source art is low resolution (882x324 lockup, kept as `public/ziyrak-logo.png`). | Replace both with vector/high-resolution art when available. |
 | History: `CHANGELOG.md`, `PLAN.md` records, `docs/*archive*`, `docs/implementation-history.md`, `.agent/` | Historical evidence is not rewritten. | None. |
 | `docs/screenshots/*.png` | Captured before the rename; regenerate with `scripts/screenshots.mjs` when needed. | Regenerate. |

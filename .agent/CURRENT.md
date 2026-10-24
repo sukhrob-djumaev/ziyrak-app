@@ -22,20 +22,16 @@ docs index: `docs/README.md`.
 - R4: MERGED (PR #33, `14e09ce`, exact-head CI green). Local/stand-in verification passed: vitest 1807, browser 30/30 on build `7043d16`. R1 Meta reply check WAIVED by owner; smoke suites not run; not deployed.
 
 ## Next action
-1. R5 IMPLEMENTED and verified locally (2026-10-24), branch `chore/r5-ziyrak-branding` head per Git, PR open to main; NOT merged.
-   Verified: verify.sh, tsc, lint, `npm test` 180 files/1812 passed/1 skipped (isolated DB, Redis), `npm run build` on Next 16.4.3,
-   security review (no findings), browser suite 30/30 on build `U7J0zXpmaJ_C489Aoz04Y` (head `0b9a1a2`, digest `92298ab4`; stand-in AI,
-   captured mail; local layer). R4 evidence preserved (historical, not rerun as claim); R5 invalidated and reran the above.
-2. Merge needs exact-head CI green (standing authorization); tags need an explicit tag name; no deploy.
-3. Open items: logo art replaced with owner-supplied Ziyrak mark (low-res source); docs screenshots; retained compat names per
-   `docs/branding-compat.md`; npm audit zod/@vitest/mocker findings; R1 Meta reply: manual check PASSED 2026-10-25 on Business A (see HANDOFF; waiver superseded for A only); `test:smoke:*` not run.
-4. Record: `.agent/progress/r5.md`; PLAN.md R5 section.
+1. NONE eligible in the approved milestone. R5 MERGED (PR #34, `905b4ca`), tagged `phase-r5-complete` (pushed, 2026-10-25); logo PR #35 merged
+   (`3d5d15e`, CI green). R5 evidence: `npm test` 1812 passed/1 skipped, build/tsc/lint pass, security review clean, browser 30/30 on build
+   `0b9a1a2` (stand-in AI, captured mail; local layer). Not deployed. No milestone tag (R1 Meta B waived, no deploy, smoke suites not run).
+2. Awaiting owner: next milestone/task, deploy decision, `test:smoke:meta`, Business B visible delivery, npm audit zod/@vitest/mocker,
+   docs screenshots, vector/high-res logo. Record: `.agent/progress/r5.md`; PLAN.md R5 section; HANDOFF (Meta Business A manual check).
 
-## Retained resources (do not delete without approval)
-- R5: worktree `../owly-wt-r5`, DBs `ziyrak_r5_test_20261024`, `ziyrak_acceptance_r5_20261024` (throwaway Redis removed, topology stopped).
-- Test/acceptance DBs for P2/P3 runs (not checked: `psql` could not list them from this shell).
-- `/Users/sukhrob/.codex/worktrees/*` (10 dirs, e.g. p3-onboarding) are empty (0B, no `.git`) and no longer git
-  worktrees; leftover empty folders, safe to remove once approved.
+## Retained resources
+- Owner cleaned up (2026-10-25): all R2/R3/R5/opinv/meta-A throwaway DBs and the five task worktrees were dropped. Kept: DBs `owly` (real
+  Business A/B connections), `owly_test`, `ziyrak_acceptance`, `ziyrak_real_acc`, four `ziyrak_phase7_real_closure_*`. Local task branches kept.
+- `/Users/sukhrob/.codex/worktrees/*` are empty folders (no `.git`); removal not yet approved.
 
 ## Worker start command (owner terminal; auto-compacts at 200k, stop with `touch .agent/STOP`)
 `cd ~/Development/Repos/JS/owly && CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude --model sonnet --settings '{"enabledPlugins":{"dart-flutter@dart-flutter":false}}'`

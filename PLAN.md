@@ -304,7 +304,7 @@ does not require rerunning the application or sending WhatsApp messages.
   `docs/branding-compat.md`; Next upgraded to 16.4.3 as its own commit. Local/stand-in verification on head `0b9a1a2`: verify.sh, tsc,
   lint, `npm test` 180 files/1812 passed/1 skipped, build, independent security review (no findings), full browser suite 30/30 on build
   `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail). R4 evidence is preserved; R5 reran what it invalidated.
-  Open: `public/ziyrak.png` still owl-mascot art (owner art needed), docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived,
+  Open: logo art now the final mark (low-res source), docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived,
   `test:smoke:*` not run, not deployed.
 
 ### Meta testing without blocking unrelated development

@@ -28,7 +28,7 @@ docs index: `docs/README.md`.
    captured mail; local layer). R4 evidence preserved (historical, not rerun as claim); R5 invalidated and reran the above.
 2. Merge needs exact-head CI green (standing authorization); tags need an explicit tag name; no deploy.
 3. Open items: logo art replaced with owner-supplied Ziyrak mark (low-res source); docs screenshots; retained compat names per
-   `docs/branding-compat.md`; npm audit zod/@vitest/mocker findings; R1 Meta reply WAIVED; `test:smoke:*` not run.
+   `docs/branding-compat.md`; npm audit zod/@vitest/mocker findings; R1 Meta reply: manual check PASSED 2026-10-25 on Business A (see HANDOFF; waiver superseded for A only); `test:smoke:*` not run.
 4. Record: `.agent/progress/r5.md`; PLAN.md R5 section.
 
 ## Retained resources (do not delete without approval)

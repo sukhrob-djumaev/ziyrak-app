@@ -1,4 +1,4 @@
-# Owly Helm Chart - Default Values
+# Ziyrak Helm Chart - Default Values
 
 replicaCount: 1
 
@@ -45,14 +45,14 @@ ingress:
     # cert-manager.io/cluster-issuer: letsencrypt-prod
     # nginx.ingress.kubernetes.io/proxy-body-size: "10m"
   hosts:
-    - host: owly.example.com
+    - host: ziyrak.example.com
       paths:
         - path: /
           pathType: Prefix
   tls: []
-    # - secretName: owly-tls
+    # - secretName: ziyrak-tls
     #   hosts:
-    #     - owly.example.com
+    #     - ziyrak.example.com
 
 # -- Resources
 resources:

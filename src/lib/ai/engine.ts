@@ -66,7 +66,7 @@ function buildSystemPrompt(
           .join("\n\n---\n\n")
       : "No specific knowledge base entries available. Answer based on general knowledge about the business.";
 
-  return `You are Owly, the AI customer support assistant for ${profile.businessName}.
+  return `You are Ziyrak, the AI customer support assistant for ${profile.businessName}.
 
 ${profile.businessDesc ? `About the business: ${profile.businessDesc}` : ""}
 

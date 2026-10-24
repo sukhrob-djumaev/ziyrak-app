@@ -1,6 +1,6 @@
 # Architecture
 
-This page provides a technical overview of Owly's architecture, covering the technology stack, directory layout, database design, authentication flow, and key design decisions.
+This page provides a technical overview of Ziyrak's architecture, covering the technology stack, directory layout, database design, authentication flow, and key design decisions.
 
 ---
 
@@ -180,7 +180,7 @@ The database contains 20 models organized into functional groups.
 
 ## Authentication Flow
 
-Owly uses JWT-based authentication with HTTP-only cookies.
+Ziyrak uses JWT-based authentication with HTTP-only cookies.
 
 ### Login Process
 
@@ -294,11 +294,11 @@ Each communication channel has a dedicated handler that normalizes incoming mess
 
 ### Single-Process Architecture
 
-Owly runs as a single Next.js process that handles both the frontend and backend. This simplifies deployment but means that long-running AI requests share resources with the dashboard. For high-traffic deployments, consider running multiple instances behind a load balancer.
+Ziyrak runs as a single Next.js process that handles both the frontend and backend. This simplifies deployment but means that long-running AI requests share resources with the dashboard. For high-traffic deployments, consider running multiple instances behind a load balancer.
 
 ### Knowledge Base as Context Injection
 
-Rather than using vector embeddings or a dedicated RAG pipeline, Owly injects the entire active knowledge base into the AI's system prompt. This approach is simpler to implement and works well for knowledge bases with up to a few hundred entries. For larger knowledge bases, a vector search system would be more appropriate.
+Rather than using vector embeddings or a dedicated RAG pipeline, Ziyrak injects the entire active knowledge base into the AI's system prompt. This approach is simpler to implement and works well for knowledge bases with up to a few hundred entries. For larger knowledge bases, a vector search system would be more appropriate.
 
 ### Tool Depth Limit
 
@@ -306,7 +306,7 @@ The AI can call tools up to 5 times per request. This prevents infinite loops wh
 
 ### Singleton Settings
 
-The `Settings` and `BusinessHours` models use a fixed ID (`"default"`) to enforce a singleton pattern. There is only one configuration per Owly instance.
+The `Settings` and `BusinessHours` models use a fixed ID (`"default"`) to enforce a singleton pattern. There is only one configuration per Ziyrak instance.
 
 ### Prisma ORM
 

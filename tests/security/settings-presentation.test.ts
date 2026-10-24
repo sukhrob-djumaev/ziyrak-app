@@ -71,7 +71,7 @@ describe("P1 Settings actual cookie/membership SSR presentation", () => {
   it.each(["owner", "admin"])("%s retains legitimate Settings controls", async (role) => {
     select(actors.get(role)!);
     const output = await html(React.createElement(SettingsPage));
-    expect(output).toContain("Configure your Owly instance");
+    expect(output).toContain("Configure your Ziyrak instance");
     expect(output).not.toContain("Access denied");
   });
   it("restricted admin retains legitimate Settings read access", async () => {
@@ -82,7 +82,7 @@ describe("P1 Settings actual cookie/membership SSR presentation", () => {
     });
     select(actor.userId);
     const output = await html(React.createElement(SettingsPage));
-    expect(output).toContain("Configure your Owly instance");
+    expect(output).toContain("Configure your Ziyrak instance");
     expect(output).not.toContain("Access denied");
   });
   it.each(["supervisor", "agent", "viewer"])(

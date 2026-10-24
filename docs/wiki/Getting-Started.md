@@ -1,12 +1,12 @@
 # Getting Started
 
-This guide walks you through installing Owly, running the setup wizard, and verifying that everything is working correctly.
+This guide walks you through installing Ziyrak, running the setup wizard, and verifying that everything is working correctly.
 
 ---
 
 ## Prerequisites
 
-Before installing Owly, make sure you have one of the following setups ready:
+Before installing Ziyrak, make sure you have one of the following setups ready:
 
 ### Option A: Local Installation
 
@@ -62,7 +62,7 @@ JWT_SECRET="paste-a-random-value-here"
 # Required: encryption key for stored credentials — a DIFFERENT random value; back it up
 SECRET_KEY_V1="paste-another-random-value-here"
 
-# Recommended: signs the webhooks Owly sends — a third random value
+# Recommended: signs the webhooks Ziyrak sends — a third random value
 WEBHOOK_SECRET="paste-a-third-random-value-here"
 
 # Application URL (built into the app: rebuild after changing it)
@@ -91,7 +91,7 @@ This creates a sample admin account and populates the database with example data
 npm run dev
 ```
 
-Owly is now running at [http://localhost:3000](http://localhost:3000).
+Ziyrak is now running at [http://localhost:3000](http://localhost:3000).
 
 ---
 
@@ -120,7 +120,7 @@ docker compose up -d
 
 This command starts two containers:
 - **db** -- PostgreSQL 16 database with persistent storage
-- **app** -- The Owly application (runs migrations automatically on startup)
+- **app** -- The Ziyrak application (runs migrations automatically on startup)
 
 **Step 4: Verify the containers are running**
 
@@ -130,16 +130,16 @@ docker compose ps
 
 You should see both `db` and `app` containers with a status of "Up".
 
-Owly is now running at [http://localhost:3000](http://localhost:3000).
+Ziyrak is now running at [http://localhost:3000](http://localhost:3000).
 
 ---
 
 ## First-Time Setup Wizard
 
-When you open Owly for the first time, you will be redirected to the setup wizard. This is a 4-step process that configures the essential settings.
+When you open Ziyrak for the first time, you will be redirected to the setup wizard. This is a 4-step process that configures the essential settings.
 
 ![Login Page](../screenshots/01-login.png)
-*The Owly login page. On first launch, you will be redirected to the setup wizard instead.*
+*The Ziyrak login page. On first launch, you will be redirected to the setup wizard instead.*
 
 ### Step 1: Create Admin Account
 
@@ -179,7 +179,7 @@ Set up the AI provider that will power your customer support responses.
 
 ### Step 4: All Set
 
-A confirmation screen summarizing your setup. Click the button to proceed to the dashboard and start using Owly.
+A confirmation screen summarizing your setup. Click the button to proceed to the dashboard and start using Ziyrak.
 
 ---
 
@@ -198,7 +198,7 @@ If you loaded the sample data using `npm run db:seed`, you can log in with:
 
 ## Verifying the Installation
 
-After starting Owly, you can verify that everything is working by hitting the health check endpoint:
+After starting Ziyrak, you can verify that everything is working by hitting the health check endpoint:
 
 ```bash
 curl http://localhost:3000/api/health
@@ -276,7 +276,7 @@ A successful response looks like this:
 
 ## Next Steps
 
-Once Owly is running, proceed to:
+Once Ziyrak is running, proceed to:
 
 1. [Dashboard Overview](Dashboard-Overview) -- Learn your way around the interface
 2. [Knowledge Base Guide](Knowledge-Base-Guide) -- Add knowledge so the AI can answer questions accurately

@@ -1,8 +1,8 @@
 # PLAN.md §46.8 — isolates the multi-replica load test from any other stack on
-# this machine: its own compose project (owlyload), its own Postgres volume,
+# this machine: its own compose project (ziyrakload), its own Postgres volume,
 # no fixed host ports except the replicas and one Postgres port for the harness.
 # Used only by scripts/loadtest/run.sh:
-#   docker compose -p owlyload -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale ...
+#   docker compose -p ziyrakload -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale ...
 x-loadtest-env: &loadtest-env
   DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly_load?schema=public
   DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly_load?schema=public

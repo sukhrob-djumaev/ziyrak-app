@@ -90,17 +90,17 @@ export function MetaWhatsAppCard() {
   }
 
   const inputClass =
-    "w-full px-3 py-2 text-sm border border-owly-border rounded-lg bg-owly-bg text-owly-text focus:outline-none focus:ring-2 focus:ring-owly-primary/30";
+    "w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30";
 
   return (
-    <div className="bg-owly-surface rounded-xl border border-owly-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-owly-border flex items-center gap-3">
+    <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-ziyrak-border flex items-center gap-3">
         <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
           <MessageCircle className="h-5 w-5 text-green-600" />
         </div>
         <div>
-          <h3 className="font-semibold text-owly-text">WhatsApp</h3>
-          <p className="text-xs text-owly-text-light mt-0.5">
+          <h3 className="font-semibold text-ziyrak-text">WhatsApp</h3>
+          <p className="text-xs text-ziyrak-text-light mt-0.5">
             {channel?.isActive ? "Connected via Meta Cloud API" : "Connect your WhatsApp Business number"}
           </p>
         </div>
@@ -108,23 +108,23 @@ export function MetaWhatsAppCard() {
 
       <div className="px-5 py-4 space-y-3">
         {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-owly-primary" />
+          <Loader2 className="h-5 w-5 animate-spin text-ziyrak-primary" />
         ) : (
           <>
             <div>
-              <label htmlFor="wa-phone-id" className="block text-xs font-medium text-owly-text-light mb-1">
+              <label htmlFor="wa-phone-id" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 Phone number ID
               </label>
               <input id="wa-phone-id" value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label htmlFor="wa-waba-id" className="block text-xs font-medium text-owly-text-light mb-1">
+              <label htmlFor="wa-waba-id" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 WhatsApp Business Account ID
               </label>
               <input id="wa-waba-id" value={businessAccountId} onChange={(e) => setBusinessAccountId(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label htmlFor="wa-token" className="block text-xs font-medium text-owly-text-light mb-1">
+              <label htmlFor="wa-token" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 Access token (system user)
               </label>
               <input
@@ -138,7 +138,7 @@ export function MetaWhatsAppCard() {
               />
             </div>
             <div>
-              <label htmlFor="wa-app-secret" className="block text-xs font-medium text-owly-text-light mb-1">
+              <label htmlFor="wa-app-secret" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 Meta App Secret
               </label>
               <input
@@ -150,9 +150,9 @@ export function MetaWhatsAppCard() {
                 placeholder={channel?.id ? "Leave blank to keep the configured secret" : "Required for a new connection"}
                 className={inputClass}
               />
-              <p className="mt-1 text-xs text-owly-text-light">Stored encrypted and never shown again after saving.</p>
+              <p className="mt-1 text-xs text-ziyrak-text-light">Stored encrypted and never shown again after saving.</p>
             </div>
-            <p className="text-xs text-owly-text-light">
+            <p className="text-xs text-ziyrak-text-light">
               In your Meta App&apos;s WhatsApp settings, set the webhook callback URL to{" "}
               <span className="font-mono break-all">{webhookUrl}</span> and subscribe to the <span className="font-mono">messages</span> field.
             </p>
@@ -161,12 +161,12 @@ export function MetaWhatsAppCard() {
         )}
       </div>
 
-      <div className="px-5 py-3 border-t border-owly-border bg-owly-bg/50">
+      <div className="px-5 py-3 border-t border-ziyrak-border bg-ziyrak-bg/50">
         <button
           type="button"
           onClick={handleSave}
           disabled={busy || loading}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-owly-primary rounded-lg disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <CheckCircle className="h-4 w-4" /> : <Save className="h-4 w-4" />}
           {saved ? "Saved" : "Save"}

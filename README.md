@@ -1,6 +1,6 @@
 # Ziyrak AI
 
-Ziyrak is a multi-tenant customer-support application developed from Owly. Its approved
+Ziyrak is a multi-tenant customer-support application developed from Owly (the former name). Its approved
 product direction is a managed AI service: businesses create private workspaces,
 configure their knowledge and channels, and use AI managed by Ziyrak. A separate
 worker handles queued inbound messages, knowledge indexing and scheduled actions.
@@ -200,7 +200,9 @@ Do not keep repeating the same failing setup or mark a mock run as live acceptan
 [docker-compose.yml](docker-compose.yml) and [helm/owly](helm/owly) describe web,
 worker, Postgres/connection pooling and Redis topology. Their presence is not proof
 of deployment readiness; review environment, secrets, database targets and public
-URL before use. Package, image and chart names retain some upstream `owly` naming.
+URL before use. The package and local image are named `ziyrak`; the Helm chart, database defaults and a few
+persisted identifiers deliberately keep the legacy `owly` name, see
+[docs/branding-compat.md](docs/branding-compat.md).
 
 Merges require checking CI for the exact commit. Deployment/restarts/migrations
 follow the plan and applicable owner authorization, including backup/restore
@@ -214,6 +216,6 @@ test cleanup. Host-specific process details and protected ports are in CURRENT.
 - [Agent workflow](AGENTS.md), [current task](.agent/CURRENT.md), [handoff](.agent/HANDOFF.md)
 - [Status review](docs/status-review-2026-10-14.md), [historical implementation evidence](docs/implementation-history.md)
 - [Approvals and tool policies](docs/wiki/Approvals-and-Tool-Policies.md)
-- [Wiki](docs/wiki/Home.md): some pages describe upstream Owly and need rechecking against current source and PLAN.
+- [Wiki](docs/wiki/Home.md): some pages describe upstream Ziyrak and need rechecking against current source and PLAN.
 
-Derived from Owly. MIT attribution and terms remain in [LICENSE](LICENSE).
+Derived from Ziyrak. MIT attribution and terms remain in [LICENSE](LICENSE).

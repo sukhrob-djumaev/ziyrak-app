@@ -102,7 +102,7 @@ export function DeliveryRecoveryPanel() {
     );
   return (
     <section aria-label="Delivery recovery" className="space-y-4">
-      <p className="text-sm text-owly-text-light">
+      <p className="text-sm text-ziyrak-text-light">
         Review replies that could not be confirmed. Provider acceptance does not confirm that the
         customer received a message.
       </p>
@@ -115,7 +115,7 @@ export function DeliveryRecoveryPanel() {
             <li
               key={row.id}
               data-testid="delivery-recovery-row"
-              className="bg-owly-surface border border-owly-border rounded-xl p-5 space-y-2"
+              className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5 space-y-2"
             >
               <h3 className="font-semibold">
                 {row.kind === "followup" ? "Scheduled follow-up" : "Customer reply"} ·{" "}
@@ -141,13 +141,13 @@ export function DeliveryRecoveryPanel() {
               <div className="flex gap-4">
                 {row.conversationId && (
                   <Link
-                    className="text-owly-primary hover:underline"
+                    className="text-ziyrak-primary hover:underline"
                     href={"/conversations?id=" + row.conversationId}
                   >
                     View conversation
                   </Link>
                 )}
-                <button className="text-owly-primary font-medium" onClick={() => choose(row)}>
+                <button className="text-ziyrak-primary font-medium" onClick={() => choose(row)}>
                   Review recovery
                 </button>
               </div>
@@ -158,14 +158,14 @@ export function DeliveryRecoveryPanel() {
       {selected && (
         <form
           onSubmit={submit}
-          className="border border-owly-border rounded-xl p-5 space-y-3"
+          className="border border-ziyrak-border rounded-xl p-5 space-y-3"
           aria-label="Recovery decision"
         >
           <label className="block">
             Decision
             <select
               aria-label="Recovery decision"
-              className="block p-2 bg-owly-surface border rounded"
+              className="block p-2 bg-ziyrak-surface border rounded"
               value={decision}
               onChange={(e) => {
                 setDecision(e.target.value as Decision);
@@ -193,7 +193,7 @@ export function DeliveryRecoveryPanel() {
               required
               minLength={5}
               maxLength={500}
-              className="block w-full p-2 bg-owly-surface border rounded"
+              className="block w-full p-2 bg-ziyrak-surface border rounded"
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
@@ -209,7 +209,7 @@ export function DeliveryRecoveryPanel() {
                 reason.trim().length < 5 ||
                 (decision === "resend" && selected.status === "unknown" && !ack)
               }
-              className="px-4 py-2 rounded bg-owly-primary text-white disabled:opacity-50"
+              className="px-4 py-2 rounded bg-ziyrak-primary text-white disabled:opacity-50"
             >
               Save recovery decision
             </button>

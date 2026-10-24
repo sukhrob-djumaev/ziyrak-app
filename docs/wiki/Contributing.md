@@ -1,12 +1,12 @@
 # Contributing
 
-Thank you for your interest in contributing to Owly. This guide covers everything you need to get started: setting up the development environment, understanding the code conventions, and submitting your changes.
+Thank you for your interest in contributing to Ziyrak. This guide covers everything you need to get started: setting up the development environment, understanding the code conventions, and submitting your changes.
 
 ---
 
 ## How to Contribute
 
-There are several ways to contribute to Owly:
+There are several ways to contribute to Ziyrak:
 
 - **Report bugs**: Open an issue describing the problem, steps to reproduce, and expected vs. actual behavior.
 - **Suggest features**: Open an issue with a detailed description of the feature, its use case, and how it fits into the existing system.
@@ -108,7 +108,7 @@ Use the default credentials created by the seed script, or run through the setup
 ### Tailwind CSS
 
 - Use Tailwind utility classes for all styling. Avoid writing custom CSS unless absolutely necessary.
-- Follow the existing color system using `owly-*` custom colors defined in the theme.
+- Follow the existing color system using `ziyrak-*` custom colors defined in the theme.
 - Use the `cn()` utility from `src/lib/utils.ts` for conditional class names.
 
 ### API Routes
@@ -121,7 +121,7 @@ Use the default credentials created by the seed script, or run through the setup
 
 ### Commit Messages
 
-Owly follows the [Conventional Commits](https://www.conventionalcommits.org/) specification. Every commit message must follow this format:
+Ziyrak follows the [Conventional Commits](https://www.conventionalcommits.org/) specification. Every commit message must follow this format:
 
 ```
 type: description
@@ -200,7 +200,7 @@ refactor: extract common form validation into shared utility
 
 When reporting a bug, include:
 
-1. **Environment**: Owly version, Node.js version, PostgreSQL version, operating system.
+1. **Environment**: Ziyrak version, Node.js version, PostgreSQL version, operating system.
 2. **Steps to reproduce**: A numbered list of steps that reliably trigger the issue.
 3. **Expected behavior**: What you expected to happen.
 4. **Actual behavior**: What actually happened, including any error messages.

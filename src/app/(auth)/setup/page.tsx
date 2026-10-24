@@ -108,14 +108,14 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="bg-owly-surface rounded-2xl shadow-lg border border-owly-border overflow-hidden">
+    <div className="bg-ziyrak-surface rounded-2xl shadow-lg border border-ziyrak-border overflow-hidden">
       {/* Header */}
-      <div className="bg-owly-primary-50 border-b border-owly-border px-8 pt-6 pb-4">
+      <div className="bg-ziyrak-primary-50 border-b border-ziyrak-border px-8 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-5">
-          <Image src="/owly.png" alt="Owly" width={40} height={40} />
+          <Image src="/ziyrak.png" alt="Ziyrak" width={40} height={40} />
           <div>
-            <h1 className="text-lg font-bold text-owly-text">Create Your Business</h1>
-            <p className="text-xs text-owly-text-light">
+            <h1 className="text-lg font-bold text-ziyrak-text">Create Your Business</h1>
+            <p className="text-xs text-ziyrak-text-light">
               Step {step + 1} of {STEPS.length}
             </p>
           </div>
@@ -130,8 +130,8 @@ export default function SetupPage() {
               style={{
                 backgroundColor:
                   i <= step
-                    ? "var(--owly-primary)"
-                    : "var(--owly-border)",
+                    ? "var(--ziyrak-primary)"
+                    : "var(--ziyrak-border)",
               }}
             />
           ))}
@@ -140,14 +140,14 @@ export default function SetupPage() {
 
       {/* Body */}
       <div className="px-8 py-6">
-        <h2 className="text-xl font-bold text-owly-text mb-1">
+        <h2 className="text-xl font-bold text-ziyrak-text mb-1">
           {STEPS[step]}
         </h2>
 
         {/* Step 0: Admin Account */}
         {step === 0 && (
           <>
-            <p className="text-sm text-owly-text-light mb-6">
+            <p className="text-sm text-ziyrak-text-light mb-6">
               Create the owner account for your new business.
             </p>
             <div className="space-y-4">
@@ -201,8 +201,8 @@ export default function SetupPage() {
         {/* Step 1: Business Profile */}
         {step === 1 && (
           <>
-            <p className="text-sm text-owly-text-light mb-6">
-              Tell us about your business so Owly can represent you.
+            <p className="text-sm text-ziyrak-text-light mb-6">
+              Tell us about your business so Ziyrak can represent you.
             </p>
             <div className="space-y-4">
               <Field
@@ -215,7 +215,7 @@ export default function SetupPage() {
               <div>
                 <label
                   htmlFor="businessDesc"
-                  className="block text-sm font-medium text-owly-text mb-1.5"
+                  className="block text-sm font-medium text-ziyrak-text mb-1.5"
                 >
                   Description
                 </label>
@@ -225,7 +225,7 @@ export default function SetupPage() {
                   value={businessDesc}
                   onChange={(e) => setBusinessDesc(e.target.value)}
                   placeholder="Briefly describe what your business does"
-                  className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text placeholder:text-owly-text-light focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow resize-none"
+                  className="w-full rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3.5 py-2.5 text-sm text-ziyrak-text placeholder:text-ziyrak-text-light focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:border-transparent transition-shadow resize-none"
                 />
               </div>
               <Field
@@ -236,7 +236,7 @@ export default function SetupPage() {
                 placeholder="The first message customers see"
               />
               <div>
-                <label className="block text-sm font-medium text-owly-text mb-2">
+                <label className="block text-sm font-medium text-ziyrak-text mb-2">
                   Response Tone
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -247,14 +247,14 @@ export default function SetupPage() {
                       onClick={() => setTone(t.value)}
                       className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
                         tone === t.value
-                          ? "border-owly-primary bg-owly-primary-50 ring-1 ring-owly-primary"
-                          : "border-owly-border bg-owly-bg hover:border-owly-primary-light"
+                          ? "border-ziyrak-primary bg-ziyrak-primary-50 ring-1 ring-ziyrak-primary"
+                          : "border-ziyrak-border bg-ziyrak-bg hover:border-ziyrak-primary-light"
                       }`}
                     >
-                      <div className="text-sm font-medium text-owly-text">
+                      <div className="text-sm font-medium text-ziyrak-text">
                         {t.label}
                       </div>
-                      <div className="text-xs text-owly-text-light">
+                      <div className="text-xs text-ziyrak-text-light">
                         {t.desc}
                       </div>
                     </button>
@@ -268,11 +268,11 @@ export default function SetupPage() {
         {/* Step 2: Check your email */}
         {step === 2 && (
           <div id="checkEmail" role="status">
-            <p className="text-sm text-owly-text mb-4">
+            <p className="text-sm text-ziyrak-text mb-4">
               We sent a confirmation link to <strong>{email.trim()}</strong>. Open it to confirm your address, then
               sign in to finish setting up your business. The link works once and expires in 24 hours.
             </p>
-            <p className="text-sm text-owly-text-light">
+            <p className="text-sm text-ziyrak-text-light">
               If you do not see it, check your spam folder. After you sign in you can ask for a new link.
             </p>
           </div>
@@ -280,20 +280,20 @@ export default function SetupPage() {
 
         {/* Error */}
         {error && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-owly-danger">
+          <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-ziyrak-danger">
             {error}
           </div>
         )}
       </div>
 
       {/* Footer Buttons */}
-      <div className="border-t border-owly-border px-8 py-4 flex items-center justify-between">
+      <div className="border-t border-ziyrak-border px-8 py-4 flex items-center justify-between">
         {step === 1 ? (
           <button
             type="button"
             onClick={handleBack}
             disabled={loading}
-            className="rounded-lg border border-owly-border bg-white px-4 py-2 text-sm font-medium text-owly-text hover:bg-owly-bg disabled:opacity-60 transition-colors"
+            className="rounded-lg border border-ziyrak-border bg-white px-4 py-2 text-sm font-medium text-ziyrak-text hover:bg-ziyrak-bg disabled:opacity-60 transition-colors"
           >
             Back
           </button>
@@ -306,7 +306,7 @@ export default function SetupPage() {
             type="button"
             onClick={handleNext}
             disabled={loading}
-            className="rounded-lg bg-owly-primary px-5 py-2 text-sm font-semibold text-white hover:bg-owly-primary-dark focus:outline-none focus:ring-2 focus:ring-owly-primary focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="rounded-lg bg-ziyrak-primary px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export default function SetupPage() {
           <button
             type="button"
             onClick={() => router.replace("/login")}
-            className="rounded-lg bg-owly-primary px-5 py-2 text-sm font-semibold text-white hover:bg-owly-primary-dark focus:outline-none focus:ring-2 focus:ring-owly-primary focus:ring-offset-2 transition-colors"
+            className="rounded-lg bg-ziyrak-primary px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 transition-colors"
           >
             Go to sign in
           </button>
@@ -356,7 +356,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="block text-sm font-medium text-owly-text mb-1.5"
+        className="block text-sm font-medium text-ziyrak-text mb-1.5"
       >
         {label}
       </label>
@@ -367,7 +367,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-owly-border bg-owly-bg px-3.5 py-2.5 text-sm text-owly-text placeholder:text-owly-text-light focus:outline-none focus:ring-2 focus:ring-owly-primary focus:border-transparent transition-shadow"
+        className="w-full rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3.5 py-2.5 text-sm text-ziyrak-text placeholder:text-ziyrak-text-light focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:border-transparent transition-shadow"
       />
     </div>
   );

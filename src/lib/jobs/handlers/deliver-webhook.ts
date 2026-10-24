@@ -110,9 +110,12 @@ export async function handleDeliverWebhook(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "User-Agent": "Owly-Webhook/1.0",
+    "User-Agent": "Ziyrak-Webhook/1.0",
     ...(webhook.headers as Record<string, string>),
-    ...(signature ? { "X-Owly-Signature": signature } : {}),
+    // X-Owly-Signature is the pre-rename header: same value, kept so existing receivers still verify.
+    ...(signature
+      ? { "X-Ziyrak-Signature": signature, "X-Owly-Signature": signature }
+      : {}),
   };
 
   try {

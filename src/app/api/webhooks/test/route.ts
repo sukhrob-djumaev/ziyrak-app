@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       data: {
         id: "test_123",
-        message: "This is a test payload from Owly",
+        message: "This is a test payload from Ziyrak",
         webhookName: webhook.name,
         triggerEvent: webhook.triggerOn,
       },
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "Owly-Webhook/1.0",
+      "User-Agent": "Ziyrak-Webhook/1.0",
       ...(typeof webhook.headers === "object" && webhook.headers !== null
         ? (webhook.headers as Record<string, string>)
         : {}),

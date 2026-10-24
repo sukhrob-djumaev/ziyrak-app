@@ -34,11 +34,11 @@ function Switch({ checked, disabled, label, hint, onChange }: { checked: boolean
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 h-4 w-4 accent-[var(--owly-primary,#4a7a9b)]"
+        className="mt-1 h-4 w-4 accent-[var(--ziyrak-primary,#4a7a9b)]"
       />
       <span>
-        <span className="block text-sm font-medium text-owly-text">{label}</span>
-        {hint && <span className="block text-xs text-owly-text-light">{hint}</span>}
+        <span className="block text-sm font-medium text-ziyrak-text">{label}</span>
+        {hint && <span className="block text-xs text-ziyrak-text-light">{hint}</span>}
       </span>
     </label>
   );
@@ -108,7 +108,7 @@ export function PoliciesPanel() {
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-owly-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-ziyrak-primary" />
       </div>
     );
   }
@@ -116,7 +116,7 @@ export function PoliciesPanel() {
 
   return (
     <div className="space-y-3" data-testid="policies">
-      <p className="text-sm text-owly-text-light">
+      <p className="text-sm text-ziyrak-text-light">
         Decide what the AI may do on its own. Turn on <strong>Needs human approval</strong> for any tool you want a person to check first — its requests then wait under <em>Waiting</em>.
         {!canEdit && " You can view these settings; only admins and owners can change them."}
       </p>
@@ -124,18 +124,18 @@ export function PoliciesPanel() {
         const busy = saving === row.tool;
         const readOnly = !canEdit || busy;
         return (
-          <section key={row.tool} className="bg-owly-surface border border-owly-border rounded-xl p-5" data-testid="policy-row" data-tool={row.tool}>
+          <section key={row.tool} className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5" data-testid="policy-row" data-tool={row.tool}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-owly-text">{toolLabel(row.tool)}</h3>
+                  <h3 className="font-semibold text-ziyrak-text">{toolLabel(row.tool)}</h3>
                   {row.customized && <Badge variant="info">Customised</Badge>}
                   {!row.policy.enabledForTenant && <Badge variant="default">Off</Badge>}
                 </div>
-                <p className="text-sm text-owly-text-light mt-0.5">{row.description}</p>
+                <p className="text-sm text-ziyrak-text-light mt-0.5">{row.description}</p>
               </div>
               {canEdit && row.customized && (
-                <button onClick={() => reset(row.tool)} disabled={busy} className="inline-flex items-center gap-1 text-sm text-owly-text-light hover:text-owly-text">
+                <button onClick={() => reset(row.tool)} disabled={busy} className="inline-flex items-center gap-1 text-sm text-ziyrak-text-light hover:text-ziyrak-text">
                   <RotateCcw className="h-3.5 w-3.5" /> Reset to default
                 </button>
               )}
@@ -148,10 +148,10 @@ export function PoliciesPanel() {
             </div>
 
             <fieldset className="mt-4" disabled={readOnly}>
-              <legend className="text-xs font-medium uppercase tracking-wide text-owly-text-light">Team roles that may run it by hand</legend>
+              <legend className="text-xs font-medium uppercase tracking-wide text-ziyrak-text-light">Team roles that may run it by hand</legend>
               <div className="mt-2 flex flex-wrap gap-4">
                 {ROLE_OPTIONS.map((role) => (
-                  <label key={role} className={cn("inline-flex items-center gap-2 text-sm text-owly-text", readOnly ? "opacity-60" : "cursor-pointer")}>
+                  <label key={role} className={cn("inline-flex items-center gap-2 text-sm text-ziyrak-text", readOnly ? "opacity-60" : "cursor-pointer")}>
                     <input
                       type="checkbox"
                       aria-label={`${role} may run ${toolLabel(row.tool)}`}

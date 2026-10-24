@@ -16,7 +16,7 @@ type MessagePage = {
   data: Message[];
   pagination: { page: number; total: number; totalPages: number };
 };
-const button = "rounded border border-owly-border px-3 py-2 disabled:opacity-50";
+const button = "rounded border border-ziyrak-border px-3 py-2 disabled:opacity-50";
 
 /** Text-only read of one listed conversation. Everything here is request-local:
  * the parent unmounts it on list reload, grant change, expiry or close, and late
@@ -89,7 +89,7 @@ function LimitedSupportMessages({
   return (
     <div
       id="limitedSupportMessages"
-      className="space-y-3 rounded border border-owly-border p-4"
+      className="space-y-3 rounded border border-ziyrak-border p-4"
       aria-busy={busy}
     >
       <h3 className="text-lg font-semibold">Text messages</h3>
@@ -240,7 +240,7 @@ export default function LimitedSupportList({
   return (
     <section
       id="limitedSupportList"
-      className="mt-6 space-y-3 rounded border border-owly-border p-4"
+      className="mt-6 space-y-3 rounded border border-ziyrak-border p-4"
       aria-busy={busy}
     >
       <h2 className="text-xl font-semibold">Limited conversation list</h2>
@@ -270,7 +270,7 @@ export default function LimitedSupportList({
         <label htmlFor="supportListSearch">Search conversations</label>
         <input
           id="supportListSearch"
-          className="rounded border border-owly-border bg-owly-bg p-2"
+          className="rounded border border-ziyrak-border bg-ziyrak-bg p-2"
           maxLength={200}
           value={search}
           onChange={(event) => setSearch(event.target.value)}

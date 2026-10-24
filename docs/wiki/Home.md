@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="../../public/owly.png" alt="Owly" width="120" height="120" />
+  <img src="../../public/ziyrak.png" alt="Ziyrak" width="120" height="120" />
 </p>
 
-<h1 align="center">Owly Documentation</h1>
+<h1 align="center">Ziyrak Documentation</h1>
 
 <p align="center">
   Open-source, self-hosted AI customer support agent.<br/>
@@ -11,9 +11,9 @@
 
 ---
 
-Owly is a free, self-hosted customer support platform powered by AI. It connects your WhatsApp, Email, and Phone channels to a single admin dashboard where conversations are handled automatically by an AI agent trained on your knowledge base. There are no monthly fees -- you only pay for the AI API usage from your chosen provider (OpenAI, Claude, or Ollama for fully local operation).
+Ziyrak is a free, self-hosted customer support platform powered by AI. It connects your WhatsApp, Email, and Phone channels to a single admin dashboard where conversations are handled automatically by an AI agent trained on your knowledge base. There are no monthly fees -- you only pay for the AI API usage from your chosen provider (OpenAI, Claude, or Ollama for fully local operation).
 
-Owly gives small businesses and solo operators the same multi-channel AI support capabilities that enterprise platforms charge hundreds of dollars per month to provide. Deploy it with Docker Compose or npm, complete the setup wizard, add your knowledge base entries, and your AI agent is live.
+Ziyrak gives small businesses and solo operators the same multi-channel AI support capabilities that enterprise platforms charge hundreds of dollars per month to provide. Deploy it with Docker Compose or npm, complete the setup wizard, add your knowledge base entries, and your AI agent is live.
 
 ---
 
@@ -67,7 +67,7 @@ Owly gives small businesses and solo operators the same multi-channel AI support
 | Page | Description |
 |------|-------------|
 | Architecture Overview | Tech stack, project structure, and key design decisions |
-| Contributing | How to contribute to Owly -- development setup, coding standards, and PR guidelines |
+| Contributing | How to contribute to Ziyrak -- development setup, coding standards, and PR guidelines |
 | Deployment | Production deployment with Docker, reverse proxy, SSL, and environment variables |
 
 ---

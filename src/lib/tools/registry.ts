@@ -25,7 +25,7 @@ interface CachedResult {
 }
 
 /**
- * PLAN.md §23.2 — replaces `owlyTools`/`executeToolCall`'s hardcoded switch
+ * PLAN.md §23.2 — replaces `ziyrakTools`/`executeToolCall`'s hardcoded switch
  * (§23.1). One registry instance, shared across the app; every built-in
  * tool self-registers at module load (`builtin/index.ts`).
  */

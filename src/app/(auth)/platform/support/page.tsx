@@ -30,8 +30,8 @@ type Console = {
   allowedOperations: string[];
   truncated: boolean;
 };
-const field = "w-full rounded border border-owly-border bg-owly-bg p-2";
-const button = "rounded bg-owly-primary px-4 py-2 text-white disabled:opacity-50";
+const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
+const button = "rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50";
 const operationName = (op: string) => `Read ${op.split(":")[0]}`;
 export default function SupportPage() {
   const router = useRouter();
@@ -136,7 +136,7 @@ export default function SupportPage() {
   const toggle = (values: string[], value: string) =>
     values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
   return (
-    <section className="rounded-2xl border border-owly-border bg-owly-surface p-6 shadow-lg">
+    <section className="rounded-2xl border border-ziyrak-border bg-ziyrak-surface p-6 shadow-lg">
       <h1 className="text-2xl font-bold">Support grants</h1>
       {denied ? (
         <p role="alert" className="mt-4">
@@ -362,7 +362,7 @@ export default function SupportPage() {
                 <li
                   key={g.id}
                   data-grant={g.id}
-                  className="rounded border border-owly-border p-3 space-y-2"
+                  className="rounded border border-ziyrak-border p-3 space-y-2"
                 >
                   <p className="font-semibold">
                     {data.workspaces.find((w) => w.id === g.businessId)?.name ??
@@ -431,7 +431,7 @@ export default function SupportPage() {
         </>
       )}
       {error && (
-        <p role="alert" className="mt-4 text-owly-danger">
+        <p role="alert" className="mt-4 text-ziyrak-danger">
           {error}
         </p>
       )}
@@ -440,10 +440,10 @@ export default function SupportPage() {
           {message}
         </p>
       )}
-      <Link href="/platform/enrollment" className="mt-6 block text-owly-primary">
+      <Link href="/platform/enrollment" className="mt-6 block text-ziyrak-primary">
         Platform account
       </Link>
-      <Link href="/workspaces" className="mt-3 block text-owly-primary">
+      <Link href="/workspaces" className="mt-3 block text-ziyrak-primary">
         Choose a workspace
       </Link>
     </section>

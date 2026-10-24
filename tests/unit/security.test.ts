@@ -88,7 +88,7 @@ describe("Security Utilities", () => {
     it("should mask all secret fields", () => {
       const settings = {
         id: "default",
-        businessName: "Owly",
+        businessName: "Ziyrak",
         aiApiKey: "sk-test-key",
         smtpPass: "smtp-pass",
         imapPass: "imap-pass",
@@ -99,7 +99,7 @@ describe("Security Utilities", () => {
 
       const masked = maskSettingsSecrets(settings);
 
-      expect(masked.businessName).toBe("Owly");
+      expect(masked.businessName).toBe("Ziyrak");
       expect(masked.id).toBe("default");
       for (const field of SECRET_FIELDS) {
         expect(masked[field]).toBe("***");
@@ -109,11 +109,11 @@ describe("Security Utilities", () => {
     it("should handle missing secret fields gracefully", () => {
       const settings = {
         id: "default",
-        businessName: "Owly",
+        businessName: "Ziyrak",
       };
 
       const masked = maskSettingsSecrets(settings);
-      expect(masked.businessName).toBe("Owly");
+      expect(masked.businessName).toBe("Ziyrak");
     });
 
     it("should not mutate original object", () => {

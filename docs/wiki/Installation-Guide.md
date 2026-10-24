@@ -1,12 +1,12 @@
 # Installation Guide
 
-This guide covers everything you need to install and run Owly on your machine, whether you prefer Docker Compose (recommended for production) or a manual npm-based setup for development.
+This guide covers everything you need to install and run Ziyrak on your machine, whether you prefer Docker Compose (recommended for production) or a manual npm-based setup for development.
 
 ---
 
 ## Prerequisites
 
-Before installing Owly, make sure you have the following:
+Before installing Ziyrak, make sure you have the following:
 
 | Requirement | Minimum Version | Notes |
 |-------------|----------------|-------|
@@ -25,7 +25,7 @@ Before installing Owly, make sure you have the following:
 
 ## Option 1: Docker Compose (Recommended)
 
-Docker Compose is the simplest way to run Owly. It handles PostgreSQL, the application, and persistent storage automatically.
+Docker Compose is the simplest way to run Ziyrak. It handles PostgreSQL, the application, and persistent storage automatically.
 
 ### Step 1: Clone the Repository
 
@@ -52,7 +52,7 @@ SECRET_KEY_V1="<a different output of: openssl rand -hex 32>"
 WEBHOOK_SECRET="<a third output of: openssl rand -hex 32>"
 ```
 
-`SECRET_KEY_V1` encrypts the channel credentials you store in Owly (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Owly sends; without it they go out unsigned.
+`SECRET_KEY_V1` encrypts the channel credentials you store in Ziyrak (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Ziyrak sends; without it they go out unsigned.
 
 The `DATABASE_URL` is already configured for Docker Compose in `docker-compose.yml` and does not need to be changed.
 
@@ -65,7 +65,7 @@ docker compose up -d
 This starts two services:
 
 - **db** -- PostgreSQL 16 (Alpine) on port 5432
-- **app** -- Owly application on port 3000
+- **app** -- Ziyrak application on port 3000
 
 ### Step 4: Open the Application
 
@@ -126,7 +126,7 @@ SECRET_KEY_V1="<a different output of: openssl rand -hex 32>"
 WEBHOOK_SECRET="<a third output of: openssl rand -hex 32>"
 ```
 
-`SECRET_KEY_V1` encrypts the channel credentials you store in Owly (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Owly sends; without it they go out unsigned.
+`SECRET_KEY_V1` encrypts the channel credentials you store in Ziyrak (WhatsApp tokens, email passwords, AI keys). **Back it up** — if it is lost, every stored credential becomes unreadable. `WEBHOOK_SECRET` signs the webhooks Ziyrak sends; without it they go out unsigned.
 
 ### Step 4: Create the Database
 
@@ -182,13 +182,13 @@ The following table describes all environment variables in `.env.example`:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string. Format: `postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public` |
-| `JWT_SECRET` | Yes | Secret key for signing login tokens. A random string of at least 32 characters (`openssl rand -hex 32`). Owly will not start without it. |
+| `JWT_SECRET` | Yes | Secret key for signing login tokens. A random string of at least 32 characters (`openssl rand -hex 32`). Ziyrak will not start without it. |
 | `SECRET_KEY_V1` | Yes | Encryption key for stored channel credentials and infrastructure secrets. Random, 32+ characters, different from `JWT_SECRET`. Keys are versioned: to rotate, add `SECRET_KEY_V2`; never delete `SECRET_KEY_V1` while anything is still encrypted under it. |
-| `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your Owly instance (e.g. `https://support.example.com`). It is built into the app, so **rebuild after changing it**; use the real public `https://` URL before serving customers or WhatsApp webhooks. |
-| `WEBHOOK_SECRET` | Recommended | HMAC key for the `X-Owly-Signature` header on outgoing webhooks. If empty, outgoing webhooks are sent unsigned. |
+| `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your Ziyrak instance (e.g. `https://support.example.com`). It is built into the app, so **rebuild after changing it**; use the real public `https://` URL before serving customers or WhatsApp webhooks. |
+| `WEBHOOK_SECRET` | Recommended | HMAC key for the `X-Ziyrak-Signature` header (the legacy `X-Owly-Signature` is sent with the same value) on outgoing webhooks. If empty, outgoing webhooks are sent unsigned. |
 | `META_WEBHOOK_VERIFY_TOKEN` | For WhatsApp Cloud API | Any random string; enter the same value when registering your webhook with Meta. |
 | `REDIS_URL` | No | Shares rate limits, caching and live updates across several app replicas. Not needed for a single instance. |
-| `TRUSTED_PROXY_HOPS` | Behind a proxy | How many proxies in front of Owly add to `X-Forwarded-For` (so rate limiting sees real client addresses). Use `1` behind a single tunnel or load balancer. |
+| `TRUSTED_PROXY_HOPS` | Behind a proxy | How many proxies in front of Ziyrak add to `X-Forwarded-For` (so rate limiting sees real client addresses). Use `1` behind a single tunnel or load balancer. |
 | `CORS_ORIGIN` | No | Allow one cross-origin frontend to call the API. |
 
 `.env.example` documents these and the optional scaling and test variables.
@@ -202,7 +202,7 @@ The following table describes all environment variables in `.env.example`:
 
 ## Verifying the Installation
 
-After starting Owly, verify that everything is working:
+After starting Ziyrak, verify that everything is working:
 
 1. **Health check endpoint:** Open `http://localhost:3000/api/health` in your browser or run:
 
@@ -236,7 +236,7 @@ For Docker Compose, you can change the port mapping in `docker-compose.yml`:
 
 ```yaml
 ports:
-  - "8080:3000"  # Access Owly at localhost:8080
+  - "8080:3000"  # Access Ziyrak at localhost:8080
 ```
 
 ### Port 5432 Already in Use (PostgreSQL)
@@ -363,9 +363,9 @@ apk add --no-cache \
 
 ## Successful Installation
 
-Once everything is running, you should see the Owly dashboard after completing the setup wizard:
+Once everything is running, you should see the Ziyrak dashboard after completing the setup wizard:
 
-![Owly Dashboard](../screenshots/02-dashboard.png)
+![Ziyrak Dashboard](../screenshots/02-dashboard.png)
 
 From here, proceed to the [Setup Wizard](Setup-Wizard) guide to configure your admin account, business profile, and AI provider.
 

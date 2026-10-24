@@ -33,7 +33,7 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | 5 | **P3 — Accounts and customer onboarding** | Merged 2026-10-22 (`470073b`, exact-head CI green); not deployed. Tag `phase-p3-complete` on `2b64578` (exact-head CI green 2026-10-23). Real-mail delivery check passed 2026-10-23; operator invitations merged (`fae51d8`), browser journey J29 in PR #32 | Verified email, reset, invitations and resumable onboarding to activation; see the P3 summary under Finished packages. |
 | 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
 | 7 | **R4 — Final functional acceptance** | Local verification passed; Meta waived; not deployed | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
-| 8 | **R5 — Final Ziyrak naming and branding** | Not started / not run | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
+| 8 | **R5 — Final Ziyrak naming and branding** | Implemented; local verification passed (PR open, not merged) | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
 
 Keep the R identifiers stable for earlier evidence; P identifies newly approved
 product work. This order replaces the earlier R1 → R2 → R3 → R4 → R5 queue.
@@ -299,6 +299,13 @@ channels, worker or widget changes and major releases/milestone tags. During an
 implementation loop, run focused checks first; batch closely related edits into a
 coherent candidate and run the full suite before closure. Documentation-only work
 does not require rerunning the application or sending WhatsApp messages.
+
+- **Result (2026-10-24, branch `chore/r5-ziyrak-branding`):** rename implemented with retained compatibility names documented in
+  `docs/branding-compat.md`; Next upgraded to 16.4.3 as its own commit. Local/stand-in verification on head `0b9a1a2`: verify.sh, tsc,
+  lint, `npm test` 180 files/1812 passed/1 skipped, build, independent security review (no findings), full browser suite 30/30 on build
+  `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail). R4 evidence is preserved; R5 reran what it invalidated.
+  Open: `public/ziyrak.png` still owl-mascot art (owner art needed), docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived,
+  `test:smoke:*` not run, not deployed.
 
 ### Meta testing without blocking unrelated development
 

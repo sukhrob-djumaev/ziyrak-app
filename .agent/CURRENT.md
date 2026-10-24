@@ -1,4 +1,4 @@
-# Current task (reconciled 2026-10-22)
+# Current task (reconciled 2026-10-24)
 
 Keep this file under ~60 lines: status, next action, blockers, prohibitions. Older updates are archived by
 `scripts/agent/archive-state.py` into `docs/state-archive/`. Finished-package detail: `docs/milestone-archive.md`;
@@ -22,10 +22,17 @@ docs index: `docs/README.md`.
 - R4: MERGED (PR #33, `14e09ce`, exact-head CI green). Local/stand-in verification passed: vitest 1807, browser 30/30 on build `7043d16`. R1 Meta reply check WAIVED by owner; smoke suites not run; not deployed.
 
 ## Next action
-1. R5 STARTED 2026-10-24 (owner: "approve, do"). Also approved: R4 cleanup (worktree ../owly-wt-r4, its DBs, Redis, topology) and the Next security upgrade as its own commit. Tags still need an explicit tag name from the owner. Progress `.agent/progress/r5.md`.
-3. A fresh unbiased R2 evaluation set is optional.
+1. R5 IMPLEMENTED and verified locally (2026-10-24), branch `chore/r5-ziyrak-branding` head per Git, PR open to main; NOT merged.
+   Verified: verify.sh, tsc, lint, `npm test` 180 files/1812 passed/1 skipped (isolated DB, Redis), `npm run build` on Next 16.4.3,
+   security review (no findings), browser suite 30/30 on build `U7J0zXpmaJ_C489Aoz04Y` (head `0b9a1a2`, digest `92298ab4`; stand-in AI,
+   captured mail; local layer). R4 evidence preserved (historical, not rerun as claim); R5 invalidated and reran the above.
+2. Merge needs exact-head CI green (standing authorization); tags need an explicit tag name; no deploy.
+3. Open items: logo art `public/ziyrak.png` is still the owl mascot (owner art needed); docs screenshots; retained compat names per
+   `docs/branding-compat.md`; npm audit zod/@vitest/mocker findings; R1 Meta reply WAIVED; `test:smoke:*` not run.
+4. Record: `.agent/progress/r5.md`; PLAN.md R5 section.
 
 ## Retained resources (do not delete without approval)
+- R5: worktree `../owly-wt-r5`, DBs `ziyrak_r5_test_20261024`, `ziyrak_acceptance_r5_20261024` (throwaway Redis removed, topology stopped).
 - Test/acceptance DBs for P2/P3 runs (not checked: `psql` could not list them from this shell).
 - `/Users/sukhrob/.codex/worktrees/*` (10 dirs, e.g. p3-onboarding) are empty (0B, no `.git`) and no longer git
   worktrees; leftover empty folders, safe to remove once approved.

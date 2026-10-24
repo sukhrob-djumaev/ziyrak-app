@@ -27,7 +27,7 @@ docs index: `docs/README.md`.
    security review (no findings), browser suite 30/30 on build `U7J0zXpmaJ_C489Aoz04Y` (head `0b9a1a2`, digest `92298ab4`; stand-in AI,
    captured mail; local layer). R4 evidence preserved (historical, not rerun as claim); R5 invalidated and reran the above.
 2. Merge needs exact-head CI green (standing authorization); tags need an explicit tag name; no deploy.
-3. Open items: logo art `public/ziyrak.png` is still the owl mascot (owner art needed); docs screenshots; retained compat names per
+3. Open items: logo art replaced with owner-supplied Ziyrak mark (low-res source); docs screenshots; retained compat names per
    `docs/branding-compat.md`; npm audit zod/@vitest/mocker findings; R1 Meta reply WAIVED; `test:smoke:*` not run.
 4. Record: `.agent/progress/r5.md`; PLAN.md R5 section.
 

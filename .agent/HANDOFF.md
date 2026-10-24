@@ -10,3 +10,13 @@
 - Open: owl-mascot logo art, docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived, smoke suites not run, not deployed.
 - Cleanup done: acceptance topology stopped, throwaway Redis removed. Kept: worktree and 2 R5 DBs (no deletion approval).
 - Continue: owner reviews PR; merge when exact-head CI green; milestone then closes pending owner decisions.
+
+
+## Meta Business A recipient-visible check (2026-10-25, manual)
+- Topology: main build `905b4ca` in worktree `../owly-wt-metaA` (branch `test/meta-a-visible-reply`), throwaway DB `ziyrak_meta_a_visible_20261025`,
+  web :3100 + worker, owner's quick tunnel, real Graph + real OpenAI (`gpt-4o-mini`), mail captured. No product code changed.
+- Result: PASS (manual, Business A only). Owner's phone received the AI reply with the Business A phrase. Logs: inbound stored 16:57:49.4Z,
+  reply stored 16:57:52.1Z, Graph send accepted (HTTP 200) 16:57:53.3Z; no 131031. Latency is from logs/manual, no p95 claimed.
+- A's stored token had expired (190/463); owner supplied a new one via clipboard (never printed or written). Business B not retested.
+- Callback was set to the throwaway tunnel; owner should point the Meta callback back as needed. Web/worker stopped; DB, worktree, branch kept.
+- `npm run test:smoke:meta` was not run.

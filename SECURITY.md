@@ -12,7 +12,7 @@ Include the affected commit/version, description, impact, sanitized reproduction
 
 The code includes authenticated sessions/password hashing, tenant-scoped data access, workspace/resource permissions, explicit platform support grants, encrypted stored credentials, signed Meta webhook verification, tool policies/approval, audit records and several rate-limit/input protections. These are controls to verify, not a guarantee that every input/log/endpoint has universal coverage. Platform authority does not implicitly grant tenant data access.
 
-The current review identifies open dependency advisories, outbound redirect credential leakage, non-atomic password reset/session invalidation, key-retirement defects, request/deadline limits and operational evidence gaps. Those are tracked in launch tasks L1/L2. No new exploit against production or actual secret disclosure was established by the review. Central log redaction and sensitive-field tests still need work; never assume logs are safe to publish. Webhook signatures require actual configured keys and receiver verification.
+The current review's findings are tracked in launch tasks L1/L2; see [the review](docs/project-review-2026-10-25.md) for which are still open. No new exploit against production or actual secret disclosure was established by the review. The logger redacts sensitive keys and credential-shaped strings centrally (tested), which reduces but does not eliminate accidental disclosure; never assume logs are safe to publish. Webhook signatures require actual configured keys and receiver verification.
 
 ## Deployment requirements
 

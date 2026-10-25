@@ -26,6 +26,7 @@ services:
   pgbouncer:
     ports: !reset []
   app:
+    image: ${LOADTEST_IMAGE:?set by scripts/loadtest/run.sh}
     env_file: !reset []
     environment: *loadtest-env
     ports: !override
@@ -33,6 +34,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   app-2:
+    image: ${LOADTEST_IMAGE:?set by scripts/loadtest/run.sh}
     env_file: !reset []
     environment: *loadtest-env
     ports: !override
@@ -40,11 +42,13 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   worker:
+    image: ${LOADTEST_IMAGE:?set by scripts/loadtest/run.sh}
     env_file: !reset []
     environment: *loadtest-env
     extra_hosts:
       - "host.docker.internal:host-gateway"
   worker-2:
+    image: ${LOADTEST_IMAGE:?set by scripts/loadtest/run.sh}
     env_file: !reset []
     environment: *loadtest-env
     extra_hosts:

@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { vi } from "vitest";
+
+const { assertDisposableTarget } = createRequire(import.meta.url)(
+  "../scripts/safety/db-target.cjs"
+) as {
+  assertDisposableTarget: (env: NodeJS.ProcessEnv, kind: "test" | "load") => void;
+};
 
 // Set test environment variables
 process.env.JWT_SECRET = "test-secret-key-for-testing-only";
@@ -10,8 +17,19 @@ process.env.JWT_SECRET = "test-secret-key-for-testing-only";
 // reachable database; matches CI's own owly_test database/credentials
 // (.github/workflows/ci.yml) but only as a default, so a differently
 // configured environment isn't overridden.
-process.env.DATABASE_URL ??=
-  "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
+//
+// L1.1/F08: the repository tests delete control-plane rows, so the target must
+// be proven disposable before any test file loads. With nothing configured the
+// local owly_test default applies to BOTH URLs; anything configured must pass
+// scripts/safety/db-target.cjs (paired URLs, disposable name, local host,
+// explicit ZIYRAK_DISPOSABLE_DB ownership). No connection is made here.
+if (!process.env.DATABASE_URL && !process.env.DIRECT_DATABASE_URL) {
+  const local = "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
+  process.env.DATABASE_URL = local;
+  process.env.DIRECT_DATABASE_URL = local;
+  process.env.ZIYRAK_DISPOSABLE_DB = "owly_test";
+}
+assertDisposableTarget(process.env, "test");
 process.env.NODE_ENV = "test";
 // PLAN.md §46.8 — when the suite runs with `REDIS_URL` set (Redis-backed
 // adapters selected), every test file gets its own key namespace: files run

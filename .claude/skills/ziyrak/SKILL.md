@@ -1,14 +1,20 @@
 ---
 name: ziyrak
-description: Resume or inspect the owner-approved Ziyrak task from PLAN.md and tracked continuation state. Use for /ziyrak continue, /ziyrak start, or /ziyrak status.
-argument-hint: "[continue|start|status]"
-disable-model-invocation: true
+description: Resume or inspect the owner-approved Ziyrak task from PLAN.md and tracked continuation state. Use for /ziyrak run, /ziyrak continue, /ziyrak start, /ziyrak status, or an explicitly requested /loop /ziyrak run.
+argument-hint: "[run|continue|start|status]"
+disable-model-invocation: false
 ---
 
 # Ziyrak continuation
 
 This is a thin Claude entrypoint to [AGENTS.md](../../../AGENTS.md) and PLAN.md, not a second workflow or source of approval.
-`start` and `continue` both resume the first eligible task; neither restarts historical phases. Plain `continue` also works through CLAUDE.md/AGENTS.md. Follow the current live board, not an old chat or a task hardcoded into this skill.
+`run`, `start` and `continue` are aliases: resume the first eligible task without restarting historical phases. Plain `continue` also works through CLAUDE.md/AGENTS.md. Follow the current live board, not an old chat or a task hardcoded into this skill.
+
+## Optional owner-requested loop
+
+Use `/loop /ziyrak run` for a self-paced loop, or `/loop 5m /ziyrak run` for a fixed interval. `/loop /ziyrak continue` is equivalent. Model invocation is enabled because scheduled skill calls require it; this does not enlarge the plan's authority or permit creating a schedule without the owner's request.
+
+Each iteration follows the same startup/resume/verification rules below. Never create another loop from inside this skill. On owner STOP, completed approved scope, or a decision/external blocker with no independent eligible work, record the checkpoint and stop/cancel this loop using the runtime's available scheduling controls. Do not cancel unrelated tasks. Plain `/ziyrak run` starts work without creating a schedule.
 
 ## Start
 

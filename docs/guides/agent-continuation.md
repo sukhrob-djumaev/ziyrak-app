@@ -15,7 +15,9 @@ claude "continue"
 codex -C /Users/sukhrob/Development/Repos/JS/owly "continue"
 ```
 
-Claude also has `/ziyrak continue` and read-only `/ziyrak status`. Plain `continue` is the shared path. Use the installed client's normal account/model/permission configuration; do not bypass sandbox/approval controls or use a mode that skips repository instructions. Local CLI help verified these invocation forms on 2026-10-25; account access remains a client prerequisite.
+Claude also has `/ziyrak run` (alias of `/ziyrak continue`) and read-only `/ziyrak status`. Plain `continue` is the shared path. Use the installed client's normal account/model/permission configuration; do not bypass sandbox/approval controls or use a mode that skips repository instructions. Local CLI help verified these invocation forms on 2026-10-25; account access remains a client prerequisite.
+
+For an owner-requested Claude loop, enter `/loop /ziyrak run` in the session. `/loop /ziyrak continue` does the same work; `/loop 5m /ziyrak run` requests a fixed interval. Keep the session running. To cancel, ask Claude to stop the Ziyrak loop; for a self-paced loop, Esc while waiting also cancels its pending wakeup. Scheduled skill calls require model invocation to be enabled, which the local skill now allows. The loop retains the plan's STOP/approval boundaries and must end when no eligible approved work remains. These scheduling details follow the [official loop documentation](https://code.claude.com/docs/en/scheduled-tasks); a model-driven loop was not launched for this configuration correction.
 
 Only one lead should work on this task at a time. To switch tools, stop at a recorded checkpoint, then open the recorded task checkout in the other tool. A new session is fine: tracked state, not the old transcript, is the continuation source.
 

@@ -62,16 +62,22 @@ export async function issueAccountToken(input: IssueInput): Promise<{ token: str
   return { token, id: row.id };
 }
 
-export async function consumeAccountToken(input: {
-  token: string;
-  purpose: AccountTokenPurpose;
-  /** When given, the token must have been issued to this address. */
-  email?: string;
-}): Promise<ConsumedToken | null> {
+/** Either the shared client or an interactive transaction (L1.3/F03: consume together with the change it authorises). */
+type Db = Pick<typeof prisma, "accountToken">;
+
+export async function consumeAccountToken(
+  input: {
+    token: string;
+    purpose: AccountTokenPurpose;
+    /** When given, the token must have been issued to this address. */
+    email?: string;
+  },
+  db: Db = prisma
+): Promise<ConsumedToken | null> {
   if (typeof input.token !== "string" || input.token.length < 20 || input.token.length > 200) return null;
   const tokenHash = hashToken(input.token);
   const now = new Date();
-  const claimed = await prisma.accountToken.updateMany({
+  const claimed = await db.accountToken.updateMany({
     where: {
       tokenHash,
       purpose: input.purpose,
@@ -82,7 +88,7 @@ export async function consumeAccountToken(input: {
     data: { usedAt: now },
   });
   if (claimed.count !== 1) return null;
-  const row = await prisma.accountToken.findUnique({ where: { tokenHash } });
+  const row = await db.accountToken.findUnique({ where: { tokenHash } });
   if (!row) return null;
   return { id: row.id, purpose: row.purpose as AccountTokenPurpose, email: row.email, userId: row.userId, payload: row.payload };
 }

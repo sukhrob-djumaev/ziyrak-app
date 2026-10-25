@@ -76,12 +76,18 @@ export async function verifyActiveToken(token: string): Promise<TokenPayload | n
   return payload;
 }
 
+/**
+ * The session cutoff for a reset/change happening at `now`. Second resolution matches the token's `iat`; the
+ * cutoff is the NEXT whole second, so a session minted in the same second as the reset ends too, and signing
+ * in again a moment later works. Exposed so a caller can write it in the same statement as the change.
+ */
+export function sessionCutoff(now: Date = new Date()): Date {
+  return new Date(Math.ceil(now.getTime() / 1000) * 1000);
+}
+
 /** Ends every session issued to this user before now (password reset/change). */
 export async function endAllSessions(userId: string, now: Date = new Date()): Promise<void> {
-  // Second resolution matches the token's `iat`. The cutoff is the NEXT whole second, so a session
-  // minted in the same second as the reset ends too; signing in again a moment later works.
-  const cutoff = new Date(Math.ceil(now.getTime() / 1000) * 1000);
-  await prisma.user.update({ where: { id: userId }, data: { sessionsValidAfter: cutoff } });
+  await prisma.user.update({ where: { id: userId }, data: { sessionsValidAfter: sessionCutoff(now) } });
 }
 
 /**

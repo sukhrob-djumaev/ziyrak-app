@@ -13,7 +13,8 @@ import {
 } from "@/lib/identity/auth";
 import { provisionBusiness } from "@/lib/platform/provisioning";
 import { sendVerification, notifyAddressInUse } from "@/lib/identity/account-service";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, SIGNUP_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 import { validateBody, signupSchema } from "@/lib/validations";
 import { AppError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
@@ -41,6 +42,22 @@ export async function POST(request: NextRequest) {
     const validation = validateBody(signupSchema, body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    // L1.3: bound workspace creation per address and platform-wide before doing any work for this request.
+    for (const [key, config] of [
+      [`signup-ip:${getClientIp(request)}`, SIGNUP_LIMITS.perAddress],
+      ["signup-platform", SIGNUP_LIMITS.platformWide],
+    ] as const) {
+      const verdict = await checkRateLimit(key, config);
+      if (!verdict.allowed) {
+        const limited = NextResponse.json(
+          { error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many sign-ups right now. Please try again later." } },
+          { status: 429 }
+        );
+        limited.headers.set("Retry-After", String(Math.max(1, Math.ceil((verdict.resetAt - Date.now()) / 1000))));
+        return limited;
+      }
     }
 
     // PLAN.md P3 — signup never signs anyone in: the answer is the same whether the address is

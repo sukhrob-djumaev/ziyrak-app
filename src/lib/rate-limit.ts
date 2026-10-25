@@ -24,6 +24,20 @@ export const RATE_LIMITS = {
   metaWebhook: { maxRequests: 1200, windowMs: 60 * 1000 } as RateLimitConfig,
 } as const;
 
+/**
+ * L1.3 signup abuse controls, on top of the general 5/min auth limit: each signup provisions a workspace, so the
+ * hourly ceilings are what bound workspace spam from one address and from the whole internet. The platform-wide
+ * ceiling is tunable (ZIYRAK_SIGNUP_PLATFORM_PER_HOUR) and fails closed on a bad value.
+ */
+const platformSignupsPerHour = (() => {
+  const raw = Number(process.env.ZIYRAK_SIGNUP_PLATFORM_PER_HOUR);
+  return Number.isInteger(raw) && raw > 0 ? raw : 200;
+})();
+export const SIGNUP_LIMITS = {
+  perAddress: { maxRequests: 10, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
+  platformWide: { maxRequests: platformSignupsPerHour, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
+} as const;
+
 const memory = new InMemoryRateLimiter();
 let warnedAt = 0;
 

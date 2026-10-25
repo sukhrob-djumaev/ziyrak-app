@@ -2,7 +2,7 @@
 
 ## Decision, scope and evidence
 
-Decision **LP-2026-10-25** records the owner's request to refresh documentation, restart delivery from the current project, review dashboard/access/usability, and support configurable subscriptions. It selects launch preparation, not deployment or live charging. The intended outcome is a customer who can register, verify email, understand the offer, pay, set up a supported channel and start work without manual platform provisioning.
+Decision **LP-2026-10-25** records the owner's request to refresh documentation, restart delivery from the current project, review dashboard/access/usability, and support configurable subscriptions. The owner explicitly agreed in the follow-up and requested Claude/Codex continuation preparation on 2026-10-25. This approves L1–L6 preparation, not deployment or live charging. The intended outcome is a customer who can register, verify email, understand the offer, pay, set up a supported channel and start work without manual platform provisioning.
 
 Keep the modular monolith, tenant boundary, provider contracts, separate worker and existing account foundation. Do not restart the migration or discard prior work. The [October 25 review](project-review-2026-10-25.md) is the defect/evidence baseline on product commit `5b45bd7`; documentation baseline is `3066b33`. The [dashboard review](dashboard-and-access-review-2026-10-25.md) and [billing contract](billing-and-entitlements-spec.md) specify the next experience. These documents describe requirements, not shipped billing or passed acceptance.
 
@@ -10,7 +10,7 @@ This amendment affects original architecture §§7–12, 15–16, 23–25, 33–
 
 ## Delivery board
 
-`PLAN.md` owns selection/status; this document owns the detailed L criteria. Work follows dependency order. A blocked provider or business decision stops only dependent work. Each task records implementation separately from verification, with tested commit/build, topology and evidence. L0 is documentation only. **The next implementation task is L1.1.**
+`PLAN.md` owns selection/status; this document owns the detailed L criteria. Work follows dependency order. A blocked provider or business decision stops only dependent work. Each task records implementation separately from verification, with tested commit/build, topology and evidence. L0 is documentation only. **The next implementation task is [L1.1](tasks/l1.1-safe-verification-harness.md).**
 
 | Task | Required result and acceptance | Dependencies / boundary |
 | --- | --- | --- |

@@ -28,7 +28,7 @@ For browser acceptance, inspect [run-all.sh](scripts/acceptance/run-all.sh), [st
 
 ## Continue development
 
-Say **`continue`** or **`continue current Ziyrak task`** in this repository. [AGENTS](AGENTS.md) and [CLAUDE](CLAUDE.md) route to PLAN, [CURRENT](.agent/CURRENT.md) and [HANDOFF](.agent/HANDOFF.md). Resume the first eligible launch-preparation task, currently **L1.1**, without restarting old phases. Commercial decisions and external-action boundaries remain explicit; this is not permission to deploy or charge customers.
+The owner explicitly approved launch preparation through L6. Say **`continue`** or **`continue current Ziyrak task`** in this repository; use the [start/resume guide](docs/guides/agent-continuation.md) for either client. [AGENTS](AGENTS.md) and [CLAUDE](CLAUDE.md) route to PLAN, [CURRENT](.agent/CURRENT.md) and [HANDOFF](.agent/HANDOFF.md). Resume the first eligible launch-preparation task, currently **L1.1**, without restarting old phases. Commercial decisions and external-action boundaries remain explicit; this is not permission to deploy or charge customers.
 
 ## Deployment and provenance
 

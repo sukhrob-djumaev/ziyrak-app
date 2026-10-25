@@ -6,7 +6,7 @@ This plan owns architecture, acceptance criteria and work scope. `README.md` exp
 shared Codex/Claude workflow; `.agent/CURRENT.md` identifies the next task; `.agent/HANDOFF.md` records the latest session.
 
 The owner requested a documentation reset and self-service commercial launch preparation on 2026-10-25.
-**LP-2026-10-25 is the selected launch-preparation roadmap**, building on managed-service decision MS-2026-10-14.
+**LP-2026-10-25 is explicitly owner-approved (2026-10-25 follow-up) for L1–L6 preparation**, building on managed-service decision MS-2026-10-14.
 `continue` resumes the first eligible task below, preserving commercial decisions and external-action boundaries.
 It does not authorize deployment, live charging, account/provider changes, new channels or unselected enterprise work.
 
@@ -33,9 +33,10 @@ Customer experience: [dashboard/access review](docs/dashboard-and-access-review-
 | L6 | Candidate/release rehearsal | Not started / not run | L1–L5; exact-build full suite and required real-provider/operations evidence. |
 | L7 | Controlled paid pilot, then expansion | Not authorized / not run | Requires L6 evidence and explicit rollout/live-money authorization. |
 
+The owner explicitly agreed to this roadmap and requested clean Claude/Codex continuation on 2026-10-25.
 L1–L6 are preparation scope, not a promise that unresolved provider/business choices are settled.
 Base plus add-ons is the working offer model; no production price, trial/refund policy or provider is selected.
-The next implementation session begins with L1.1's contract and failing safety regressions. Prior milestones are
+The next implementation session begins with [L1.1’s task packet](docs/tasks/l1.1-safe-verification-harness.md), its contract and failing safety regressions. Prior milestones are
 retained below as history; do not restart them or use their tags to close L acceptance.
 
 ### Historical foundations and managed-service packages

@@ -47,6 +47,9 @@ jobs:
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+      - name: Continuation workflow safety
+        run: python3 scripts/agent/test_workflow.py
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

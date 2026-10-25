@@ -1,6 +1,6 @@
 # Configurable billing and entitlements
 
-Status: **target contract for LP-2026-10-25; not implemented**. The owner requests flexible packaging and self-service payment. Base subscription plus optional add-ons is the working first offer, not an approved production price list. A zero-base/a-la-carte offer should be expressible with the same catalog. Merchant country/provider/currency and final commercial policies remain decisions in L4.2.
+Status: **owner-approved target contract for LP-2026-10-25; not implemented**. The owner requests flexible packaging and self-service payment. Base subscription plus optional add-ons is the agreed starting model, not an approved production price list. A zero-base/a-la-carte offer should be expressible with the same catalog. Merchant country/provider/currency and final commercial policies remain decisions in L4.2.
 
 ## What can change without code
 

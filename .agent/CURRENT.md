@@ -1,18 +1,22 @@
 # Current task — LP-2026-10-25 launch preparation
 
 ## Status
-- Owner requested current docs, flexible self-service subscriptions and dashboard/access/usability review.
+- Owner explicitly APPROVED L1–L6 launch preparation on 2026-10-25 and requested clean Claude/Codex continuation.
 - Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
-- L0 documentation/requirements rebaseline COMPLETE. L1–L6 implementation NOT STARTED; criteria NOT RUN.
+- L0 and continuation preparation COMPLETE. L1–L6 product implementation NOT STARTED; criteria NOT RUN.
 - Next: L1.1 safe verification harness. No deployment/live charging/pilot is authorized by this reset.
-- Product baseline `5b45bd7`; prior audit commit `3066b33`. This documentation commit changes no product code.
+- Baselines: product `5b45bd7`, audit `3066b33`, docs rebaseline `01a275d`. Workflow helpers changed; product did not.
+- Task packet: `docs/tasks/l1.1-safe-verification-harness.md`
+- Active checkout: none
+- Active branch: none
+- Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
-- Base plus optional add-ons is the working offer; existing implemented capabilities/prices become data-managed.
+- Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
 ## Next actions
-1. Read PLAN's execution/verification/Git protocols and L1.1 criteria; inspect live Git/process topology.
-2. Create an isolated worktree/dependencies; state test-harness contract before code and write failing guard tests.
+1. Run/read the read-only preflight; read HANDOFF, the L1.1 packet and PLAN protocols; inspect Git/topology.
+2. Create an isolated task worktree; record its absolute path/branch here before edits, then install/test in isolation.
 3. Fence both DB URLs/disposable targets, owned PIDs and image identity before running cleanup/load tools.
 4. Continue eligible L1–L6 tasks in board order; unresolved provider/business choices stop only dependent work.
 5. L7 requires explicit rollout/live-money authorization after L6 evidence; do not start new channels/enterprise work.
@@ -36,5 +40,5 @@
 
 ## Standing authorization retained (owner, 2026-10-23)
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
-then push main/recheck CI when that standing instruction applies. This docs session performs only a local commit.
+then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.

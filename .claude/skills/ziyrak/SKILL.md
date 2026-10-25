@@ -1,120 +1,38 @@
 ---
 name: ziyrak
-description: Run the Ziyrak plan one task at a time from .agent/CURRENT.md and PLAN.md's live board, unattended. Use for "/ziyrak start", "/ziyrak continue", "/ziyrak status", or "/loop /ziyrak continue" (runs task after task by itself until a real blocker).
+description: Resume or inspect the owner-approved Ziyrak task from PLAN.md and tracked continuation state. Use for /ziyrak continue, /ziyrak start, or /ziyrak status.
+argument-hint: "[continue|start|status]"
+disable-model-invocation: true
 ---
 
-# Ziyrak: one task per invocation
+# Ziyrak continuation
 
-`AGENTS.md` and `PLAN.md` govern; this skill only sequences the work. State lives in files (`.agent/CURRENT.md`,
-`.agent/HANDOFF.md`, Git), so a crash, restart or compaction loses nothing: the next `/ziyrak continue` resumes.
+This is a thin Claude entrypoint to [AGENTS.md](../../../AGENTS.md) and PLAN.md, not a second workflow or source of approval.
+`start` and `continue` both resume the first eligible task; neither restarts historical phases. Plain `continue` also works through CLAUDE.md/AGENTS.md. Follow the current live board, not an old chat or a task hardcoded into this skill.
 
-**This conversation is a dispatcher, not a worker.** It picks the task, hands it to one fresh helper, records the
-result, merges when the gates allow, and schedules the next wakeup. It never reads code, logs, diffs or screens
-itself (use the `log-triage` agent or `tail`/`grep`). Each tool call re-sends the whole context, so stay small.
+## Start
 
-Arguments: `start` | `continue` (default) | `status`.
+1. Read AGENTS.md and the read-only startup preflight output. If absent/stale, run `python3 scripts/agent/continue-preflight.py` from the checkout. A STOP or missing-context result prevents implementation; the hook's zero exit only means its message was displayed.
+2. Read tracked CURRENT and HANDOFF. If the coordinator records an active checkout, inspect and resume that checkout's state/Git before creating anything. Never select a repository by directory basename. Honor STOP in the coordinator or task checkout.
+3. Inspect Git status/diffs/history and applicable PLAN task/protocol sections. Preserve dirty work; it may be the task to resume. No automatic checkout/reset/stash/cleanup, dependency install, provider test, fetch or process startup.
+4. `status` is local/read-only: report selected task, in-flight checkout/branch, next action and recorded blockers. Old CI is historical; only query current CI when needed and label it. Do not start work, caffeinate, schedules or background helpers.
 
-## 0. Hard rules
+## Continue
 
-1. Work from the main folder `/Users/sukhrob/Development/Repos/JS/owly` on `main`; do code, builds and acceptance in
-   a git worktree. Never touch port 7700 or the live worker checkout. Never kill processes by name.
-2. One task and one helper at a time. No parallel browser runs (one shared machine, Flutter load).
-3. Never push tags, deploy, release, force-push, delete DBs/worktrees/branches, or start a milestone/phase beyond
-   the standing authorization in `CURRENT.md`.
-4. Never put secrets in prompts, logs, commits or state files. Inspect credentials without printing values.
-5. A skip is not a pass. A red, pending or skipped check is never a pass. Stand-ins, Graph acceptance and
-   recipient-visible replies prove different things.
-6. Surface protocol conflicts (PLAN rule 11); do not resolve them silently.
+The lead owns source review, implementation, integration, verification, Git and state. Work directly by default. Delegate only independent investigation/review or safely independent acceptance per AGENTS; do not create a dispatcher/helper chain or prohibit the lead from reading code/diffs. One lead owns a task; do not run Claude and Codex concurrently on it.
 
-## 0b. Token discipline (dispatcher and helpers)
+Before product code/install/build, use an isolated task worktree and record its absolute path/branch/task in the coordinator CURRENT. Keep detailed current evidence in the task checkout. State the module contract and verbatim acceptance criteria, then follow tests-first and the selected verification path. The live worker checkout and protected port 7700 remain off limits for product runtime changes.
 
-Cost is almost entirely re-reading context: every tool call re-sends the whole conversation. Keep every conversation
-small. These rules change how much is read, never what is checked.
+Complete eligible work in the approved scope without routine reapproval. An ordinary failed test is work to diagnose, not an automatic stop after an arbitrary retry count. Stop identical retries for a confirmed external blocker, record the precise criterion/input/retry condition, and continue independent eligible work. Stop at the plan's real architecture/product/external-action/release boundaries.
 
-- **Read ranges, not files.** `grep -n` or `sed -n 'a,bp'` for the part needed; never print a whole file over ~150
-  lines; pipe long output through `tail -n 40` / `head`, or save it to a file and grep it.
-- **Logs go to files, verdicts come back.** Test, build and browser output is written under the scratchpad or
-  `.agent/progress/` and read through `log-triage` (haiku) or `grep`. Screenshots only when text cannot decide.
-- **Progress as you go.** Helpers append to `.agent/progress/<task>.md` after every step, so compaction or a
-  handover loses nothing. After a compaction a helper re-reads that file first.
-- **Hand over before a helper grows big.** Past ~150k context, update the progress file and return
-  `CONTINUE <path>`; the dispatcher starts a fresh helper.
-- **Models: balanced, quality slightly ahead of time and tokens** (owner, 2026-10-23). Never use the newest top tier
-  (fable). Dispatcher and bookkeeping: sonnet. Helpers: sonnet by default, including implementation and browser
-  runs; opus for security-sensitive code (auth, tenant isolation, secrets, crypto, webhooks, payments), independent
-  security/code review, and any task that failed once on sonnet. Log reading: `log-triage` (haiku). Pass `model`
-  explicitly on every Agent call. Never trade a check away for tokens: reduce what is read, not what is verified.
-- **Scripts instead of model turns.** Use `scripts/agent/verify.sh [--tests <paths>]` (tsc, lint, optional vitest;
-  one line per step, logs in `.agent/progress/logs`), `scripts/agent/ci-wait.sh pr <n>|sha <commit> [min]` (blocks
-  and prints one CI verdict line, so nothing polls), and `scripts/agent/merge-gate.sh <n>` (prints `MERGE_OK <sha>`
-  only when every check on the exact head is green and the PR is clean; the merge then pins that sha).
-- **Dispatcher size.** Check `python3 scripts/agent/usage.py --context` once per invocation; above 400,000, finish
-  bookkeeping, stop the loop and ask the owner to restart (auto-compact comes from the worker start command in CURRENT).
-- **Cost per task.** Record `python3 scripts/agent/usage.py --since <task start UTC>` (input, cache, output
-  tokens incl. helpers) on the task's line in HANDOFF, so expensive tasks are visible.
-- **Don't re-read what is known.** A SessionStart hook already prints git state and the head of CURRENT; on a
-  wakeup read CURRENT only when the pass needs it. Never read PLAN or archives whole.
+Independent security review is required for the boundaries named in AGENTS. Retain the owner's Claude model preference: Sonnet for ordinary work, Opus for security-sensitive work/review, Haiku for optional log triage, when those models are available. Do not select a newer top-tier replacement or alter configured models without the owner’s choice; do not change global configuration or invent a model/tool. Codex uses its own configured model and native reviewers.
 
-## 1. Every invocation starts like this
+## Verify and checkpoint
 
-1. `git rev-parse --show-toplevel` ends in `owly`; branch is `main` or a task branch named in CURRENT. Else stop.
-2. If `.agent/STOP` exists, stop the loop (§5) and report "stopped by the owner".
-3. `uptime`: if the load average is above 12, wait 20 minutes (§5) before any browser/acceptance task.
-4. Keep the Mac awake: if `pgrep -f "caffeinate -dims"` finds nothing, start `caffeinate -dims` in the background.
-5. Read `.agent/CURRENT.md` (≤ ~60 lines) and the live board in `PLAN.md` (grep the rows; never read PLAN whole).
-   Never read `docs/architecture-reference.md`, `docs/milestone-archive.md` or `docs/implementation-history.md` whole.
-6. `git status --short --branch`, `git fetch`, `gh pr list`, `gh run list --limit 3`.
-7. `status`: print Status, Next action, blockers and the last CI results, then stop without a wakeup.
+- Select actual checks from PLAN/package/CI. `verify.sh` is a convenience, not proof of safe DB targeting or complete acceptance. Until L1.1 is accepted, do not run broad cleanup/load scripts without its safeguards.
+- `ci-wait.sh pr <n>|sha <full-sha> [minutes]` and `merge-gate.sh <n>` inspect structured current CI. Only explicit successful CI/build and other reported checks can pass. MERGE_OK covers CI only; required combined-build browser evidence and owner authorization remain separate. Pin an authorized merge to the reported head and recheck resulting CI.
+- Long logs may live in ignored `.agent/progress/`, but decisions, criterion results, code/build identity, resource ownership and the next step must be in tracked state/evidence before handoff. Never rely solely on ignored logs or Claude transcripts.
+- At a completed work unit or genuine blocker, update the task CURRENT/HANDOFF, the coordinator's resume pointer and PLAN only with real new evidence. Review staged diff, commit coherent changes, preserve unrelated work. Do not invent a future hash. Compact/archive explicitly after reconciliation, never as a startup side effect.
+- Continue eligible tasks until the approved boundary. If the session ends first, leave a precise checkpoint for either agent. Do not require unsupported scheduling/notification tools or guessed context settings. Optional native loops must obey the same STOP/scope rules and do not expand approval.
 
-## 2. Pick the task
-
-1. Resume anything marked in progress in CURRENT (open PR, branch, unfinished verification) before new work.
-2. Otherwise take the first eligible item under CURRENT "Next action", in PLAN board order, inside the approved
-   milestone. If the next item needs an owner decision or an input only the owner can give (phone, credential,
-   real mailbox, waiver), record it under **Needs you**, skip it, and take the next independent item.
-3. Write the task and UTC start time under **In flight** in CURRENT.
-
-## 3. Do the task: one fresh helper
-
-Start one `general-purpose` helper (Agent tool). The packet is small: objective, constraints (§0, the worktree to
-use, what is read-only), the exact acceptance criteria and PLAN sections it needs, the verification path, and
-where to write progress (`.agent/progress/<task>.md`, git-ignored: updated after every step, lists temporary
-changes still active, DBs/worktrees in use, what is next). Do not paste the transcript.
-
-The helper owns implementation, verification and evidence, follows `AGENTS.md`, and sends long logs through
-`log-triage`. For behaviour changes in auth/tenant/secrets/crypto/webhooks/payments/user input it requests an
-independent security review as AGENTS.md says. If its context passes ~150k it updates the progress file and returns
-`CONTINUE <path>`; the dispatcher starts a fresh helper that reads the file first.
-
-It returns at most 15 lines: result, commits/branches/PR, checks run with layer and build identity, failures,
-Needs-you items, files changed, and `DONE` or `CONTINUE <path>`.
-
-## 4. Record, merge, tag
-
-The dispatcher then:
-1. Applies the result to CURRENT (small) and HANDOFF (latest session only); runs
-   `python3 scripts/agent/archive-state.py` if CURRENT passes ~60 lines. Commit state with a Conventional Commit.
-2. **Merge** a PR into main only when, on its exact head commit: CI is green AND the browser/acceptance run the plan
-   requires is green on the combined build (standing authorization in CURRENT). Use
-   `gh pr merge <n> --merge --match-head-commit <sha>`, `git pull --ff-only`, `git push origin main`, then re-check
-   CI on the new head. Never merge on red, pending or skipped.
-3. **Tags** only where the owner approved them in CURRENT; tag the CI-verified merge commit, push the tag.
-4. On a failed check: one fix attempt inside scope, rerun the affected check. Same failure twice, or three errors
-   in a row, is a blocker (§5).
-
-## 5. Next task, or stop
-
-- **Inside `/loop`:** more eligible work, no stop → `ScheduleWakeup` `delaySeconds: 60`, `prompt: "/loop /ziyrak continue"`,
-  reason naming the next task.
-- **Waiting on CI/PR/machine load:** wake in 600 s (CI ~10 min) or 1200 s (load).
-- **Stop** (`ScheduleWakeup stop: true`, then `PushNotification` with one line) on: `.agent/STOP`; red CI or failed
-  required check after the fix attempt; a confirmed external blocker with no eligible independent task; a necessary
-  architecture change or unresolved product choice; anything §0 forbids; milestone complete. Say why, what the
-  owner must do, and which file to read.
-- **Not inside `/loop`:** end with one line naming the next task.
-
-## 6. Context size
-
-The worker is started with `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000` (start command in `.agent/CURRENT.md`), so it
-compacts itself and the loop goes on. After a compaction re-read only §1. If the context stays above ~400k,
-finish bookkeeping, stop the loop and ask the owner to restart the worker.
+No tags, deployment, release, live money, destructive cleanup or new scope follows merely from invoking this skill. Use the current standing authorization exactly as recorded in PLAN/CURRENT.

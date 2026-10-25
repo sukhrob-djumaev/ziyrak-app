@@ -6,6 +6,9 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 
 ## Current guides and launch contracts
 
+- [Claude/Codex continuation](guides/agent-continuation.md) — fresh-session commands, read-only preflight and durable resume pointers.
+- [L1.1 task packet](tasks/l1.1-safe-verification-harness.md) — approved first task, contract, failing-test sequence and exact acceptance.
+
 - [Customer workspace](guides/customer-workspace.md) — implemented signup, managed AI, roles and current feature limits.
 - [Developer/operator setup](guides/operator-setup.md) — isolated setup, configuration and verification boundaries; not a deployment rehearsal.
 - [LP-2026-10-25 launch roadmap](launch-roadmap-2026-10-25.md) — selected preparation work, task criteria and live-money gates.

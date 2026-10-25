@@ -1,59 +1,23 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+Ziyrak is in launch preparation. No released-version support matrix, response SLA, external penetration-test certification or blanket production-safety claim is established by this repository. [PLAN](PLAN.md) and the [October 25 review](docs/project-review-2026-10-25.md) identify current scope, evidence and open findings.
 
-| Version | Supported |
-|---------|-----------|
-| 0.2.x   | Yes       |
-| 0.1.x   | Security fixes only |
+## Reporting
 
-## Security Features
+Do not publish secrets, customer data or exploit details in public issues. The current project is [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app), not the upstream Owly repository. Use GitHub private vulnerability reporting there **if enabled**, or an existing private owner contact. A verified owner-controlled private reporting channel and response owner must be established before public launch; no unverified email address or response-time promise is supplied here.
 
-Ziyrak includes the following security measures out of the box:
+Include the affected commit/version, description, impact, sanitized reproduction and suggested fix if available. Coordinate disclosure privately. Do not test against other customers or production without authorization.
 
-- **JWT authentication** with httpOnly, secure, sameSite cookies
-- **bcrypt password hashing** with 12 salt rounds
-- **Rate limiting** on auth (5 req/min) and API (60 req/min) endpoints
-- **Input validation** via Zod schemas on all API request bodies
-- **Security headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
-- **Secret masking** in API responses (API keys, passwords, tokens replaced with `***`)
-- **XSS protection** via HTML entity escaping in email templates
-- **CRLF injection prevention** in email subject lines
-- **Webhook signatures** using HMAC-SHA256 (`X-Ziyrak-Signature` header; `X-Owly-Signature` is still sent with the same value for receivers created before the rename)
-- **Request ID tracking** for audit trail (`X-Request-Id` header)
-- **Non-root Docker container** (UID 1001)
-- **Structured logging** (no secrets in log output)
+## Implemented controls and limits
 
-## Reporting a Vulnerability
+The code includes authenticated sessions/password hashing, tenant-scoped data access, workspace/resource permissions, explicit platform support grants, encrypted stored credentials, signed Meta webhook verification, tool policies/approval, audit records and several rate-limit/input protections. These are controls to verify, not a guarantee that every input/log/endpoint has universal coverage. Platform authority does not implicitly grant tenant data access.
 
-If you discover a security vulnerability, please report it responsibly.
+The current review identifies open dependency advisories, outbound redirect credential leakage, non-atomic password reset/session invalidation, key-retirement defects, request/deadline limits and operational evidence gaps. Those are tracked in launch tasks L1/L2. No new exploit against production or actual secret disclosure was established by the review. Central log redaction and sensitive-field tests still need work; never assume logs are safe to publish. Webhook signatures require actual configured keys and receiver verification.
 
-**Do not open a public GitHub issue for security vulnerabilities.**
+## Deployment requirements
 
-Instead, please send an email to the maintainers or use [GitHub's private vulnerability reporting](https://github.com/Hesper-Labs/owly/security/advisories/new).
+Use independent high-entropy session/encryption keys, controlled backups and verified rotation/recovery. Configure HTTPS, origin/proxy trust and body/time limits for the actual edge. Keep databases/Redis private and pair migration/runtime DB targets deliberately. Use platform-managed AI credentials and each connection's own secrets. Account mail must use the intended verified sender; capture transport is isolated-test-only. Privileged account protection is a launch requirement.
 
-### What to include
+Validate the complete web/worker configuration and shipped image, not only source tests or `npm audit --omit=dev`. Rehearse migrations, restore/rollback, queue recovery, alerts and incident handling. Current `/api/health` can return HTTP 200 on DB failure; it does not prove readiness. Docker/Helm/Compose have open findings and need rehearsal before public deployment. See [operator setup](docs/guides/operator-setup.md) and [release gates](docs/launch-roadmap-2026-10-25.md).
 
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
-
-### Response timeline
-
-- **Acknowledgment:** Within 48 hours
-- **Initial assessment:** Within 1 week
-- **Fix and disclosure:** Coordinated with reporter
-
-## Security Best Practices for Deployment
-
-- Set a strong `JWT_SECRET` (use `openssl rand -hex 32`)
-- Set a strong `WEBHOOK_SECRET` for webhook payload verification
-- Use HTTPS in production (reverse proxy with Nginx/Caddy, or Ingress with TLS in Kubernetes)
-- Never commit `.env` files to version control
-- Regularly update dependencies (`npm audit`)
-- Restrict database access to localhost or trusted IPs
-- Use strong passwords for the admin account
-- Set `CORS_ORIGIN` to your frontend domain (do not use `*` in production)
-- Monitor the `/api/health` endpoint for service degradation
-- Review the activity log (`/api/activity`) for suspicious access patterns
+Patch dependencies through reviewed lockfile changes and boundary tests; do not blindly apply breaking audit fixes. Never point test cleanup at customer/acceptance databases, kill unrelated processes, or expose environment files. Report verification limits honestly: historical tests, stand-ins and a provider's API acceptance do not establish current recipient-visible delivery or production safety.

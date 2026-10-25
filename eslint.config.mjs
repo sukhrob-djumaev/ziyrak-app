@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     // Plain-Node (CommonJS), run-by-hand release-acceptance tooling
     // (PLAN.md "MVP Browser Acceptance Suite") — not application code.
     "scripts/acceptance/**",
+    // L1.1 dependency-free CommonJS guards shared by shell scripts, CI and vitest setup.
+    "scripts/safety/**",
+    // Retained one-off audit reproduction (not application code).
+    "docs/evidence/**",
   ]),
   {
     rules: {

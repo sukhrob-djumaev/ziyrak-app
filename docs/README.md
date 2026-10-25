@@ -1,8 +1,20 @@
-# docs index
+# Ziyrak documentation index
 
 One line per record. Nothing here is read by default: `PLAN.md` live board points to the record a task needs. Grep headings, do not read whole.
 
 State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence/`.
+
+## Current guides and launch contracts
+
+- [Claude/Codex continuation](guides/agent-continuation.md) — fresh-session commands, read-only preflight and durable resume pointers.
+- [L1.1 task packet](tasks/l1.1-safe-verification-harness.md) — approved first task, contract, failing-test sequence and exact acceptance.
+
+- [Customer workspace](guides/customer-workspace.md) — implemented signup, managed AI, roles and current feature limits.
+- [Developer/operator setup](guides/operator-setup.md) — isolated setup, configuration and verification boundaries; not a deployment rehearsal.
+- [LP-2026-10-25 launch roadmap](launch-roadmap-2026-10-25.md) — selected preparation work, task criteria and live-money gates.
+- [Billing and entitlements](billing-and-entitlements-spec.md) — configurable catalog/subscription target; not implemented.
+- [Dashboard/access review](dashboard-and-access-review-2026-10-25.md) — source findings and usability/role acceptance requirements.
+- [Historical wiki archive](legacy-wiki/README.md) — superseded originals; old wiki entry points redirect to these current guides.
 
 ## Architecture and history
 
@@ -12,6 +24,7 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 
 ## Milestone and process
 
+- [project-review-2026-10-25.md](project-review-2026-10-25.md) — Deployment, security, test quality, dependencies, operations and payment-readiness review; dated evidence and open findings; subsequent LP-2026-10-25 selects preparation, not deployment.
 - [status-review-2026-10-14.md](status-review-2026-10-14.md) — Status and model-work review — 2026-10-14
 
 ## R — recovery packages
@@ -57,11 +70,11 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 ## P2 — managed AI
 
 - [p2-managed-ai-implementation-2026-10-22.md](p2-managed-ai-implementation-2026-10-22.md) — P2 managed AI and usage limits: implementation record (2026-10-22)
-- [p2-managed-ai-proposal-2026-10-22.md](p2-managed-ai-proposal-2026-10-22.md) — P2 managed AI and usage limits: proposal for owner review (2026-10-22)
+- [p2-managed-ai-proposal-2026-10-22.md](p2-managed-ai-proposal-2026-10-22.md) — P2 managed AI and usage limits: historical proposal; subsequent implementation linked above (2026-10-22)
 
 ## P3 — accounts and onboarding
 
 - [p3-accounts-onboarding-implementation-2026-10-22.md](p3-accounts-onboarding-implementation-2026-10-22.md) — P3 accounts and customer onboarding: implementation record (2026-10-22)
 - [r2-ai-decision-quality-implementation-2026-10-23.md](r2-ai-decision-quality-implementation-2026-10-23.md) — R2 implementation and live evaluation record (2026-10-23)
-- [r2-ai-decision-quality-proposal-2026-10-22.md](r2-ai-decision-quality-proposal-2026-10-22.md) — R2 AI decision quality: escalation rules, thresholds and case-set plan, awaiting owner agreement (2026-10-22)
-- [p3-accounts-onboarding-proposal-2026-10-22.md](p3-accounts-onboarding-proposal-2026-10-22.md) — P3 accounts and customer onboarding: proposal for owner review (2026-10-22)
+- [r2-ai-decision-quality-proposal-2026-10-22.md](r2-ai-decision-quality-proposal-2026-10-22.md) — R2 AI decision quality: escalation rules, thresholds and historical case-set proposal; subsequent implementation above, scorer corrections now L1.4 (2026-10-22)
+- [p3-accounts-onboarding-proposal-2026-10-22.md](p3-accounts-onboarding-proposal-2026-10-22.md) — P3 accounts and customer onboarding: historical proposal; subsequent implementation linked above (2026-10-22)

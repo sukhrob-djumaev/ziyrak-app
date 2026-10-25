@@ -1,117 +1,19 @@
 # Contributing to Ziyrak
 
-Thanks for your interest in contributing to Ziyrak! This guide will help you get started.
+Current repository: [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app). This is the Ziyrak project derived from Owly; preserve upstream attribution in [LICENSE](LICENSE). Report security issues according to [SECURITY](SECURITY.md), not a public issue containing exploit details or secrets.
 
-## Development Setup
+Read [AGENTS](AGENTS.md), the selected task in [PLAN](PLAN.md), [CURRENT](.agent/CURRENT.md) and [HANDOFF](.agent/HANDOFF.md). The current roadmap is [self-service launch preparation](docs/launch-roadmap-2026-10-25.md). Archived phases and wiki pages are not current implementation instructions.
 
-```bash
-# Clone the repo
-git clone https://github.com/Hesper-Labs/owly.git
-cd owly
+## Develop and verify safely
 
-# Install dependencies
-npm install
+Use the [developer/operator guide](docs/guides/operator-setup.md) for the single maintained setup procedure. Use Node 22 and `npm ci`; web and worker are separate processes. Dependencies/builds must be isolated from any live worker. Pair and verify `DATABASE_URL`/`DIRECT_DATABASE_URL` for a disposable target before migrations or tests. Repository/tenant tests use real Postgres; the current test/load harness has open safety work, so do not run its broad cleanup against a valuable DB.
 
-# Set up environment
-cp .env.example .env
-# Edit .env with your PostgreSQL connection string
+Before code, state the module's contract, dependencies, exact acceptance criteria and verification path. Tenant/security/contract regressions require a failing test first. Read relevant Next.js guides in `node_modules/next/dist/docs/` before changing Next code. Keep provider-specific code behind adapters and tenant access behind scoped repositories. Source locations include `src/lib/observability/logger.ts`, `src/lib/observability/errors.ts`, `src/lib/customers/customer-resolver.ts` and `src/lib/integrations/webhook-delivery.ts`; do not copy obsolete wiki paths.
 
-# Run database migrations
-npx prisma migrate dev
+Run focused tests, typecheck and lint, then the broader DB/Redis/security/browser checks required by the changed boundary. Scripts are in [package.json](package.json) and [CI](.github/workflows/ci.yml); browser orchestration is `scripts/acceptance/run-all.sh`. Provider tests/evaluations are separate credential-gated commands. A skip, compile or earlier build is not acceptance. `test:coverage` exists but its provider dependency is currently absent; do not claim a verified coverage percentage/workflow.
 
-# Start dev server
-npm run dev
-```
+Auth/authz, secrets, webhooks, user-controlled input and billing changes require independent security review when delegation is available. Use real UI for user-facing acceptance and record code/build identity, topology, provider/test layer, outcomes and open criteria. No live mail, provider account change, deployment or charge follows automatically from contributing.
 
-## Code Style
+## Submit coherent work
 
-- **TypeScript** for all code
-- **Tailwind CSS** for styling with the Ziyrak custom color system (`ziyrak-primary`, `ziyrak-surface`, etc.)
-- **Conventional commits**: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`
-- **Zod validation** on all API request bodies (`src/lib/validations.ts`)
-- **Structured logging** via `logger` from `src/lib/logger.ts` (never use `console.log`/`console.error`)
-- **Pagination** on all list endpoints using `parsePagination` and `paginatedResponse` from `src/lib/pagination.ts`
-- **Error responses** using `AppError` and `Errors` factory from `src/lib/errors.ts`
-- No emojis in code, commits, or UI text
-- All UI text in English
-
-## Available Scripts
-
-```bash
-npm run dev          # Start development server
-npm run build        # Production build
-npm run lint         # Run ESLint
-npm run test         # Run all tests (Vitest)
-npm run test:watch   # Run tests in watch mode
-npm run test:coverage # Run tests with coverage report
-npm run db:seed      # Seed sample data
-npm run db:migrate   # Run database migrations
-npm run db:studio    # Open Prisma Studio
-```
-
-## Project Structure
-
-```
-src/
-  app/
-    (auth)/          # Login, setup wizard
-    (dashboard)/     # Dashboard pages
-    api/             # REST API routes (60+ endpoints)
-  components/
-    layout/          # Sidebar, header
-    ui/              # Reusable components
-  lib/
-    ai/              # AI engine, tools
-    channels/        # WhatsApp, email, phone
-    customer-resolver.ts  # Cross-channel identity resolution
-    errors.ts        # Standardized error responses
-    logger.ts        # Structured logging
-    pagination.ts    # Shared pagination helper
-    rate-limit.ts    # Rate limiting
-    security.ts      # XSS/CRLF protection
-    validations.ts   # Zod input schemas
-    webhook-delivery.ts  # Webhook retry + HMAC signatures
-    hooks/           # React hooks
-tests/
-  unit/              # Unit tests
-  api/               # API route tests
-  security/          # Security tests
-helm/owly/           # Kubernetes Helm chart
-```
-
-## Writing Tests
-
-All new features must include tests. We use [Vitest](https://vitest.dev/) with mocked Prisma and external services.
-
-```bash
-# Run all tests
-npm run test
-
-# Run a specific test file
-npx vitest run tests/unit/customer-resolver.test.ts
-```
-
-Test files go in `tests/` matching the source structure:
-- `tests/unit/` for library functions
-- `tests/api/` for API route handlers
-- `tests/security/` for security-focused tests
-
-## Pull Request Process
-
-1. Fork the repo and create a branch from `main`
-2. Make your changes following the code style above
-3. Run `npm run test` and ensure all tests pass
-4. Run `npm run lint` and fix any errors
-5. Run `npx tsc --noEmit` for type checking
-6. Write a clear PR description explaining what and why
-7. Submit the PR
-
-## Reporting Issues
-
-Use [GitHub Issues](https://github.com/Hesper-Labs/owly/issues) with the appropriate template:
-- **Bug Report** for something that's broken
-- **Feature Request** for new ideas
-
-## Need Help?
-
-Open a [discussion](https://github.com/Hesper-Labs/owly/discussions) or check the [Wiki](https://github.com/Hesper-Labs/owly/wiki) for documentation.
+Keep edits scoped, preserve other working-tree changes, and use Conventional Commits. Review status and staged diff before committing. Follow PLAN's exact-head CI/browser merge and phase gates; no unsolicited push/release/tag or history rewrite. Update current docs and small state files when behavior changes. Preserve dated evidence as history rather than rewriting it to imply new results. Future catalog edits should be data changes; new capabilities still require contracts, enforcement and tests.

@@ -1,0 +1,25 @@
+{
+  "baseline": "3066b33",
+  "active_markdown_files_checked": 49,
+  "relative_targets_checked": 305,
+  "missing_paths": [],
+  "unresolved_fragments": [],
+  "archived_wiki_pages": 35,
+  "byte_identical_archives": 35,
+  "numbered_architecture_body_unchanged": true,
+  "current_state_lines": 40,
+  "documented_mail_variables": [
+    "MAIL_CAPTURE_FILE",
+    "MAIL_TRANSPORT",
+    "PLATFORM_SMTP_FROM",
+    "PLATFORM_SMTP_HOST",
+    "PLATFORM_SMTP_PASSWORD",
+    "PLATFORM_SMTP_PORT",
+    "PLATFORM_SMTP_USER"
+  ],
+  "missing_mail_variables": [],
+  "browser_runner_scripts": 30,
+  "unexpected_product_or_other_changes": [],
+  "git_diff_check_exit": 0,
+  "runtime_tests": "not run - documentation-only change"
+}

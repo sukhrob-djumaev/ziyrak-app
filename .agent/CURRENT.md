@@ -1,48 +1,44 @@
-# Current task (reconciled 2026-10-24)
-
-Keep this file under ~60 lines: status, next action, blockers, prohibitions. Older updates are archived by
-`scripts/agent/archive-state.py` into `docs/state-archive/`. Finished-package detail: `docs/milestone-archive.md`;
-docs index: `docs/README.md`.
+# Current task — LP-2026-10-25 launch preparation
 
 ## Status
-- Milestone: managed-service readiness (PLAN.md live board).
-- Done and merged on main: R1, R3, P1 (`phase-p1-complete`), P2 (`phase-p2-complete`, pushed), P3 (merge `470073b`, exact-head CI green).
-- P3 verified: unit 1748 passed/23 skipped, agent security review fixed, browser 28/28 on build `01d9b59`
-  (stand-in AI, captured mail). No completion tag; not deployed.
-- P3 open items (owner decisions 2026-10-22): operator invitations deferred to a follow-up (own tests-first work and
-  security review); real mail delivery check NOT RUN (needs `PLATFORM_SMTP_*` sender settings and a real mailbox).
-- Workflow: token diet merged (`ede8031`); `chore/plan-slim` archives finished packages out of PLAN.md.
+- Owner explicitly APPROVED L1–L6 launch preparation on 2026-10-25 and requested clean Claude/Codex continuation.
+- Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
+- L0 and continuation preparation COMPLETE. L1–L6 product implementation NOT STARTED; criteria NOT RUN.
+- Next: L1.1 safe verification harness. No deployment/live charging/pilot is authorized by this reset.
+- Baselines: product `5b45bd7`, audit `3066b33`, docs rebaseline `01a275d`. Workflow helpers changed; product did not.
+- Task packet: `docs/tasks/l1.1-safe-verification-harness.md`
+- Active checkout: none
+- Active branch: none
+- Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
+- Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
+- Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
+  New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
-## In flight
-- P3: COMPLETE, tag `phase-p3-complete` on `2b64578` (2026-10-23): real mail passed (Gmail SMTP, owner confirmed receipt), browser 28/28 incl. J11 on combined build, J29 merged (PR #32), exact-head CI green. Not deployed.
-- R2: MERGED (`6225d00`). Live evaluation: all approved thresholds met (dev run 3, eval run 4, `gpt-4o-mini`) with disclosed scorer fixes; browser
-  28/28 incl. J11 on the combined build. Record `docs/r2-ai-decision-quality-implementation-2026-10-23.md`.
-- Isolated DBs/worktrees in use: `ziyrak_opinv_test_20261022`, `ziyrak_acceptance_r2_20261023{a,b,c}`, `../owly-wt-operator-invitations`, `../owly-wt-r2`.
+## Next actions
+1. Run/read the read-only preflight; read HANDOFF, the L1.1 packet and PLAN protocols; inspect Git/topology.
+2. Create an isolated task worktree; record its absolute path/branch here before edits, then install/test in isolation.
+3. Fence both DB URLs/disposable targets, owned PIDs and image identity before running cleanup/load tools.
+4. Continue eligible L1–L6 tasks in board order; unresolved provider/business choices stop only dependent work.
+5. L7 requires explicit rollout/live-money authorization after L6 evidence; do not start new channels/enterprise work.
 
-- R4: MERGED (PR #33, `14e09ce`, exact-head CI green). Local/stand-in verification passed: vitest 1807, browser 30/30 on build `7043d16`. R1 Meta reply check WAIVED by owner; smoke suites not run; not deployed.
+## Evidence and limits
+- `docs/project-review-2026-10-25.md` + retained `docs/evidence/project-review-2026-10-25/`: open F01–F16.
+- Prior fresh isolated install/generate/tsc/lint/53 focused tests passed; full DB/browser/provider NOT RERUN.
+  Build environment-blocked (font network then Turbopack bind EPERM), not a pass.
+- Historical R5: 1812 passed/1 skipped, browser 30/30 on `0b9a1a2`, stand-in AI/captured mail.
+- Meta A visible reply recorded on `905b4ca` (Oct25); B not retested; old waiver is not a pass.
+  One historical Gmail message is not production-sender verify/reset/invitation acceptance.
+- New dashboard findings D01–D11 are source-only. Billing is specified, not implemented. L0 ran no app/provider tests.
 
-## Next action
-1. NONE eligible in the approved milestone. R5 MERGED (PR #34, `905b4ca`), tagged `phase-r5-complete` (pushed, 2026-10-25); logo PR #35 merged
-   (`3d5d15e`, CI green). R5 evidence: `npm test` 1812 passed/1 skipped, build/tsc/lint pass, security review clean, browser 30/30 on build
-   `0b9a1a2` (stand-in AI, captured mail; local layer). Not deployed. No milestone tag (R1 Meta B waived, no deploy, smoke suites not run).
-2. Awaiting owner: next milestone/task, deploy decision, `test:smoke:meta`, Business B visible delivery, npm audit zod/@vitest/mocker,
-   docs screenshots, vector/high-res logo. Record: `.agent/progress/r5.md`; PLAN.md R5 section; HANDOFF (Meta Business A manual check).
+## Operational boundaries
+- Main may serve a live worker. Installed Next/eslint-config-next16.4.0 vs lock16.4.3;
+  Puppeteer24.43.1 vs lock25.15.0 (Oct25 audit). Do not install/build here.
+- Review scratch: `/private/tmp/ziyrak-review-20261025-8aZznQ`; no DB/services created by docs review.
+- Never run old loadtest unchanged: unpaired DB URLs, broad pkill and stale-image reuse (F08).
+- Preserve port7700/live worker/remote-control tunnel. Confirm temporary Meta callback target before live checks.
+- Prior cleanup recorded in `5b45bd7`; do not assume old worktrees/DBs still exist or delete them automatically.
 
-## Retained resources
-- Owner cleaned up (2026-10-25): all R2/R3/R5/opinv/meta-A throwaway DBs and the five task worktrees were dropped. Kept: DBs `owly` (real
-  Business A/B connections), `owly_test`, `ziyrak_acceptance`, `ziyrak_real_acc`, four `ziyrak_phase7_real_closure_*`. Local task branches kept.
-- `/Users/sukhrob/.codex/worktrees/*` are empty folders (no `.git`); removal not yet approved.
-
-## Worker start command (owner terminal; auto-compacts at 200k, stop with `touch .agent/STOP`)
-`cd ~/Development/Repos/JS/owly && CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude --model sonnet --settings '{"enabledPlugins":{"dart-flutter@dart-flutter":false}}'`
-then type `/loop /ziyrak continue`.
-
-## Standing authorization (owner, 2026-10-23)
-Within the approved milestone, merge a PR to main without asking when CI is green on its exact head AND the plan's required
-browser run is green on the combined build; then push main and re-check CI on the new head. Never merge on red/pending/skipped.
-Continue to the next eligible task. Still stop for: tags, deploys, releases, force-push, deleting DBs/worktrees/branches, new
-milestone/phase, real credentials or mail, port 7700.
-
-## Prohibited without approval
-Push tags, deploy, delete DBs or worktrees, touch live port 7700 or the live
-worker checkout.
+## Standing authorization retained (owner, 2026-10-23)
+Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
+then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
+Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.

@@ -5,15 +5,41 @@
 This plan owns architecture, acceptance criteria and work scope. `README.md` explains setup; `AGENTS.md` defines the
 shared Codex/Claude workflow; `.agent/CURRENT.md` identifies the next task; `.agent/HANDOFF.md` records the latest session.
 
-The owner approved **managed-service readiness** on 2026-10-14. `continue` advances through eligible tasks in the live
-plan without routine reapproval, preserving decision boundaries. It does not authorize deployment, live
-account/provider changes, a new channel, or a phase not yet started.
+The owner requested a documentation reset and self-service commercial launch preparation on 2026-10-25.
+**LP-2026-10-25 is explicitly owner-approved (2026-10-25 follow-up) for L1–L6 preparation**, building on managed-service decision MS-2026-10-14.
+`continue` resumes the first eligible task below, preserving commercial decisions and external-action boundaries.
+It does not authorize deployment, live charging, account/provider changes, new channels or unselected enterprise work.
 
 ### Live plan — finished foundations and upcoming work
 
 This is the single current roadmap. Update this board and the selected package's
 criterion evidence together; CURRENT is a continuation pointer, not another roadmap.
 **Implemented does not mean newly verified or ready for customer rollout.**
+
+### Selected roadmap — self-service launch preparation
+
+Detailed contracts and verbatim acceptance criteria: [LP-2026-10-25](docs/launch-roadmap-2026-10-25.md).
+Billing scope: [catalog and entitlements](docs/billing-and-entitlements-spec.md).
+Customer experience: [dashboard/access review](docs/dashboard-and-access-review-2026-10-25.md).
+
+| Order | Package | Implementation / verification | Dependency and next action |
+| --- | --- | --- | --- |
+| L0 | Documentation and requirements rebaseline | Documentation complete; consistency/reference review recorded in HANDOFF; no product behavior changed | Current source/guides replace stale instructions; historical evidence preserved. |
+| L1 | Safety and trustworthy verification | Not started / not run | **Next: L1.1 safe DB/process/image test harness**, then dependencies/HTTP, account/secrets and AI scoring. |
+| L2 | Runtime and release operations | Not started / not run | L1; complete configuration/probes, tested image, restore/rollback and monitoring. |
+| L3 | Dashboard, roles and usability | Source review complete; implementation not started / browser not run | L1 safety; permission-aware UI, coherent navigation, honest supported features. |
+| L4 | Catalog/entitlements and commercial policy | Target contract written; implementation not started / not run | Provider-neutral L4.1 follows safety/access; L4.2 merchant/currency/provider and production policy decisions remain open. |
+| L5 | Sandbox payment lifecycle | Not started / not run | L4; signed durable events, quotes, provisioning, change/failure/recovery and independent review. |
+| L6 | Candidate/release rehearsal | Not started / not run | L1–L5; exact-build full suite and required real-provider/operations evidence. |
+| L7 | Controlled paid pilot, then expansion | Not authorized / not run | Requires L6 evidence and explicit rollout/live-money authorization. |
+
+The owner explicitly agreed to this roadmap and requested clean Claude/Codex continuation on 2026-10-25.
+L1–L6 are preparation scope, not a promise that unresolved provider/business choices are settled.
+Base plus add-ons is the working offer model; no production price, trial/refund policy or provider is selected.
+The next implementation session begins with [L1.1’s task packet](docs/tasks/l1.1-safe-verification-harness.md), its contract and failing safety regressions. Prior milestones are
+retained below as history; do not restart them or use their tags to close L acceptance.
+
+### Historical foundations and managed-service packages
 
 | Finished foundation | Implementation | Verification and limits |
 | --- | --- | --- |
@@ -24,26 +50,25 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | Post-9 hardening | Merged through PR #28 | Product baseline `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; see the [status review](docs/status-review-2026-10-14.md). |
 | Development process and this product plan | Documented | Shared Codex/Claude continuation, evidence rules and targeted provider testing. These are process changes, not application fixes. |
 
-| Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
+| Order | Milestone task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
 | 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
-| 2 | **R3 — Operational safety** | Complete locally; residuals decided 2026-10-21; not deployed | Puppeteer 25 (PR #29) removes extract-zip: 0 production / 5 high full (braces lint tooling, accepted) advisories. |
+| 2 | **R3 — Operational safety** | Historical local closure; residuals decided 2026-10-21; not deployed | Puppeteer 25 removes extract-zip. The October 25 review supersedes old advisory counts and identifies new operational gaps; see the review below. |
 | 3 | **P1 — Platform and workspace access** | Complete locally 2026-10-22 (tag `phase-p1-complete`); not deployed | Workspace/resource boundaries, secured operators, support and delayed-work authority; evidence in the P1 closure record. |
-| 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console; completion tag awaits owner decision. |
+| 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console. |
 | 5 | **P3 — Accounts and customer onboarding** | Merged 2026-10-22 (`470073b`, exact-head CI green); not deployed. Tag `phase-p3-complete` on `2b64578` (exact-head CI green 2026-10-23). Real-mail delivery check passed 2026-10-23; operator invitations merged (`fae51d8`), browser journey J29 in PR #32 | Verified email, reset, invitations and resumable onboarding to activation; see the P3 summary under Finished packages. |
-| 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
-| 7 | **R4 — Final functional acceptance** | Local verification passed; Meta waived; not deployed | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
-| 8 | **R5 — Final Ziyrak naming and branding** | Implemented; local verification passed (PR open, not merged) | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
+| 6 | **R2 — AI decision quality** | Merged `6225d00`; historical thresholds met and J11 passed; October 25 review found scorer gaps | Existing evidence remains bounded; scorer repair and fresh holdout are selected in L1.4, not yet implemented or newly passed acceptance. |
+| 7 | **R4 — Final functional acceptance** | Merged `14e09ce`, tag `phase-r4-complete`; local/stand-in verification passed; Meta waived; not deployed | Business A later has manual visible-delivery evidence on `905b4ca`; Business B and deployment boundaries remain open. |
+| 8 | **R5 — Final Ziyrak naming and branding** | Merged `905b4ca`, tag `phase-r5-complete`; logo merged `3d5d15e`; local verification recorded | Final branding evidence below; new review findings do not invalidate historical test execution or authorize rollout. |
 
-Keep the R identifiers stable for earlier evidence; P identifies newly approved
-product work. This order replaces the earlier R1 → R2 → R3 → R4 → R5 queue.
-Preparation that does not depend on an unfinished contract may proceed when an
-external blocker is recorded; implementation must respect the dependencies above.
-No task in this upcoming table has passed acceptance yet.
+R/P identifiers remain stable for historical evidence. Their old ordering is no longer the continuation queue.
+The [October 25 project review](docs/project-review-2026-10-25.md) records fresh security, dependency, test-quality and
+operational findings on `5b45bd7`; LP-2026-10-25 now selects the remediation/launch-preparation work derived from it.
+Historical tags and local results do not establish unrestricted production readiness.
 
 Architecture and phase requirements remain in §§1–46. Dated implementation
 records are preserved in [implementation history](docs/implementation-history.md).
-The September 14 code inventory describes the pre-migration baseline; never restart Phase 0 or retag historical phases (original instruction: [archived](docs/implementation-history.md#original-first-task)).
+The September 14 code inventory describes the pre-migration baseline; never restart Phase 0 or retag historical phases (original instruction: [archived](docs/implementation-history.md#original-first-task-instruction-superseded)).
 
 ### Decisions and boundaries to preserve
 
@@ -58,8 +83,8 @@ The September 14 code inventory describes the pre-migration baseline; never rest
 - The managed-service decision below is approved product scope. It replaces the
   earlier pending product discussion and the specifically mapped original deferrals;
   all other tenant isolation, module boundaries and security contracts remain.
-- Escalation behavior and evaluation thresholds need an explicit product decision
-  in R2. Optional cookie-request Origin hardening remains an unselected follow-up.
+- R2 escalation rules and thresholds were approved for the recorded evaluation; the October 25 review proposes
+  scorer/acceptance corrections before broader quality claims. Cookie mutation origin/proxy hardening is included in L1.3.
 - Use isolated worktrees, dependencies, test databases and ports for product work.
   This host's main checkout supplies the live worker. Never run cleanup tests on
   live `owly`, kill processes by name, or touch port 7700 and its remote-control tunnel.
@@ -72,12 +97,11 @@ and becomes its owner. Reuse `Business` as that workspace boundary; WhatsApp num
 Web Chat and future Phone connections are resources inside it, not separate tenants.
 People messaging a business are customers, not dashboard accounts.
 
-The October 14 source inspection found that signup already creates a Business, User
-and owner Membership atomically, but the wizard asks the customer for AI keys/models.
-Roles currently cover the whole business; request context chooses the earliest
-membership. A platform-admin flag exists without a platform console or support-access
-workflow. Verified email, recovery/invitation flows and enforceable managed-AI quotas
-are missing. These findings justify extending the existing foundation, not replacing it.
+The October 14 inspection identified missing workspace selection, scoped platform support,
+managed AI and account lifecycle. P1–P3 subsequently implemented those foundations.
+Current public signup creates a private Business/User/owner Membership, verifies email and uses managed AI;
+customers do not enter AI provider keys. Platform support and resource authorization are explicit.
+The October 25 review identifies remaining safety/usability/release gaps; it does not erase that implementation.
 
 ### Accounts and responsibilities
 
@@ -113,8 +137,11 @@ No channel assignment silently grants workspace administration.
 
 ### Customer journey and service ownership
 
-Target journey: **register → verify account → create/enter private workspace → add
-business knowledge → connect a supported channel → receive a test reply → activate**.
+Implemented managed-service journey: **register → verify account → enter private workspace → add
+business knowledge → connect a supported channel → assistant test → activate**.
+LP-2026-10-25 adds package/price selection, confirmed payment/provisioning and actual channel-delivery acceptance.
+The current assistant test is not that delivery proof. Allow setup/readiness checks before purchase where useful;
+show external channel prerequisites before charging.
 An invited member joins an existing workspace without creating a duplicate. Signup
 must be resumable and isolated; a new business does not wait for manual super-admin
 assignment. Privileged or unverified accounts cannot bypass activation safeguards.
@@ -128,9 +155,8 @@ or infrastructure controls. P2 enforces limits before paid work and defines a cl
 limit-reached state that preserves messages and human handoff.
 
 Web Chat and Meta WhatsApp are the current channel priority. Phone is a later
-product direction, not accepted production functionality in this milestone. Focus
-on one complete customer journey before adding channels, subscriptions or enterprise
-infrastructure. Account-verification email is transactional identity delivery, not
+product direction, not accepted production functionality in this milestone. LP-2026-10-25 adds subscriptions to this complete journey; additional channels and enterprise
+infrastructure remain deferred. Account-verification email is transactional identity delivery, not
 an expansion to the deferred customer-support Email channel.
 
 ### Contract amendments and remaining decisions
@@ -144,19 +170,21 @@ above is the active work order. Schema/interface details follow existing contrac
 and must be stated before implementation; a further material deviation uses rule 11.
 
 The old deferrals for platform support tooling and quota enforcement are replaced
-by this bounded milestone. Full billing, new support channels, dedicated storage
-and automated enterprise cutover remain deferred. Existing accounts, memberships,
+by this bounded milestone. LP-2026-10-25 now selects bounded catalog/subscription work under its linked contract.
+New support channels, marketplace payments, dedicated storage and automated enterprise cutover remain deferred. Existing accounts, memberships,
 channel connections, sessions and encrypted credentials need a tested migration;
 never discard them or grant new privilege implicitly.
 
-Open product values are limited to a concrete proposal for R2 escalation/quality
-thresholds and P2 allowance amounts/periods and customer-facing limit behavior.
-Prepare reviewable examples and conservative test configuration first; seek the
-owner's decision before locking production policy. Provider account purchases,
-email-domain changes and deployment keep their external-action boundaries. These
-pending values do not reopen the approved roles or block independent implementation.
+Current open commercial decisions are the seller entity/country, first currencies/markets,
+provider, prices/allowances and trial/grace/cancellation/refund/tax policy (L4.2). They do not block L1–L3
+or provider-neutral preparation. R2's agreed historical thresholds need the L1.4 scorer/holdout correction
+before renewed quality claims. Provider purchases, email-domain changes and deployment retain their
+external-action boundaries. The [launch roadmap](docs/launch-roadmap-2026-10-25.md) maps the explicit
+billing amendment to original contracts; all other invariants remain.
 
 ## Managed-service readiness milestone
+
+Historical scope and evidence for R/P packages. LP-2026-10-25 above is the active continuation roadmap.
 
 ### Completion standard: good, with evidence
 
@@ -186,9 +214,9 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **R3 — Operational safety:** complete locally; Puppeteer 25 (PR #29) removes the unpatched extract-zip chain; the braces lint-tooling residual was accepted by the owner; whatsapp-web.js untested against a real WhatsApp session; not deployed. Record: [r3 remediation](docs/r3-remediation-2026-10-15.md).
 - **P1 — Platform and workspace access:** complete 2026-10-22, tag `phase-p1-complete`; full browser 26/26 on `c9e4aa0`, unit 1597 (1619 Redis-backed), three independent whole-surface reviews fixed. Records: [closure matrix](docs/p1-closure-matrix-2026-10-19.md), [whole-surface review](docs/p1-whole-surface-review-2026-10-21.md). Accepted residual: login throttle depends on the documented `TRUSTED_PROXY_HOPS`. Not deployed.
 - **P2 — Managed AI and usage limits:** complete 2026-10-22, tag `phase-p2-complete`, merge `53f2738`; unit 167 files/1655, security review fixed, browser J01–J27 (stand-in AI), live OpenAI check 3/3. Record: [p2 implementation](docs/p2-managed-ai-implementation-2026-10-22.md). Not deployed.
-- **P3 — Accounts and customer onboarding:** merged 2026-10-22 (merge `470073b`, exact-head CI green); unit 1748 passed/23 skipped (Redis-gated; the delivery-worker-restart test is a known flake); independent agent security review found no account-takeover path and confirmed gaps were fixed; browser 28/28 on build `01d9b59` with stand-in AI and captured mail. Records: [proposal](docs/p3-accounts-onboarding-proposal-2026-10-22.md), [implementation](docs/p3-accounts-onboarding-implementation-2026-10-22.md). Not deployed, no completion tag yet.
-  **Open items (owner decisions 2026-10-22):**
-  - *Operator invitations: deferred to a follow-up.* They add a new account-creation surface (a platform role created from an emailed link) that needs its own tests-first work and security review. Super admins still create operators with a chosen password (the P1 flow).
+- **P3 — Accounts and customer onboarding:** merged 2026-10-22 (merge `470073b`, exact-head CI green); unit 1748 passed/23 skipped (Redis-gated; the delivery-worker-restart test is a known flake); independent agent security review found no account-takeover path and confirmed gaps were fixed; browser 28/28 on build `01d9b59` with stand-in AI and captured mail. Records: [proposal](docs/p3-accounts-onboarding-proposal-2026-10-22.md), [implementation](docs/p3-accounts-onboarding-implementation-2026-10-22.md). Tag `phase-p3-complete` on `2b64578`; not deployed.
+  **Follow-up results (reconciled 2026-10-25):**
+  - *Operator invitations:* implemented in `fae51d8`; browser J29 merged in PR #32 (`2b64578`). The earlier deferral is superseded by this implementation, not a current blocker.
   - *Controlled real mail delivery check: PASSED* 2026-10-23. One message sent through the product SMTP transport (`getMailTransport`, Gmail smtp.gmail.com:587, App Password) to a real mailbox; the owner confirmed receipt in the inbox. Proves outbound delivery from a personal Gmail sender only, not a business sender domain or the full verify/reset token flow over real mail.
 
 ### R2 — AI decision quality
@@ -209,7 +237,7 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **Completion criteria:** approved thresholds met, autonomous handoff exercised
   through the product, safety/isolation cases pass, provider/model/configuration
   and failures recorded. Do not describe the heuristic as a calibrated probability.
-- **Result:** implemented on branch `feat/r2-decision-quality` (not merged): rule-based escalation E1–E4, retained case set, live runner. Real-model evaluation (`gpt-4o-mini`, managed policy v1, 60 evaluation cases × 3) met every approved threshold in run 4, after scorer fixes that exposed the evaluation set (disclosed). Autonomous handoff through the product (browser J11) not yet run. Record: [R2 implementation](docs/r2-ai-decision-quality-implementation-2026-10-23.md).
+- **Result:** merged `6225d00`: rule-based escalation E1–E4, retained case set, live runner. Historical real-model evaluation (`gpt-4o-mini`, managed policy v1, 60 evaluation cases × 3) met the recorded thresholds in run 4 after disclosed scorer fixes exposed the evaluation set; combined browser 28/28 included J11. Record: [R2 implementation](docs/r2-ai-decision-quality-implementation-2026-10-23.md). The [October 25 review](docs/project-review-2026-10-25.md) reproduces false-pass and missing-category scorer gaps; broader AI-quality claims and remediation acceptance remain open.
 
 ### R4 — Final functional acceptance
 
@@ -274,8 +302,12 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
   provenance or required compatibility. Links/assets/configuration remain valid and
   affected checks pass on the final candidate. This is the last milestone task;
   preserve R4 evidence and rerun any checks invalidated by the rename before closure.
-- **Result:** implementation not started; verification not run. Stop at milestone
-  completion; further product scope or deployment requires applicable authorization.
+- **Result:** merged `905b4ca`, tag `phase-r5-complete`; logo merged `3d5d15e`. Historical verification on `0b9a1a2`:
+  verify.sh, tsc, lint, 180 test files/1812 passed/1 skipped, Next 16.4.3 build, independent agent security review,
+  browser 30/30 on `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail).
+  Compatibility names: `docs/branding-compat.md`. Not deployed; provider smoke suites not run; documentation screenshots
+  and higher-resolution logo remain follow-ups. October 25 review findings are open. Further product scope or deployment
+  requires applicable authorization.
 
 ## Verification selection and external blockers
 
@@ -299,13 +331,6 @@ channels, worker or widget changes and major releases/milestone tags. During an
 implementation loop, run focused checks first; batch closely related edits into a
 coherent candidate and run the full suite before closure. Documentation-only work
 does not require rerunning the application or sending WhatsApp messages.
-
-- **Result (2026-10-24, branch `chore/r5-ziyrak-branding`):** rename implemented with retained compatibility names documented in
-  `docs/branding-compat.md`; Next upgraded to 16.4.3 as its own commit. Local/stand-in verification on head `0b9a1a2`: verify.sh, tsc,
-  lint, `npm test` 180 files/1812 passed/1 skipped, build, independent security review (no findings), full browser suite 30/30 on build
-  `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail). R4 evidence is preserved; R5 reran what it invalidated.
-  Open: logo art now the final mark (low-res source), docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived,
-  `test:smoke:*` not run, not deployed.
 
 ### Meta testing without blocking unrelated development
 
@@ -354,7 +379,7 @@ at the time of a live run.
 ## Architecture and original migration requirements (moved)
 
 The original numbered contracts (§§0–46: architecture, tenant isolation, security, data model, phase 0–9 criteria, dated code inventory) live in
-[docs/architecture-reference.md](docs/architecture-reference.md). They still govern unless a later decision amends them; Decision MS-2026-10-14 and P1–P3 explicitly amend the mapped contracts.
+[docs/architecture-reference.md](docs/architecture-reference.md). They still govern unless a later decision amends them; Decisions MS-2026-10-14/P1–P3 and LP-2026-10-25 explicitly amend their mapped contracts.
 Do not read the file whole; grep its headings and read only the section you touch. Code comments of the form `PLAN.md §N` refer to that file.
 
 Read these before the matching work:
@@ -363,9 +388,9 @@ Read these before the matching work:
 - Channels/webhooks: §19–20. AI, knowledge, tools: §21–24. Jobs/realtime: §25–26. Usage and allowances: §39.
 - Phase 0–9 acceptance records: §46.0–§46.9.
 
-### 44.4 Managed-service customer acceptance (current milestone)
+### 44.4 Managed-service customer acceptance
 
-R4 executes signup/verification → private workspace → knowledge → supported channel
+Historical R4 acceptance covers signup/verification → private workspace → knowledge → supported channel
 → useful grounded test reply → activation without customer AI keys, then team
 invitation, scoped human handoff and account recovery. In parallel, another workspace
 cannot access that data, a restricted member cannot access another channel, and
@@ -378,7 +403,9 @@ and real recipient delivery retain their distinct evidence labels.
 
 ## Continuation point
 
-Resume the approved managed-service readiness milestone via `.agent/CURRENT.md`.
+The managed-service packages are merged with recorded limits. LP-2026-10-25 is the selected preparation roadmap;
+L0 documentation is complete. Resume **L1.1 safe verification harness** from `.agent/CURRENT.md`, then continue
+eligible tasks in order. Commercial/provider decisions gate dependent work; L7/live deployment remains unapproved.
 
 ---
 
@@ -393,17 +420,21 @@ This appendix consolidates the handful of places throughout this document where 
 5. **Platform-support tooling timing (§15.2)** — resolved by MS-2026-10-14: explicit audited support access is required in P1. Preserve actual actor identity; no invisible owner impersonation.
 6. **Managed Redis/Postgres/object-storage vendor selection** (§41, §42) — this plan specifies the *shape* of infrastructure (managed vs. self-hosted, pooled vs. not) but not a specific vendor, which is a commercial/operational decision.
 
+7. **Commercial launch policy (LP-2026-10-25 L4.2):** seller country/currencies, provider, production prices/allowances,
+trial/grace/refund/cancellation/tax handling and support owner; prepare concrete options before decisions. Catalog
+flexibility does not authorize guessing financial policy or making live charges.
+
 Resolve these only when they become relevant to the selected task; they are listed so they are not mistaken for oversights.
 
 ---
 
 ## Development Execution Protocol
 
-This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret the architecture in §1–§45, phase contracts in §46.0–§46.9 or the explicit MS-2026-10-14 amendments and P1–P3 criteria. Where anything below appears to conflict with the governing architecture (including its explicit dated amendments), that architecture governs, and the conflict itself should be raised per rule 11, not silently resolved either way.
+This section makes `PLAN.md` directly usable as an operating manual by future Claude/Codex engineering sessions during implementation. It governs *how* work proceeds from here — it does not add, remove, or reinterpret the architecture in §1–§45, phase contracts in §46.0–§46.9 or the explicit MS-2026-10-14/P1–P3 and LP-2026-10-25 amendments and criteria. Where anything below appears to conflict with the governing architecture (including its explicit dated amendments), that architecture governs, and the conflict itself should be raised per rule 11, not silently resolved either way.
 
 **1. Read `PLAN.md` first, every session.** Before touching code, an engineering session reads this document — at minimum the phase it has been assigned (§46.x), that phase's dependencies, and the architectural sections it references. A session that has not done this has not met the bar for starting work, regardless of how confident it is about the codebase from other context.
 
-**2. Scope discipline: work only the explicitly selected phase, module, or task.** The approved managed-service readiness milestone is a selected scope: `continue` advances in live-board order through eligible R1–R5 and P1–P3 tasks without asking to reauthorize routine steps. Respect dependencies, product decisions and external-action boundaries; stop at milestone closure. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
+**2. Scope discipline: work only the explicitly selected phase, module, or task.** LP-2026-10-25 launch preparation is the selected scope: `continue` advances in live-board order through eligible L1–L6 tasks without asking to reauthorize routine steps. Respect dependencies, unresolved commercial decisions and external-action boundaries; stop before L7/live rollout unless explicitly authorized. R/P packages are historical, not the current queue. Otherwise, a session is handed one of: a phase (e.g., "implement §46.4"), a module (e.g., "the `knowledge/` module"), or a specific task within a phase's task list (e.g., "§46.6, PR 1, task 3"). It does not expand that scope on its own initiative.
 
 **3. No opportunistic unrelated changes.** Seeing a real improvement in a module outside the current scope is not sufficient justification to change it. Note it (in the session's final report, rule 14, or as a follow-up suggestion) instead of acting on it. A bug fix inside the module actually being worked is fine; refactoring a neighboring module "while I'm here" is not.
 
@@ -519,11 +550,11 @@ In cases 2 and 3 the agent also performs all automated and non-browser verificat
 
 ### MVP Browser Acceptance Suite
 
-The release-level browser regression suite: rerun it, in full, before any major release or milestone tag, and after any change that touches routing, authentication, channels, the worker, or the widget. It proves what only the assembled, running product can — routing, cookies, CORS, public assets, UI state, the web/worker process boundary, persisted state across reloads and restarts, and tenant isolation *as a user experiences it*. It complements, and never replaces, the automated suites (unit, contract, isolation, `tests/e2e/mvp-acceptance.test.ts`). Current results are dated in the live-plan baseline and [implementation history](docs/implementation-history.md#phase-9); this specification does not itself claim a pass. Live J16 is separate from the 16-script runner. The verification-selection policy above governs focused development loops and required live checks.
+The release-level browser regression suite: rerun it, in full, before any major release or milestone tag, and after any change that touches routing, authentication, channels, the worker, or the widget. It proves what only the assembled, running product can — routing, cookies, CORS, public assets, UI state, the web/worker process boundary, persisted state across reloads and restarts, and tenant isolation *as a user experiences it*. It complements, and never replaces, the automated suites (unit, contract, isolation, `tests/e2e/mvp-acceptance.test.ts`). Current results are dated in the live-plan baseline and [implementation history](docs/implementation-history.md#phase-9-implementation-record); this specification does not itself claim a pass. Live J16 is separate from the current 30-script runner; L3–L6 extend the suite for roles, usability and billing. The verification-selection policy above governs focused development loops and required live checks.
 
-**Running it.** `scripts/acceptance/run-all.sh` runs the full suite in its real dependency order (not raw numeric order — J03/J03b's cross-tenant attack surface needs data J04/J05/J06b/J08/J11 create first; see the script's own header comment) and exits non-zero the moment any journey's assertions fail. Every journey script asserts its own acceptance-critical outcomes via `lib.cjs`'s `assert()`/`finish()` and fails loudly (non-zero exit) rather than only printing evidence for a human to read. Chromium is resolved automatically (`CHROMIUM_PATH`, else `puppeteer`'s own cached build). Set `ACC_DB` explicitly; the legacy `sql()` fallback is unsafe to rely on. If the DB is not the compose Postgres, set/check `ACC_PSQL` for that same isolated DB. J09/J10 counts retained rows, so use a fresh acceptance database per full run.
+**Running it.** `scripts/acceptance/run-all.sh` runs the full suite in its real dependency order (not raw numeric order — J03/J03b's cross-tenant attack surface needs data J04/J05/J06b/J08/J11 create first; see the script's own header comment) and exits non-zero the moment any journey's assertions fail. Every journey script asserts its own acceptance-critical outcomes via `lib.cjs`'s `assert()`/`finish()` and fails loudly (non-zero exit) rather than only printing evidence for a human to read. Chromium is resolved automatically (`CHROMIUM_PATH`, else `puppeteer`'s own cached build). Set `ACC_DB` explicitly; the SQL helper connects to its exact host/port/database. `ACC_PSQL` is unsupported. J09/J10 counts retained rows, so use a fresh acceptance database per full run.
 
-**Topology (production-equivalent; record any deviation).** Use an isolated worktree, its own dependencies/secrets and a fresh throwaway database with migrations applied and no Default Business. Set `ACC_DB`, `DATABASE_URL` and `DIRECT_DATABASE_URL` to that same acceptance target before migrations/startup, with matching `ACC_PSQL` if needed. Build with `NEXT_PUBLIC_APP_URL=http://localhost:3100`; run production web on :3100 and a separate worker, with the local LLM stand-in on :4010 and customer origins :4020/:4021 (additional fixture host :4022). Confirm these ports are available. `scripts/acceptance/start-all.sh all` starts the topology; `run-all.sh` supplies dependency order. Keep fixture identities/profiles isolated and follow current proxy configuration: authenticated dashboard requests use session buckets; unauthenticated traffic still has address-based limits. Stop only verified run-owned PIDs; never stop the live checkout's worker.
+**Topology (production-equivalent; record any deviation).** Use an isolated worktree, its own dependencies/secrets and a fresh throwaway database with migrations applied and no Default Business. Set `ACC_DB`, `DATABASE_URL` and `DIRECT_DATABASE_URL` to that same acceptance target before migrations/startup. Build with `NEXT_PUBLIC_APP_URL=http://localhost:3100`; run production web on :3100 and a separate worker, with the local LLM stand-in on :4010 and customer origins :4020/:4021 (additional fixture host :4022). Confirm these ports are available. `scripts/acceptance/start-all.sh all` starts the topology; `run-all.sh` supplies dependency order. Keep fixture identities/profiles isolated and follow current proxy configuration: authenticated dashboard requests use session buckets; unauthenticated traffic still has address-based limits. Stop only verified run-owned PIDs; never stop the live checkout's worker.
 
 **Browser tooling.** Scripts drive a real headless Chromium through `puppeteer-core` (`CHROMIUM_PATH` to override) with separate browser profiles per business owner and isolated contexts per anonymous visitor. This is the agent using browser tooling directly (case 1 above); it is a scripted browser, not the interactive computer-use browser — a session that has the latter should use it for the exploratory pass and keep these scripts for the repeatable one. UI steps go through the real UI wherever a UI exists; the few steps done through the authenticated API or the database are marked **[API]** / **[DB]** below.
 
@@ -531,17 +562,14 @@ The release-level browser regression suite: rerun it, in full, before any major 
 
 **Journeys** — current requirements; results belong in dated evidence records:
 
-**Managed-service extensions (P1–P3/R4):** the numbered journeys below describe
-existing flows; keep their isolation/delivery guarantees while updating J01 from
-customer AI configuration to verified signup and platform-managed provisioning,
-and J13 staff creation to the invitation flow. Add named journeys for the P1 role/
-channel matrix and support revocation, P2 managed-policy/limit recovery, and P3
-verification/reset/invitation/resumable activation. Include them in the full runner
-when implemented; do not claim the old 16-script pass covers these additions. Test
-platform policy setup through its real UI, using stand-in credentials only in isolated
-local runs; customers must not enter an AI key even in the updated browser tests.
+**Managed-service extensions (P1–P3/R4/R5):** implemented in the current runner. It includes the original
+journeys and later workspace/support/managed-policy/verified-account/recovery/invitation/branding journeys.
+Read `run-all.sh` for current script names/order and the relevant task's record for detailed assertions.
+Customers must not enter AI keys. Platform policy setup uses its real UI, with stand-in credentials only
+in isolated local acceptance. The original numbered requirements below remain regression obligations where
+not explicitly amended; L3/L5/L6 add the named role/usability/commercial criteria in the linked contracts.
 
-1. **J01 Signup.** *Purpose:* two independent businesses via the real wizard. *Steps:* `/setup` → account → profile → AI config → dashboard, twice (bakery, e-scooter shop), separate profiles. *Expect:* each gets its own Business, owner User+Membership, `TenantPlacement` (shared-default), `BusinessConfig` (encrypted AI credential ref), 6 `ToolPolicy` rows, `business.created` audit row; no Default Business used; dashboard renders with a clean console. *Phases:* 1, 2, 7. *Creds:* none. *Auto:* yes.
+1. **J01 Signup.** *Purpose:* two independent businesses through the real signup UI. *Steps:* account → business profile → verification notice; complete verification using isolated captured mail (real mail is a separate release criterion), enter workspace. *Expect:* private Business/User/owner Membership and managed provisioning, no Default Business/customer AI key, no cross-workspace data; use J27/J28 for managed allowance and full account/onboarding assertions. *Phases:* P1–P3/R4. *Auto:* yes in isolated topology. *Harness limit:* J01 subsequently applies controlled legacy-BYOK fixture setup for older journeys; J27/J28/J30 cover managed customer behavior. Do not interpret all 30 scripts as one untouched managed-workspace journey.
 2. **J02 Auth/session.** *Steps:* refresh, navigate 7 protected pages, Sign Out via the avatar menu, log back in through `/login` (wrong password first), unauthenticated + forged-cookie access to pages/APIs. *Expect:* cookie cleared on sign-out; APIs 401, pages → `/login`; wrong password → "Invalid credentials"; `a.b.c` and wrong-secret JWTs → 401; `/widget.js`, `/api/health` stay public; each session sees only its own user; cookie `HttpOnly; Secure; SameSite=Lax`. *Phases:* 0, 2. *Auto:* yes.
 3. **J03 Tenant isolation.** *Steps:* from B's real session, use A's ticket/conversation/customer/knowledge/category/webchat-connection/action ids (and A from B) with GET/PUT/PATCH/DELETE/POST incl. reply-injection, transfer, GDPR export/delete, token rotation, approval, realtime subscribe; `?businessId=` and body `businessId` injection; positive controls with the owner's own session. *Expect:* every attempt 404 / no-op, no data changed (verified in Postgres), controls succeed, B's conversations page never shows A's data. *Phases:* 1, 2. *Auto:* yes.
 4. **J04 Knowledge + grounding.** *Steps:* create a category and an entry with a unique code per business through `/knowledge`; ask through each business's widget, including a question that names the *other* business's code. *Expect:* every prompt sent to the model contains only its own business's code; replies use only it; record retrieval mode. The worker indexes each UI-created entry: a 1536-d embedding with provenance, a completed `index-knowledge-entry` pg-boss job, and no raw vector exposed by the API. *Phases:* 2, 4. *Auto:* yes.
@@ -554,7 +582,7 @@ local runs; customers must not enter an AI key even in the updated browser tests
 10. **J10 Worker restart.** *Steps:* schedule a follow-up, SIGTERM the worker, confirm web up, let the job go overdue, restart. *Expect:* clean drain; web unaffected (health/login/`/widget.js` 200); job still pending while down; sent once after restart; exactly one message and one `succeeded` action per follow-up. *Phases:* 6. *Auto:* yes.
 11. **J11 Human handoff.** *Steps:* visitor asks for a manager; owner filters `/conversations` to Escalated, opens it, replies; visitor's widget; refresh. *Expect:* conversation `escalated` by the product's own confidence logic; owner sees it and its messages; reply `201`, reaches the customer via Web Chat, persists across refresh; the other business gets 404. Verify the current dashboard update path and persistence on refresh; distinguish a manually triggered handoff transport test from autonomous AI escalation. *Phases:* 2, 7. *Auto:* yes.
 12. **J12 Widget credentials.** *Steps:* HTTP attack matrix (forged/empty token, A's token on B and vice versa, wrong/no/evil origin, nonexistent connection, foreign conversation id write/read/stream, wrong visitor id, widget token as Bearer / `X-API-Key` / cookie against 4 admin APIs, preflights), then rotate A's token through the dashboard and re-test with the old and new embed on the customer site. *Expect:* all rejected (403/404/401), no foreign-origin CORS grant, nothing written cross-tenant; after rotation old → 403, new → 200, B and the owner session unaffected, a stale embed fails visibly ("Chat is currently unavailable"). *Phases:* 5, 7. *Auto:* yes.
-13. **J13 Approval-gated action.** *Steps:* set `ToolPolicy.requiresHumanApproval` on `create_ticket` for B through the tool-policy UI; visitor asks for a ticket; a viewer (created via **[API]** `/api/admin/users`) logs in through the UI and tries to decide; owner approves through the approvals UI; repeat and reject. *Expect:* `pending_approval` with no ticket; viewer 403; approve → ticket exactly once (second approve 409); reject → `cancelled`, no ticket. *Phases:* 6. *Auto:* yes.
+13. **J13 Approval-gated action.** *Steps:* set `ToolPolicy.requiresHumanApproval` on `create_ticket` for B through the tool-policy UI; visitor asks for a ticket; a viewer provisioned through the current invitation flow logs in through the UI and tries to decide; owner approves through the approvals UI; repeat and reject. *Expect:* `pending_approval` with no ticket; viewer 403; approve → ticket exactly once (second approve 409); reject → `cancelled`, no ticket. *Phases:* 6. *Auto:* partially: current J13 still uses SQL policy setup and API approval/denial calls despite the available UI. L3 must reconcile this gap; historical script passes do not prove the specified approval UI workflow.
 14. **J14 Automation.** *Steps:* `/automation` → create an Auto Reply rule on "opening hours"; ask that, an unrelated question, and the same in B. *Expect:* rule 201 and active; matching message gets the rule's exact reply, others still go to the AI, B unaffected. *Phases:* 6. *Auto:* yes.
 15. **J15 Runtime sweep.** *Steps:* fetch public assets and headers; visit every dashboard page on the production build capturing console/network, including `/settings`, where the owner edits the General tab's business name through the real form and saves it; check cookie attributes and reload behaviour. *Expect:* `/widget.js` public, no dev-server-only paths or `localhost:3000` in the script, no console errors or 4xx/5xx from any page (a cached `304` counts as loaded); `/settings` loads (not 501) and the edit persists across reload. *Phases:* 0, 2, 7. *Auto:* yes.
 16. **J16 Meta WhatsApp (live).** *Steps:* register `https://<host>/api/channels/whatsapp-cloud/webhook` on a Meta app, connect a real number through the product, send a real WhatsApp message. *Expect:* signature validated, `phone_number_id` → connection → tenant, dedup, fast ACK, worker, grounded reply delivered to the sender; measure end-to-end latency. *Phases:* 5, 7. *Creds:* the connection's own encrypted App Secret, platform `META_WEBHOOK_VERIFY_TOKEN`, a phone number id + access token, a public HTTPS URL, and an authorized human sender. Preserve the October 11 historical second-number waiver; it is not a pass or a blanket waiver for future delivery. *Auto:* **no** (needs a human sender).

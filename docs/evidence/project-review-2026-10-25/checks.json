@@ -1,0 +1,76 @@
+{
+  "baseline": "5b45bd7ef8b899284277ee54ab5cc75cb64dffa6",
+  "recordedAtUtc": "2026-10-24T23:46:58.159582+00:00",
+  "node": "24.8.0",
+  "ciAndDockerNode": "22",
+  "lockSha256": "b7c1abd47106ccd9dfd3544d94116537e0c93e8c8a4dea5cb797cac5ea4947c8",
+  "source": "git archive of baseline; separate npm ci; no real DB or provider calls",
+  "results": [
+    {
+      "command": "npm ci --include=dev --no-audit",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "prisma generate",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "tsc --noEmit --incremental false",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run lint -- --max-warnings 0",
+      "result": "passed",
+      "exitCode": 0,
+      "note": "Sequential rerun passed; initial parallel lint and lint-tests raced over scratch files."
+    },
+    {
+      "command": "vitest run tests/security/http-dispatcher-ssrf.test.ts tests/unit/secret-resolver.test.ts tests/unit/r2-cases.test.ts tests/api/health.test.ts tests/security/module-boundary-lint.test.ts tests/security/raw-prisma-lint.test.ts",
+      "result": "passed",
+      "exitCode": 0,
+      "files": 6,
+      "tests": 53
+    },
+    {
+      "command": "node reproduce.cjs <review-source>",
+      "result": "confirmed documented defects",
+      "exitCode": 0,
+      "network": "mocked DNS and HTTP; synthetic keys only"
+    },
+    {
+      "command": "npm run build",
+      "result": "blocked_environment",
+      "exitCode": 1,
+      "reason": "Sandbox failed Google Inter font fetch; network-enabled retry failed Turbopack/PostCSS port bind EPERM. No build pass claimed."
+    },
+    {
+      "command": "npm audit --json",
+      "result": "findings",
+      "exitCode": 1,
+      "high": 1,
+      "moderate": 5,
+      "critical": 0
+    },
+    {
+      "command": "npm audit --omit=dev --json",
+      "result": "findings",
+      "exitCode": 1,
+      "high": 1,
+      "moderate": 3,
+      "critical": 0
+    }
+  ],
+  "notRun": [
+    "full Postgres/Redis default suite",
+    "signup-seeded suite",
+    "full browser acceptance",
+    "live provider smoke/evaluation/mail",
+    "Docker image build/runtime test",
+    "production restore/capacity/deployment rehearsal"
+  ],
+  "github": "Connector returned empty main-head status/PR-run arrays; no new CI pass/failure inferred.",
+  "evidenceLogs": "Copied command output with trailing whitespace and trailing empty lines normalized; original logs retained in review scratch."
+}

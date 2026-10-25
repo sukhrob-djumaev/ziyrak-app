@@ -1,22 +1,26 @@
-# Latest session handoff (2026-10-24)
+# Latest handoff — continuation ready, 2026-10-25
 
-- R5 on branch `chore/r5-ziyrak-branding` (3 commits: `f2a83f9` rename, `f1d455e` Next 16.4.3 upgrade, `0b9a1a2` README fix, plus this docs commit).
-- Changed: Tailwind tokens, visible text, package name, image tag, asset filename, webhook headers (dual-send old+new), localStorage
-  migration, docs. Retained compatibility names (cookie `owly-token`, Redis prefix `owly:`, helm/DB/volume names, GitHub URLs, history
-  docs) are listed in `docs/branding-compat.md`. Tests added: webhook-branding-headers, r5-branding-scan.
-- Verified (local/stand-in layer): verify.sh, tsc, lint, npm test 1812 passed/1 skipped, build on Next 16.4.3, independent security review
-  (no findings), browser suite 30/30 on build `U7J0zXpmaJ_C489Aoz04Y` (head `0b9a1a2`, digest `92298ab4`). Browser runs 1-2 failed on
-  harness env only (missing SECRET_KEY/proof env), not product. R4 evidence preserved; R5 reran everything it invalidated.
-- Open: owl-mascot logo art, docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived, smoke suites not run, not deployed.
-- Cleanup done: acceptance topology stopped, throwaway Redis removed. Kept: worktree and 2 R5 DBs (no deletion approval).
-- Continue: owner reviews PR; merge when exact-head CI green; milestone then closes pending owner decisions.
-
-
-## Meta Business A recipient-visible check (2026-10-25, manual)
-- Topology: main build `905b4ca` in worktree `../owly-wt-metaA` (branch `test/meta-a-visible-reply`), throwaway DB `ziyrak_meta_a_visible_20261025`,
-  web :3100 + worker, owner's quick tunnel, real Graph + real OpenAI (`gpt-4o-mini`), mail captured. No product code changed.
-- Result: PASS (manual, Business A only). Owner's phone received the AI reply with the Business A phrase. Logs: inbound stored 16:57:49.4Z,
-  reply stored 16:57:52.1Z, Graph send accepted (HTTP 200) 16:57:53.3Z; no 131031. Latency is from logs/manual, no p95 claimed.
-- A's stored token had expired (190/463); owner supplied a new one via clipboard (never printed or written). Business B not retested.
-- Callback was set to the throwaway tunnel; owner should point the Meta callback back as needed. Web/worker stopped; DB, worktree, branch kept.
-- `npm run test:smoke:meta` was not run.
+- Owner explicitly agreed to LP-2026-10-25 and asked to prepare clean Claude/Codex continuation. L1–L6 approved;
+  L7 deployment/live money remains separately gated. Product implementation still starts at L1.1, not an old phase.
+- Entry: plain `continue` in either tool; Claude also `/ziyrak continue`. See `docs/guides/agent-continuation.md`.
+- Read-only `continue-preflight.py` is shared by AGENTS and Claude SessionStart. It reports Git/state/worktrees,
+  honors coordinator/task STOP, checks active checkout+branch, and protects the coordinator regardless of branch.
+  Startup no longer archives/writes state, fetches, starts processes or requires a particular directory basename.
+- Replaced obsolete Claude dispatcher/helper skill with the shared lead-owned workflow; retained model preferences,
+  isolated worktrees, tracked evidence and scope boundaries. No client/account/permission configuration was changed.
+- Fixed CI helpers: structured successful CI/build required, absent/error/skipped/neutral/pending never green;
+  PR head/base/state fenced, SHA jobs checked, latest runs handled. Origin/cwd pinned with GH_REPO/GH_HOST overrides
+  neutralized. MERGE_OK is only CI; combined-build browser evidence and merge authorization remain separate.
+- Prepared `docs/tasks/l1.1-safe-verification-harness.md`: contract, exact criteria, source targets, safe failing-test
+  sequence, DB/PID/image cases, required independent review and handoff. It is approved but NOT implemented.
+- Verification: 22 synthetic workflow tests PASS; original scripts failed 11 assertions; independent review found
+  repo/branch/coordinator gaps, regression-tested then fixed. Shell syntax, read-only real-checkout preflight,
+  references and diff checks passed. CI now schedules these tests; remote CI not run in this preparation.
+- Two independent read-only agent reviews integrated; final script review reported no remaining blockers.
+  Evidence: `docs/evidence/continuation-setup-2026-10-25.md`. No app/DB/browser/provider/model-backed session run.
+- Next: read CURRENT, PLAN protocols and L1.1 packet; create isolated task worktree, record path/branch in
+  coordinator CURRENT before code; follow tests-first. Resume a recorded in-flight checkout before creating another.
+- Baseline `01a275d` (docs), earlier audit `3066b33`, product `5b45bd7`; this preparation has a local containing commit.
+  No push/deploy/live charge. No product dependencies/build, user DB, live worker, port7700 or tunnel touched.
+- Merchant country/currency/provider and production prices/policies remain L4.2 inputs; they do not block L1.1.
+  Historical runtime/waivers and open F01–F16/D01–D11 remain in the audit/roadmap; no criteria silently closed.

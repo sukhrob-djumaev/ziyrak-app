@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { encryptAIProviderCredential } from "@/lib/ai/config";
 import { createWebChatConnection } from "@/lib/channels/webchat-connections-service";
 import type { TenantContext } from "@/lib/tenancy/context";
+import { WORKSPACE_SCOPE } from "@/lib/tenancy/resource-scope";
 
 export const LOADTEST_ORIGIN = "http://localhost:4020";
 
@@ -34,6 +35,7 @@ async function main() {
     role: "owner",
     actor: { kind: "user", userId: provisioned.userId },
     dataConnection: "shared-default",
+    resourceScope: WORKSPACE_SCOPE,
   };
   const connection = await createWebChatConnection(ctx, { name: "Load test widget", allowedOrigins: [LOADTEST_ORIGIN] });
 

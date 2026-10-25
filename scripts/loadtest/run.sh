@@ -15,31 +15,59 @@ cd "$here/../.."
 mode="${1:-both}"
 P=ziyrakload
 COMPOSE="docker compose -p $P -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale"
+# F08: the load target must be a proven disposable owly_load database (both URLs),
+# validated before any Docker, Prisma or process side effect.
+DB_DIRECT="postgresql://postgres:postgres@localhost:55432/owly_load?schema=public"
+if [ "$mode" != down ]; then
+  # An inherited (possibly production) URL must never leak into this run.
+  for v in "${DATABASE_URL:-$DB_DIRECT}" "${DIRECT_DATABASE_URL:-$DB_DIRECT}"; do
+    [ "$v" = "$DB_DIRECT" ] || { echo "Inherited DATABASE_URL/DIRECT_DATABASE_URL disagree with the load target; unset them." >&2; exit 1; }
+  done
+  DATABASE_URL="$DB_DIRECT" DIRECT_DATABASE_URL="$DB_DIRECT" ZIYRAK_DISPOSABLE_DB=owly_load \
+    node scripts/safety/db-target.cjs load || exit 1
+fi
+# Exact image identity: content hash of HEAD plus the working tree, so a stale
+# image can never satisfy this run and the shared dev tag ziyrak:local is untouched.
+tree_id="$(idx="$(mktemp)"; rm -f "$idx"; GIT_INDEX_FILE="$idx" git add -A >/dev/null && GIT_INDEX_FILE="$idx" git write-tree; rm -f "$idx")" \
+  || { echo "Cannot compute the source tree identity." >&2; exit 1; }
+[ -n "$tree_id" ] || { echo "Cannot compute the source tree identity." >&2; exit 1; }
+LOADTEST_IMAGE="ziyrak-load:$(git rev-parse HEAD | cut -c1-12)-$(echo "$tree_id" | cut -c1-12)"
+export LOADTEST_IMAGE
 export SECRET_KEY_V1=loadtest-secret-key-v1-not-a-real-secret
 export JWT_SECRET=loadtest-jwt-secret-not-a-real-secret
-DB_DIRECT="postgresql://postgres:postgres@localhost:55432/owly_load?schema=public"
 work="$here/.work"; mkdir -p "$work"
-llm_pid=""
+run_id="load-$$-$(date +%s)"
+lock="$work/run.lock"
+fence="$work/llm.owner.json"
 
 cleanup() {
-  [ -n "$llm_pid" ] && kill "$llm_pid" 2>/dev/null || true
+  node scripts/safety/owned-process.cjs stop "$fence" "$run_id" && rm -f "$fence" || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
+  rmdir "$lock" 2>/dev/null || true
 }
-if [ "$mode" = down ]; then pkill -f scripts/acceptance/llm-standin.cjs 2>/dev/null || true; cleanup; exit 0; fi
+if [ "$mode" = down ]; then
+  # Only a stand-in recorded by `up` (run id stored beside its PID identity) is stopped.
+  [ -f "$fence" ] && run_id="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).runId)' "$fence")"
+  cleanup; exit 0
+fi
+# Atomic run lock, taken BEFORE the cleanup trap: a refused run must never tear
+# down the stack of the run that owns it. `up` keeps the lock until `down`.
+lock="$work/run.lock"
+mkdir "$lock" 2>/dev/null || { echo "Another load run owns this stack; run: $0 down" >&2; exit 1; }
+[ ! -e "$fence" ] || { rmdir "$lock"; echo "A previous run owns the stand-in; run: $0 down" >&2; exit 1; }
 [ "$mode" = up ] || trap cleanup EXIT INT TERM
-
-if [ -z "$(docker images -q ziyrak:local)" ]; then
-  echo "Building ziyrak:local ..."; $COMPOSE build app
+if [ -z "$(docker images -q "$LOADTEST_IMAGE")" ]; then
+  echo "Building $LOADTEST_IMAGE ..."; $COMPOSE build app
 fi
 
 echo "Starting Postgres ..."
 $COMPOSE up -d db
 until docker compose -p $P exec -T db pg_isready -U postgres -d owly_load >/dev/null 2>&1; do sleep 1; done
-DATABASE_URL="$DB_DIRECT" npx prisma migrate deploy >/dev/null
+DATABASE_URL="$DB_DIRECT" DIRECT_DATABASE_URL="$DB_DIRECT" npx prisma migrate deploy >/dev/null
 
 echo "Starting the LLM stand-in (300 ms latency) ..."
 ACC_WORK_DIR="$work" LLM_DELAY_MS=300 node scripts/acceptance/llm-standin.cjs >"$work/llm.log" 2>&1 &
-llm_pid=$!
+node scripts/safety/owned-process.cjs record "$fence" "$run_id" "$!"
 
 up_stack() {
   redis_url="$1"

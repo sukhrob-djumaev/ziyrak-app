@@ -4,10 +4,11 @@
 - Owner explicitly APPROVED L1–L6 launch preparation on 2026-10-25 and requested clean Claude/Codex continuation.
 - Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
 - L0 and continuation preparation COMPLETE. L1–L6 product implementation NOT STARTED; criteria NOT RUN.
-- Next: L1.1 safe verification harness. No deployment/live charging/pilot is authorized by this reset.
+- L1.1 safe verification harness MERGED (PR #36, `9f9b4ec`, CI green on head `bc15eaa`; no browser trigger: tooling-only). Residuals: DB ownership is name+local host+env (no in-DB marker); load check `realtime cross-replica` FAILS (unbaselined, owner of L2.1/F-triage); fence CLI proven only in the rehearsal. Record: `docs/evidence/l1.1-safe-verification-harness-2026-10-25.md`.
+- Next: L1.2 dependencies and HTTP boundaries (new isolated worktree). No deployment/live charging/pilot is authorized by this reset.
 - Baselines: product `5b45bd7`, audit `3066b33`, docs rebaseline `01a275d`. Workflow helpers changed; product did not.
 - Task packet: `docs/tasks/l1.1-safe-verification-harness.md`
-- Active checkout: none
+- Active checkout: none (L1.1 merged; owly-l1-1 worktree may be removed after confirmation)
 - Active branch: none
 - Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.

@@ -16,6 +16,10 @@ const ALLOWED = [
   /localhost:5432\/owly/, // default local database name (live DB rename is out of scope)
   /helm\/owly|cd owly$/, // Helm chart path and clone directory of the upstream repository
   /named `owly`|legacy `owly`/, // documentation that explains the retained names
+  /derived from Owly; preserve upstream attribution/, // CONTRIBUTING provenance statement
+  /developed from Owly\. Businesses/, // README provenance statement
+  /upstream Owly MIT attribution/, // README license attribution
+  /not the upstream Owly repository/, // SECURITY: distinguishes this project from upstream
   /hsperus\/owly|Hesper-Labs\/owly/i, // upstream repository provenance
 ];
 

@@ -24,22 +24,25 @@ criterion evidence together; CURRENT is a continuation pointer, not another road
 | Post-9 hardening | Merged through PR #28 | Product baseline `c20513d78421816ac0096eff1cf3dbb0d6c9aa55`; see the [status review](docs/status-review-2026-10-14.md). |
 | Development process and this product plan | Documented | Shared Codex/Claude continuation, evidence rules and targeted provider testing. These are process changes, not application fixes. |
 
-| Order | Upcoming task | Implementation / verification | Depends on / intended outcome |
+| Order | Milestone task | Implementation / verification | Depends on / intended outcome |
 | --- | --- | --- | --- |
 | 1 | **R1 — Delivery reliability** | Local criteria passed; R4 provider boundary open | Candidate63247f6; durable replies and audited recovery, all17 browser scripts passed. |
-| 2 | **R3 — Operational safety** | Complete locally; residuals decided 2026-10-21; not deployed | Puppeteer 25 (PR #29) removes extract-zip: 0 production / 5 high full (braces lint tooling, accepted) advisories. |
+| 2 | **R3 — Operational safety** | Historical local closure; residuals decided 2026-10-21; not deployed | Puppeteer 25 removes extract-zip. The October 25 review supersedes old advisory counts and identifies new operational gaps; see the review below. |
 | 3 | **P1 — Platform and workspace access** | Complete locally 2026-10-22 (tag `phase-p1-complete`); not deployed | Workspace/resource boundaries, secured operators, support and delayed-work authority; evidence in the P1 closure record. |
-| 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console; completion tag awaits owner decision. |
+| 4 | **P2 — Managed AI and usage limits** | Complete 2026-10-22 (merged, CI green on the exact head; tag `phase-p2-complete`); verified in development (see the P2 result); not deployed | Platform-managed policy, durable per-workspace token allowances, customer usage view and super-admin console. |
 | 5 | **P3 — Accounts and customer onboarding** | Merged 2026-10-22 (`470073b`, exact-head CI green); not deployed. Tag `phase-p3-complete` on `2b64578` (exact-head CI green 2026-10-23). Real-mail delivery check passed 2026-10-23; operator invitations merged (`fae51d8`), browser journey J29 in PR #32 | Verified email, reset, invitations and resumable onboarding to activation; see the P3 summary under Finished packages. |
-| 6 | **R2 — AI decision quality** | Not started / not run | R1 and P2–P3; evaluate the configuration and journey customers actually receive. Policy/threshold decision remains open. |
-| 7 | **R4 — Final functional acceptance** | Local verification passed; Meta waived; not deployed | R1–R3 and P1–P3; verify the assembled managed-service candidate. |
-| 8 | **R5 — Final Ziyrak naming and branding** | Implemented; local verification passed (PR open, not merged) | After R4; rename safely and rerun every check invalidated by the final changes before closure. |
+| 6 | **R2 — AI decision quality** | Merged `6225d00`; historical thresholds met and J11 passed; October 25 review found scorer gaps | Existing evidence remains bounded; scorer repair and fresh holdout are proposed follow-up, not newly passed acceptance. |
+| 7 | **R4 — Final functional acceptance** | Merged `14e09ce`, tag `phase-r4-complete`; local/stand-in verification passed; Meta waived; not deployed | Business A later has manual visible-delivery evidence on `905b4ca`; Business B and deployment boundaries remain open. |
+| 8 | **R5 — Final Ziyrak naming and branding** | Merged `905b4ca`, tag `phase-r5-complete`; logo merged `3d5d15e`; local verification recorded | Final branding evidence below; new review findings do not invalidate historical test execution or authorize rollout. |
 
 Keep the R identifiers stable for earlier evidence; P identifies newly approved
 product work. This order replaces the earlier R1 → R2 → R3 → R4 → R5 queue.
 Preparation that does not depend on an unfinished contract may proceed when an
 external blocker is recorded; implementation must respect the dependencies above.
-No task in this upcoming table has passed acceptance yet.
+Local criteria have the bounded results above; waivers and unverified deployment/provider boundaries remain explicit.
+The [October 25 project review](docs/project-review-2026-10-25.md) records fresh security, dependency, test-quality and
+operational findings on `5b45bd7`. It recommends remediation and a controlled pilot; it does not authorize a new
+implementation milestone or customer deployment. Historical tags are not an unrestricted production-readiness claim.
 
 Architecture and phase requirements remain in §§1–46. Dated implementation
 records are preserved in [implementation history](docs/implementation-history.md).
@@ -58,8 +61,8 @@ The September 14 code inventory describes the pre-migration baseline; never rest
 - The managed-service decision below is approved product scope. It replaces the
   earlier pending product discussion and the specifically mapped original deferrals;
   all other tenant isolation, module boundaries and security contracts remain.
-- Escalation behavior and evaluation thresholds need an explicit product decision
-  in R2. Optional cookie-request Origin hardening remains an unselected follow-up.
+- R2 escalation rules and thresholds were approved for the recorded evaluation; the October 25 review proposes
+  scorer/acceptance corrections before broader quality claims. Cookie-request Origin hardening remains an unselected follow-up.
 - Use isolated worktrees, dependencies, test databases and ports for product work.
   This host's main checkout supplies the live worker. Never run cleanup tests on
   live `owly`, kill processes by name, or touch port 7700 and its remote-control tunnel.
@@ -186,9 +189,9 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **R3 — Operational safety:** complete locally; Puppeteer 25 (PR #29) removes the unpatched extract-zip chain; the braces lint-tooling residual was accepted by the owner; whatsapp-web.js untested against a real WhatsApp session; not deployed. Record: [r3 remediation](docs/r3-remediation-2026-10-15.md).
 - **P1 — Platform and workspace access:** complete 2026-10-22, tag `phase-p1-complete`; full browser 26/26 on `c9e4aa0`, unit 1597 (1619 Redis-backed), three independent whole-surface reviews fixed. Records: [closure matrix](docs/p1-closure-matrix-2026-10-19.md), [whole-surface review](docs/p1-whole-surface-review-2026-10-21.md). Accepted residual: login throttle depends on the documented `TRUSTED_PROXY_HOPS`. Not deployed.
 - **P2 — Managed AI and usage limits:** complete 2026-10-22, tag `phase-p2-complete`, merge `53f2738`; unit 167 files/1655, security review fixed, browser J01–J27 (stand-in AI), live OpenAI check 3/3. Record: [p2 implementation](docs/p2-managed-ai-implementation-2026-10-22.md). Not deployed.
-- **P3 — Accounts and customer onboarding:** merged 2026-10-22 (merge `470073b`, exact-head CI green); unit 1748 passed/23 skipped (Redis-gated; the delivery-worker-restart test is a known flake); independent agent security review found no account-takeover path and confirmed gaps were fixed; browser 28/28 on build `01d9b59` with stand-in AI and captured mail. Records: [proposal](docs/p3-accounts-onboarding-proposal-2026-10-22.md), [implementation](docs/p3-accounts-onboarding-implementation-2026-10-22.md). Not deployed, no completion tag yet.
-  **Open items (owner decisions 2026-10-22):**
-  - *Operator invitations: deferred to a follow-up.* They add a new account-creation surface (a platform role created from an emailed link) that needs its own tests-first work and security review. Super admins still create operators with a chosen password (the P1 flow).
+- **P3 — Accounts and customer onboarding:** merged 2026-10-22 (merge `470073b`, exact-head CI green); unit 1748 passed/23 skipped (Redis-gated; the delivery-worker-restart test is a known flake); independent agent security review found no account-takeover path and confirmed gaps were fixed; browser 28/28 on build `01d9b59` with stand-in AI and captured mail. Records: [proposal](docs/p3-accounts-onboarding-proposal-2026-10-22.md), [implementation](docs/p3-accounts-onboarding-implementation-2026-10-22.md). Tag `phase-p3-complete` on `2b64578`; not deployed.
+  **Follow-up results (reconciled 2026-10-25):**
+  - *Operator invitations:* implemented in `fae51d8`; browser J29 merged in PR #32 (`2b64578`). The earlier deferral is superseded by this implementation, not a current blocker.
   - *Controlled real mail delivery check: PASSED* 2026-10-23. One message sent through the product SMTP transport (`getMailTransport`, Gmail smtp.gmail.com:587, App Password) to a real mailbox; the owner confirmed receipt in the inbox. Proves outbound delivery from a personal Gmail sender only, not a business sender domain or the full verify/reset token flow over real mail.
 
 ### R2 — AI decision quality
@@ -209,7 +212,7 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 - **Completion criteria:** approved thresholds met, autonomous handoff exercised
   through the product, safety/isolation cases pass, provider/model/configuration
   and failures recorded. Do not describe the heuristic as a calibrated probability.
-- **Result:** implemented on branch `feat/r2-decision-quality` (not merged): rule-based escalation E1–E4, retained case set, live runner. Real-model evaluation (`gpt-4o-mini`, managed policy v1, 60 evaluation cases × 3) met every approved threshold in run 4, after scorer fixes that exposed the evaluation set (disclosed). Autonomous handoff through the product (browser J11) not yet run. Record: [R2 implementation](docs/r2-ai-decision-quality-implementation-2026-10-23.md).
+- **Result:** merged `6225d00`: rule-based escalation E1–E4, retained case set, live runner. Historical real-model evaluation (`gpt-4o-mini`, managed policy v1, 60 evaluation cases × 3) met the recorded thresholds in run 4 after disclosed scorer fixes exposed the evaluation set; combined browser 28/28 included J11. Record: [R2 implementation](docs/r2-ai-decision-quality-implementation-2026-10-23.md). The [October 25 review](docs/project-review-2026-10-25.md) reproduces false-pass and missing-category scorer gaps; broader AI-quality claims and remediation acceptance remain open.
 
 ### R4 — Final functional acceptance
 
@@ -274,8 +277,12 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
   provenance or required compatibility. Links/assets/configuration remain valid and
   affected checks pass on the final candidate. This is the last milestone task;
   preserve R4 evidence and rerun any checks invalidated by the rename before closure.
-- **Result:** implementation not started; verification not run. Stop at milestone
-  completion; further product scope or deployment requires applicable authorization.
+- **Result:** merged `905b4ca`, tag `phase-r5-complete`; logo merged `3d5d15e`. Historical verification on `0b9a1a2`:
+  verify.sh, tsc, lint, 180 test files/1812 passed/1 skipped, Next 16.4.3 build, independent agent security review,
+  browser 30/30 on `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail).
+  Compatibility names: `docs/branding-compat.md`. Not deployed; provider smoke suites not run; documentation screenshots
+  and higher-resolution logo remain follow-ups. October 25 review findings are open. Further product scope or deployment
+  requires applicable authorization.
 
 ## Verification selection and external blockers
 
@@ -299,13 +306,6 @@ channels, worker or widget changes and major releases/milestone tags. During an
 implementation loop, run focused checks first; batch closely related edits into a
 coherent candidate and run the full suite before closure. Documentation-only work
 does not require rerunning the application or sending WhatsApp messages.
-
-- **Result (2026-10-24, branch `chore/r5-ziyrak-branding`):** rename implemented with retained compatibility names documented in
-  `docs/branding-compat.md`; Next upgraded to 16.4.3 as its own commit. Local/stand-in verification on head `0b9a1a2`: verify.sh, tsc,
-  lint, `npm test` 180 files/1812 passed/1 skipped, build, independent security review (no findings), full browser suite 30/30 on build
-  `U7J0zXpmaJ_C489Aoz04Y` (digest `92298ab4`, stand-in AI, captured mail). R4 evidence is preserved; R5 reran what it invalidated.
-  Open: logo art now the final mark (low-res source), docs screenshots, npm audit zod/@vitest/mocker, R1 Meta waived,
-  `test:smoke:*` not run, not deployed.
 
 ### Meta testing without blocking unrelated development
 
@@ -378,7 +378,8 @@ and real recipient delivery retain their distinct evidence labels.
 
 ## Continuation point
 
-Resume the approved managed-service readiness milestone via `.agent/CURRENT.md`.
+The managed-service packages are merged with the recorded limits; the October 25 review is complete.
+Use `.agent/CURRENT.md` for the proposed remediation milestone and remaining owner decisions. No new implementation or deployment is selected by this review.
 
 ---
 

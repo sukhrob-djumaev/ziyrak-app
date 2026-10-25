@@ -12,6 +12,7 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 
 ## Milestone and process
 
+- [project-review-2026-10-25.md](project-review-2026-10-25.md) — Deployment, security, test quality, dependencies, operations and payment-readiness review; open findings and proposed next milestone, not deployment approval.
 - [status-review-2026-10-14.md](status-review-2026-10-14.md) — Status and model-work review — 2026-10-14
 
 ## R — recovery packages

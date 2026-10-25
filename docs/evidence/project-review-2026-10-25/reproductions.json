@@ -1,0 +1,55 @@
+{
+  "baseline": "5b45bd7ef8b899284277ee54ab5cc75cb64dffa6",
+  "node": "v24.8.0",
+  "observations": {
+    "fabricationFalsePass": {
+      "pass": true,
+      "wrongEscalation": false,
+      "leaked": false,
+      "fabricated": false,
+      "inconclusive": false
+    },
+    "wrongAnswerCategoryPass": {
+      "wrong": {
+        "pass": false,
+        "wrongEscalation": false,
+        "leaked": false,
+        "fabricated": false,
+        "inconclusive": false
+      },
+      "summary": [
+        {
+          "category": "short correct: wrongly escalated",
+          "n": 1,
+          "measured": "0.0%",
+          "threshold": "<= 5%",
+          "met": true
+        }
+      ]
+    },
+    "inconclusiveCategoryOmitted": [],
+    "keyRetirement": {
+      "v2OnlyError": "No SECRET_KEY_V<n> environment variable is configured. Set at least SECRET_KEY_V1 before encrypting or decrypting secrets.",
+      "v1AndV3SelectedVersion": 1
+    },
+    "redirectCredentialForwarding": {
+      "hops": [
+        {
+          "protocol": "https:",
+          "hostname": "trusted.example",
+          "authorization": "Bearer synthetic-audit-token"
+        },
+        {
+          "protocol": "http:",
+          "hostname": "other.example",
+          "authorization": "Bearer synthetic-audit-token"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "status": 200,
+        "statusText": "OK"
+      }
+    }
+  }
+}

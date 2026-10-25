@@ -1,41 +1,40 @@
-# Current task (reconciled 2026-10-25)
+# Current task — LP-2026-10-25 launch preparation
 
 ## Status
-- Owner-requested project/deployment/payment-readiness review: COMPLETE; product baseline `5b45bd7`.
-- Report: `docs/project-review-2026-10-25.md`; retained evidence: `docs/evidence/project-review-2026-10-25/`.
-- Verdict: do not launch unrestricted paid production yet. Remediation and a controlled pilot are proposed, not approved implementation scope.
-- Managed-service packages R1, R3, P1–P3, R2, R4 and R5 are merged. Tags: `phase-p1-complete`,
-  `phase-p2-complete`, `phase-p3-complete`, `phase-r4-complete`, `phase-r5-complete`. Not deployed.
-- Historical R5: 1812 tests passed/1 skipped, browser 30/30 on `0b9a1a2` (stand-in AI/captured mail).
-- Fresh review: isolated lockfile install; Prisma generation, tsc, lint and 53 focused tests passed.
-  Build environment-blocked (font network, then Turbopack port-bind EPERM); full DB/browser/provider suites not rerun.
-- Fresh audit: full tree 1 high/5 moderate affected package entries; production dependencies 1 high/3 moderate.
-- Manual Meta Business A visible reply is recorded on `905b4ca` (2026-10-25); Business B not retested.
-  Provider smoke suites not run; previous waiver is not a pass. Gmail delivery passed historically, not production-domain token-flow acceptance.
+- Owner requested current docs, flexible self-service subscriptions and dashboard/access/usability review.
+- Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
+- L0 documentation/requirements rebaseline COMPLETE. L1–L6 implementation NOT STARTED; criteria NOT RUN.
+- Next: L1.1 safe verification harness. No deployment/live charging/pilot is authorized by this reset.
+- Product baseline `5b45bd7`; prior audit commit `3066b33`. This documentation commit changes no product code.
+- Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
+- Base plus optional add-ons is the working offer; existing implemented capabilities/prices become data-managed.
+  New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
-## Next action
-1. Await owner selection of the proposed remediation/pilot milestone in the review; no implementation task is currently selected.
-2. Proposed first work: security patches, webhook redirect credentials, atomic reset, readiness/configuration/ingress,
-   disposable-test DB/PID safeguards, key rotation/deadlines, AI-scoring gates and real managed-customer journey.
-3. Before rollout: final candidate checks, actual deployment/proxy/sender/callback configuration, backup/restore,
-   rollback, capacity/alerts and explicit pilot scope. Billing comes after those prerequisites.
-4. Payment decisions: Ziyrak subscriptions versus customer payment collection, merchant company country, provider,
-   pricing/allowances, cancellation/refund/grace policy. Review assumes subscriptions only for planning.
+## Next actions
+1. Read PLAN's execution/verification/Git protocols and L1.1 criteria; inspect live Git/process topology.
+2. Create an isolated worktree/dependencies; state test-harness contract before code and write failing guard tests.
+3. Fence both DB URLs/disposable targets, owned PIDs and image identity before running cleanup/load tools.
+4. Continue eligible L1–L6 tasks in board order; unresolved provider/business choices stop only dependent work.
+5. L7 requires explicit rollout/live-money authorization after L6 evidence; do not start new channels/enterprise work.
+
+## Evidence and limits
+- `docs/project-review-2026-10-25.md` + retained `docs/evidence/project-review-2026-10-25/`: open F01–F16.
+- Prior fresh isolated install/generate/tsc/lint/53 focused tests passed; full DB/browser/provider NOT RERUN.
+  Build environment-blocked (font network then Turbopack bind EPERM), not a pass.
+- Historical R5: 1812 passed/1 skipped, browser 30/30 on `0b9a1a2`, stand-in AI/captured mail.
+- Meta A visible reply recorded on `905b4ca` (Oct25); B not retested; old waiver is not a pass.
+  One historical Gmail message is not production-sender verify/reset/invitation acceptance.
+- New dashboard findings D01–D11 are source-only. Billing is specified, not implemented. L0 ran no app/provider tests.
 
 ## Operational boundaries
-- Main's installed Next/eslint-config-next are 16.4.0 (lock 16.4.3); Puppeteer is 24.43.1 (lock 25.15.0).
-  Do not run dependency updates/builds in this possibly serving checkout; use isolated source/dependencies.
-- Review scratch: `/private/tmp/ziyrak-review-20261025-8aZznQ`; no DB or services were created for this review.
-- Prior owner cleanup is recorded in `5b45bd7`; do not assume archived worktrees/test databases still exist.
-- The Business A test used a temporary Meta callback/tunnel. Confirm its current target before live acceptance.
-- Never run the old loadtest script unchanged: unpaired DB URLs, name-based pkill, and stale-image reuse (review F08).
+- Main may serve a live worker. Installed Next/eslint-config-next16.4.0 vs lock16.4.3;
+  Puppeteer24.43.1 vs lock25.15.0 (Oct25 audit). Do not install/build here.
+- Review scratch: `/private/tmp/ziyrak-review-20261025-8aZznQ`; no DB/services created by docs review.
+- Never run old loadtest unchanged: unpaired DB URLs, broad pkill and stale-image reuse (F08).
+- Preserve port7700/live worker/remote-control tunnel. Confirm temporary Meta callback target before live checks.
+- Prior cleanup recorded in `5b45bd7`; do not assume old worktrees/DBs still exist or delete them automatically.
 
 ## Standing authorization retained (owner, 2026-10-23)
-Within an approved milestone, merge only with exact-head CI green and the required combined-build browser run green,
-then push main and recheck CI. This does not select the newly proposed remediation milestone or authorize rollout.
-Still stop for tags, deploys, releases, force-push, deleting DBs/worktrees/branches, new milestone/phase,
-real credential/mail actions, port 7700 and its live worker/remote-control topology.
-
-## Worker start command (owner terminal; only after selecting the next milestone)
-`cd ~/Development/Repos/JS/owly && CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude --model sonnet --settings '{"enabledPlugins":{"dart-flutter@dart-flutter":false}}'`
-Then `/loop /ziyrak continue`; stop with `touch .agent/STOP`.
+Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
+then push main/recheck CI when that standing instruction applies. This docs session performs only a local commit.
+Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.

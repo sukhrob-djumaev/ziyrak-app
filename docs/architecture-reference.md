@@ -13,7 +13,7 @@ Sections below retain the original numbered contracts and phase acceptance crite
 Descriptions of the original code state are dated **2026-09-14**. Requirements remain
 governing unless an explicit later decision is recorded; historical present-tense
 observations are not current status. Decision MS-2026-10-14 and P1–P3 explicitly
-amend the mapped contracts; consult the live plan and linked history.
+amend the mapped contracts. LP-2026-10-25 additionally selects bounded configurable subscriptions, entitlement admission and launch acceptance; see [launch roadmap](launch-roadmap-2026-10-25.md) and [billing contract](billing-and-entitlements-spec.md). Consult the live plan for current status.
 
 ## 0. Summary of Second-Pass Revisions
 

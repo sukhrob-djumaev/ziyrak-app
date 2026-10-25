@@ -152,15 +152,59 @@ interface SingleHopResult {
 
 const MAX_RESPONSE_BODY_BYTES = 1_000_000; // 1MB cap — a preview/test feature, never a bulk-transfer path
 
+class DeadlineError extends Error {
+  constructor(hostname: string, totalMs: number) {
+    super(`Request to "${hostname}" timed out after ${totalMs}ms`);
+    this.name = "DeadlineError";
+  }
+}
+
+/** F10: DNS resolution and the whole exchange share one deadline; neither gets a fresh timer per step. */
+function withDeadline<T>(work: Promise<T>, remainingMs: number, onTimeout: () => Error): Promise<T> {
+  if (remainingMs <= 0) return Promise.reject(onTimeout());
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(onTimeout()), remainingMs);
+    work.then(
+      (v) => (clearTimeout(timer), resolve(v)),
+      (e) => (clearTimeout(timer), reject(e))
+    );
+  });
+}
+
 async function performRequest(
   url: URL,
-  options: { method: string; headers?: Record<string, string>; body?: string; timeoutMs: number; includeResponseBody?: boolean }
+  options: {
+    method: string;
+    headers?: Record<string, string>;
+    body?: string;
+    deadlineAt: number;
+    totalMs: number;
+    includeResponseBody?: boolean;
+  }
 ): Promise<SingleHopResult> {
-  const records = await resolveAndValidate(url.hostname);
+  const timeoutError = () => new DeadlineError(url.hostname, options.totalMs);
+  const records = await withDeadline(resolveAndValidate(url.hostname), options.deadlineAt - Date.now(), timeoutError);
   const lookup = pinnedLookup(records);
   const transport = url.protocol === "https:" ? https : http;
+  const remaining = options.deadlineAt - Date.now();
+  if (remaining <= 0) throw timeoutError();
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const deadline: { timer?: ReturnType<typeof setTimeout> } = {};
+    let response: http.IncomingMessage | undefined;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline.timer);
+      fn();
+    };
+    const abort = (error: Error) =>
+      finish(() => {
+        response?.destroy();
+        req.destroy();
+        reject(error);
+      });
     const req = transport.request(
       {
         protocol: url.protocol,
@@ -170,40 +214,53 @@ async function performRequest(
         method: options.method,
         headers: options.headers,
         lookup,
-        timeout: options.timeoutMs,
+        timeout: remaining,
       },
       (res) => {
-        if (!options.includeResponseBody) {
-          res.resume(); // most callers only need status/headers, never the body
-          res.on("end", () => resolve({ status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers: res.headers }));
-          return;
-        }
-
+        response = res;
         const chunks: Buffer[] = [];
         let received = 0;
+        const done = () =>
+          finish(() =>
+            resolve({
+              status: res.statusCode ?? 0,
+              statusText: res.statusMessage ?? "",
+              headers: res.headers,
+              ...(options.includeResponseBody ? { body: Buffer.concat(chunks).toString("utf8") } : {}),
+            })
+          );
         res.on("data", (chunk: Buffer) => {
-          if (received >= MAX_RESPONSE_BODY_BYTES) return;
-          const remaining = MAX_RESPONSE_BODY_BYTES - received;
-          const slice = chunk.length > remaining ? chunk.subarray(0, remaining) : chunk;
-          chunks.push(slice);
-          received += slice.length;
+          if (settled) return;
+          const remainingBytes = MAX_RESPONSE_BODY_BYTES - received;
+          if (options.includeResponseBody && remainingBytes > 0) {
+            const slice = chunk.length > remainingBytes ? chunk.subarray(0, remainingBytes) : chunk;
+            chunks.push(slice);
+          }
+          received += chunk.length;
+          // Never drain past the cap: stop reading and report what the peer sent so far.
+          if (received >= MAX_RESPONSE_BODY_BYTES) {
+            res.destroy();
+            done();
+          }
         });
-        res.on("end", () =>
-          resolve({
-            status: res.statusCode ?? 0,
-            statusText: res.statusMessage ?? "",
-            headers: res.headers,
-            body: Buffer.concat(chunks).toString("utf8"),
-          })
-        );
+        res.on("end", done);
+        res.on("error", (e: Error) => abort(e));
+        res.resume(); // status/headers callers never need the body; flowing mode also feeds the byte cap above
       }
     );
-    req.on("timeout", () => req.destroy(new Error(`Request to "${url.hostname}" timed out after ${options.timeoutMs}ms`)));
-    req.on("error", reject);
+    // Armed only after transport.request() returned: it throws synchronously on an invalid
+    // header name/value or method, and a timer left armed then would fire into a dead promise.
+    // A dripping or stalled peer is cut off at the overall deadline, not per-socket idle time.
+    deadline.timer = setTimeout(() => abort(timeoutError()), remaining);
+    req.on("timeout", () => abort(timeoutError()));
+    req.on("error", (e) => abort(e));
     if (options.body) req.write(options.body);
     req.end();
   });
 }
+
+/** Headers that may follow a request to a different origin; everything else is caller-supplied and may carry credentials. */
+const CROSS_ORIGIN_SAFE_HEADERS = new Set(["accept", "user-agent"]);
 
 /**
  * Dispatches one outbound HTTP(S) request, SSRF-validated at every hop.
@@ -218,6 +275,7 @@ async function performRequest(
 export async function dispatchHttpRequest(targetUrl: string, options: DispatchOptions = {}): Promise<DispatchResult> {
   const maxRedirects = options.maxRedirects ?? 5;
   const timeoutMs = options.timeoutMs ?? 10000;
+  const deadlineAt = Date.now() + timeoutMs;
 
   let currentUrl: URL;
   try {
@@ -228,6 +286,7 @@ export async function dispatchHttpRequest(targetUrl: string, options: DispatchOp
 
   let method = options.method ?? "POST";
   let body = options.body;
+  let headers = options.headers;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     if (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") {
@@ -236,16 +295,31 @@ export async function dispatchHttpRequest(targetUrl: string, options: DispatchOp
 
     const response = await performRequest(currentUrl, {
       method,
-      headers: options.headers,
+      headers,
       body,
-      timeoutMs,
+      deadlineAt,
+      totalMs: timeoutMs,
       includeResponseBody: options.includeResponseBody,
     });
 
     const isRedirect = response.status >= 300 && response.status < 400;
     const location = response.headers.location;
     if (isRedirect && typeof location === "string") {
-      currentUrl = new URL(location, currentUrl);
+      const next = new URL(location, currentUrl);
+      // F02: never send over a weaker scheme than the caller asked for.
+      if (currentUrl.protocol === "https:" && next.protocol === "http:") {
+        throw new SSRFBlockedError(next.toString(), "redirect downgrades HTTPS to HTTP");
+      }
+      if (next.origin !== currentUrl.origin) {
+        // A credentialed call must not hand its headers, or replay its method and body, to another origin.
+        if (response.status === 307 || response.status === 308) {
+          throw new SSRFBlockedError(next.toString(), `cross-origin ${response.status} redirect would replay the request`);
+        }
+        headers = Object.fromEntries(
+          Object.entries(headers ?? {}).filter(([name]) => CROSS_ORIGIN_SAFE_HEADERS.has(name.toLowerCase()))
+        );
+      }
+      currentUrl = next;
       if (response.status !== 307 && response.status !== 308) {
         method = "GET";
         body = undefined;

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { NextRequest, NextResponse } from "next/server";
 import { requestPasswordReset } from "@/lib/identity/account-service";
 import { normalizeEmail } from "@/lib/identity/account-tokens";
@@ -14,7 +15,7 @@ import { getClientIp } from "@/lib/client-ip";
 const RESPONSE = { success: true, message: "If that address belongs to an account, a reset link is on its way." };
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
   const email = typeof body?.email === "string" ? body.email : "";
   const normalized = normalizeEmail(email);
   if (normalized && normalized.length <= 254) {

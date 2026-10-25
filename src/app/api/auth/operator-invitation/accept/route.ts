@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { acceptOperatorInvitation } from "@/lib/platform/access/operator-invitations";
 
 /**
@@ -13,7 +14,7 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
 };
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
   const result = await acceptOperatorInvitation({
     token: typeof body?.token === "string" ? body.token : "",
     signup: { username: body?.username, password: body?.password, ...(body?.name ? { name: body.name } : {}) },

@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Components whose versions must match (tests/unit/dependency-contract.test.ts).
+      next:
+        patterns: ["next", "eslint-config-next", "@next/*"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+      test-tooling:
+        patterns: ["vitest", "@vitest/*"]
+      security-patches:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

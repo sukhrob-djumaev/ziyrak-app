@@ -1,3 +1,4 @@
+import { readBoundedBody, PayloadTooLargeError, BodyDeadlineError } from "@/lib/http/bounded-body";
 import { NextRequest, NextResponse } from "next/server";
 import { metaCloudWhatsAppAdapter } from "@/lib/channels/meta-whatsapp-adapter";
 import { getMetaWebhookVerifyToken } from "@/lib/channels/meta-verify";
@@ -75,13 +76,14 @@ export async function POST(request: NextRequest) {
     if (!(await checkRateLimit(`meta-webhook:${clientIp}`, RATE_LIMITS.metaWebhook)).allowed) {
       return NextResponse.json({ status: "rate_limited" }, { status: 429 });
     }
-    const declaredLength = Number(request.headers.get("content-length"));
-    if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
-      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
-    }
-    const rawBody = Buffer.from(await request.arrayBuffer());
-    if (rawBody.byteLength > MAX_WEBHOOK_BODY_BYTES) {
-      return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+    // Streams and counts the body (chunked requests carry no Content-Length), preserving the exact bytes for the HMAC.
+    let rawBody: Buffer;
+    try {
+      rawBody = await readBoundedBody(request, MAX_WEBHOOK_BODY_BYTES);
+    } catch (error) {
+      if (error instanceof PayloadTooLargeError) return NextResponse.json({ status: "payload_too_large" }, { status: 413 });
+      if (error instanceof BodyDeadlineError) return NextResponse.json({ status: "request_timeout" }, { status: 408 });
+      throw error;
     }
     const headers: Record<string, string> = {};
     request.headers.forEach((value, key) => {

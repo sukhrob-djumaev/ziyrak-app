@@ -3,7 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  experimental: { agentUpgrade: "security" },
+  experimental: {
+    agentUpgrade: "security",
+    // F06: the proxy makes Next buffer every non-GET body before a route runs (default 10MB, twice).
+    // Cap it just above the largest route limit (Meta webhook 3MB = 3072kb) so a bigger body is truncated
+    // here and still trips that route's own 413 instead of being fully buffered first.
+    proxyClientMaxBodySize: "3073kb",
+  },
   serverExternalPackages: ["whatsapp-web.js", "puppeteer"],
   async headers() {
     return [

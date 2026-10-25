@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { completePasswordReset, passwordProblem } from "@/lib/identity/account-service";
 
 /** PLAN.md P3 — public. One generic answer for every invalid, expired, used or mismatched link. */
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
   const token = typeof body?.token === "string" ? body.token : "";
   const password = body?.password;
   const problem = passwordProblem(password);

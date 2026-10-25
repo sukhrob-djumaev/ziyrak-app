@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkCookieMutation } from "@/lib/http/mutation-guard";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyToken, verifyActiveToken } from "@/lib/identity/auth";
@@ -188,6 +189,22 @@ export async function proxy(request: NextRequest) {
       );
     }
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // L1.3: cookie-authenticated writes must be same-origin JSON (API-key calls carry no ambient cookie).
+  if (token && !apiKey && pathname.startsWith("/api/")) {
+    const verdict = checkCookieMutation({
+      method: request.method,
+      headers: request.headers,
+      host: request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host,
+    });
+    if (!verdict.ok) {
+      return addHeaders(
+        NextResponse.json({ error: { code: "FORBIDDEN_ORIGIN", message: "Request origin or content type not allowed", requestId } }, { status: 403 }),
+        requestId,
+        apiRateInfo
+      );
+    }
   }
 
   // API key auth is validated in route handlers (requireAuth), just pass through

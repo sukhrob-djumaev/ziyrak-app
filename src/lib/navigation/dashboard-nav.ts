@@ -34,7 +34,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Team",
     items: [
-      { name: "Team", href: "/team", icon: "team", requires: "team:read" },
+      { name: "Team Roster", href: "/team", icon: "team", requires: "team:read" },
       { name: "SLA Rules", href: "/sla", icon: "sla", requires: "sla:read" },
       { name: "Approvals", href: "/approvals", icon: "approvals", requires: "actions:read" },
     ],
@@ -56,7 +56,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "System",
     items: [
-      { name: "Administration", href: "/admin", icon: "admin", requires: "admin:read" },
+      { name: "People & Access", href: "/admin", icon: "admin", requires: "admin:read" },
       { name: "API Docs", href: "/api-docs", icon: "docs" },
       { name: "Settings", href: "/settings", icon: "settings", requires: "settings:read" },
       { name: "Switch workspace", href: "/workspaces", icon: "switch" },

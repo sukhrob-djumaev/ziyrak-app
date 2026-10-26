@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { submitJson } from "@/lib/http/submit-json";
+import { useToast } from "@/components/ui/toast";
+import { useCan } from "@/components/layout/permissions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,6 +86,7 @@ function WebhookModal({
 }) {
   const isEdit = !!webhook;
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(webhook?.name || "");
   const [description, setDescription] = useState(webhook?.description || "");
   const [url, setUrl] = useState(webhook?.url || "");
@@ -111,7 +115,10 @@ function WebhookModal({
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !url.trim()) return;
+    if (!name.trim() || !url.trim()) {
+      setError("Name and URL are required.");
+      return;
+    }
     setSaving(true);
 
     const headers: Record<string, string> = {};
@@ -121,27 +128,16 @@ function WebhookModal({
 
     const payload = { name, description, url, method, headers, triggerOn };
 
-    try {
-      if (isEdit) {
-        await fetch(`/api/webhooks/${webhook.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/webhooks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-      onSaved();
-      onClose();
-    } catch {
-      // silently fail
-    } finally {
-      setSaving(false);
-    }
+    setError(null);
+    const result = await submitJson(
+      isEdit ? `/api/webhooks/${webhook.id}` : "/api/webhooks",
+      isEdit ? "PUT" : "POST",
+      payload
+    );
+    setSaving(false);
+    if (!result.ok) return setError(result.message);
+    onSaved();
+    onClose();
   };
 
   return (
@@ -281,6 +277,12 @@ function WebhookModal({
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="mx-6 mb-3 rounded-lg border border-ziyrak-danger/30 bg-red-50 px-3 py-2 text-sm text-red-900">
+            {error}
+          </p>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-ziyrak-border">
           <button
@@ -418,6 +420,10 @@ function DeleteConfirm({
 // ---------------------------------------------------------------------------
 
 export default function WebhooksPage() {
+  const { toast } = useToast();
+  const canCreate = useCan("webhooks:create");
+  const canUpdate = useCan("webhooks:update");
+  const canDelete = useCan("webhooks:delete");
   const [webhooks, setWebhooks] = useState<WebhookData[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalWebhook, setModalWebhook] = useState<WebhookData | null | "new">(null);
@@ -444,17 +450,18 @@ export default function WebhooksPage() {
   }, [fetchWebhooks]);
 
   const handleToggleActive = async (wh: WebhookData) => {
-    await fetch(`/api/webhooks/${wh.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !wh.isActive }),
-    });
+    const result = await submitJson(`/api/webhooks/${wh.id}`, "PUT", { isActive: !wh.isActive });
+    if (!result.ok) toast({ type: "error", title: "Webhook was not changed", description: result.message });
     fetchWebhooks();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await fetch(`/api/webhooks/${deleteTarget.id}`, { method: "DELETE" });
+    const result = await submitJson(`/api/webhooks/${deleteTarget.id}`, "DELETE");
+    if (!result.ok) {
+      toast({ type: "error", title: "Webhook was not deleted", description: result.message });
+      return;
+    }
     setDeleteTarget(null);
     fetchWebhooks();
   };
@@ -482,7 +489,7 @@ export default function WebhooksPage() {
         title="Webhooks"
         description="Connect Ziyrak to external services"
         actions={
-          <button
+          canCreate && <button
             onClick={() => setModalWebhook("new")}
             className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
           >
@@ -541,13 +548,17 @@ export default function WebhooksPage() {
               <p className="text-sm text-ziyrak-text-light mb-4 max-w-md">
                 Webhooks let you send real-time notifications to external services when events occur in Ziyrak.
               </p>
-              <button
-                onClick={() => setModalWebhook("new")}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Add Your First Webhook
-              </button>
+              {canCreate ? (
+                <button
+                  onClick={() => setModalWebhook("new")}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Your First Webhook
+                </button>
+              ) : (
+                <p className="text-xs text-ziyrak-text-light">Your role can view webhooks but not add them. Ask a workspace owner or admin.</p>
+              )}
             </div>
           )}
 
@@ -620,6 +631,7 @@ export default function WebhooksPage() {
                         )}
                         Test
                       </button>
+{canUpdate && (
                       <button
                         onClick={() => handleToggleActive(wh)}
                         className={cn(
@@ -631,6 +643,8 @@ export default function WebhooksPage() {
                       >
                         {wh.isActive ? "Disable" : "Enable"}
                       </button>
+)}
+{canUpdate && (
                       <button
                         onClick={() => setModalWebhook(wh)}
                         className="p-1.5 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-bg rounded-lg transition-colors"
@@ -638,6 +652,8 @@ export default function WebhooksPage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
+)}
+{canDelete && (
                       <button
                         onClick={() => setDeleteTarget(wh)}
                         className="p-1.5 text-ziyrak-text-light hover:text-ziyrak-danger hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -645,6 +661,7 @@ export default function WebhooksPage() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
+)}
                     </div>
                   </div>
                 </div>

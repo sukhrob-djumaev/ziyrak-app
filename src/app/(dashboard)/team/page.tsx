@@ -2,6 +2,9 @@
 
 import { Header } from "@/components/layout/header";
 import { cn } from "@/lib/utils";
+import { submitJson } from "@/lib/http/submit-json";
+import { useToast } from "@/components/ui/toast";
+import { useCan } from "@/components/layout/permissions";
 import {
   Users,
   Building2,
@@ -94,11 +97,13 @@ function DepartmentForm({
   onSubmit,
   onCancel,
   loading,
+  error,
 }: {
   initial?: Department | null;
   onSubmit: (data: { name: string; description: string; email: string }) => void;
   onCancel: () => void;
   loading: boolean;
+  error?: string | null;
 }) {
   const [name, setName] = useState(initial?.name || "");
   const [description, setDescription] = useState(initial?.description || "");
@@ -111,6 +116,11 @@ function DepartmentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <p role="alert" className="rounded-lg border border-ziyrak-danger/30 bg-red-50 px-3 py-2 text-sm text-red-900">
+          {error}
+        </p>
+      )}
       <div>
         <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Name <span className="text-ziyrak-danger">*</span>
@@ -179,6 +189,7 @@ function MemberForm({
   onSubmit,
   onCancel,
   loading,
+  error,
 }: {
   initial?: Member | null;
   departments: Department[];
@@ -192,6 +203,7 @@ function MemberForm({
   }) => void;
   onCancel: () => void;
   loading: boolean;
+  error?: string | null;
 }) {
   const [name, setName] = useState(initial?.name || "");
   const [email, setEmail] = useState(initial?.email || "");
@@ -209,6 +221,11 @@ function MemberForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <p role="alert" className="rounded-lg border border-ziyrak-danger/30 bg-red-50 px-3 py-2 text-sm text-red-900">
+          {error}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
@@ -328,14 +345,21 @@ function DeleteConfirm({
   onConfirm,
   onCancel,
   loading,
+  error,
 }: {
   label: string;
   onConfirm: () => void;
   onCancel: () => void;
   loading: boolean;
+  error?: string | null;
 }) {
   return (
     <div className="space-y-4">
+      {error && (
+        <p role="alert" className="rounded-lg border border-ziyrak-danger/30 bg-red-50 px-3 py-2 text-sm text-red-900">
+          {error}
+        </p>
+      )}
       <p className="text-sm text-ziyrak-text">
         Are you sure you want to delete <strong>{label}</strong>? This action
         cannot be undone.
@@ -386,6 +410,11 @@ export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const canCreate = useCan("team:create");
+  const canUpdate = useCan("team:update");
+  const canDelete = useCan("team:delete");
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
 
@@ -404,6 +433,7 @@ export default function TeamPage() {
     id: string;
     label: string;
   } | null>(null);
+  useEffect(() => setFormError(null), [deptModal, memberModal, deleteModal]);
 
   // ---- Data fetching ----
 
@@ -449,23 +479,17 @@ export default function TeamPage() {
     email: string;
   }) => {
     setActionLoading(true);
-    try {
-      const isEdit = !!deptModal.editing;
-      const url = isEdit
-        ? `/api/team/departments/${deptModal.editing!.id}`
-        : "/api/team/departments";
-      const res = await fetch(url, {
-        method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        setDeptModal({ open: false, editing: null });
-        await fetchDepartments();
-      }
-    } finally {
-      setActionLoading(false);
-    }
+    setFormError(null);
+    const isEdit = !!deptModal.editing;
+    const result = await submitJson(
+      isEdit ? `/api/team/departments/${deptModal.editing!.id}` : "/api/team/departments",
+      isEdit ? "PUT" : "POST",
+      data
+    );
+    setActionLoading(false);
+    if (!result.ok) return setFormError(result.message);
+    setDeptModal({ open: false, editing: null });
+    await fetchDepartments();
   };
 
   // ---- Member CRUD ----
@@ -479,39 +503,29 @@ export default function TeamPage() {
     departmentId: string;
   }) => {
     setActionLoading(true);
-    try {
-      const isEdit = !!memberModal.editing;
-      const url = isEdit
-        ? `/api/team/members/${memberModal.editing!.id}`
-        : "/api/team/members";
-      const res = await fetch(url, {
-        method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        setMemberModal({ open: false, editing: null });
-        await Promise.all([fetchMembers(), fetchDepartments()]);
-      }
-    } finally {
-      setActionLoading(false);
-    }
+    setFormError(null);
+    const isEdit = !!memberModal.editing;
+    const result = await submitJson(
+      isEdit ? `/api/team/members/${memberModal.editing!.id}` : "/api/team/members",
+      isEdit ? "PUT" : "POST",
+      data
+    );
+    setActionLoading(false);
+    if (!result.ok) return setFormError(result.message);
+    setMemberModal({ open: false, editing: null });
+    await Promise.all([fetchMembers(), fetchDepartments()]);
   };
 
   const handleToggleAvailability = async (member: Member) => {
-    try {
-      await fetch(`/api/team/members/${member.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...member,
-          isAvailable: !member.isAvailable,
-        }),
-      });
-      await fetchMembers();
-    } catch (err) {
-      console.error("Failed to toggle availability:", err);
+    const result = await submitJson(`/api/team/members/${member.id}`, "PUT", {
+      ...member,
+      isAvailable: !member.isAvailable,
+    });
+    if (!result.ok) {
+      toast({ type: "error", title: "Availability was not changed", description: result.message });
+      return;
     }
+    await fetchMembers();
   };
 
   // ---- Delete ----
@@ -519,19 +533,17 @@ export default function TeamPage() {
   const handleDelete = async () => {
     if (!deleteModal) return;
     setActionLoading(true);
-    try {
-      const url =
-        deleteModal.type === "department"
-          ? `/api/team/departments/${deleteModal.id}`
-          : `/api/team/members/${deleteModal.id}`;
-      const res = await fetch(url, { method: "DELETE" });
-      if (res.ok) {
-        setDeleteModal(null);
-        await Promise.all([fetchDepartments(), fetchMembers()]);
-      }
-    } finally {
-      setActionLoading(false);
-    }
+    setFormError(null);
+    const result = await submitJson(
+      deleteModal.type === "department"
+        ? `/api/team/departments/${deleteModal.id}`
+        : `/api/team/members/${deleteModal.id}`,
+      "DELETE"
+    );
+    setActionLoading(false);
+    if (!result.ok) return setFormError(result.message);
+    setDeleteModal(null);
+    await Promise.all([fetchDepartments(), fetchMembers()]);
   };
 
   // ---- Filtering ----
@@ -560,8 +572,8 @@ export default function TeamPage() {
   return (
     <>
       <Header
-        title="Team"
-        description="Manage departments and team members"
+        title="Team roster"
+        description="Who can be assigned work, and their departments. This is not a list of login accounts: people who can sign in are managed under Administration."
       />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
@@ -620,6 +632,7 @@ export default function TeamPage() {
               />
             </div>
 
+{canCreate && (
             <button
               onClick={() => {
                 if (activeTab === "departments") {
@@ -633,6 +646,7 @@ export default function TeamPage() {
               <Plus className="h-4 w-4" />
               {activeTab === "departments" ? "Add Department" : "Add Member"}
             </button>
+)}
           </div>
         </div>
 
@@ -657,7 +671,7 @@ export default function TeamPage() {
                     ? "Try a different search term."
                     : "Create your first department to organize your team."}
                 </p>
-                {!search && (
+                {!search && canCreate && (
                   <button
                     onClick={() =>
                       setDeptModal({ open: true, editing: null })
@@ -692,6 +706,7 @@ export default function TeamPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+{canUpdate && (
                         <button
                           onClick={() =>
                             setDeptModal({ open: true, editing: dept })
@@ -701,6 +716,8 @@ export default function TeamPage() {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
+)}
+{canDelete && (
                         <button
                           onClick={() =>
                             setDeleteModal({
@@ -715,6 +732,7 @@ export default function TeamPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+)}
                       </div>
                     </div>
 
@@ -755,7 +773,7 @@ export default function TeamPage() {
                       ? "Create a department first, then add team members."
                       : "Add your first team member to get started."}
                 </p>
-                {!search && !filterDept && departments.length > 0 && (
+                {!search && !filterDept && departments.length > 0 && canCreate && (
                   <button
                     onClick={() =>
                       setMemberModal({ open: true, editing: null })
@@ -861,6 +879,8 @@ export default function TeamPage() {
                               onClick={() =>
                                 handleToggleAvailability(member)
                               }
+                              disabled={!canUpdate}
+                              title={canUpdate ? undefined : "Your role can view availability but not change it"}
                               className={cn(
                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
                                 member.isAvailable
@@ -883,6 +903,7 @@ export default function TeamPage() {
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <div className="flex items-center justify-end gap-1">
+{canUpdate && (
                               <button
                                 onClick={() =>
                                   setMemberModal({
@@ -895,6 +916,8 @@ export default function TeamPage() {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </button>
+)}
+{canDelete && (
                               <button
                                 onClick={() =>
                                   setDeleteModal({
@@ -909,6 +932,7 @@ export default function TeamPage() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+)}
                             </div>
                           </td>
                         </tr>
@@ -934,6 +958,7 @@ export default function TeamPage() {
           onSubmit={handleDeptSubmit}
           onCancel={() => setDeptModal({ open: false, editing: null })}
           loading={actionLoading}
+          error={formError}
         />
       </Modal>
 
@@ -948,6 +973,7 @@ export default function TeamPage() {
           onSubmit={handleMemberSubmit}
           onCancel={() => setMemberModal({ open: false, editing: null })}
           loading={actionLoading}
+          error={formError}
         />
       </Modal>
 
@@ -965,6 +991,7 @@ export default function TeamPage() {
           onConfirm={handleDelete}
           onCancel={() => setDeleteModal(null)}
           loading={actionLoading}
+          error={formError}
         />
       </Modal>
     </>

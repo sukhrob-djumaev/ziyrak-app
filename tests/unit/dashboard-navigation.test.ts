@@ -28,7 +28,7 @@ describe("dashboard navigation", () => {
   });
   it("viewers do not see Channels, Webhooks, Activity Log, Canned Responses, Approvals, Administration or Settings", () => {
     const v = names("viewer");
-    for (const hidden of ["Channels", "Webhooks", "Activity Log", "Canned Responses", "Approvals", "Administration", "Settings"]) expect(v, hidden).not.toContain(hidden);
+    for (const hidden of ["Channels", "Webhooks", "Activity Log", "Canned Responses", "Approvals", "People & Access", "Settings"]) expect(v, hidden).not.toContain(hidden);
     for (const shown of ["Dashboard", "Conversations", "Customers", "Tickets", "Knowledge Base", "Analytics", "Switch workspace"]) expect(v, shown).toContain(shown);
   });
   it("agents see Canned Responses but not Channels, Webhooks or Activity Log", () => {
@@ -39,7 +39,7 @@ describe("dashboard navigation", () => {
   it("supervisors see Channels, Webhooks, Activity Log and Approvals but not Administration or Settings", () => {
     const s = names("supervisor");
     for (const shown of ["Channels", "Webhooks", "Activity Log", "Approvals"]) expect(s, shown).toContain(shown);
-    for (const hidden of ["Administration", "Settings"]) expect(s, hidden).not.toContain(hidden);
+    for (const hidden of ["People & Access", "Settings"]) expect(s, hidden).not.toContain(hidden);
   });
   it("owners and admins see everything", () => {
     const all = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.name));

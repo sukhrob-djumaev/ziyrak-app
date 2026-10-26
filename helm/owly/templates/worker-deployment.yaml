@@ -42,7 +42,7 @@ spec:
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["npx", "prisma", "migrate", "deploy"]
+          command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
             - configMapRef:
                 name: {{ include "owly.fullname" . }}
@@ -62,7 +62,7 @@ spec:
         - name: {{ .Chart.Name }}-worker
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node", "--import", "tsx", "src/worker.ts"]
+          command: ["node", "--enable-source-maps", "dist/worker.cjs"]
           envFrom:
             - configMapRef:
                 name: {{ include "owly.fullname" . }}

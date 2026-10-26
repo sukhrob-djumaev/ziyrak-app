@@ -164,7 +164,7 @@ async function checkRealtime(db: Client) {
 
   // Hold the widget's SSE stream on replica B; the assistant reply is produced by a worker process.
   const controller = new AbortController();
-  const stream = await fetch(`${replica(1)}/api/channels/webchat/${seed.connectionId}/stream?token=${encodeURIComponent(seed.token)}&conversationId=${conversationId}`, {
+  const stream = await fetch(`${replica(1)}/api/channels/webchat/${seed.connectionId}/stream?token=${encodeURIComponent(seed.token)}&conversationId=${conversationId}&visitorId=${encodeURIComponent(`visitor-${conversationId}`)}`, {
     headers: { origin: seed.origin },
     signal: controller.signal,
   });

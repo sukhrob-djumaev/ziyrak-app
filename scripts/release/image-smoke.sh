@@ -17,10 +17,12 @@ worker="$net-worker"
 token="smoke-health-token-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n')"
 fail() { echo "SMOKE FAIL: $*" >&2; exit 1; }
 cleanup() {
-  for c in "$web" "$worker" "$db" "$net-bad"; do docker rm -f "$c" >/dev/null 2>&1 || true; done
+  for c in "$web" "$worker" "$db" "$net-bad"; do docker rm -f -v "$c" >/dev/null 2>&1 || true; done
   docker network rm "$net" >/dev/null 2>&1 || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 dburl="postgresql://postgres:smoke@$db:5432/ziyrak_smoke?schema=public"
 common_env="-e NODE_ENV=production -e DATABASE_URL=$dburl -e DIRECT_DATABASE_URL=$dburl \
@@ -31,7 +33,7 @@ common_env="-e NODE_ENV=production -e DATABASE_URL=$dburl -e DIRECT_DATABASE_URL
 
 echo "== image contents"
 docker image inspect "$image" --format 'size: {{.Size}} bytes' || fail "image not found: $image"
-docker run --rm --entrypoint sh "$image" -c '
+docker run --rm -e WITH_BROWSER_EXPECTED="${WITH_BROWSER_EXPECTED:-false}" --entrypoint sh "$image" -c '
   test -f dist/worker.cjs || { echo "dist/worker.cjs is missing"; exit 1; }
   test ! -d src || { echo "TypeScript source (src/) is shipped"; exit 1; }
   # (typescript is a runtime dependency of the Prisma packages, so it is not on this list.)
@@ -50,7 +52,7 @@ printf '%s' "$out" | grep -q "SECRET_KEY_V<n>" || fail "contract output missing 
 
 echo "== infrastructure"
 docker network create "$net" >/dev/null
-docker run -d --name "$db" --network "$net" -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=ziyrak_smoke postgres:16-alpine >/dev/null
+docker run -d --name "$db" --network "$net" --tmpfs /var/lib/postgresql/data -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=ziyrak_smoke postgres:16-alpine >/dev/null
 i=0; until docker exec "$db" pg_isready -U postgres -d ziyrak_smoke >/dev/null 2>&1; do i=$((i+1)); [ $i -gt 60 ] && fail "postgres did not start"; sleep 1; done
 
 echo "== web (migrations + server under the strict contract)"
@@ -75,7 +77,11 @@ done
 printf '%s' "$detail" | grep -q "\"sha\":\"$expected_sha\"" || fail "build identity mismatch (expected $expected_sha): $detail"
 docker exec "$worker" node -e "const f=process.env.WORKER_HEARTBEAT_FILE||require('os').tmpdir()+'/ziyrak-worker-heartbeat';process.exit(Date.now()-require('fs').statSync(f).mtimeMs<60000?0:1)" || fail "worker heartbeat file probe failed"
 # The public (no token) answer must not carry fingerprinting detail.
-curl -fsS "$base/api/health" | grep -q '"build"' && fail "public health leaks build detail"
+pub="$(curl -fsS "$base/api/health")" || fail "public health unreachable"
+printf '%s' "$pub" | grep -q '"status"' || fail "public health answer is not the expected shape: $pub"
+for k in build sha queue memory uptime; do
+  printf '%s' "$pub" | grep -q "\"$k\"" && fail "public health leaks \"$k\": $pub"
+done
 
 echo "== graceful stop"
 docker stop -t 45 "$worker" >/dev/null

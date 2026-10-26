@@ -4,7 +4,7 @@ What it takes to ship, run, recover and wind down Ziyrak. Written from what the 
 
 ## 1. Release identity and promotion
 
-- **One image, built once, tested as built, promoted by digest.** CI builds the image from the commit (`APP_BUILD_SHA` = the commit SHA), runs `scripts/release/image-smoke.sh` against *that image* (strict production configuration, web + worker + a real Postgres), and scans it. The publish workflow repeats build → smoke → scan for the release commit and pushes **the image it just tested**; the pushed digest is printed in the job summary. Deploy by digest (`image@sha256:...`), not by mutable tag.
+- **One image, built once, tested as built, promoted by digest.** CI builds the image from the commit (`APP_BUILD_SHA` = the commit SHA), runs `scripts/release/image-smoke.sh` against *that image* (strict production configuration, web + worker + a real Postgres), and scans it. The publish workflow repeats build → smoke → scan for the release commit and pushes **the image it just tested**; the pushed digest is printed in the job summary. Deploy by digest: set `image.digest` (`sha256:...`) in the Helm values; it wins over `image.tag`. Publishing is allowed only from a release tag or `main`, for a commit whose push-to-main CI run completed successfully. The scanner reads a saved copy of the image and never receives the Docker socket.
 - The smoke test proves, on the image itself: the worker refuses an incomplete production configuration; web migrates and becomes live and ready; the worker heartbeat turns `ok`; the reported build SHA equals the commit; the public health answer leaks nothing; the worker stops cleanly on SIGTERM; and no development or demo weight is shipped (no `src/`, `tsx`, test tooling, or Chromium unless built with `--build-arg WITH_BROWSER=true`).
 - What runs in production is therefore identifiable: `/api/health` with the operator token shows `build.sha`.
 - **Not done by a pipeline step (needs owner authorization):** publishing to a registry, tagging a release, deploying, DNS or sender changes.
@@ -14,7 +14,7 @@ What it takes to ship, run, recover and wind down Ziyrak. Written from what the 
 Rollback means **redeploying the previous image digest against the newer schema**. Therefore:
 
 - Migrations are **expand/contract**. A release's migration must be compatible with the previous app version: add nullable or defaulted columns and new tables; do not drop, rename, retype or tighten in the same release. Remove what is no longer used in a **later** release, after the previous version can no longer be rolled back to.
-- `tests/unit/migration-compat.test.ts` enforces this. A migration that drops, renames, retypes, tightens, deletes data, or adds a required column without a default fails the test unless the file carries `-- contract-migration: <reason>` (a reviewed, deliberate decision). Two early Phase 1 migrations are grandfathered.
+- `tests/unit/migration-compat.test.ts` is a pattern guard for this (not a SQL parser). For every migration added after `20261026030000`, a statement that drops, renames, retypes, tightens, adds a constraint or unique index on an existing table, rewrites data, deletes data, or adds a required column without a default fails the test unless the line directly above that statement is `-- contract-migration: <reason>`. Approval covers that one statement only. Reviewers still read every migration: the guard catches common forms, not all of them.
 - Migrations run before the app starts (init container / image start command) using the **direct** database URL, never a transaction pooler.
 - **Roll back the app:** deploy the previous digest. The newer schema stays. This is safe only because of the rule above.
 - **Roll back the data:** a destructive or incorrect data change is recovered from backup (section 3), not by running migrations backwards. There are no down migrations.
@@ -23,8 +23,8 @@ Rollback means **redeploying the previous image digest against the newer schema*
 ## 3. Backup and restore drill
 
 - **Backups: INPUT NEEDED.** The repository does not take backups. Use the managed database's point-in-time recovery or scheduled `pg_dump`, stored away from the database host, with restricted access. Decide the **RPO** (how much data you can lose) and **RTO** (how long recovery may take) and record them in the table below.
-- **Rehearse restoring** with `SOURCE_DATABASE_URL=... scripts/ops/restore-drill.sh`. It dumps the source read-only, restores into a throwaway Postgres, compares the row count of every table, checks the migration state, and prints the elapsed time.
-- First recorded drill (2026-10-26, isolated test database, local Docker): 132 tables restored, **0 mismatches**, dump + restore **9 s**, restored database at the same 29 migrations as the checkout. This proves the procedure and the script, not production restore time or size. **Repeat on a production-sized copy and record the result.**
+- **Rehearse restoring** with `SOURCE_DATABASE_URL=... scripts/ops/restore-drill.sh`. It dumps the source read-only, restores into a throwaway Postgres whose data is in memory (no Docker volume is left behind), compares the row count of every `public` table, compares the restored migration history with this checkout, and prints the elapsed time. The dump is a temporary file; use an encrypted disk for real data. Counts are a smoke check, not proof of content integrity. Run it against a snapshot or a quiet database.
+- First recorded drill (2026-10-26, isolated test database, local Docker): 60 application tables (schema public) restored, **0 mismatches**, dump + restore **3 s**, restored database at the same 29 migrations as the checkout. This proves the procedure and the script, not production restore time or size. **Repeat on a production-sized copy and record the result.**
 - Also rehearse: restoring with the previous image digest (rollback) and with a rotated encryption key set (the old key must still be available for old ciphertext).
 
 | Item | Value |
@@ -32,7 +32,7 @@ Rollback means **redeploying the previous image digest against the newer schema*
 | RPO target | INPUT NEEDED |
 | RTO target | INPUT NEEDED |
 | Backup mechanism and location | INPUT NEEDED |
-| Last drill date / source size / elapsed | 2026-10-26 / test database / 9 s (script check only) |
+| Last drill date / source size / elapsed | 2026-10-26 / test database / 3 s (script check only) |
 
 ## 4. Retention, deletion and offboarding
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PERMISSIONS, ROLES, hasPermission, type Permission } from "@/lib/rbac/rbac";
 import { permissionsForRole } from "@/lib/rbac/view";
-import { NAV_SECTIONS, visibleNavigation } from "@/lib/navigation/dashboard-nav";
+import { NAV_SECTIONS, visibleNavigation, permissionForPath } from "@/lib/navigation/dashboard-nav";
 
 /** L3.1 / D01: what the sidebar shows is derived from the same permission table the APIs enforce. */
 const names = (role: string) => visibleNavigation(permissionsForRole(role)).flatMap((s) => s.items.map((i) => i.name));
@@ -48,5 +48,22 @@ describe("dashboard navigation", () => {
   });
   it("drops a section whose items are all hidden", () => {
     expect(visibleNavigation(permissionsForRole("viewer")).every((s) => s.items.length > 0)).toBe(true);
+  });
+});
+
+describe("direct URL requirement", () => {
+  it("maps every restricted nav path, and sub-paths, to its permission", () => {
+    for (const s of NAV_SECTIONS) for (const i of s.items) {
+      if (!i.requires) continue;
+      expect(permissionForPath(i.href)?.permission, i.href).toBe(i.requires);
+      expect(permissionForPath(i.href + "/anything")?.permission, i.href + "/x").toBe(i.requires);
+    }
+  });
+  it("lets open pages through and does not confuse prefixes", () => {
+    expect(permissionForPath("/")).toBeNull();
+    expect(permissionForPath("/account")).toBeNull();
+    expect(permissionForPath("/workspaces")).toBeNull();
+    expect(permissionForPath("/api-docs")).toBeNull();
+    expect(permissionForPath("/customers-export")).toBeNull();
   });
 });

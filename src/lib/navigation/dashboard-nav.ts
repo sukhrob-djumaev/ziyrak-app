@@ -69,3 +69,14 @@ export function visibleNavigation(permissions: readonly Permission[]): NavSectio
   const held = new Set<Permission>(permissions);
   return NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => !i.requires || held.has(i.requires)) })).filter((s) => s.items.length > 0);
 }
+
+/** The permission a dashboard path needs (longest matching nav entry), or null when any member may open it. */
+export function permissionForPath(pathname: string): { permission: Permission; name: string } | null {
+  let best: NavItem | null = null;
+  for (const s of NAV_SECTIONS)
+    for (const i of s.items) {
+      const match = i.href === "/" ? pathname === "/" : pathname === i.href || pathname.startsWith(i.href + "/");
+      if (match && (!best || i.href.length > best.href.length)) best = i;
+    }
+  return best?.requires ? { permission: best.requires, name: best.name } : null;
+}

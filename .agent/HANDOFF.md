@@ -1,7 +1,7 @@
-# Latest handoff — L1.2/L1.3 in review, 2026-10-26
+# Latest handoff — L1.1-L1.3 merged, 2026-10-26
 
-- Merged: L1.1 (PR #36). Open PRs: #37 L1.2 (CI green, browser run blocked by Mac sleep), #38 L1.3 draft (CI pending).
-- L1.2: dependency patches + Prisma alignment, redirect credential policy, whole-operation deadlines/body caps, bounded inbound bodies, Next proxy body cap. Review found a worker-crash regression (fixed) and the proxy buffering issue (fixed).
-- L1.3: atomic reset, key discovery/rotation helper, log redaction, same-origin JSON policy (cookie writes + /api/auth), signup ceilings, platform TOTP MFA (optional by default; `ZIYRAK_PLATFORM_MFA=required` to enforce), audited reset, enrollment route.
-- Harness lessons: J19 is single-use per DB (rotates a token) and needs REDIS_URL from the start; run on AC power; Chrome via CHROMIUM_PATH (Chrome for Testing download blocked); GitGuardian flagged fake test credentials (dismissed by owner).
-- Do next: rerun browser suite when the Mac stays awake; merge #37 then rebase/merge #38; then L1.4 (quality evidence) or L2.1 (runtime contract). Never run default DB env: always use the isolated 55433 Postgres.
+- Merged: L1.1 (#36), L1.2 (#37), L1.3 (#38). Each had exact-head CI green; L1.2 and L1.3 also a 30/30 combined-build browser run (on the exact head, AC power).
+- L1.3 delivered: atomic reset, key discovery/rotation, log redaction, same-origin JSON policy (cookie writes + /api/auth), signup ceilings, platform TOTP MFA (optional by default) with super-admin setup code (owner decision A), audited reset.
+- Harness lessons: run on AC power; J19 single-use per DB and needs REDIS_URL; J20 needs synthetic platform proofs (ACC_PLATFORM_* and the SHA256 hashes in web/worker env) from the start; system Chrome via CHROMIUM_PATH.
+- Local full test runs are slow/flaky while the Mac sleeps; GitHub CI is the verifier. Always use the isolated Postgres on 55433, never the default env.
+- Do next: L1.4 deterministic scorer regressions (real-model eval may block on credentials), then L2.1 runtime/readiness contract (TRUSTED_PROXY_HOPS, health, worker heartbeat, Helm).

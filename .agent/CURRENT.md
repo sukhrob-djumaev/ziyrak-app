@@ -5,20 +5,19 @@
 - Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
 - L0 and continuation preparation COMPLETE. L1–L6 product implementation NOT STARTED; criteria NOT RUN.
 - L1.1 safe verification harness MERGED (PR #36, `9f9b4ec`, CI green on head `bc15eaa`; no browser trigger: tooling-only). Residuals: DB ownership is name+local host+env (no in-DB marker); load check `realtime cross-replica` FAILS (unbaselined, owner of L2.1/F-triage); fence CLI proven only in the rehearsal. Record: `docs/evidence/l1.1-safe-verification-harness-2026-10-25.md`.
-- L1.2 (PR #37, head `4660de4`, CI green on code head `6e8ddbb`): implemented + independently reviewed; NOT merged: combined-build browser run incomplete.
-  Run 3 passed j01-j10 then stalled (Mac "Maintenance Sleep" every ~16 min on battery; caffeinate ineffective). Record:
-  `docs/evidence/l1.2-dependencies-http-boundaries-2026-10-25.md` (on the PR branch).
-- L1.3 (draft PR #38, branch `fix/l1-3-account-secret-safety`): F03/F09/F16, mutation origin policy, signup ceilings, platform TOTP MFA (default optional) implemented + reviewed;
-  CI/browser pending. Record on the branch: `docs/evidence/l1.3-account-secret-safety-2026-10-26.md`. Open: first-enrollment proof, TRUSTED_PROXY_HOPS contract, MFA enrollment UI.
-- Active checkouts: /Users/sukhrob/Development/Repos/JS/owly-l1-2 (L1.2), /Users/sukhrob/Development/Repos/JS/owly-l1-3 (L1.3); owly-l1-1 is merged (remove when convenient).
-- Task-owned resources: docker `ziyrak-l11-pg` (127.0.0.1:55433), `ziyrak-l12-redis` (127.0.0.1:56379); DBs `ziyrak_acceptance_l12`, `_l12b`, `_l12c`; scratch `/private/tmp/ziyrak-l12-acc*`.
+- L1.2 MERGED (PR #37, `5b67aae`): exact-head CI green + combined-build browser 30/30 on `4660de4`. Record: `docs/evidence/l1.2-dependencies-http-boundaries-2026-10-25.md`.
+- L1.3 MERGED (PR #38, `6249869`): CI green + browser 30/30 on `995d496`. Record: `docs/evidence/l1.3-account-secret-safety-2026-10-26.md`.
+  Open from L1.3: MFA is `optional` by default (set `ZIYRAK_PLATFORM_MFA=required` only after the enrollment UI + journey exist); `TRUSTED_PROXY_HOPS` edge contract (L2.1);
+  per-account TOTP lockout/alerting; no browser journey for enrollment. Owner decision recorded: first enrollment needs a super-admin setup code (or owner proof for the first super admin).
+- Next: L1.4 (trustworthy quality evidence), then L2.1. Browser runs need the Mac on AC power and awake (battery Maintenance Sleep stalls runs).
+- Task-owned leftovers (remove with owner OK): docker `ziyrak-l11-pg` (127.0.0.1:55433), `ziyrak-l12-redis` (127.0.0.1:56379); DBs `ziyrak_acceptance_l12*`, `ziyrak_acceptance_l13a`; worktrees owly-l1-1/-l1-2/-l1-3; scratch `/private/tmp/ziyrak-l1*-acc*`.
 - Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
 - Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
 ## Next actions
-0. USER ACTION: run the Mac on AC + awake (lid open or `sudo pmset -a disablesleep 1`), then rerun the full browser suite on a fresh `ziyrak_acceptance_*` DB with `REDIS_URL` set (L1.2 head first; L1.3 after) and merge when CI + browser are green.
+0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.
 1. Run/read the read-only preflight; read HANDOFF, the L1.1 packet and PLAN protocols; inspect Git/topology.
 2. Create an isolated task worktree; record its absolute path/branch here before edits, then install/test in isolation.
 3. Fence both DB URLs/disposable targets, owned PIDs and image identity before running cleanup/load tools.

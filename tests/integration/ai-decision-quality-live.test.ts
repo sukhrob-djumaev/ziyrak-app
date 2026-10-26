@@ -26,7 +26,7 @@ import { jobQueue } from "@/lib/jobs/queue";
 import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
 import { acquirePolicyLock, releasePolicyLock } from "../helpers/policy-lock";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
-import { scoreTurn, summarize, type Turn, type TurnScore } from "../helpers/r2-scoring";
+import { scoreTurn, evaluateGate, type Turn, type TurnScore } from "../helpers/r2-scoring";
 
 interface Case {
   id: string;
@@ -39,7 +39,7 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = process.env.R2_SET === "evaluation" ? "evaluation" : "development";
+const setName = process.env.R2_SET === "evaluation" ? "evaluation" : process.env.R2_SET === "holdout" ? "holdout" : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");
@@ -111,15 +111,22 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
         }
       }
     }
-    const lines = summarize(results);
+    // L1.4: gate on a complete run (repetitions, one observation per planned turn, enough evaluable turns per category).
+    const gate = evaluateGate(
+      results.map((r) => ({ category: r.category, id: r.id, rep: r.rep, turn: r.turn, score: r.score })),
+      cases.map((c) => ({ id: c.id, category: c.category, turns: c.turns.length })),
+      { reps }
+    );
+    const lines = gate.lines;
     const out = {
       set: setName, reps, provider: "openai", model, policies: policyVersions, at: new Date().toISOString(),
+      valid: gate.valid, problems: gate.problems,
       inconclusive: results.filter((r) => r.score.inconclusive).length, turns: results.length, summary: lines,
       failures: results.filter((r) => !r.score.pass && !r.score.inconclusive).map((r) => ({ id: r.id, rep: r.rep, turn: r.turn, reply: r.reply.slice(0, 300), score: r.score })),
     };
     if (process.env.R2_OUT) writeFileSync(process.env.R2_OUT, JSON.stringify(out, null, 2));
     console.log(JSON.stringify({ ...out, failures: out.failures.length }, null, 2));
-    // Only the frozen evaluation set gates; the development set is for tuning.
-    if (setName === "evaluation") expect(lines.filter((l) => !l.met)).toEqual([]);
+    // Only the frozen sets (evaluation, holdout) gate; the development set is for tuning.
+    if (setName !== "development") expect(gate.problems).toEqual([]);
   }, 3_600_000);
 });

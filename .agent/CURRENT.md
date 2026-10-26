@@ -5,17 +5,20 @@
 - Selected roadmap: PLAN live board → `docs/launch-roadmap-2026-10-25.md` (L0–L7).
 - L0 and continuation preparation COMPLETE. L1–L6 product implementation NOT STARTED; criteria NOT RUN.
 - L1.1 safe verification harness MERGED (PR #36, `9f9b4ec`, CI green on head `bc15eaa`; no browser trigger: tooling-only). Residuals: DB ownership is name+local host+env (no in-DB marker); load check `realtime cross-replica` FAILS (unbaselined, owner of L2.1/F-triage); fence CLI proven only in the rehearsal. Record: `docs/evidence/l1.1-safe-verification-harness-2026-10-25.md`.
-- Next: L1.2 dependencies and HTTP boundaries (new isolated worktree). No deployment/live charging/pilot is authorized by this reset.
-- Baselines: product `5b45bd7`, audit `3066b33`, docs rebaseline `01a275d`. Workflow helpers changed; product did not.
-- Task packet: `docs/tasks/l1.1-safe-verification-harness.md`
-- Active checkout: none (L1.1 merged; owly-l1-1 worktree may be removed after confirmation)
-- Active branch: none
+- L1.2 (PR #37, head `4660de4`, CI green on code head `6e8ddbb`): implemented + independently reviewed; NOT merged: combined-build browser run incomplete.
+  Run 3 passed j01-j10 then stalled (Mac "Maintenance Sleep" every ~16 min on battery; caffeinate ineffective). Record:
+  `docs/evidence/l1.2-dependencies-http-boundaries-2026-10-25.md` (on the PR branch).
+- L1.3 (draft PR #38, branch `fix/l1-3-account-secret-safety`): F03/F09/F16, mutation origin policy, signup ceilings, platform TOTP MFA (default optional) implemented + reviewed;
+  CI/browser pending. Record on the branch: `docs/evidence/l1.3-account-secret-safety-2026-10-26.md`. Open: first-enrollment proof, TRUSTED_PROXY_HOPS contract, MFA enrollment UI.
+- Active checkouts: /Users/sukhrob/Development/Repos/JS/owly-l1-2 (L1.2), /Users/sukhrob/Development/Repos/JS/owly-l1-3 (L1.3); owly-l1-1 is merged (remove when convenient).
+- Task-owned resources: docker `ziyrak-l11-pg` (127.0.0.1:55433), `ziyrak-l12-redis` (127.0.0.1:56379); DBs `ziyrak_acceptance_l12`, `_l12b`, `_l12c`; scratch `/private/tmp/ziyrak-l12-acc*`.
 - Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
 - Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
 ## Next actions
+0. USER ACTION: run the Mac on AC + awake (lid open or `sudo pmset -a disablesleep 1`), then rerun the full browser suite on a fresh `ziyrak_acceptance_*` DB with `REDIS_URL` set (L1.2 head first; L1.3 after) and merge when CI + browser are green.
 1. Run/read the read-only preflight; read HANDOFF, the L1.1 packet and PLAN protocols; inspect Git/topology.
 2. Create an isolated task worktree; record its absolute path/branch here before edits, then install/test in isolation.
 3. Fence both DB URLs/disposable targets, owned PIDs and image identity before running cleanup/load tools.

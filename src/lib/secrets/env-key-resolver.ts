@@ -7,7 +7,7 @@ const IV_LENGTH = 12;
 /**
  * Default SecretResolver implementation: keys come from versioned environment
  * variables (SECRET_KEY_V1, SECRET_KEY_V2, ...), never a hardcoded or single
- * eternal key. The current version is the highest SECRET_KEY_V<n> that is set;
+ * eternal key. The current version is the highest SECRET_KEY_V<n> that is set (or SECRET_KEY_ACTIVE_VERSION);
  * encrypt() always uses it, decrypt() looks up whichever version a given
  * payload was encrypted under, and rotate() re-encrypts under the current one.
  *
@@ -24,15 +24,31 @@ export class EnvKeySecretResolver implements SecretResolver {
     this.currentVersion = this.detectCurrentVersion();
   }
 
+  /**
+   * F09: versions are discovered from the environment (any SECRET_KEY_V<positive integer> with a value), so a
+   * retired V1 or sparse versions work. The active version is the highest configured one unless
+   * SECRET_KEY_ACTIVE_VERSION names a configured version (stage a new key before using it, or roll back).
+   * Keep an old key configured only while ciphertext under it still exists; `rotate()` re-encrypts onto the active key.
+   */
   private detectCurrentVersion(): number {
-    let version = 0;
-    while (this.env[`SECRET_KEY_V${version + 1}`]) version++;
-    if (version === 0) {
+    const versions = Object.keys(this.env)
+      .map((name) => /^SECRET_KEY_V([1-9]\d*)$/.exec(name))
+      .filter((m): m is RegExpExecArray => m !== null && Boolean(this.env[m[0]]))
+      .map((m) => Number(m[1]));
+    if (versions.length === 0) {
       throw new Error(
-        "No SECRET_KEY_V<n> environment variable is configured. Set at least SECRET_KEY_V1 before encrypting or decrypting secrets."
+        "No SECRET_KEY_V<n> environment variable is configured. Set at least one (for example SECRET_KEY_V1) before encrypting or decrypting secrets."
       );
     }
-    return version;
+    const requested = this.env.SECRET_KEY_ACTIVE_VERSION;
+    if (requested !== undefined && requested !== "") {
+      const active = /^[1-9]\d*$/.test(requested) ? Number(requested) : NaN;
+      if (!versions.includes(active)) {
+        throw new Error("SECRET_KEY_ACTIVE_VERSION must be a positive integer naming a configured SECRET_KEY_V<n>.");
+      }
+      return active;
+    }
+    return Math.max(...versions);
   }
 
   private deriveKey(version: number): Buffer {

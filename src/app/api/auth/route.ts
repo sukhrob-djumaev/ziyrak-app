@@ -12,9 +12,11 @@ import {
   isSetupComplete,
   revokeToken,
 } from "@/lib/identity/auth";
+import { loginSecondFactor } from "@/lib/identity/mfa";
 import { provisionBusiness } from "@/lib/platform/provisioning";
 import { sendVerification, notifyAddressInUse } from "@/lib/identity/account-service";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, SIGNUP_LIMITS } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 import { validateBody, signupSchema } from "@/lib/validations";
 import { AppError } from "@/lib/observability/errors";
 import { logger } from "@/lib/observability/logger";
@@ -47,6 +49,22 @@ export async function POST(request: NextRequest) {
     const validation = validateBody(signupSchema, body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    // L1.3: bound workspace creation per address and platform-wide before doing any work for this request.
+    for (const [key, config] of [
+      [`signup-ip:${getClientIp(request)}`, SIGNUP_LIMITS.perAddress],
+      ["signup-platform", SIGNUP_LIMITS.platformWide],
+    ] as const) {
+      const verdict = await checkRateLimit(key, config);
+      if (!verdict.allowed) {
+        const limited = NextResponse.json(
+          { error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many sign-ups right now. Please try again later." } },
+          { status: 429 }
+        );
+        limited.headers.set("Retry-After", String(Math.max(1, Math.ceil((verdict.resetAt - Date.now()) / 1000))));
+        return limited;
+      }
     }
 
     // PLAN.md P3 — signup never signs anyone in: the answer is the same whether the address is
@@ -134,7 +152,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    const token = generateToken(user.id);
+    // L1.3: platform accounts add a second factor. A challenge or failure issues no session at all.
+    const second = await loginSecondFactor(user, { code: body.mfaCode, recoveryCode: body.recoveryCode });
+    if (second === "challenge") {
+      return NextResponse.json({ error: "Second factor required", mfaRequired: true }, { status: 401 });
+    }
+    if (second === "invalid") {
+      return NextResponse.json({ error: "Invalid credentials", mfaRequired: true }, { status: 401 });
+    }
+    const token = generateToken(user.id, { mfa: second === "passed" });
     const cookie = setAuthCookie(token);
     const memberships = await prisma.membership.findMany({
       where: { userId: user.id, business: { status: "active" } },
@@ -154,6 +180,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: { id: user.id, username: user.username, name: user.name },
       workspaceSelectionRequired: selected === null,
+      ...(second === "enroll" ? { mfaEnrollmentRequired: true } : {}),
     });
     response.cookies.set(cookie);
     response.cookies.set(selected ? workspaceCookie(selected) : clearWorkspaceCookie());

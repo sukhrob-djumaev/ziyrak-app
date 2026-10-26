@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/identity/auth";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { withPlatformControl, readPlatformAuthority } from "./authority";
 import { writePlatformAudit } from "./audit";
+import { resetMfa, issueMfaSetupCode } from "@/lib/identity/mfa";
 import { reserveNewUsername } from "../username-reservation";
 
 // Support starts with explicitly named read operations. Execution, configuration,
@@ -283,5 +284,47 @@ export async function readOperatorConsole(token: string) {
         invitations.length > 200 ||
         workspaces.some((w) => w.channelConnections.length > 200),
     };
+  });
+}
+
+const mfaReset = z.object({ targetUserId: z.string().min(1).max(128), reason: z.string().trim().min(8).max(500) }).strict();
+
+/**
+ * L1.3: a super admin removes another platform account's second factor (lost device, offboarding). The target's
+ * sessions end, the reset is audited in the same transaction, and nobody can reset their own factor this way.
+ */
+export async function resetOperatorMfa(token: string, input: unknown) {
+  const request = parse(mfaReset, input);
+  return withPlatformControl(token, "super_admin", async (tx, actor) => {
+    if (request.targetUserId === actor.userId) throw new AppError(403, "FORBIDDEN", "Ask another super admin to reset your second factor");
+    if (!(await resetMfa(request.targetUserId, tx))) throw new NotFoundError("Platform account");
+    await writePlatformAudit(tx, {
+      actorUserId: actor.userId,
+      action: "mfa.reset",
+      reason: request.reason,
+      details: { targetUserId: request.targetUserId },
+    });
+    return { reset: true };
+  });
+}
+
+const mfaSetup = z.object({ targetUserId: z.string().min(1).max(128), reason: z.string().trim().min(8).max(500) }).strict();
+
+/**
+ * L1.3: a super admin issues a one-time code (shown once, expires in 24 h) that another platform account needs to
+ * enroll its second factor. Audited in the same transaction; never for oneself.
+ */
+export async function issueOperatorMfaSetup(token: string, input: unknown) {
+  const request = parse(mfaSetup, input);
+  return withPlatformControl(token, "super_admin", async (tx, actor) => {
+    const issued = await issueMfaSetupCode(request.targetUserId, actor.userId, tx);
+    if (!issued) throw new AppError(403, "FORBIDDEN", "A setup code cannot be issued for this account");
+    await writePlatformAudit(tx, {
+      actorUserId: actor.userId,
+      action: "mfa.setup_code_issued",
+      reason: request.reason,
+      details: { targetUserId: request.targetUserId, expiresAt: issued.expiresAt.toISOString() },
+    });
+    return { setupCode: issued.setupCode, expiresAt: issued.expiresAt.toISOString() };
   });
 }

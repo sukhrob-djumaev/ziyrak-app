@@ -22,7 +22,7 @@ npx prisma migrate deploy
 
 | Boundary | Configuration / proof |
 | --- | --- |
-| Identity and encryption | Independent `JWT_SECRET`, `SECRET_KEY_V1`; secure backup/access controls. Existing key resolver has a retirement defect (F09): do not remove V1 or assume sparse versions work until repaired/rehearsed. |
+| Identity and encryption | Independent `JWT_SECRET`, `SECRET_KEY_V1`; secure backup/access controls. Key versions may be sparse and V1 may be retired once no ciphertext uses it; set `SECRET_KEY_ACTIVE_VERSION` to stage or roll back (F09, tested in `tests/unit/secret-key-rotation.test.ts`). Rehearse rotation against real records before retiring a key. |
 | Privileged enrollment/recovery | `PLATFORM_BOOTSTRAP_PROOF_SHA256` and `PLATFORM_RECOVERY_PROOF_SHA256` hold separate SHA-256 hashes of high-entropy owner-held proofs, never raw proofs. Use secured enrollment/recovery, never public signup privileges. |
 | Public origin | Correct `NEXT_PUBLIC_APP_URL`; public values are build-time. Verify callback/widget URLs and HTTPS/cookie behavior on the actual built deployment. |
 | Account mail | `MAIL_TRANSPORT=smtp`, `PLATFORM_SMTP_HOST`, `PLATFORM_SMTP_PORT`, `PLATFORM_SMTP_FROM` and provider-required USER/PASSWORD. Default port 587; 465 uses implicit TLS. Missing configuration is an error, not sent mail. Verify actual verify/reset/invitation delivery on the chosen sender domain. |

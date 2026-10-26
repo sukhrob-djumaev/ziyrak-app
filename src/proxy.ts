@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkCookieMutation } from "@/lib/http/mutation-guard";
 import { readBoundedJson, AUTH_BODY_BYTES, PayloadTooLargeError, BodyDeadlineError } from "@/lib/http/bounded-body";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -111,6 +112,19 @@ export async function proxy(request: NextRequest) {
   // dashboard's onboarding checklist on every load; counting it against the
   // 5/min brute-force budget made ordinary navigation 429.
   if (pathname.startsWith("/api/auth") && request.method === "POST") {
+    // L1.3: the same origin/content-type policy as cookie writes, applied before login too (login CSRF
+    // would sign a victim into an attacker's account). Non-browser clients send neither header and pass.
+    const originVerdict = checkCookieMutation({
+      method: request.method,
+      headers: request.headers,
+      host: request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host,
+    });
+    if (!originVerdict.ok) {
+      return addHeaders(
+        NextResponse.json({ error: { code: "FORBIDDEN_ORIGIN", message: "Request origin or content type not allowed", requestId } }, { status: 403 }),
+        requestId
+      );
+    }
     const ip = getClientIp(request);
     // Sign-out has its own, larger budget: counting it against the 5/min login
     // brute-force limit let a shared address block people from signing out.
@@ -204,6 +218,22 @@ export async function proxy(request: NextRequest) {
       );
     }
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // L1.3: cookie-authenticated writes must be same-origin JSON (API-key calls carry no ambient cookie).
+  if (token && !apiKey && pathname.startsWith("/api/")) {
+    const verdict = checkCookieMutation({
+      method: request.method,
+      headers: request.headers,
+      host: request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host,
+    });
+    if (!verdict.ok) {
+      return addHeaders(
+        NextResponse.json({ error: { code: "FORBIDDEN_ORIGIN", message: "Request origin or content type not allowed", requestId } }, { status: 403 }),
+        requestId,
+        apiRateInfo
+      );
+    }
   }
 
   // API key auth is validated in route handlers (requireAuth), just pass through

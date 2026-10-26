@@ -47,6 +47,9 @@ const eslintConfig = defineConfig([
       // P1 person/session authentication before selected workspace or support
       // grant resolution; only safe User identity/platform-role projection.
       "src/lib/identity/account-auth.ts",
+      // L1.3 platform second factor: per-account credential state read/written before any workspace is selected,
+      // like account-auth (no tenant data is touched).
+      "src/lib/identity/mfa.ts",
       // PLAN.md §6/§14.3/§46.5 — resolves which business an identity-less
       // inbound channel webhook belongs to (ChannelConnection lookup by
       // provider identifier), the same pre-ctx reason route-auth.ts is here.

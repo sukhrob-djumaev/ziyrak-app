@@ -12,13 +12,13 @@ datasource db {
 // that cutover is Phase 2+. Populated by scripts/phase1-tenant-migration.ts.
 
 model Business {
-  id          String    @id @default(uuid())
-  slug        String    @unique
-  name        String
-  status      String    @default("active") // active, suspended, deleted
-  planId      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  status    String   @default("active") // active, suspended, deleted
+  planId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   platformAssignments  PlatformAssignment[]
   supportGrants        SupportGrant[]
@@ -85,19 +85,27 @@ model Membership {
 }
 
 model User {
-  id                 String        @id @default(uuid())
-  username           String        @unique
-  password           String
-  name               String        @default("")
-  isPlatformAdmin    Boolean       @default(false) // Historical display flag; grants no platform authority.
-  platformRole       PlatformRole?
+  id                  String            @id @default(uuid())
+  username            String            @unique
+  password            String
+  name                String            @default("")
+  isPlatformAdmin     Boolean           @default(false) // Historical display flag; grants no platform authority.
+  platformRole        PlatformRole?
   // P3: verified email identity. Nullable for existing username accounts until they adopt one.
-  email              String?       @unique
-  emailVerifiedAt    DateTime?
+  email               String?           @unique
+  emailVerifiedAt     DateTime?
   // P3: sessions issued before this instant are ended (password reset/change).
-  sessionsValidAfter DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  sessionsValidAfter  DateTime?
+  // L1.3: TOTP second factor for platform accounts. Secrets are stored only as SecretResolver ciphertext;
+  // `mfaPendingSecretRef` holds an enrollment that has not yet been proven with a code.
+  mfaSecretRef        Json?
+  mfaPendingSecretRef Json?
+  mfaEnabledAt        DateTime?
+  mfaLastStep         Int? // last accepted TOTP step: a code at or before it is refused (replay)
+  mfaRecoveryCodes    MfaRecoveryCode[]
+  mfaSetupCodes       MfaSetupCode[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   accountTokens        AccountToken[]
   memberships          Membership[]
@@ -111,6 +119,33 @@ model User {
 }
 
 // P1 control-plane authority and explicit resource scope. No public role assignment.
+/// L1.3: one-time proof, issued by a super admin, required to enroll a platform account's second factor.
+/// Only an HMAC of the code is stored; it expires and is consumed by the enrollment it authorises.
+model MfaSetupCode {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash       String    @unique
+  issuedByUserId String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// L1.3: single-use recovery codes for a platform account's second factor; only a hash is stored.
+model MfaRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 enum PlatformRole {
   super_admin
   operator

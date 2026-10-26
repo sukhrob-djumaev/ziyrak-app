@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/observability/logger";
 import { getMailTransport } from "@/lib/mail/transport";
-import { hashPassword, verifyPassword, endAllSessions } from "./auth";
+import { hashPassword, verifyPassword, sessionCutoff } from "./auth";
 import { issueAccountToken, consumeAccountToken, normalizeEmail } from "./account-tokens";
 
 /**
@@ -145,19 +145,29 @@ export async function requestPasswordReset(email: string): Promise<{ accepted: t
   return { accepted: true };
 }
 
-/** Sets a new password from a reset token and ends every earlier session. Null for any invalid token or password. */
+/**
+ * Sets a new password from a reset token and ends every earlier session. Null for any invalid token or password.
+ * F03: claiming the link, changing the password and moving the session cutoff are ONE transaction, so a failure
+ * anywhere leaves the link usable, the password unchanged and existing sessions valid, never a half-applied reset.
+ * A link whose account no longer qualifies is still consumed (commit with no change), as before.
+ */
 export async function completePasswordReset(token: string, newPassword: string): Promise<{ userId: string } | null> {
   if (passwordProblem(newPassword)) return null; // validated first so a typo does not burn the link
-  const consumed = await consumeAccountToken({ token, purpose: "reset_password" });
-  if (!consumed?.userId) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: consumed.userId },
-    select: { id: true, email: true, emailVerifiedAt: true, platformRole: true },
+  const passwordHash = await hashPassword(newPassword); // slow work stays outside the transaction
+  return prisma.$transaction(async (tx) => {
+    const consumed = await consumeAccountToken({ token, purpose: "reset_password" }, tx);
+    if (!consumed?.userId) return null;
+    const user = await tx.user.findUnique({
+      where: { id: consumed.userId },
+      select: { id: true, email: true, emailVerifiedAt: true, platformRole: true },
+    });
+    if (!user || user.platformRole || !user.emailVerifiedAt || normalizeEmail(user.email ?? "") !== consumed.email) return null;
+    await tx.user.update({
+      where: { id: user.id },
+      data: { password: passwordHash, sessionsValidAfter: sessionCutoff() },
+    });
+    return { userId: user.id };
   });
-  if (!user || user.platformRole || !user.emailVerifiedAt || normalizeEmail(user.email ?? "") !== consumed.email) return null;
-  await prisma.user.update({ where: { id: user.id }, data: { password: await hashPassword(newPassword) } });
-  await endAllSessions(user.id);
-  return { userId: user.id };
 }
 
 /** The account's own email state (never another person's). */

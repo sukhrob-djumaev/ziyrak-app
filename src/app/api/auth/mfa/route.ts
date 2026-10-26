@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
   const account = await requireAccountAuth(request);
   if (!isAccountAuthenticated(account)) return noStore(account);
   if (!account.user.platformRole) return noStore(NextResponse.json({ error: "Not available for this account" }, { status: 404 }));
-  const body = (await request.json().catch(() => null)) as { action?: unknown; code?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { action?: unknown; code?: unknown; setupCode?: unknown; ownerProof?: unknown } | null;
   if (body?.action === "enroll") {
-    const begun = await beginEnrollment(account.user.id);
-    if (!begun) return noStore(NextResponse.json({ error: "Second factor is already active" }, { status: 409 }));
+    const begun = await beginEnrollment(account.user.id, { setupCode: body.setupCode, ownerProof: body.ownerProof });
+    if (!begun) return noStore(NextResponse.json({ error: "Enrollment was not authorised. Ask a super admin for a setup code." }, { status: 403 }));
     return noStore(NextResponse.json(begun));
   }
   if (body?.action === "confirm" && typeof body.code === "string") {

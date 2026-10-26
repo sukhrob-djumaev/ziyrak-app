@@ -5,6 +5,7 @@ import { getSecretResolver } from "@/lib/secrets/env-key-resolver";
 import type { EncryptedSecret } from "@/lib/secrets/types";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { sessionCutoff } from "./auth";
+import { ownerProofValid } from "@/lib/platform/access/owner-proof";
 import { base32Decode, base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from "./totp";
 
 /**
@@ -47,10 +48,50 @@ export async function mfaEnabled(userId: string): Promise<boolean> {
   return Boolean(row?.mfaEnabledAt);
 }
 
+const SETUP_CODE_TTL_MS = 24 * 60 * 60 * 1000;
+const SETUP_ATTEMPTS = { maxRequests: 8, windowMs: 15 * 60 * 1000 };
+const hashSetup = (code: string) =>
+  createHmac("sha256", `${process.env.JWT_SECRET ?? "test-only-fallback-secret"}:mfa-setup`).update(code.replace(/[\s-]/g, "").toUpperCase()).digest("hex");
+
+/**
+ * A super admin issues a one-time setup code for another platform account (new operator, or after a reset).
+ * Enrollment needs it, so a password alone can never claim the factor. Returns the code once; only an HMAC is stored.
+ */
+export async function issueMfaSetupCode(
+  targetUserId: string,
+  actorUserId: string,
+  db: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<{ setupCode: string; expiresAt: Date } | null> {
+  if (targetUserId === actorUserId) return null; // never self-issued: that would defeat the second proof
+  const target = await db.user.findUnique({ where: { id: targetUserId }, select: { platformRole: true, mfaEnabledAt: true } });
+  if (!target?.platformRole || target.mfaEnabledAt) return null;
+  const raw = base32Encode(randomBytes(16)); // 128 bits
+  const setupCode = raw.match(/.{1,4}/g)!.join("-");
+  const expiresAt = new Date(Date.now() + SETUP_CODE_TTL_MS);
+  await db.mfaSetupCode.updateMany({ where: { userId: targetUserId, usedAt: null }, data: { usedAt: new Date() } }); // older codes die
+  await db.mfaSetupCode.create({ data: { userId: targetUserId, codeHash: hashSetup(setupCode), issuedByUserId: actorUserId, expiresAt } });
+  return { setupCode, expiresAt };
+}
+
+export type SetupProof = { setupCode?: unknown; ownerProof?: unknown };
+
+/** Consumes the proof that authorises starting enrollment. A super admin may instead present the platform owner proof. */
+async function consumeSetupProof(user: { id: string; platformRole: string | null }, proof: SetupProof): Promise<boolean> {
+  if (typeof proof.ownerProof === "string" && proof.ownerProof) return user.platformRole === "super_admin" && ownerProofValid(proof.ownerProof);
+  if (typeof proof.setupCode !== "string" || !proof.setupCode) return false;
+  const claimed = await prisma.mfaSetupCode.updateMany({
+    where: { userId: user.id, codeHash: hashSetup(proof.setupCode), usedAt: null, expiresAt: { gt: new Date() } },
+    data: { usedAt: new Date() },
+  });
+  return claimed.count === 1;
+}
+
 /** Starts (or restarts) enrollment. The secret is shown once to the account holder; nothing is active until confirmed. */
-export async function beginEnrollment(userId: string): Promise<{ secret: string; otpauthUri: string } | null> {
+export async function beginEnrollment(userId: string, proof: SetupProof): Promise<{ secret: string; otpauthUri: string } | null> {
+  if (!(await checkRateLimit(`mfa-setup:${userId}`, SETUP_ATTEMPTS)).allowed) return null;
   const user = await platformUser(userId);
   if (!user || user.mfaEnabledAt) return null; // only platform accounts, and never silently replace an active factor
+  if (!(await consumeSetupProof(user, proof))) return null;
   const secret = generateTotpSecret();
   const text = base32Encode(secret);
   await prisma.user.update({ where: { id: userId }, data: { mfaPendingSecretRef: (await getSecretResolver().encrypt(text)) as object } });
@@ -124,6 +165,7 @@ export async function resetMfa(targetUserId: string, db?: Prisma.TransactionClie
     const target = await tx.user.findUnique({ where: { id: targetUserId }, select: { id: true, platformRole: true } });
     if (!target?.platformRole) return false;
     await tx.mfaRecoveryCode.deleteMany({ where: { userId: targetUserId } });
+    await tx.mfaSetupCode.updateMany({ where: { userId: targetUserId, usedAt: null }, data: { usedAt: new Date() } });
     await tx.user.update({
       where: { id: targetUserId },
       data: { mfaSecretRef: Prisma.DbNull, mfaPendingSecretRef: Prisma.DbNull, mfaEnabledAt: null, mfaLastStep: null, sessionsValidAfter: sessionCutoff() },

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock";
 import { generateToken, hashPassword, verifyToken } from "@/lib/identity/auth";
 import { bootstrapPlatform, readPlatformAuthority } from "@/lib/platform/access/authority";
-import { beginEnrollment, confirmEnrollment, resetMfa } from "@/lib/identity/mfa";
+import { beginEnrollment, confirmEnrollment, resetMfa, issueMfaSetupCode } from "@/lib/identity/mfa";
 import { base32Decode, totpAt } from "@/lib/identity/totp";
 import { resetRateLimitsForTesting } from "@/lib/rate-limit";
 
@@ -54,7 +54,7 @@ async function superAdmin() {
   return user;
 }
 async function enroll(userId: string) {
-  const begun = (await beginEnrollment(userId))!;
+  const begun = (await beginEnrollment(userId, { setupCode: (await issueMfaSetupCode(userId, "issuer-" + randomUUID()))!.setupCode }))!;
   await confirmEnrollment(userId, totpAt(base32Decode(begun.secret), Date.now()));
   return begun.secret;
 }
@@ -171,6 +171,30 @@ describe("admin reset and self-service enrollment routes", () => {
     expect(await prisma.platformAccessAudit.count({ where: { actorUserId: admin.id, action: "mfa.reset" } })).toBe(1);
   });
 
+  it("a super admin issues a setup code for another account (audited); not for themselves, not for ordinary users", async () => {
+    const { issueOperatorMfaSetup } = await import("@/lib/platform/access/operators");
+    const admin = await superAdmin();
+    const adminSession = generateToken(admin.id);
+    const operator = await prisma.user.create({
+      data: { username: "mfa-op2-" + randomUUID(), password: await hashPassword(PASSWORD), name: "Op", platformRole: "operator" },
+    });
+    ids.add(operator.id);
+    const plain = await prisma.user.create({ data: { username: "mfa-pl-" + randomUUID(), password: await hashPassword(PASSWORD), name: "T" } });
+    ids.add(plain.id);
+    await expect(issueOperatorMfaSetup(adminSession, { targetUserId: admin.id, reason: "For myself should fail" })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(issueOperatorMfaSetup(adminSession, { targetUserId: plain.id, reason: "Not a platform account" })).rejects.toMatchObject({ statusCode: 403 });
+    const issued = await issueOperatorMfaSetup(adminSession, { targetUserId: operator.id, reason: "New operator onboarding" });
+    expect(issued.setupCode).toMatch(/^([A-Z2-7]{4}-){6}[A-Z2-7]{1,4}$/);
+    expect(await beginEnrollment(operator.id, { setupCode: issued.setupCode })).not.toBeNull();
+    expect(await prisma.platformAccessAudit.count({ where: { actorUserId: admin.id, action: "mfa.setup_code_issued" } })).toBe(1);
+  });
+
+  it("the first super admin can enroll with the platform owner proof; a wrong proof is refused", async () => {
+    const u = await superAdmin();
+    expect(await beginEnrollment(u.id, { ownerProof: "wrong-proof" })).toBeNull();
+    expect(await beginEnrollment(u.id, { ownerProof: proof })).not.toBeNull(); // bootstrap proof from the environment
+  });
+
   it("enrollment route: platform accounts enroll and confirm; others get 404", async () => {
     const { POST, GET } = await import("@/app/api/auth/mfa/route");
     const u = await superAdmin();
@@ -185,13 +209,15 @@ describe("admin reset and self-service enrollment routes", () => {
     };
     const token = generateToken(u.id);
     expect((await (await call(token)).json()).enabled).toBe(false);
-    const enrolled = await (await call(token, { action: "enroll" })).json();
+    expect((await call(token, { action: "enroll" })).status).toBe(403); // a password alone is not enough
+    const { setupCode } = (await issueMfaSetupCode(u.id, "issuer-" + randomUUID()))!;
+    const enrolled = await (await call(token, { action: "enroll", setupCode })).json();
     expect(enrolled.otpauthUri).toMatch(/^otpauth:/);
     expect((await call(token, { action: "confirm", code: "000000" })).status).toBe(400);
     const ok = await call(token, { action: "confirm", code: totpAt(base32Decode(enrolled.secret), Date.now()) });
     expect(ok.status).toBe(200);
     expect((await ok.json()).recoveryCodes).toHaveLength(10);
-    expect((await call(token, { action: "enroll" })).status).toBe(409);
+    expect((await call(token, { action: "enroll" })).status).toBe(403); // already active
 
     const plain = await prisma.user.create({ data: { username: "mfa-plain-" + randomUUID(), password: await hashPassword(PASSWORD), name: "T" } });
     ids.add(plain.id);

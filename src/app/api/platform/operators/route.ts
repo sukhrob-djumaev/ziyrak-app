@@ -6,6 +6,7 @@ import {
   readOperatorConsole,
   removeOperator,
   resetOperatorMfa,
+  issueOperatorMfaSetup,
   revokeAssignment,
 } from "@/lib/platform/access/operators";
 import {
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest) {
     const token = request.cookies.get("owly-token")!.value;
     let result;
     switch (action) {
+      case "issue-mfa-setup":
+        result = await issueOperatorMfaSetup(token, input);
+        break;
       case "reset-mfa":
         result = await resetOperatorMfa(token, input);
         break;

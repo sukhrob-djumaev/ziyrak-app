@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
 import { resetRateLimitsForTesting } from "@/lib/rate-limit";
 import { base32Decode, totpAt } from "@/lib/identity/totp";
-import { beginEnrollment, confirmEnrollment, checkSecondFactor, resetMfa, loginSecondFactor, mfaEnabled } from "@/lib/identity/mfa";
+import { beginEnrollment, confirmEnrollment, checkSecondFactor, resetMfa, loginSecondFactor, mfaEnabled, issueMfaSetupCode } from "@/lib/identity/mfa";
 
 const ids: string[] = [];
 async function account(platformRole: "operator" | "super_admin" | null = "operator") {
@@ -18,10 +18,12 @@ async function account(platformRole: "operator" | "super_admin" | null = "operat
   ids.push(u.id);
   return u;
 }
+/** A setup code as a different super admin would issue it. */
+const setupFor = async (userId: string) => ({ setupCode: (await issueMfaSetupCode(userId, "issuer-" + randomUUID()))!.setupCode });
 const codeFor = (secret: string, atMs = Date.now()) => totpAt(base32Decode(secret), atMs);
 async function enrolled() {
   const u = await account();
-  const begun = (await beginEnrollment(u.id))!;
+  const begun = (await beginEnrollment(u.id, await setupFor(u.id)))!;
   const done = (await confirmEnrollment(u.id, codeFor(begun.secret)))!;
   return { u, secret: begun.secret, recovery: done.recoveryCodes };
 }
@@ -36,9 +38,9 @@ afterAll(async () => {
 
 describe("platform MFA enrollment", () => {
   it("only platform accounts can enroll, and the secret is stored encrypted", async () => {
-    expect(await beginEnrollment((await account(null)).id)).toBeNull();
+    { const plain = await account(null); expect(await beginEnrollment(plain.id, { setupCode: "AAAA-BBBB" })).toBeNull(); }
     const u = await account();
-    const begun = (await beginEnrollment(u.id))!;
+    const begun = (await beginEnrollment(u.id, await setupFor(u.id)))!;
     expect(begun.otpauthUri).toMatch(/^otpauth:\/\/totp\/Ziyrak:/);
     const row = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
     expect(JSON.stringify(row.mfaPendingSecretRef)).not.toContain(begun.secret);
@@ -48,7 +50,7 @@ describe("platform MFA enrollment", () => {
 
   it("activates only with a valid code, returns ten recovery codes once, stores only hashes", async () => {
     const u = await account();
-    const begun = (await beginEnrollment(u.id))!;
+    const begun = (await beginEnrollment(u.id, await setupFor(u.id)))!;
     expect(await confirmEnrollment(u.id, "000000")).toBeNull();
     const done = (await confirmEnrollment(u.id, codeFor(begun.secret)))!;
     expect(done.recoveryCodes).toHaveLength(10);
@@ -59,12 +61,48 @@ describe("platform MFA enrollment", () => {
     const row = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
     expect(row.mfaEnabledAt).not.toBeNull();
     expect(row.mfaPendingSecretRef).toBeNull();
-    expect(await beginEnrollment(u.id)).toBeNull(); // an active factor is never silently replaced
+    expect(await beginEnrollment(u.id, { setupCode: "AAAA-BBBB" })).toBeNull(); // an active factor is never silently replaced
+  });
+
+  it("needs a valid, unused, unexpired setup code issued by someone else; a password alone is not enough", async () => {
+    const u = await account();
+    expect(await beginEnrollment(u.id, {})).toBeNull();
+    expect(await beginEnrollment(u.id, { setupCode: "AAAA-BBBB-CCCC-DDDD" })).toBeNull();
+    expect(await issueMfaSetupCode(u.id, u.id)).toBeNull(); // never self-issued
+    const issued = (await issueMfaSetupCode(u.id, "issuer-" + randomUUID()))!;
+    const stored = await prisma.mfaSetupCode.findFirstOrThrow({ where: { userId: u.id } });
+    expect(stored.codeHash).not.toContain(issued.setupCode);
+    expect(await beginEnrollment(u.id, { setupCode: issued.setupCode })).not.toBeNull();
+    expect(await beginEnrollment(u.id, { setupCode: issued.setupCode })).toBeNull(); // single use
+    const again = (await issueMfaSetupCode(u.id, "issuer-" + randomUUID()))!;
+    await prisma.mfaSetupCode.updateMany({ where: { userId: u.id, usedAt: null }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    expect(await beginEnrollment(u.id, { setupCode: again.setupCode })).toBeNull(); // expired
+  });
+
+  it("a newer code retires the older one, and a code cannot be used for another account", async () => {
+    const a = await account();
+    const b = await account();
+    const first = (await issueMfaSetupCode(a.id, "issuer-x"))!;
+    const second = (await issueMfaSetupCode(a.id, "issuer-x"))!;
+    expect(await beginEnrollment(a.id, { setupCode: first.setupCode })).toBeNull();
+    expect(await beginEnrollment(b.id, { setupCode: second.setupCode })).toBeNull();
+    expect(await beginEnrollment(a.id, { setupCode: second.setupCode })).not.toBeNull();
+  });
+
+  it("an operator cannot use the platform owner proof in place of a setup code", async () => {
+    const op = await account("operator");
+    process.env.PLATFORM_BOOTSTRAP_PROOF_SHA256 = (await import("node:crypto")).createHash("sha256").update("owner-proof-xyz").digest("hex");
+    try {
+      expect(await beginEnrollment(op.id, { ownerProof: "owner-proof-xyz" })).toBeNull();
+      expect(await beginEnrollment(op.id, { ownerProof: "wrong-proof" })).toBeNull();
+    } finally {
+      delete process.env.PLATFORM_BOOTSTRAP_PROOF_SHA256;
+    }
   });
 
   it("lets exactly one of several concurrent confirmations win", async () => {
     const u = await account();
-    const begun = (await beginEnrollment(u.id))!;
+    const begun = (await beginEnrollment(u.id, await setupFor(u.id)))!;
     const code = codeFor(begun.secret);
     const results = await Promise.all([1, 2, 3, 4].map(() => confirmEnrollment(u.id, code)));
     expect(results.filter(Boolean)).toHaveLength(1);

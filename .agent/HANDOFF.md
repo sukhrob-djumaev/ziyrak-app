@@ -1,7 +1,5 @@
-# Latest handoff — L1.1-L1.4 (deterministic) and L2.1 merged, 2026-10-26
+# Handoff - latest session (2026-10-26)
 
-- Merged: L1.1 #36, L1.2 #37, L1.3 #38, L1.4 #49 (test/doc only), L2.1 #50. Each had exact-head CI green; L1.2, L1.3, L2.1 also 30/30 combined-build browser runs on a build of the exact head (AC power).
-- L2.1: `/api/health/live` vs `/ready` (DB-gated only), worker heartbeat table+file, queue age/failure signals and build identity behind HEALTH_DETAIL_TOKEN, production startup contract (`npm run config:check`), Helm chart renders the contract (tested with real helm via Docker; CI runners have helm), Compose worker healthcheck.
-- Blocked/open: L1.4 real-model evaluation + human review (no OPENAI_API_KEY here); MFA stays optional until an enrollment UI + journey exist (then `ZIYRAK_PLATFORM_MFA=required`); live DB/Redis outage drill; cluster probe behaviour.
-- Harness lessons: do NOT commit in a worktree while its browser run is going (build identity goes stale); J19 single-use per DB and needs REDIS_URL; J20 needs the synthetic platform proofs (ACC_PLATFORM_* and the SHA256 hashes in web/worker env) from the start; run on AC power.
-- Do next: L2.2 (immutable image promotion, migration/rollback compatibility, restore drill, retention, alerts, capacity), then L3.1 dashboard/access coherence.
+- Merged L2.2 (PR #51, `c19c4fe`) after an independent security review: fixed leftover DB volumes, argv secrets, weak publish gate, scanner socket, digest deploy, migration guard gaps. Evidence in `docs/evidence/l2.2-release-operations-2026-10-26.md`.
+- Verified on `f67d70c`: CI build+image green; browser 30/30 (precondition: migrate a fresh acceptance DB before `start-all.sh`); image smoke OK; Trivy 0; restore drill 60 tables 0 mismatches.
+- Continuation: start L3.1 in a new worktree. Open owner inputs listed in CURRENT. Leftovers needing owner OK to delete: worktrees owly-l1-*, owly-l2-1, owly-l2-2; docker ziyrak-l11-pg / ziyrak-l12-redis; ziyrak_acceptance_* DBs; 15 dangling Docker volumes from earlier drills.

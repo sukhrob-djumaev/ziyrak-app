@@ -9,7 +9,9 @@
 - L1.3 MERGED (PR #38, `6249869`): CI green + browser 30/30 on `995d496`. Record: `docs/evidence/l1.3-account-secret-safety-2026-10-26.md`.
   Open from L1.3: MFA is `optional` by default (set `ZIYRAK_PLATFORM_MFA=required` only after the enrollment UI + journey exist); `TRUSTED_PROXY_HOPS` edge contract (L2.1);
   per-account TOTP lockout/alerting; no browser journey for enrollment. Owner decision recorded: first enrollment needs a super-admin setup code (or owner proof for the first super admin).
-- Next: L1.4 (trustworthy quality evidence), then L2.1. Browser runs need the Mac on AC power and awake (battery Maintenance Sleep stalls runs).
+- L1.4 deterministic part MERGED (PR #49, `fd2ea15`): scorer fixes, run-validity gate, frozen holdout, human rubric. OPEN/BLOCKED: real-model evaluation on the holdout + human sample review need `OPENAI_API_KEY` (not present here) and an owner decision on model/spend. Record: `docs/evidence/l1.4-quality-evidence-2026-10-26.md`.
+- L2.1 MERGED (PR #50, `926add3`): liveness/readiness split, worker heartbeat + queue signals + build identity, startup configuration contract (strict in production; `ZIYRAK_CONFIG_PROFILE=relaxed` only for local Compose/harnesses), Helm chart contract incl. existingSecret + PgBouncer. CI green + browser 30/30 on `3a1172a`. Record: `docs/evidence/l2.1-runtime-contract-2026-10-26.md`. Open: live outage drill, cluster probe behaviour, alert wiring.
+- Next: L2.2 (reproducible release: one immutable image built/tested/scanned and promoted by digest, migration/rollback compat, restore drill, retention, alerts, capacity), then L3. Browser runs: Mac on AC + awake; never commit in a worktree during a run.
 - Task-owned leftovers (remove with owner OK): docker `ziyrak-l11-pg` (127.0.0.1:55433), `ziyrak-l12-redis` (127.0.0.1:56379); DBs `ziyrak_acceptance_l12*`, `ziyrak_acceptance_l13a`; worktrees owly-l1-1/-l1-2/-l1-3; scratch `/private/tmp/ziyrak-l1*-acc*`.
 - Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.

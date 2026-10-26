@@ -18,6 +18,15 @@ describe("startup failure", () => {
     expect(text).not.toContain("SECRETVALUE");
   }, 90_000);
 
+  it("with no configuration at all it still lists everything, not one cryptic import-time error", () => {
+    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "production" };
+    const r = spawnSync(process.execPath, ["--import", "tsx", "src/worker.ts"], { encoding: "utf8", env, cwd: process.cwd(), timeout: 60_000 });
+    const text = `${r.stdout}\n${r.stderr}`;
+    expect(r.status).not.toBe(0);
+    expect(text).toMatch(/Invalid runtime configuration/);
+    for (const key of ["DATABASE_URL", "DIRECT_DATABASE_URL", "JWT_SECRET", "SECRET_KEY_V<n>", "PLATFORM_SMTP_HOST"]) expect(text).toContain(key);
+  }, 90_000);
+
   it("the relaxed profile is the only production-mode exemption", () => {
     const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "production", ZIYRAK_CONFIG_PROFILE: "relaxed" };
     const r = spawnSync(process.execPath, ["--import", "tsx", "src/worker.ts"], { encoding: "utf8", env, cwd: process.cwd(), timeout: 30_000 });

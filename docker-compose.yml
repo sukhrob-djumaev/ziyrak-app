@@ -131,9 +131,9 @@ services:
   worker:
     image: ziyrak:local
     restart: unless-stopped
-    # `exec node --import tsx` (not `npm run worker`): npm as PID 1 swallows
+    # `exec node ... dist/worker.cjs` (not `npm run worker`): npm as PID 1 swallows
     # SIGTERM, so the worker could not drain in-flight jobs on stop/scale-down.
-    command: ["sh", "-c", "npx prisma migrate deploy && exec node --import tsx src/worker.ts"]
+    command: ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && exec node --enable-source-maps dist/worker.cjs"]
     stop_grace_period: 45s
     # The image's HTTP check does not apply: the worker has no HTTP server. It proves life by refreshing a file
     # every ~15 s, and only after its database write succeeds (proves the loop and database, not job throughput) (src/lib/ops/worker-heartbeat.ts).
@@ -184,7 +184,7 @@ services:
     image: ziyrak:local
     profiles: ["scale"]
     restart: unless-stopped
-    command: ["node", "--import", "tsx", "src/worker.ts"]
+    command: ["node", "--enable-source-maps", "dist/worker.cjs"]
     stop_grace_period: 45s
     environment:
       <<: *ziyrak-env

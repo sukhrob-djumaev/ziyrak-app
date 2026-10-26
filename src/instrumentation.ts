@@ -12,5 +12,12 @@ export async function register() {
     // for already (see channels/bootstrap.ts's own header for why this
     // matters for a job picked up by this process).
     await import("@/lib/channels/bootstrap");
+
+    // L2.2: open the shared Redis connection before the first request. Rate-limit and cache calls get a 250 ms
+    // budget, and a cold connection can overrun it: the circuit breaker then opens and every replica silently counts
+    // on its own for a few seconds (found by the multi-replica load test). Fire-and-forget; failure is already logged
+    // and handled by the in-memory fallback.
+    const { getSharedRedis } = await import("@/lib/redis/client");
+    void getSharedRedis().catch(() => null);
   }
 }

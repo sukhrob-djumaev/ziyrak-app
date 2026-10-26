@@ -1,5 +1,7 @@
 name: Docker Publish
 
+# L2.2 / F12: build once, test that image, push that image. Runs only for a published release (or by hand); nothing
+# is pushed unless the commit's CI run succeeded and the image passes the same smoke test and scan as in CI.
 on:
   release:
     types: [published]
@@ -10,21 +12,35 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  build-test-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Publishing is allowed only from a release tag, or by hand from the main branch. The commit must already have
+      # a completed, successful CI run on a push to main (the tested merge result, not a pull request head), and no
+      # CI run for it may still be running or have failed.
+      - name: Require a successful main CI run for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*|refs/heads/main) ;;
+            *) echo "Refusing to publish from $GITHUB_REF (release tags or main only)." >&2; exit 1;;
+          esac
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "Refusing to publish: $GITHUB_SHA is not on main." >&2; exit 1; }
+          result="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push --branch main --json conclusion,status --jq 'if length == 0 then "none" elif any(.[]; .status != "completed") then "running" elif all(.[]; .conclusion == "success") then "success" else "failed" end')"
+          echo "CI result for $GITHUB_SHA on main: $result"
+          [ "$result" = "success" ] || { echo "Refusing to publish: CI has not succeeded for this commit." >&2; exit 1; }
 
       - name: Extract metadata
         id: meta
@@ -34,12 +50,40 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Build image (once)
+        run: |
+          docker build --build-arg APP_BUILD_SHA=${{ github.sha }} \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            -t ziyrak:release .
+          docker image inspect --format '{{.Id}}' ziyrak:release | tee "$RUNNER_TEMP/image-id"
+
+      - name: Smoke-test the image
+        run: scripts/release/image-smoke.sh ziyrak:release ${{ github.sha }}
+
+      - name: Scan the image
+        run: scripts/release/image-scan.sh ziyrak:release
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the tested image and report its digest
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          [ "$(docker image inspect --format '{{.Id}}' ziyrak:release)" = "$(cat "$RUNNER_TEMP/image-id")" ] || { echo "image changed after test" >&2; exit 1; }
+          echo "$TAGS" | while read -r tag; do
+            [ -n "$tag" ] || continue
+            docker tag ziyrak:release "$tag"
+            docker push "$tag"
+          done
+          first="$(echo "$TAGS" | head -1)"
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$first")"
+          echo "Published digest: $digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Deploy by digest. Built from $GITHUB_SHA." | tee -a "$GITHUB_STEP_SUMMARY"

@@ -88,3 +88,23 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # L2.2 / F12: test the container image itself, not only the source tree. The image is built once, run under the
+  # strict production configuration with a real Postgres (web, worker, heartbeat, build identity, no dev weight),
+  # and scanned. The publish workflow repeats exactly these steps and pushes the image it just tested.
+  image:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - name: Build image
+        run: docker build --build-arg APP_BUILD_SHA=${{ github.sha }} -t ziyrak:ci .
+
+      - name: Smoke-test the image
+        run: scripts/release/image-smoke.sh ziyrak:ci ${{ github.sha }}
+
+      - name: Scan the image (fixable HIGH/CRITICAL fail the build)
+        run: scripts/release/image-scan.sh ziyrak:ci

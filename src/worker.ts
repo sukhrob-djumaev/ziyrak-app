@@ -14,6 +14,8 @@
 // Standalone entrypoint (not run through Next.js, which loads .env itself)
 // — same convention prisma.config.ts already uses for the same reason.
 import "dotenv/config";
+// L2.2: the production configuration contract runs before any other module can fail on a single variable.
+import "@/lib/config/assert-worker-startup";
 import "@/lib/jobs/bootstrap";
 // PLAN.md §46.7 acceptance-audit finding — registers every channel adapter
 // so this process's own process-inbound-message job handler can actually
@@ -25,7 +27,6 @@ import { SWEEP_SLA_BREACHES_JOB, SWEEP_RETENTION_JOB, SWEEP_AI_RESERVATIONS_JOB 
 import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/observability/logger";
 import { startWorkerHeartbeat } from "@/lib/ops/worker-heartbeat";
-import { assertRuntimeConfig } from "@/lib/config/runtime-contract";
 
 // Standard 5-field cron (minute hour day month weekday), matching pg-boss's
 // own `cron-parser`-backed schedule() — verified against its installed API,
@@ -39,8 +40,6 @@ const AI_RESERVATION_SWEEP_CRON = "*/5 * * * *"; // every five minutes
 let stopHeartbeat: (() => Promise<void>) | null = null;
 
 async function main(): Promise<void> {
-  // L2.1: same contract as the web process; a misconfigured worker must not start quietly and then fail per job.
-  assertRuntimeConfig(process.env, "worker");
   await jobQueue.start();
   stopHeartbeat = startWorkerHeartbeat();
   await jobQueue.scheduleRecurring(SWEEP_SLA_BREACHES_JOB, SLA_BREACH_SWEEP_CRON, async () => ({}));

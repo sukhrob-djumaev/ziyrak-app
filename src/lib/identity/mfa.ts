@@ -114,8 +114,8 @@ export async function checkSecondFactor(userId: string, input: SecondFactorInput
 }
 
 /** Removes the factor (lost device, offboarding) and ends the account's sessions. The caller authorises and audits. */
-export async function resetMfa(targetUserId: string): Promise<boolean> {
-  return prisma.$transaction(async (tx) => {
+export async function resetMfa(targetUserId: string, db?: Prisma.TransactionClient): Promise<boolean> {
+  const run = async (tx: Prisma.TransactionClient) => {
     const target = await tx.user.findUnique({ where: { id: targetUserId }, select: { id: true, platformRole: true } });
     if (!target?.platformRole) return false;
     await tx.mfaRecoveryCode.deleteMany({ where: { userId: targetUserId } });
@@ -124,7 +124,8 @@ export async function resetMfa(targetUserId: string): Promise<boolean> {
       data: { mfaSecretRef: Prisma.DbNull, mfaPendingSecretRef: Prisma.DbNull, mfaEnabledAt: null, mfaLastStep: null, sessionsValidAfter: sessionCutoff() },
     });
     return true;
-  });
+  };
+  return db ? run(db) : prisma.$transaction(run);
 }
 
 export type LoginMfaOutcome = "not_required" | "passed" | "challenge" | "invalid" | "enroll";

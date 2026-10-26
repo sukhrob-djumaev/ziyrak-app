@@ -146,3 +146,51 @@ describe("login with a second factor", () => {
     await expect(readPlatformAuthority(tokenFrom(res)!)).rejects.toMatchObject({ code: "MFA_REQUIRED" });
   });
 });
+
+describe("admin reset and self-service enrollment routes", () => {
+  it("a super admin can reset another platform account's factor (audited, sessions ended); not their own", async () => {
+    const { resetOperatorMfa } = await import("@/lib/platform/access/operators");
+    const admin = await superAdmin();
+    process.env.ZIYRAK_PLATFORM_MFA = "optional";
+    const adminSession = generateToken(admin.id);
+    const operator = await prisma.user.create({
+      data: { username: "mfa-op-" + randomUUID(), password: await hashPassword(PASSWORD), name: "Op", platformRole: "operator" },
+    });
+    ids.add(operator.id);
+    await enroll(operator.id);
+
+    await expect(resetOperatorMfa(adminSession, { targetUserId: admin.id, reason: "Resetting myself is refused" })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(resetOperatorMfa(adminSession, { targetUserId: operator.id, reason: "short" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(await resetOperatorMfa(adminSession, { targetUserId: operator.id, reason: "Operator lost their device" })).toEqual({ reset: true });
+    const row = await prisma.user.findUniqueOrThrow({ where: { id: operator.id } });
+    expect(row.mfaEnabledAt).toBeNull();
+    expect(await prisma.platformAccessAudit.count({ where: { actorUserId: admin.id, action: "mfa.reset" } })).toBe(1);
+  });
+
+  it("enrollment route: platform accounts enroll and confirm; others get 404", async () => {
+    const { POST, GET } = await import("@/app/api/auth/mfa/route");
+    const u = await superAdmin();
+    const call = (token: string, body?: object) => {
+      const req = new NextRequest("http://localhost:3000/api/auth/mfa", {
+        method: body ? "POST" : "GET",
+        headers: { "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      req.cookies.set("owly-token", token);
+      return body ? POST(req) : GET(req);
+    };
+    const token = generateToken(u.id);
+    expect((await (await call(token)).json()).enabled).toBe(false);
+    const enrolled = await (await call(token, { action: "enroll" })).json();
+    expect(enrolled.otpauthUri).toMatch(/^otpauth:/);
+    expect((await call(token, { action: "confirm", code: "000000" })).status).toBe(400);
+    const ok = await call(token, { action: "confirm", code: totpAt(base32Decode(enrolled.secret), Date.now()) });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).recoveryCodes).toHaveLength(10);
+    expect((await call(token, { action: "enroll" })).status).toBe(409);
+
+    const plain = await prisma.user.create({ data: { username: "mfa-plain-" + randomUUID(), password: await hashPassword(PASSWORD), name: "T" } });
+    ids.add(plain.id);
+    expect((await call(generateToken(plain.id), { action: "enroll" })).status).toBe(404);
+  });
+});

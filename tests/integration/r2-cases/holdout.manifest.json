@@ -1,0 +1,15 @@
+{
+  "set": "holdout",
+  "frozenAt": "2026-10-26",
+  "cases": 45,
+  "sha256": "aa64c5ab264716f5ebadb3dd0f653be4844564b188d9fb696be0d2cbb29c03d8",
+  "rules": [
+    "Authored before any scoring run against this set; never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json and evaluation.json (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ]
+}

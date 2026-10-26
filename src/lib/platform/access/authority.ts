@@ -61,9 +61,12 @@ async function currentAccount(tx: Prisma.TransactionClient, session: RevocableSe
     throw new AppError(401, "UNAUTHORIZED", "The person session has ended");
   const user = await tx.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, platformRole: true, mfaEnabledAt: true },
+    select: { id: true, platformRole: true, mfaEnabledAt: true, sessionsValidAfter: true },
   });
   if (!user) throw new AppError(401, "UNAUTHORIZED", "The person account is unavailable");
+  // Defense in depth: do not rely on the caller having run the revocation-aware check first (reset/password change).
+  if (user.sessionsValidAfter && (session.iat ?? 0) * 1000 < user.sessionsValidAfter.getTime())
+    throw new AppError(401, "UNAUTHORIZED", "The person session has ended");
   // L1.3: privileged authority needs a session that passed the second factor. Required mode demands an enrolled
   // factor for every platform account; optional mode still binds accounts that have enrolled, so a stolen
   // password-only session cannot act as an enrolled operator.

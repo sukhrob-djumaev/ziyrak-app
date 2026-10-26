@@ -59,4 +59,19 @@ describe("logger redaction (F16)", () => {
     a.self = a;
     expect(() => capture(() => logger.info("c", a))).not.toThrow();
   });
+
+  it("catches JSON-shaped secrets and bot-token URL paths inside strings, and keeps benign look-alikes", () => {
+    const line = capture(() =>
+      logger.error("provider failed", new Error('{"access_token":"abcdef-secret-1","ok":true} via https://api.telegram.org/bot123456:' + "ABCDEFGHIJKLMNOPQRSTUVWX" + "/sendMessage code=P2002"))
+    );
+    expect(line).not.toContain("abcdef-secret-1");
+    expect(line).not.toContain("ABCDEFGHIJKLMNOPQRSTUVWX");
+    expect(line).toContain("code=P2002");
+    const ctx = capture(() => logger.info("hook", { signatureValid: true, sessionId: "s-1", passed: true, bypass: "no", jwt: "eyJhbGciOi", refresh: "r-1" }));
+    expect(ctx).toContain('"signatureValid":true');
+    expect(ctx).toContain('"passed":true');
+    expect(ctx).toContain('"bypass":"no"');
+    expect(ctx).not.toContain("eyJhbGciOi");
+    expect(ctx).not.toContain("r-1");
+  });
 });

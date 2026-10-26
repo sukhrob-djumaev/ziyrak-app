@@ -97,8 +97,12 @@ describe("platform authority and the second factor", () => {
     const session = generateToken(u.id, { mfa: true });
     await new Promise((r) => setTimeout(r, 1100));
     await resetMfa(u.id);
+    // The reset ended the session itself (checked inside the authority gate, not only by callers).
+    await expect(readPlatformAuthority(session)).rejects.toMatchObject({ statusCode: 401 });
+    // A fresh password-only session is the enrollment state: refused once the factor is required.
     process.env.ZIYRAK_PLATFORM_MFA = "required";
-    await expect(readPlatformAuthority(session)).rejects.toMatchObject({ code: "MFA_REQUIRED" });
+    await new Promise((r) => setTimeout(r, 1100));
+    await expect(readPlatformAuthority(generateToken(u.id))).rejects.toMatchObject({ code: "MFA_REQUIRED" });
   });
 });
 

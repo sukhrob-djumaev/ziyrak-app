@@ -314,3 +314,17 @@ describe("Proxy", () => {
     });
   });
 });
+
+describe("Proxy: origin policy on account endpoints (L1.3)", () => {
+  const post = (headers: Record<string, string>, body = '{"action":"login","username":"x","password":"y"}') =>
+    new NextRequest(new URL("/api/auth", "http://localhost:3000"), { method: "POST", headers: { host: "localhost:3000", "content-length": String(body.length), ...headers }, body });
+  it("blocks a cross-site login post and a form-typed login post, allows same-origin JSON and header-less clients", async () => {
+    const { proxy } = await import("@/proxy");
+    await resetRateLimitsForTesting();
+    expect((await proxy(post({ "sec-fetch-site": "cross-site", "content-type": "application/json" }))).status).toBe(403);
+    expect((await proxy(post({ origin: "https://evil.example.net", "content-type": "application/json" }))).status).toBe(403);
+    expect((await proxy(post({ "content-type": "text/plain" }))).status).toBe(403);
+    expect((await proxy(post({ "sec-fetch-site": "same-origin", "content-type": "application/json" }))).status).not.toBe(403);
+    expect((await proxy(post({ "content-type": "application/json" }))).status).not.toBe(403);
+  });
+});

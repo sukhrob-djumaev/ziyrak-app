@@ -1,9 +1,9 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma/raw-client";
 import { Prisma } from "@/generated/prisma/client";
 import { getSecretResolver } from "@/lib/secrets/env-key-resolver";
 import type { EncryptedSecret } from "@/lib/secrets/types";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { sessionCutoff } from "./auth";
 import { base32Decode, base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from "./totp";
 
@@ -20,12 +20,15 @@ const ATTEMPTS = { maxRequests: 8, windowMs: 15 * 60 * 1000 };
 
 export const platformMfaMode = (): "required" | "optional" => (process.env.ZIYRAK_PLATFORM_MFA === "required" ? "required" : "optional");
 
+/** 80 bits, grouped for readability. */
 export function newRecoveryCode(): string {
-  const raw = base32Encode(randomBytes(7)).slice(0, 10); // 50 bits
-  return `${raw.slice(0, 5)}-${raw.slice(5)}`;
+  const raw = base32Encode(randomBytes(10)); // 16 characters
+  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12)}`;
 }
 const normalizeRecovery = (code: string) => code.replace(/[\s-]/g, "").toUpperCase();
-const hashRecovery = (code: string) => createHash("sha256").update(normalizeRecovery(code)).digest("hex");
+// Keyed hash: a leaked table alone cannot be searched offline without the server-side key.
+const hashRecovery = (code: string) =>
+  createHmac("sha256", `${process.env.JWT_SECRET ?? "test-only-fallback-secret"}:mfa-recovery`).update(normalizeRecovery(code)).digest("hex");
 
 async function platformUser(userId: string) {
   const user = await prisma.user.findUnique({
@@ -96,6 +99,7 @@ export async function checkSecondFactor(userId: string, input: SecondFactorInput
       where: { id: userId, OR: [{ mfaLastStep: null }, { mfaLastStep: { lt: verdict.step } }] },
       data: { mfaLastStep: verdict.step },
     });
+    if (advanced.count === 1) await resetRateLimit(`mfa-attempt:${userId}`); // only failures consume the budget
     return advanced.count === 1;
   }
   if (typeof input.recoveryCode === "string" && input.recoveryCode) {
@@ -108,6 +112,7 @@ export async function checkSecondFactor(userId: string, input: SecondFactorInput
     });
     if (!match) return false;
     const used = await prisma.mfaRecoveryCode.updateMany({ where: { id: match.id, usedAt: null }, data: { usedAt: new Date() } });
+    if (used.count === 1) await resetRateLimit(`mfa-attempt:${userId}`);
     return used.count === 1;
   }
   return false;
@@ -146,4 +151,31 @@ export async function loginSecondFactor(
     return (await checkSecondFactor(user.id, input)) ? "passed" : "invalid";
   }
   return platformMfaMode() === "required" ? "enroll" : "not_required";
+}
+
+/**
+ * F09: re-encrypts every stored second-factor secret under the active key so an old SECRET_KEY_V<n> can be retired.
+ * Run after adding the new key and before removing the old one; idempotent. Returns how many rows were rewritten.
+ */
+export async function reencryptMfaSecrets(): Promise<number> {
+  const resolver = getSecretResolver();
+  const rows = await prisma.user.findMany({
+    where: { OR: [{ mfaSecretRef: { not: Prisma.DbNull } }, { mfaPendingSecretRef: { not: Prisma.DbNull } }] },
+    select: { id: true, mfaSecretRef: true, mfaPendingSecretRef: true },
+  });
+  let rewritten = 0;
+  for (const row of rows) {
+    const data: { mfaSecretRef?: object; mfaPendingSecretRef?: object } = {};
+    for (const field of ["mfaSecretRef", "mfaPendingSecretRef"] as const) {
+      const ref = row[field] as EncryptedSecret | null;
+      if (!ref) continue;
+      const moved = await resolver.rotate(ref);
+      if (moved !== ref) data[field] = moved as object;
+    }
+    if (Object.keys(data).length) {
+      await prisma.user.update({ where: { id: row.id }, data });
+      rewritten++;
+    }
+  }
+  return rewritten;
 }

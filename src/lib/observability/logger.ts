@@ -12,7 +12,9 @@ interface LogEntry {
  * wholesale; strings are scrubbed for credentials by shape (bearer tokens, provider API keys, token-like query
  * parameters, URL userinfo, `password=...` pairs). It reduces accidental disclosure; it is not a license to log secrets.
  */
-const SENSITIVE_KEY = /(pass(word|wd|phrase)?|secret|token|authorization|cookie|api[-_]?key|credential|signature|private[-_]?key|session|otp|cvv|ssn)/i;
+const SENSITIVE_KEY = /(password|passwd|passphrase|secret|token|authorization|cookie|api[-_]?key|credential|signature|private[-_]?key|session|otp|cvv|ssn|jwt|refresh|^auth$|^key$)/i;
+/** Ids, flags and counters that merely mention a sensitive word (`signatureValid`, `sessionId`, `credentialId`). */
+const BENIGN_SUFFIX = /(valid|verified|id|ids|count|at|type|status|present|length)$/i;
 /** Usage counters share the word "token" but are not credentials. */
 const NOT_SENSITIVE_KEY = /^(input|output|total|prompt|completion|max)?_?tokens?(_?(count|used|usage|limit))?$/i;
 const REDACTED = "[REDACTED]";
@@ -22,7 +24,10 @@ const STRING_PATTERNS: Array<[RegExp, string]> = [
   [/\b(ghp|gho|ghs|xox[abp])[-_][A-Za-z0-9_-]{10,}/g, REDACTED],
   [/\bwhsec_[A-Za-z0-9]{6,}/g, REDACTED],
   [/(\/\/[^\s/:@]+:)[^\s/@]+@/g, `$1${REDACTED}@`],
-  [/([?&;\s](?:token|access_token|refresh_token|api[-_]?key|key|secret|password|passwd|pwd|code|signature|sig)=)[^&\s"']+/gi, `$1${REDACTED}`],
+  [/([?&](?:token|access_token|refresh_token|api[-_]?key|key|secret|password|passwd|pwd|code|signature|sig)=)[^&\s"']+/gi, `$1${REDACTED}`],
+  [/(\s(?:token|access_token|refresh_token|api[-_]?key|secret|password|passwd|pwd)=)[^&\s"']+/gi, `$1${REDACTED}`],
+  [/("(?:access_token|refresh_token|id_token|token|password|passwd|secret|client_secret|api_?key|authorization)"\s*:\s*")[^"]*(")/gi, `$1${REDACTED}$2`],
+  [/(\/bot\d+:)[A-Za-z0-9_-]{20,}/g, `$1${REDACTED}`],
 ];
 
 export function redactString(value: string): string {
@@ -41,7 +46,7 @@ function stringifyContext(context: Record<string, unknown>): string {
   const seen = new WeakSet<object>();
   try {
     return JSON.stringify(context, (key, value: unknown) => {
-      if (key && SENSITIVE_KEY.test(key) && !NOT_SENSITIVE_KEY.test(key) && value !== null && value !== undefined && value !== "") return REDACTED;
+      if (key && SENSITIVE_KEY.test(key) && !NOT_SENSITIVE_KEY.test(key) && !BENIGN_SUFFIX.test(key) && value !== null && value !== undefined && value !== "") return REDACTED;
       if (typeof value === "string") return redactString(value);
       if (value instanceof Error) return serializeError(value);
       if (typeof value === "object" && value !== null) {

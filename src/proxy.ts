@@ -111,6 +111,19 @@ export async function proxy(request: NextRequest) {
   // dashboard's onboarding checklist on every load; counting it against the
   // 5/min brute-force budget made ordinary navigation 429.
   if (pathname.startsWith("/api/auth") && request.method === "POST") {
+    // L1.3: the same origin/content-type policy as cookie writes, applied before login too (login CSRF
+    // would sign a victim into an attacker's account). Non-browser clients send neither header and pass.
+    const originVerdict = checkCookieMutation({
+      method: request.method,
+      headers: request.headers,
+      host: request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host,
+    });
+    if (!originVerdict.ok) {
+      return addHeaders(
+        NextResponse.json({ error: { code: "FORBIDDEN_ORIGIN", message: "Request origin or content type not allowed", requestId } }, { status: 403 }),
+        requestId
+      );
+    }
     const ip = getClientIp(request);
     // Sign-out has its own, larger budget: counting it against the 5/min login
     // brute-force limit let a shared address block people from signing out.

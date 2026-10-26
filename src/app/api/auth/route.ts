@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/raw-client";
 import {
@@ -31,7 +32,12 @@ function unknownUserHash(): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => undefined)) as
+    | { action?: string; username?: string; password?: string; [k: string]: unknown }
+    | undefined;
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: { code: "INVALID_REQUEST", message: "Invalid request body" } }, { status: 400 });
+  }
   const { action, username, password } = body;
 
   // PLAN.md §46.7 task 3 — repeatable, real multi-business signup: every call

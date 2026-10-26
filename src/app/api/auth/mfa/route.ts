@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { beginEnrollment, confirmEnrollment, mfaEnabled } from "@/lib/identity/mfa";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 
 /**
  * L1.3: a signed-in platform account manages its own second factor. Works on a limited (no-MFA) session on
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   const account = await requireAccountAuth(request);
   if (!isAccountAuthenticated(account)) return noStore(account);
   if (!account.user.platformRole) return noStore(NextResponse.json({ error: "Not available for this account" }, { status: 404 }));
-  const body = (await request.json().catch(() => null)) as { action?: unknown; code?: unknown; setupCode?: unknown; ownerProof?: unknown } | null;
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) as { action?: unknown; code?: unknown; setupCode?: unknown; ownerProof?: unknown } | null;
   if (body?.action === "enroll") {
     const begun = await beginEnrollment(account.user.id, { setupCode: body.setupCode, ownerProof: body.ownerProof });
     if (!begun) return noStore(NextResponse.json({ error: "Enrollment was not authorised. Ask a super admin for a setup code." }, { status: 403 }));

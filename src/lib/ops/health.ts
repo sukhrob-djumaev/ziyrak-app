@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { getSharedRedis, redisUrl } from "@/lib/redis/client";
+import { readQueueSignals, readWorkerStatus } from "./worker-heartbeat";
 
 /**
  * L2.1 / F04: liveness and readiness are different questions.
@@ -54,14 +55,20 @@ export async function readiness() {
 
 export async function detail() {
   const [database, redis] = await Promise.all([checkDatabase(), checkRedis()]);
+  // Worker and queue facts need the database; with it down they are simply unknown.
+  const worker = database === "ok" ? await readWorkerStatus().catch(() => null) : null;
+  const queue = database === "ok" ? await readQueueSignals() : "unknown";
   const mem = process.memoryUsage();
   return {
     ready: database === "ok",
-    status: database === "ok" && redis !== "down" ? "ok" : "degraded",
+    // "degraded" = serving, but an operator should look (Redis down, workers stale or absent).
+    status: database === "ok" && redis !== "down" && worker?.state === "ok" ? "ok" : "degraded",
     build: buildIdentity(),
     environment: process.env.NODE_ENV || "development",
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
-    services: { database, redis },
+    services: { database, redis, worker: worker?.state ?? "unknown" },
+    worker,
+    queue,
     memory: { rssMb: Math.round(mem.rss / 1024 / 1024), heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024) },
   };
 }

@@ -35,13 +35,14 @@ describe("health probes", () => {
     expect(await parseJsonResponse(down)).toMatchObject({ status: "not_ready", checks: { database: "down" } });
   });
 
-  it("the summary follows readiness: 200/ok, and 503/degraded when the database is down", async () => {
+  it("the summary follows readiness: 200 with the database up, 503 when it is down", async () => {
     const { GET } = await import("@/app/api/health/route");
     db(true);
     const ok = await GET();
     const data = await parseJsonResponse(ok);
     expect(ok.status).toBe(200);
-    expect(data).toMatchObject({ status: "ok", services: { database: "ok", redis: "not_configured" } });
+    // With no worker heartbeat visible the summary says "degraded" (serving, but look at the worker).
+    expect(data).toMatchObject({ status: "degraded", services: { database: "ok", redis: "not_configured", worker: "unknown" } });
     expect(data.build).toBeDefined();
     expect(data.uptimeSeconds).toBeGreaterThanOrEqual(0);
     expect(data.memory).toBeDefined();

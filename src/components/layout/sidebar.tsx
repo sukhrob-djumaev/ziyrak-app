@@ -28,62 +28,30 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { usePermissions } from "@/components/layout/permissions";
+import { visibleNavigation } from "@/lib/navigation/dashboard-nav";
 
-interface NavSection {
-  title?: string;
-  items: { name: string; href: string; icon: React.ElementType }[];
-}
-
-const sections: NavSection[] = [
-  {
-    items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-      { name: "Conversations", href: "/conversations", icon: MessageSquare },
-      { name: "Customers", href: "/customers", icon: Contact },
-      { name: "Tickets", href: "/tickets", icon: Ticket },
-    ],
-  },
-  {
-    title: "Knowledge",
-    items: [
-      { name: "Knowledge Base", href: "/knowledge", icon: BookOpen },
-      { name: "Canned Responses", href: "/canned-responses", icon: Zap },
-      { name: "Automation", href: "/automation", icon: Workflow },
-      { name: "Business Hours", href: "/business-hours", icon: Clock },
-    ],
-  },
-  {
-    title: "Team",
-    items: [
-      { name: "Team", href: "/team", icon: Users },
-      { name: "SLA Rules", href: "/sla", icon: Timer },
-      { name: "Approvals", href: "/approvals", icon: ShieldCheck },
-    ],
-  },
-  {
-    title: "Channels",
-    items: [
-      { name: "Channels", href: "/channels", icon: Radio },
-      { name: "Webhooks", href: "/webhooks", icon: Webhook },
-    ],
-  },
-  {
-    title: "Insights",
-    items: [
-      { name: "Analytics", href: "/analytics", icon: BarChart3 },
-      { name: "Activity Log", href: "/activity", icon: ScrollText },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { name: "Administration", href: "/admin", icon: Shield },
-      { name: "API Docs", href: "/api-docs", icon: FileCode },
-      { name: "Settings", href: "/settings", icon: Settings },
-      { name: "Switch workspace", href: "/workspaces", icon: Users },
-    ],
-  },
-];
+const ICONS: Record<string, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  conversations: MessageSquare,
+  customers: Contact,
+  tickets: Ticket,
+  knowledge: BookOpen,
+  canned: Zap,
+  automation: Workflow,
+  hours: Clock,
+  team: Users,
+  sla: Timer,
+  approvals: ShieldCheck,
+  channels: Radio,
+  webhooks: Webhook,
+  analytics: BarChart3,
+  activity: ScrollText,
+  admin: Shield,
+  docs: FileCode,
+  settings: Settings,
+  switch: Users,
+};
 
 const APPROVALS_HREF = "/approvals";
 const APPROVALS_POLL_MS = 30_000;
@@ -93,10 +61,11 @@ const APPROVALS_POLL_MS = 30_000;
  * `null` means the caller may not review approvals (403) or the count is
  * unavailable, in which case the Approvals link is hidden / shows no badge.
  */
-function usePendingApprovals(): number | null {
+function usePendingApprovals(enabled: boolean): number | null {
   const [count, setCount] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     try {
       const res = await fetch("/api/actions?status=pending_approval&limit=1");
       if (!res.ok) {
@@ -108,7 +77,7 @@ function usePendingApprovals(): number | null {
     } catch {
       // Transient failure: keep the last known count.
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     refresh();
@@ -118,16 +87,11 @@ function usePendingApprovals(): number | null {
   return count;
 }
 
-export function Sidebar({
-  canReadAdministration,
-  canReadSettings,
-}: {
-  canReadAdministration: boolean;
-  canReadSettings: boolean;
-}) {
+export function Sidebar() {
+  const sections = visibleNavigation([...usePermissions()]);
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const pendingApprovals = usePendingApprovals();
+  const pendingApprovals = usePendingApprovals(usePermissions().has("actions:read"));
 
   return (
     <aside
@@ -163,11 +127,8 @@ export function Sidebar({
             {collapsed && si > 0 && <div className="mx-3 mb-2 border-t border-white/10" />}
             <div className="space-y-0.5">
               {section.items
-                // Only roles allowed to review approvals get the link (the count request 403s for others).
-                .filter((item) => item.href !== APPROVALS_HREF || pendingApprovals !== null)
-                .filter((item) => item.href !== "/admin" || canReadAdministration)
-                .filter((item) => item.href !== "/settings" || canReadSettings)
                 .map((item) => {
+                  const Icon = ICONS[item.icon] ?? LayoutDashboard;
                   const isActive =
                     pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
@@ -183,7 +144,7 @@ export function Sidebar({
                       )}
                       title={collapsed ? item.name : undefined}
                     >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <Icon className="h-4 w-4 flex-shrink-0" />
                       {!collapsed && <span>{item.name}</span>}
                       {item.href === APPROVALS_HREF && pendingApprovals ? (
                         <span

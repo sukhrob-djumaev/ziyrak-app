@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, Search, Sun, Moon, LogOut, User } from "lucide-react";
+import { Sun, Moon, LogOut, User, Settings, Users } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "@/lib/hooks/use-theme";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
+import { useCan } from "@/components/layout/permissions";
 
 interface Me {
   user: { id: string; name: string; username: string };
@@ -32,11 +33,11 @@ interface HeaderProps {
 }
 
 export function Header({ title, description, actions }: HeaderProps) {
-  const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const { toast } = useToast();
+  const canReadSettings = useCan("settings:read");
   const [me, setMe] = useState<Me | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -92,23 +93,6 @@ export function Header({ title, description, actions }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {searchOpen && (
-          <input
-            type="text"
-            placeholder="Search..."
-            className="px-3 py-1.5 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-surface text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary w-64 animate-slide-in-down transition-theme"
-            autoFocus
-            onBlur={() => setSearchOpen(false)}
-          />
-        )}
-        <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          className="p-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
-          title="Search"
-        >
-          <Search className="h-5 w-5" />
-        </button>
-
         <button
           onClick={toggleTheme}
           className="p-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
@@ -119,11 +103,6 @@ export function Header({ title, description, actions }: HeaderProps) {
           ) : (
             <Sun className="h-5 w-5" />
           )}
-        </button>
-
-        <button className="relative p-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-ziyrak-danger rounded-full" />
         </button>
 
         {actions}
@@ -151,12 +130,34 @@ export function Header({ title, description, actions }: HeaderProps) {
               <button
                 onClick={() => {
                   setUserMenuOpen(false);
-                  router.push("/settings");
+                  router.push("/account");
                 }}
                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ziyrak-text hover:bg-ziyrak-primary-50 transition-colors"
               >
                 <User className="h-4 w-4" />
-                Profile & Settings
+                My account
+              </button>
+              {canReadSettings && (
+                <button
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    router.push("/settings");
+                  }}
+                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ziyrak-text hover:bg-ziyrak-primary-50 transition-colors"
+                >
+                  <Settings className="h-4 w-4" />
+                  Workspace settings
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  router.push("/workspaces");
+                }}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ziyrak-text hover:bg-ziyrak-primary-50 transition-colors"
+              >
+                <Users className="h-4 w-4" />
+                Switch workspace
               </button>
               <div className="border-t border-ziyrak-border my-1" />
               <button

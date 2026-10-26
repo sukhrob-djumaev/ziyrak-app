@@ -14,6 +14,8 @@ x-loadtest-env: &loadtest-env
   OPENAI_BASE_URL: http://host.docker.internal:4010/v1
   OPENAI_API_KEY: sk-loadtest-standin
   NEXT_PUBLIC_APP_URL: http://localhost:3201
+  # L2.1: isolated load harness, not a deployment.
+  ZIYRAK_CONFIG_PROFILE: relaxed
 
 services:
   db:

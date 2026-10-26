@@ -48,6 +48,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3000
+# L2.1 / F11: identity of what is deployed, reported by /api/health. Set with --build-arg APP_BUILD_SHA=<git sha>.
+ARG APP_BUILD_SHA=unknown
+ENV APP_BUILD_SHA=$APP_BUILD_SHA
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -79,7 +82,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
 
 # `exec` + `node` directly (not `npm start`): npm as PID 1 does not forward
 # SIGTERM, so a scale-down or rolling deploy would hard-kill the server instead

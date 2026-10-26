@@ -1,5 +1,8 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // L2.1: refuse to serve with an incomplete or unsafe production configuration (strict profile only).
+    const { assertRuntimeConfig } = await import("@/lib/config/runtime-contract");
+    assertRuntimeConfig(process.env, "web");
     const { registerShutdownHandlers } = await import("@/lib/prisma/shutdown");
     registerShutdownHandlers();
 

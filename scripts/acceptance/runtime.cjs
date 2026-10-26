@@ -232,6 +232,8 @@ async function start(what = "all") {
     DATABASE_URL: process.env.ACC_DB,
     DIRECT_DATABASE_URL: process.env.ACC_DB,
     NODE_ENV: "production",
+    // L2.1: isolated harness, not a deployment - production config strictness is exercised by its own tests.
+    ZIYRAK_CONFIG_PROFILE: "relaxed",
     // P3: platform mail is captured to a file the journeys read; nothing is delivered anywhere.
     MAIL_TRANSPORT: "capture",
     MAIL_CAPTURE_FILE: path.join(work, "mail.jsonl"),

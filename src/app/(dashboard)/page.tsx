@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
-import { OnboardingChecklist } from "@/components/ui/onboarding-checklist";
 import { OnboardingPanel } from "@/components/ui/onboarding-panel";
 import { AccountEmailBanner } from "@/components/ui/account-email-banner";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -86,7 +85,6 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <AccountEmailBanner />
         <OnboardingPanel />
-        <OnboardingChecklist />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useCan } from "@/components/layout/permissions";
 
 interface Step {
   id: "knowledge" | "channel" | "test_reply" | "activation";
@@ -27,13 +28,19 @@ export function OnboardingPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Activating the workspace and the test reply are owner actions; everyone else only sees progress.
+  const isOwner = useCan("business:billing");
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/onboarding", { cache: "no-store" });
-      if (res.ok) setView(await res.json());
+      if (res.ok) {
+        setView(await res.json());
+        setLoadFailed(false);
+      } else setLoadFailed(true);
     } catch {
-      /* the dashboard stays usable without the panel */
+      setLoadFailed(true); // the dashboard stays usable; say so instead of showing nothing
     }
   }, []);
   useEffect(() => {
@@ -58,6 +65,15 @@ export function OnboardingPanel() {
     }
   }
 
+  if (!view && loadFailed)
+    return (
+      <p role="status" className="rounded-xl border border-ziyrak-border bg-ziyrak-surface px-5 py-3 text-sm text-ziyrak-text-light">
+        Setup progress could not be loaded.{" "}
+        <button type="button" onClick={() => void load()} className="font-medium text-ziyrak-primary hover:underline">
+          Try again
+        </button>
+      </p>
+    );
   if (!view || !view.applicable || view.activated) return null;
   const allDone = view.steps.filter((s) => s.id !== "activation").every((s) => s.status === "done");
   return (
@@ -65,10 +81,12 @@ export function OnboardingPanel() {
       <div className="px-5 py-4 border-b border-ziyrak-border">
         <h3 className="font-semibold text-ziyrak-text">Finish setting up your workspace</h3>
         <p className="text-xs text-ziyrak-text-light mt-0.5">
-          Until you activate it, visitors get a short notice instead of AI replies.
+          {isOwner
+            ? "Until you activate it, visitors get a short notice instead of AI replies."
+            : "Until the workspace owner activates it, visitors get a short notice instead of AI replies. Only the owner can run the test reply and activate."}
         </p>
       </div>
-      {!view.emailVerified && (
+      {isOwner && !view.emailVerified && (
         <div id="verifyBanner" role="status" className="px-5 py-3 text-sm bg-ziyrak-bg border-b border-ziyrak-border">
           Confirm your email address to unlock the test reply and activation.{" "}
           <button
@@ -102,7 +120,7 @@ export function OnboardingPanel() {
                   {LINKS[step.id].label}
                 </Link>
               )}
-              {step.id === "test_reply" && step.status !== "done" && (
+              {isOwner && step.id === "test_reply" && step.status !== "done" && (
                 <button
                   id="runTestReply"
                   type="button"
@@ -113,7 +131,7 @@ export function OnboardingPanel() {
                   {busy === "test" ? "Asking..." : step.status === "failed" ? "Try again" : "Run test reply"}
                 </button>
               )}
-              {step.id === "activation" && (
+              {isOwner && step.id === "activation" && (
                 <button
                   id="activateWorkspace"
                   type="button"

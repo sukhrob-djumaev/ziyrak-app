@@ -5,6 +5,7 @@ import { normalizeJsonRequest } from "@/lib/channels/http-request";
 import { enqueueInboundProcessing } from "@/lib/events/dispatch";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { PayloadTooLargeError, BodyDeadlineError } from "@/lib/http/bounded-body";
 import { logger } from "@/lib/observability/logger";
 
 type RouteContext = { params: Promise<{ connectionId: string }> };
@@ -84,6 +85,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return respond({ status: result.kind });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return respond({ error: { code: "PAYLOAD_TOO_LARGE", message: "Message is too large" } }, 413);
+    }
+    if (error instanceof BodyDeadlineError) {
+      return respond({ error: { code: "REQUEST_TIMEOUT", message: "Request took too long" } }, 408);
+    }
     logger.error("[WebChat] Failed to handle inbound message:", error);
     return respond({ error: { code: "INTERNAL_ERROR", message: "Something went wrong" } }, 500);
   }

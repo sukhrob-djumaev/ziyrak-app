@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { startEmailChange, readAccountEmail } from "@/lib/identity/account-service";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!isAccountAuthenticated(account)) return account;
   const limit = await checkRateLimit(`email-change:${account.user.id}`, { maxRequests: 3, windowMs: 60 * 60 * 1000 });
   if (!limit.allowed) return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
-  const body = await request.json().catch(() => null);
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
   try {
     const result = await startEmailChange(
       account.user.id,

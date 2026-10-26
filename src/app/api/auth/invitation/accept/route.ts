@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readBoundedJson, AUTH_BODY_BYTES } from "@/lib/http/bounded-body";
 import { acceptInvitation } from "@/lib/platform/admin-users/invitations";
 import { verifyActiveToken, generateToken, setAuthCookie } from "@/lib/identity/auth";
 import { workspaceCookie } from "@/lib/identity/workspace-cookie";
@@ -17,7 +18,7 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
 };
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
   const cookie = request.cookies.get("owly-token")?.value;
   const session = cookie ? await verifyActiveToken(cookie) : null;
   const signup =

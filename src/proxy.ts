@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readBoundedJson, AUTH_BODY_BYTES, PayloadTooLargeError, BodyDeadlineError } from "@/lib/http/bounded-body";
 import { getClientIp } from "@/lib/client-ip";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { verifyToken, verifyActiveToken } from "@/lib/identity/auth";
@@ -113,7 +114,22 @@ export async function proxy(request: NextRequest) {
     const ip = getClientIp(request);
     // Sign-out has its own, larger budget: counting it against the 5/min login
     // brute-force limit let a shared address block people from signing out.
-    const action = await request.clone().json().then((b: { action?: unknown } | null) => b?.action, () => undefined);
+    let action: unknown;
+    try {
+      // F06: bounded read; the route re-reads its own copy under the same limit.
+      action = ((await readBoundedJson(request.clone(), AUTH_BODY_BYTES)) as { action?: unknown } | undefined)?.action;
+    } catch (error) {
+      if (error instanceof PayloadTooLargeError || error instanceof BodyDeadlineError) {
+        return addHeaders(
+          NextResponse.json(
+            { error: { code: error instanceof PayloadTooLargeError ? "PAYLOAD_TOO_LARGE" : "REQUEST_TIMEOUT", message: "Request body rejected", requestId } },
+            { status: error instanceof PayloadTooLargeError ? 413 : 408 }
+          ),
+          requestId
+        );
+      }
+      action = undefined;
+    }
     const isLogout = action === "logout";
     const limits = isLogout ? RATE_LIMITS.logout : RATE_LIMITS.auth;
     const rateResult = await checkRateLimit(`${isLogout ? "logout" : "auth"}:${ip}`, limits);

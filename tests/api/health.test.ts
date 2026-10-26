@@ -1,51 +1,106 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/raw-client";
 import { parseJsonResponse } from "../helpers/request";
+import { NextRequest } from "next/server";
 
-const mockPrisma = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>> | ReturnType<typeof vi.fn>>;
+const call = (route: { GET: (r: NextRequest) => Promise<Response> }, token?: string) =>
+  route.GET(new NextRequest("http://localhost:3000/api/health", { headers: token ? { "x-health-token": token } : {} }));
 
-describe("GET /api/health", () => {
+const mockPrisma = prisma as unknown as { $queryRaw: ReturnType<typeof vi.fn> };
+const db = (ok: boolean) =>
+  ok ? mockPrisma.$queryRaw.mockResolvedValue([{ "?column?": 1 }]) : mockPrisma.$queryRaw.mockRejectedValue(new Error("Connection refused"));
+
+/** L2.1 / F04: liveness never consults a dependency; readiness and the summary fail with 503 when the database is down. */
+describe("health probes", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // Mock settings for OpenAI check
-    (mockPrisma.settings as Record<string, ReturnType<typeof vi.fn>>).findFirst.mockResolvedValue({ aiApiKey: "" });
+    delete process.env.REDIS_URL;
+    process.env.HEALTH_CACHE_MS = "0"; // these tests flip the database state between calls
   });
 
-  it("should return ok status when database is connected", async () => {
-    (mockPrisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([{ "?column?": 1 }]);
-
-    const { GET } = await import("@/app/api/health/route");
-    const response = await GET();
-    const data = await parseJsonResponse(response);
-
+  it("live answers 200 even when the database is down and never queries it", async () => {
+    db(false);
+    mockPrisma.$queryRaw.mockClear();
+    const { GET } = await import("@/app/api/health/live/route");
+    const response = GET();
     expect(response.status).toBe(200);
-    expect(data.status).toBe("ok");
-    expect(data.services.database).toBe("connected");
-    expect(data.uptime).toBeDefined();
-    expect(data.memory).toBeDefined();
-    expect(data.environment).toBeDefined();
+    expect((await parseJsonResponse(response)).status).toBe("alive");
+    expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
   });
 
-  it("should return degraded status when database is down", async () => {
-    (mockPrisma.$queryRaw as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"));
-
-    const { GET } = await import("@/app/api/health/route");
-    const response = await GET();
-    const data = await parseJsonResponse(response);
-
-    expect(response.status).toBe(200);
-    expect(data.status).toBe("degraded");
-    expect(data.services.database).toBe("error");
+  it("ready is 200 with the database up and 503 when it is down", async () => {
+    const { GET } = await import("@/app/api/health/ready/route");
+    db(true);
+    const up = await GET();
+    expect(up.status).toBe(200);
+    expect(await parseJsonResponse(up)).toMatchObject({ status: "ready", checks: { database: "ok" } });
+    db(false);
+    const down = await GET();
+    expect(down.status).toBe(503);
+    expect(await parseJsonResponse(down)).toMatchObject({ status: "not_ready", checks: { database: "down" } });
   });
 
-  it("should report openai as not_configured when no API key", async () => {
-    (mockPrisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([{ "?column?": 1 }]);
-    (mockPrisma.settings as Record<string, ReturnType<typeof vi.fn>>).findFirst.mockResolvedValue({ aiApiKey: "" });
+  it("recovers: ready goes 503 while the database is down and 200 again as soon as it is back", async () => {
+    const { GET } = await import("@/app/api/health/ready/route");
+    db(false);
+    expect((await GET()).status).toBe(503);
+    db(true);
+    expect((await GET()).status).toBe(200);
+  });
 
-    const { GET } = await import("@/app/api/health/route");
-    const response = await GET();
-    const data = await parseJsonResponse(response);
+  it("the summary follows readiness: 200 with the database up, 503 when it is down", async () => {
+    const route = await import("@/app/api/health/route");
+    db(true);
+    const ok = await call(route);
+    const data = await parseJsonResponse(ok);
+    expect(ok.status).toBe(200);
+    // With no worker heartbeat visible the summary says "degraded" (serving, but look at the worker).
+    expect(data).toMatchObject({ status: "degraded", services: { database: "ok", redis: "not_configured", worker: "unknown" } });
+    // The public answer carries no fingerprinting or activity detail.
+    for (const key of ["build", "memory", "uptimeSeconds", "queue", "worker", "environment"]) expect(data[key], key).toBeUndefined();
+    db(false);
+    const bad = await call(route);
+    expect(bad.status).toBe(503);
+    expect((await parseJsonResponse(bad)).status).toBe("degraded");
+  });
 
-    expect(data.services.openai).toBe("not_configured");
+  it("shares and briefly caches probes so a flood is not a flood of queries", async () => {
+    process.env.HEALTH_CACHE_MS = "1000";
+    const route = await import("@/app/api/health/ready/route");
+    db(true);
+    mockPrisma.$queryRaw.mockClear();
+    await Promise.all(Array.from({ length: 25 }, () => route.GET()));
+    await route.GET();
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBeLessThanOrEqual(1);
+    await new Promise((r) => setTimeout(r, 1100));
+    await route.GET();
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBe(2);
+  });
+
+  it("makes no outbound provider call", async () => {
+    db(true);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const route = await import("@/app/api/health/route");
+    await call(route);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns build identity and operational detail only with the operator token", async () => {
+    db(true);
+    process.env.APP_BUILD_SHA = "abc1234";
+    process.env.HEALTH_DETAIL_TOKEN = "operator-token-for-tests-1234567890";
+    const route = await import("@/app/api/health/route");
+    for (const bad of [undefined, "wrong", "operator-token-for-tests-123456789"]) {
+      expect((await parseJsonResponse(await call(route, bad))).build, String(bad)).toBeUndefined();
+    }
+    const detail = await parseJsonResponse(await call(route, "operator-token-for-tests-1234567890"));
+    expect(detail.build.sha).toBe("abc1234");
+    expect(detail).toHaveProperty("worker");
+    expect(detail).toHaveProperty("queue");
+    expect(detail.memory).toBeDefined();
+    delete process.env.HEALTH_DETAIL_TOKEN;
+    // No token configured: nobody gets the detail, not even an empty header.
+    expect((await parseJsonResponse(await call(route, ""))).build).toBeUndefined();
+    delete process.env.APP_BUILD_SHA;
   });
 });

@@ -50,8 +50,10 @@ const FORBIDDEN_FOR_EXISTING =
  * so a new one must be reviewed (and either fenced or classified here) before it lands.
  */
 const RAW_SQL = [
-  "app/api/health/route.ts",
   "lib/ai/allowance.ts",
+  // L2.1 operations probes: `SELECT 1` and read-only pg-boss queue counters; no tenant data is read or written.
+  "lib/ops/health.ts",
+  "lib/ops/worker-heartbeat.ts",
   "lib/platform/access/authority.ts",
   "lib/platform/dedicated-database.ts",
   "lib/platform/username-reservation.ts",

@@ -2,6 +2,7 @@
 # PLAN.md §28.4/§46.8 — PgBouncer in transaction-pooling mode in front of
 # PostgreSQL. Runtime traffic (DATABASE_URL) goes through it; migrations and
 # the job queue use DIRECT_DATABASE_URL.
+{{- if not .Values.secrets.existingSecret }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -13,6 +14,7 @@ type: Opaque
 stringData:
   DB_PASSWORD: {{ .Values.database.password | quote }}
 ---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -50,8 +52,10 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "owly.fullname" . }}-pgbouncer
-                  key: DB_PASSWORD
+                  # With secrets.existingSecret the password comes from that secret (key below), so a
+                  # pre-created secret and the in-chart PgBouncer work together (L2.1 / F05).
+                  name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "owly.fullname" . }}-pgbouncer{{ end }}
+                  key: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecretKeys.dbPassword | default "DB_PASSWORD" }}{{ else }}DB_PASSWORD{{ end }}
             # PgBouncer -> PostgreSQL TLS follows database.sslMode.
             - name: SERVER_TLS_SSLMODE
               value: {{ .Values.database.sslMode | quote }}

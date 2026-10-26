@@ -9,6 +9,11 @@ x-ziyrak-env: &ziyrak-env
   DATABASE_POOL_MAX: "10"
   REDIS_URL: redis://:${REDIS_PASSWORD:-owly-local-redis}@redis:6379
   NODE_ENV: production
+  # L2.1: this stack is local/self-test, not a production deployment, so it skips the strict production
+  # configuration contract (https URL, trusted proxy hops, SMTP...). Remove this line, and satisfy
+  # `npm run config:check`, for a real deployment. See docs/guides/operator-setup.md.
+  # Set ZIYRAK_CONFIG_PROFILE=strict in .env (or the shell) to run this stack under the production contract.
+  ZIYRAK_CONFIG_PROFILE: ${ZIYRAK_CONFIG_PROFILE:-relaxed}
 
 services:
   db:
@@ -106,7 +111,8 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      # Readiness (503 while the database is down), so dependants and operators see the truth (L2.1 / F04).
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       start_period: 30s
@@ -129,6 +135,14 @@ services:
     # SIGTERM, so the worker could not drain in-flight jobs on stop/scale-down.
     command: ["sh", "-c", "npx prisma migrate deploy && exec node --import tsx src/worker.ts"]
     stop_grace_period: 45s
+    # The image's HTTP check does not apply: the worker has no HTTP server. It proves life by refreshing a file
+    # every ~15 s, and only after its database write succeeds (proves the loop and database, not job throughput) (src/lib/ops/worker-heartbeat.ts).
+    healthcheck:
+      test: ["CMD", "node", "-e", "const f=process.env.WORKER_HEARTBEAT_FILE||require('os').tmpdir()+'/ziyrak-worker-heartbeat';try{process.exit(Date.now()-require('fs').statSync(f).mtimeMs<60000?0:1)}catch{process.exit(1)}"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
     environment:
       <<: *ziyrak-env
     env_file:

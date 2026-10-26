@@ -78,6 +78,21 @@ spec:
             - name: REDIS_URL
               value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
             {{- end }}
+          # The worker has no HTTP server; it refreshes a file every ~15 s after a successful database write
+          # (src/lib/ops/worker-heartbeat.ts). Stale for a minute = event loop stuck or cut off from the database -> restart. It does not prove jobs are moving; alarm on queue.oldestWaitingSeconds for that.
+          startupProbe:
+            exec:
+              command: &heartbeat ["node", "-e", "const f=process.env.WORKER_HEARTBEAT_FILE||require('os').tmpdir()+'/ziyrak-worker-heartbeat';try{process.exit(Date.now()-require('fs').statSync(f).mtimeMs<60000?0:1)}catch{process.exit(1)}"]
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: *heartbeat
+            periodSeconds: 30
+            # Starting node under CPU throttling can exceed the 1 s default and would restart a healthy worker.
+            timeoutSeconds: 10
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           securityContext:

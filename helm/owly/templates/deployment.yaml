@@ -72,18 +72,21 @@ spec:
               value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
             {{- end }}
           {{- if .Values.probes.startup.enabled }}
+          # Startup only waits for the process to answer. It must not depend on the database, or a pod that starts
+          # during a database outage would exhaust its attempts and crash-loop (L2.1 / F04).
           startupProbe:
             httpGet:
-              path: /api/health
+              path: /api/health/live
               port: http
             initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.startup.periodSeconds }}
             failureThreshold: {{ .Values.probes.startup.failureThreshold }}
           {{- end }}
           {{- if .Values.probes.liveness.enabled }}
+          # Liveness never consults a dependency: a database outage must not restart healthy web pods (L2.1 / F04).
           livenessProbe:
             httpGet:
-              path: /api/health
+              path: /api/health/live
               port: http
             periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
@@ -91,7 +94,7 @@ spec:
           {{- if .Values.probes.readiness.enabled }}
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/health/ready
               port: http
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
             failureThreshold: {{ .Values.probes.readiness.failureThreshold }}

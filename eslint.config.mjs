@@ -50,6 +50,9 @@ const eslintConfig = defineConfig([
       // L1.3 platform second factor: per-account credential state read/written before any workspace is selected,
       // like account-auth (no tenant data is touched).
       "src/lib/identity/mfa.ts",
+      // L2.1 operations probes: `SELECT 1`, the worker heartbeat table and pg-boss queue counters. No workspace
+      // data is read or written (nothing here has a tenant to scope by).
+      "src/lib/ops/**",
       // PLAN.md §6/§14.3/§46.5 — resolves which business an identity-less
       // inbound channel webhook belongs to (ChannelConnection lookup by
       // provider identifier), the same pre-ctx reason route-auth.ts is here.

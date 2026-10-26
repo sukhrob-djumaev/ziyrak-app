@@ -119,6 +119,14 @@ model User {
 }
 
 // P1 control-plane authority and explicit resource scope. No public role assignment.
+/// L2.1: liveness evidence for each running worker process (replicas each own one row, refreshed every few seconds).
+model WorkerHeartbeat {
+  instanceId String   @id
+  startedAt  DateTime
+  lastSeenAt DateTime
+  buildSha   String   @default("unknown")
+}
+
 /// L1.3: one-time proof, issued by a super admin, required to enroll a platform account's second factor.
 /// Only an HMAC of the code is stored; it expires and is consumed by the enrollment it authorises.
 model MfaSetupCode {

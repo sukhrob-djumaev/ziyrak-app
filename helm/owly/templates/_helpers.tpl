@@ -127,8 +127,19 @@ shared state would silently break rate limiting and realtime delivery.
 {{- fail "secrets.encryptionKeys must provide at least one key, for example {\"1\": \"<32+ random characters>\"} (or supply SECRET_KEY_V<n> in secrets.existingSecret)." -}}
 {{- end -}}
 {{- end -}}
-{{- if not .Values.smtp.host -}}
-{{- fail "smtp.host and smtp.from are required: account verification, password reset and invitations cannot work without platform mail (or put PLATFORM_SMTP_HOST/FROM in your own configuration)." -}}
+{{- if and (not .Values.secrets.existingSecret) (or (not .Values.smtp.host) (not .Values.smtp.from)) -}}
+{{- fail "smtp.host and smtp.from are required: account verification, password reset and invitations cannot work without platform mail (with secrets.existingSecret, supply PLATFORM_SMTP_HOST/FROM there)." -}}
+{{- end -}}
+{{- if ne (.Values.config.nodeEnv | toString) "production" -}}
+{{- fail "config.nodeEnv must be \"production\": any other value switches off the strict production configuration check." -}}
+{{- end -}}
+{{- range $version, $key := .Values.secrets.encryptionKeys -}}
+{{- if not (regexMatch "^[1-9][0-9]*$" ($version | toString)) -}}
+{{- fail (printf "secrets.encryptionKeys key %q must be a positive integer version (\"1\", \"2\", ...)." ($version | toString)) -}}
+{{- end -}}
+{{- if lt (len ($key | toString)) 32 -}}
+{{- fail (printf "secrets.encryptionKeys[%s] must be at least 32 characters." ($version | toString)) -}}
+{{- end -}}
 {{- end -}}
 {{- if not (hasPrefix "https://" (.Values.config.appUrl | toString)) -}}
 {{- fail "config.appUrl must be the public https:// address of the app." -}}

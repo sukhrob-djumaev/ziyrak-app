@@ -38,6 +38,8 @@ describe("runtime configuration contract (F05)", () => {
     expect(errors({ ...good, JWT_SECRET: "short" })).toContain("JWT_SECRET");
     expect(errors({ ...good, SECRET_KEY_V1: "short" })).toContain("SECRET_KEY_V1");
     expect(errors({ ...good, MAIL_TRANSPORT: "capture" })).toContain("MAIL_TRANSPORT");
+    for (const other of ["SMTP", "log", "none"]) expect(errors({ ...good, MAIL_TRANSPORT: other }), other).toContain("MAIL_TRANSPORT");
+    expect(errors({ ...good, MAIL_TRANSPORT: "smtp" })).toEqual([]);
     expect(errors({ ...good, NEXT_PUBLIC_APP_URL: "http://app.example.com" })).toContain("NEXT_PUBLIC_APP_URL");
     expect(errors({ ...good, NEXT_PUBLIC_APP_URL: "https://localhost:3000" })).toContain("NEXT_PUBLIC_APP_URL");
     for (const bad of ["", "0", "-1", "two", "1.5"]) expect(errors({ ...good, TRUSTED_PROXY_HOPS: bad }), bad).toContain("TRUSTED_PROXY_HOPS");

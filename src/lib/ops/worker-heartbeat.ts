@@ -9,7 +9,8 @@ import { logger } from "@/lib/observability/logger";
  * L2.1 / F11: a worker has no HTTP surface, so it proves it is alive two ways.
  * - a row per process in WorkerHeartbeat (what the web app reports and what fleet checks read), and
  * - a local file whose mtime a container probe can check without any network or database access.
- * A worker that stops (crash, wedge, lost database) stops refreshing both, so both go stale.
+ * A worker whose process dies, event loop stalls or database connection is lost stops refreshing both, so both go
+ * stale. This does NOT prove jobs are being processed; queue age (readQueueSignals) is the signal for that.
  */
 export const HEARTBEAT_INTERVAL_MS = 15_000;
 export const HEARTBEAT_STALE_MS = 60_000;
@@ -31,6 +32,8 @@ export async function beat(instanceId: string, startedAt: Date, now: Date = new 
     create: { instanceId, startedAt, lastSeenAt: now, buildSha },
     update: { lastSeenAt: now, buildSha },
   });
+  // A crashed worker (SIGKILL, OOM) never removes its row; drop anything long dead so the table cannot grow.
+  await prisma.workerHeartbeat.deleteMany({ where: { lastSeenAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } } });
   touch(file, now); // after the database write: a worker that cannot reach the database must not look healthy
 }
 

@@ -76,6 +76,7 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv, role: Role): Findi
 
   // Platform mail: account verification, reset and invitations cannot work without it.
   if (env.MAIL_TRANSPORT === "capture") error("MAIL_TRANSPORT", "capture is for isolated tests only; configure SMTP");
+  else if (env.MAIL_TRANSPORT && env.MAIL_TRANSPORT !== "smtp") error("MAIL_TRANSPORT", "must be unset or \"smtp\"; any other value leaves account mail unconfigured");
   else if (!env.PLATFORM_SMTP_HOST || !env.PLATFORM_SMTP_FROM) {
     error("PLATFORM_SMTP_HOST", "PLATFORM_SMTP_HOST and PLATFORM_SMTP_FROM are required for account mail");
   }

@@ -23,7 +23,29 @@ function within<T>(work: Promise<T>, ms: number): Promise<T> {
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
-export async function checkDatabase(): Promise<DependencyState> {
+/**
+ * Probes are unauthenticated and each runs a database query, so a flood must not turn into a flood of queries:
+ * concurrent callers share one in-flight probe and its result is reused for HEALTH_CACHE_MS (default 1.5 s, 0 = off).
+ */
+const cacheMs = () => {
+  const raw = Number(process.env.HEALTH_CACHE_MS);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 1_500;
+};
+const memo = new Map<string, { at: number; value: Promise<unknown> }>();
+function shared<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const ttl = cacheMs();
+  const hit = memo.get(key);
+  if (ttl > 0 && hit && Date.now() - hit.at < ttl) return hit.value as Promise<T>;
+  const value = run();
+  if (ttl > 0) memo.set(key, { at: Date.now(), value });
+  return value;
+}
+
+export function checkDatabase(): Promise<DependencyState> {
+  return shared("database", checkDatabaseNow);
+}
+
+async function checkDatabaseNow(): Promise<DependencyState> {
   try {
     await within(Promise.resolve(prisma.$queryRaw`SELECT 1`), PROBE_BUDGET_MS);
     return "ok";
@@ -32,7 +54,11 @@ export async function checkDatabase(): Promise<DependencyState> {
   }
 }
 
-export async function checkRedis(): Promise<DependencyState> {
+export function checkRedis(): Promise<DependencyState> {
+  return shared("redis", checkRedisNow);
+}
+
+async function checkRedisNow(): Promise<DependencyState> {
   if (!redisUrl()) return "not_configured";
   try {
     const client = await within(getSharedRedis(), PROBE_BUDGET_MS);

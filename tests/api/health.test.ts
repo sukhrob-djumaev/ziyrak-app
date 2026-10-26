@@ -15,6 +15,7 @@ describe("health probes", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     delete process.env.REDIS_URL;
+    process.env.HEALTH_CACHE_MS = "0"; // these tests flip the database state between calls
   });
 
   it("live answers 200 even when the database is down and never queries it", async () => {
@@ -61,6 +62,19 @@ describe("health probes", () => {
     const bad = await call(route);
     expect(bad.status).toBe(503);
     expect((await parseJsonResponse(bad)).status).toBe("degraded");
+  });
+
+  it("shares and briefly caches probes so a flood is not a flood of queries", async () => {
+    process.env.HEALTH_CACHE_MS = "1000";
+    const route = await import("@/app/api/health/ready/route");
+    db(true);
+    mockPrisma.$queryRaw.mockClear();
+    await Promise.all(Array.from({ length: 25 }, () => route.GET()));
+    await route.GET();
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBeLessThanOrEqual(1);
+    await new Promise((r) => setTimeout(r, 1100));
+    await route.GET();
+    expect(mockPrisma.$queryRaw.mock.calls.length).toBe(2);
   });
 
   it("makes no outbound provider call", async () => {

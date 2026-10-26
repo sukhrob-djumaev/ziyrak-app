@@ -15,6 +15,11 @@ function render(extra: string[] = [], useFixture = true) {
   return { ok: r.status === 0, out: r.stdout, err: r.stderr };
 }
 
+// Locally the suite may skip without helm; in CI a missing helm must fail, not silently drop chart coverage.
+it.skipIf(available || !process.env.CI)("CI provides a helm binary", () => {
+  expect(available, "helm is required in CI to test the chart (set HELM_BIN or install helm)").toBe(true);
+});
+
 describe.skipIf(!available)("helm chart runtime contract", () => {
   it("rejects the unconfigured defaults instead of rendering a deployable-looking system", () => {
     const r = render([], false);
@@ -50,6 +55,24 @@ describe.skipIf(!available)("helm chart runtime contract", () => {
     expect(render(["--set", "config.appUrl=http://x.example.com"]).err).toMatch(/https/);
     expect(render(["--set", "config.trustedProxyHops=0"]).err).toMatch(/trustedProxyHops/);
     expect(render(["--set", "smtp.host="]).err).toMatch(/smtp/);
+  });
+
+  it("keeps the web startup probe independent of the database and gives the worker probe room", () => {
+    const out = render().out;
+    expect(out).toMatch(/startupProbe:\s*\n\s*httpGet:\s*\n\s*path: \/api\/health\/live/);
+    expect(out).toMatch(/livenessProbe:\s*\n\s*exec:[\s\S]*?timeoutSeconds: 10/);
+  });
+
+  it("rejects a non-production nodeEnv, bad key names or lengths, and missing mail sender", () => {
+    expect(render(["--set", "config.nodeEnv=development"]).err).toMatch(/nodeEnv/);
+    expect(render(["--set-string", "secrets.encryptionKeys.v1=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]).err).toMatch(/positive integer/);
+    expect(render(["--set-string", "secrets.encryptionKeys.2=short"]).err).toMatch(/at least 32/);
+    expect(render(["--set", "smtp.from="]).err).toMatch(/smtp/);
+  });
+
+  it("does not demand mail settings in values when an existing secret supplies them", () => {
+    const r = render(["--set", "secrets.existingSecret=my-secret", "--set", "smtp.host=", "--set", "smtp.from="]);
+    expect(r.ok, r.err).toBe(true);
   });
 
   it("rejects short secrets and a missing encryption key", () => {

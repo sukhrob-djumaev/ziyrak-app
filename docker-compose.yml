@@ -12,7 +12,8 @@ x-ziyrak-env: &ziyrak-env
   # L2.1: this stack is local/self-test, not a production deployment, so it skips the strict production
   # configuration contract (https URL, trusted proxy hops, SMTP...). Remove this line, and satisfy
   # `npm run config:check`, for a real deployment. See docs/guides/operator-setup.md.
-  ZIYRAK_CONFIG_PROFILE: relaxed
+  # Set ZIYRAK_CONFIG_PROFILE=strict in .env (or the shell) to run this stack under the production contract.
+  ZIYRAK_CONFIG_PROFILE: ${ZIYRAK_CONFIG_PROFILE:-relaxed}
 
 services:
   db:
@@ -135,7 +136,7 @@ services:
     command: ["sh", "-c", "npx prisma migrate deploy && exec node --import tsx src/worker.ts"]
     stop_grace_period: 45s
     # The image's HTTP check does not apply: the worker has no HTTP server. It proves life by refreshing a file
-    # every ~15 s, and only after its database write succeeds (src/lib/ops/worker-heartbeat.ts).
+    # every ~15 s, and only after its database write succeeds (proves the loop and database, not job throughput) (src/lib/ops/worker-heartbeat.ts).
     healthcheck:
       test: ["CMD", "node", "-e", "const f=process.env.WORKER_HEARTBEAT_FILE||require('os').tmpdir()+'/ziyrak-worker-heartbeat';try{process.exit(Date.now()-require('fs').statSync(f).mtimeMs<60000?0:1)}catch{process.exit(1)}"]
       interval: 30s

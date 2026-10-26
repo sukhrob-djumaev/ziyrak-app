@@ -106,6 +106,8 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv, role: Role): Findi
 
   // Shared-state and launch gates: consciously accepted, not fatal.
   if (!env.REDIS_URL) warn("REDIS_URL", "not set: rate limits, realtime and caches are per process, not shared across replicas");
+  if (!env.HEALTH_DETAIL_TOKEN) warn("HEALTH_DETAIL_TOKEN", "not set: /api/health will not show build identity, worker or queue detail to operators");
+  else if (env.HEALTH_DETAIL_TOKEN.length < 24) error("HEALTH_DETAIL_TOKEN", "must be at least 24 characters when set");
   if (env.ZIYRAK_PLATFORM_MFA !== "required") warn("ZIYRAK_PLATFORM_MFA", "platform second factor is not required (launch gate: enable after enrollment is in place)");
 
   return out;

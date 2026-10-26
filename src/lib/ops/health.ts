@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma/raw-client";
 import { getSharedRedis, redisUrl } from "@/lib/redis/client";
 import { readQueueSignals, readWorkerStatus } from "./worker-heartbeat";
@@ -53,22 +54,40 @@ export async function readiness() {
   return { ready: database === "ok", checks: { database } };
 }
 
-export async function detail() {
+/**
+ * `includeDetail` is for authenticated operators only (see the route): build identity, worker and queue facts and
+ * memory are useful to an attacker (version fingerprinting, activity volume), so the public answer is just status
+ * and dependency states.
+ */
+export async function detail(includeDetail = false) {
   const [database, redis] = await Promise.all([checkDatabase(), checkRedis()]);
   // Worker and queue facts need the database; with it down they are simply unknown.
   const worker = database === "ok" ? await readWorkerStatus().catch(() => null) : null;
-  const queue = database === "ok" ? await readQueueSignals() : "unknown";
-  const mem = process.memoryUsage();
-  return {
+  const base = {
     ready: database === "ok",
     // "degraded" = serving, but an operator should look (Redis down, workers stale or absent).
     status: database === "ok" && redis !== "down" && worker?.state === "ok" ? "ok" : "degraded",
+    services: { database, redis, worker: worker?.state ?? "unknown" },
+  };
+  if (!includeDetail) return base;
+  const queue = database === "ok" ? await readQueueSignals() : "unknown";
+  const mem = process.memoryUsage();
+  return {
+    ...base,
     build: buildIdentity(),
     environment: process.env.NODE_ENV || "development",
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
-    services: { database, redis, worker: worker?.state ?? "unknown" },
     worker,
     queue,
     memory: { rssMb: Math.round(mem.rss / 1024 / 1024), heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024) },
   };
+}
+
+/** Constant-time check of the operator token. No token configured means nobody gets the detail. */
+export function detailAllowed(presented: string | null): boolean {
+  const expected = process.env.HEALTH_DETAIL_TOKEN;
+  if (!expected || !presented) return false;
+  const a = Buffer.from(presented);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }

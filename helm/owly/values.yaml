@@ -179,8 +179,18 @@ config:
   # then size it as (postgres_max_connections / total_replicas) minus headroom.
   databasePoolMax: 10
   nodeEnv: "production"
+  # The public https:// address users reach (required; validated by the chart and `npm run config:check`).
   appUrl: "http://localhost:3000"
   corsOrigin: ""
+  # Platform second factor: "optional" until the enrollment flow is in place, then "required" (launch gate).
+  platformMfa: "optional"
+
+# -- Platform mail (account verification, reset, invitations). Required; the password goes in secrets.smtpPassword.
+smtp:
+  host: ""
+  port: 587
+  user: ""
+  from: ""
 
 # -- Secrets (sensitive)
 secrets:
@@ -188,8 +198,20 @@ secrets:
   # provide DATABASE_URL, DIRECT_DATABASE_URL (when pgbouncer is enabled) and
   # REDIS_URL.
   existingSecret: ""
-  # Only used when existingSecret is empty:
+  # Only with existingSecret + the in-chart PgBouncer: the key in that secret holding the database password.
+  existingSecretKeys:
+    dbPassword: DB_PASSWORD
+  # Only used when existingSecret is empty (all of these must then be provided; see `npm run config:check`):
   jwtSecret: ""
+  # Encryption keys by version, e.g. {"1": "<32+ random chars>"}. Keep an old version only while ciphertext needs it.
+  encryptionKeys: {}
+  encryptionActiveVersion: ""
+  # SHA-256 hex digests of the owner-held platform enrollment / recovery proofs (never the raw proofs).
+  platformBootstrapProofSha256: ""
+  platformRecoveryProofSha256: ""
+  smtpPassword: ""
+  # Lets operators read build identity, worker and queue detail from /api/health (x-health-token header).
+  healthDetailToken: ""
   openaiApiKey: ""
   twilioAccountSid: ""
   twilioAuthToken: ""

@@ -12,6 +12,12 @@ data:
   PORT: "3000"
   TRUSTED_PROXY_HOPS: {{ .Values.config.trustedProxyHops | quote }}
   DATABASE_POOL_MAX: {{ .Values.config.databasePoolMax | quote }}
+  ZIYRAK_PLATFORM_MFA: {{ .Values.config.platformMfa | default "optional" | quote }}
+  {{- if .Values.smtp.host }}
+  PLATFORM_SMTP_HOST: {{ .Values.smtp.host | quote }}
+  PLATFORM_SMTP_PORT: {{ .Values.smtp.port | default 587 | quote }}
+  PLATFORM_SMTP_FROM: {{ .Values.smtp.from | quote }}
+  {{- end }}
   {{- if .Values.config.corsOrigin }}
   CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
   {{- end }}

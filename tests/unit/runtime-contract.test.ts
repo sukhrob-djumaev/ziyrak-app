@@ -16,6 +16,7 @@ const good: Record<string, string> = {
   PLATFORM_BOOTSTRAP_PROOF_SHA256: "a".repeat(64),
   PLATFORM_RECOVERY_PROOF_SHA256: "b".repeat(64),
   ZIYRAK_PLATFORM_MFA: "required",
+  HEALTH_DETAIL_TOKEN: "h".repeat(32),
 };
 const errors = (env: Record<string, string | undefined>, role: "web" | "worker" = "web") =>
   validateRuntimeConfig(env as NodeJS.ProcessEnv, role).filter((f) => f.level === "error").map((f) => f.key);
@@ -60,9 +61,13 @@ describe("runtime configuration contract (F05)", () => {
   });
 
   it("warns (does not fail) about shared-state and launch gates: no Redis, MFA not required, no proofs", () => {
-    const findings = validateRuntimeConfig({ ...without("REDIS_URL", "ZIYRAK_PLATFORM_MFA", "PLATFORM_BOOTSTRAP_PROOF_SHA256") } as NodeJS.ProcessEnv, "web");
+    const findings = validateRuntimeConfig({ ...without("REDIS_URL", "ZIYRAK_PLATFORM_MFA", "PLATFORM_BOOTSTRAP_PROOF_SHA256", "HEALTH_DETAIL_TOKEN") } as NodeJS.ProcessEnv, "web");
     expect(findings.filter((f) => f.level === "error")).toEqual([]);
-    expect(findings.map((f) => f.key)).toEqual(expect.arrayContaining(["REDIS_URL", "ZIYRAK_PLATFORM_MFA", "PLATFORM_BOOTSTRAP_PROOF_SHA256"]));
+    expect(findings.map((f) => f.key)).toEqual(expect.arrayContaining(["REDIS_URL", "ZIYRAK_PLATFORM_MFA", "PLATFORM_BOOTSTRAP_PROOF_SHA256", "HEALTH_DETAIL_TOKEN"]));
+  });
+
+  it("rejects a short health detail token", () => {
+    expect(errors({ ...good, HEALTH_DETAIL_TOKEN: "short" })).toContain("HEALTH_DETAIL_TOKEN");
   });
 
   it("the worker does not need the browser-facing app URL or proxy hops", () => {

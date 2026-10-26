@@ -119,8 +119,22 @@ shared state would silently break rate limiting and realtime delivery.
 {{- if and $multi (not (include "owly.redisUrl" .)) -}}
 {{- fail "Multiple app replicas or autoscaling need Redis (redis.enabled=true or redis.external.url): without it every replica keeps its own rate-limit window and misses other replicas' realtime events. See PLAN.md §46.8." -}}
 {{- end -}}
-{{- if and .Values.pgbouncer.enabled .Values.secrets.existingSecret -}}
-{{- fail "pgbouncer.enabled cannot be combined with secrets.existingSecret: the in-chart PgBouncer takes the database password from values. Disable it and point DATABASE_URL (in your secret) at your own pooler." -}}
+{{- if not .Values.secrets.existingSecret -}}
+{{- if lt (len (.Values.secrets.jwtSecret | toString)) 32 -}}
+{{- fail "secrets.jwtSecret must be at least 32 characters (or supply the secret with secrets.existingSecret). The default values are not a deployable configuration." -}}
+{{- end -}}
+{{- if not .Values.secrets.encryptionKeys -}}
+{{- fail "secrets.encryptionKeys must provide at least one key, for example {\"1\": \"<32+ random characters>\"} (or supply SECRET_KEY_V<n> in secrets.existingSecret)." -}}
+{{- end -}}
+{{- end -}}
+{{- if not .Values.smtp.host -}}
+{{- fail "smtp.host and smtp.from are required: account verification, password reset and invitations cannot work without platform mail (or put PLATFORM_SMTP_HOST/FROM in your own configuration)." -}}
+{{- end -}}
+{{- if not (hasPrefix "https://" (.Values.config.appUrl | toString)) -}}
+{{- fail "config.appUrl must be the public https:// address of the app." -}}
+{{- end -}}
+{{- if lt (int .Values.config.trustedProxyHops) 1 -}}
+{{- fail "config.trustedProxyHops must be the number of trusted proxies in front of the app (>= 1), and the app must not be reachable except through them." -}}
 {{- end -}}
 {{- if and .Values.pgbouncer.enabled (has .Values.database.sslMode (list "verify-ca" "verify-full")) -}}
 {{- fail "database.sslMode verify-ca/verify-full needs a CA file mounted into PgBouncer, which this chart does not provide: use sslMode=require, or run your own pooler (pgbouncer.enabled=false)." -}}

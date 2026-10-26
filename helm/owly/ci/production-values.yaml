@@ -1,0 +1,20 @@
+# Fixture for chart tests (tests/unit/helm-chart.test.ts): a complete, valid production-shaped configuration.
+# Every value is a placeholder, not a credential.
+config:
+  appUrl: https://support.example.com
+  trustedProxyHops: 1
+  platformMfa: optional
+smtp:
+  host: smtp.example.com
+  from: "Ziyrak <no-reply@example.com>"
+secrets:
+  jwtSecret: "ci-fixture-placeholder-aaaaaaaaaaaaaaaaaaaaaaaa"
+  encryptionKeys:
+    "1": "ci-fixture-placeholder-bbbbbbbbbbbbbbbbbbbbbbbb"
+  platformBootstrapProofSha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  platformRecoveryProofSha256: "1111111111111111111111111111111111111111111111111111111111111111"
+database:
+  host: db.internal
+  password: ci-placeholder
+redis:
+  enabled: true

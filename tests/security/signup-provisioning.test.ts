@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterAll } from "vitest";
+import { describe, it, expect, vi, afterAll, beforeEach } from "vitest";
 import crypto from "crypto";
 
 // Real Postgres, real route handlers, real auth: signup is the trust boundary
@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma/raw-client";
 import { requireAuth } from "@/lib/identity/route-auth";
 import { verifyPassword } from "@/lib/identity/auth";
 import { createRequest, parseJsonResponse } from "../helpers/request";
+import { resetRateLimitsForTesting } from "@/lib/rate-limit";
 import { DEFAULT_TOOL_POLICIES } from "@/lib/tools/policy";
 import { generateBusinessSlug } from "@/lib/platform/provisioning";
 import { cleanupBusiness } from "../helpers/tenant-fixtures";
@@ -74,6 +75,11 @@ function cookieOf(response: Response): string {
 
 afterAll(async () => {
   for (const id of createdBusinessIds) await cleanupBusiness(id);
+});
+
+// L1.3: signup now has hourly per-address ceilings; each test starts with an empty budget.
+beforeEach(async () => {
+  await resetRateLimitsForTesting();
 });
 
 describe("signup creates a complete, isolated business (§46.7)", () => {

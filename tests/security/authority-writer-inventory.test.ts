@@ -34,6 +34,9 @@ const PLATFORM = new Set([
   // Account identity: ends a user's sessions (P3 reset). Saved follow-ups deliberately survive
   // logout and session end (owner decision 2026-10-15), so this reduces no delayed-work authority.
   "lib/identity/auth.ts",
+  // L1.3 platform second factor: writes only the account's own factor state, recovery codes and session
+  // cutoff (like auth.ts above); it reduces no workspace-scoped delayed-work authority.
+  "lib/identity/mfa.ts",
   // P3 recovery: email verification and password change write only the account row.
   "lib/identity/account-service.ts",
   "lib/platform/admin-users/service.ts",

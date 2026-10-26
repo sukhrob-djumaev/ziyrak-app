@@ -36,9 +36,10 @@ export async function verifyPassword(
  * 7-day-lived token — a revoked/changed membership must take effect
  * immediately, not after the token expires.
  */
-export function generateToken(userId: string): string {
+export function generateToken(userId: string, options: { mfa?: boolean } = {}): string {
   // `jwtid` makes each session individually revocable (see `revokeToken`).
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY, jwtid: randomUUID() });
+  // `mfa` records only that this session passed the second factor at sign-in (L1.3); it is never a role.
+  return jwt.sign(options.mfa ? { userId, mfa: true } : { userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY, jwtid: randomUUID() });
 }
 
 export interface TokenPayload {
@@ -49,6 +50,8 @@ export interface TokenPayload {
   exp?: number;
   /** Issued-at, seconds since the epoch (set by the signer). */
   iat?: number;
+  /** True when the sign-in passed the platform second factor (L1.3). */
+  mfa?: boolean;
 }
 
 /** Signature and expiry only — no database. See `verifyActiveToken` for the revocation-aware check. */

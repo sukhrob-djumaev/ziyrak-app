@@ -11,6 +11,7 @@ import {
   isSetupComplete,
   revokeToken,
 } from "@/lib/identity/auth";
+import { loginSecondFactor } from "@/lib/identity/mfa";
 import { provisionBusiness } from "@/lib/platform/provisioning";
 import { sendVerification, notifyAddressInUse } from "@/lib/identity/account-service";
 import { checkRateLimit, SIGNUP_LIMITS } from "@/lib/rate-limit";
@@ -145,7 +146,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    const token = generateToken(user.id);
+    // L1.3: platform accounts add a second factor. A challenge or failure issues no session at all.
+    const second = await loginSecondFactor(user, { code: body.mfaCode, recoveryCode: body.recoveryCode });
+    if (second === "challenge") {
+      return NextResponse.json({ error: "Second factor required", mfaRequired: true }, { status: 401 });
+    }
+    if (second === "invalid") {
+      return NextResponse.json({ error: "Invalid credentials", mfaRequired: true }, { status: 401 });
+    }
+    const token = generateToken(user.id, { mfa: second === "passed" });
     const cookie = setAuthCookie(token);
     const memberships = await prisma.membership.findMany({
       where: { userId: user.id, business: { status: "active" } },
@@ -165,6 +174,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: { id: user.id, username: user.username, name: user.name },
       workspaceSelectionRequired: selected === null,
+      ...(second === "enroll" ? { mfaEnrollmentRequired: true } : {}),
     });
     response.cookies.set(cookie);
     response.cookies.set(selected ? workspaceCookie(selected) : clearWorkspaceCookie());

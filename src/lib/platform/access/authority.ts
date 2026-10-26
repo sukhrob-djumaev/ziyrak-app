@@ -1,3 +1,4 @@
+import { platformMfaMode } from "@/lib/identity/mfa";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
@@ -60,9 +61,14 @@ async function currentAccount(tx: Prisma.TransactionClient, session: RevocableSe
     throw new AppError(401, "UNAUTHORIZED", "The person session has ended");
   const user = await tx.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, platformRole: true },
+    select: { id: true, platformRole: true, mfaEnabledAt: true },
   });
   if (!user) throw new AppError(401, "UNAUTHORIZED", "The person account is unavailable");
+  // L1.3: privileged authority needs a session that passed the second factor. Required mode demands an enrolled
+  // factor for every platform account; optional mode still binds accounts that have enrolled, so a stolen
+  // password-only session cannot act as an enrolled operator.
+  if (user.platformRole && (user.mfaEnabledAt || platformMfaMode() === "required") && !(user.mfaEnabledAt && session.mfa === true))
+    throw new AppError(403, "MFA_REQUIRED", "A second-factor sign-in is required for platform authority");
   return user;
 }
 /** Shared serialization boundary for bootstrap/recovery and privileged control writes. */

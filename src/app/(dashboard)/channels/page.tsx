@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useCan } from "@/components/layout/permissions";
 import { WebChatCard } from "@/components/channels/webchat-card";
 import { MetaWhatsAppCard } from "@/components/channels/meta-whatsapp-card";
 
@@ -787,6 +788,7 @@ function PhoneCard({
 // ---------------------------------------------------------------------------
 
 export default function ChannelsPage() {
+  const canUpdate = useCan("channels:update");
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -907,33 +909,55 @@ export default function ChannelsPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl">
-            {/* PLAN.md §20.2/§46.7 — tenants connect WhatsApp through Meta Cloud
-                (below); the QR-code card is the dev/demo-only whatsapp-web.js
-                adapter, hidden unless a deployment explicitly enables it. */}
-            <MetaWhatsAppCard />
-            {process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB === "true" && (
-              <WhatsAppCard
-                channel={getChannel("whatsapp")}
-                onSave={handleSave}
-                onAction={handleAction}
-                saving={saving}
-              />
+          <fieldset disabled={!canUpdate} className="space-y-8 max-w-7xl min-w-0 border-0 p-0 m-0">
+            {!canUpdate && (
+              <p role="status" className="rounded-lg border border-ziyrak-border bg-ziyrak-surface px-4 py-3 text-sm text-ziyrak-text-light">
+                Your role can see channel status but not change it. Ask a workspace owner or admin to make changes.
+              </p>
             )}
-            <WebChatCard />
-            <EmailCard
-              channel={getChannel("email")}
-              onSave={handleSave}
-              onAction={handleAction}
-              saving={saving}
-            />
-            <PhoneCard
-              channel={getChannel("phone")}
-              onSave={handleSave}
-              onAction={handleAction}
-              saving={saving}
-            />
-          </div>
+            <section aria-labelledby="supported-channels">
+              <h3 id="supported-channels" className="text-sm font-semibold text-ziyrak-text mb-3">
+                Supported channels
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* PLAN.md §20.2/§46.7 — tenants connect WhatsApp through Meta Cloud
+                    (below); the QR-code card is the dev/demo-only whatsapp-web.js
+                    adapter, hidden unless a deployment explicitly enables it. */}
+                <MetaWhatsAppCard />
+                {process.env.NEXT_PUBLIC_ENABLE_WHATSAPP_WEB === "true" && (
+                  <WhatsAppCard
+                    channel={getChannel("whatsapp")}
+                    onSave={handleSave}
+                    onAction={handleAction}
+                    saving={saving}
+                  />
+                )}
+                <WebChatCard />
+              </div>
+            </section>
+            <section aria-labelledby="unverified-channels">
+              <h3 id="unverified-channels" className="text-sm font-semibold text-ziyrak-text">
+                Not verified for this release
+              </h3>
+              <p className="text-xs text-ziyrak-text-light mt-1 mb-3 max-w-2xl">
+                Email and Phone settings can be saved and tested here, but end-to-end delivery to customers has not been verified for this release. Do not rely on them for customer conversations yet.
+              </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <EmailCard
+                  channel={getChannel("email")}
+                  onSave={handleSave}
+                  onAction={handleAction}
+                  saving={saving}
+                />
+                <PhoneCard
+                  channel={getChannel("phone")}
+                  onSave={handleSave}
+                  onAction={handleAction}
+                  saving={saving}
+                />
+              </div>
+            </section>
+          </fieldset>
         )}
       </div>
 

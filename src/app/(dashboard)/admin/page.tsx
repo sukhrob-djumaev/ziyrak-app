@@ -11,7 +11,7 @@ export default async function AdminPage() {
   if (!hasTenantPermission(ctx, "admin:read"))
     return (
       <>
-        <Header title="Administration" />
+        <Header title="People & Access" />
         <div role="alert" className="p-6">
           Access denied. Current workspace administration permission is required.
         </div>

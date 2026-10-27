@@ -210,6 +210,7 @@ export default function ApprovalsPage() {
                   key={action.id}
                   className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5"
                   data-testid="approval-row"
+                  data-action-id={action.id}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">

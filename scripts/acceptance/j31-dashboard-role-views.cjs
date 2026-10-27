@@ -130,7 +130,7 @@ const roles = ["admin", "supervisor", "agent", "viewer"];
         r.respond({ status: 500, contentType: "application/json", body: JSON.stringify({}) });
       else r.continue();
     });
-    await L.clickFirst(admin, "button", "Add");
+    await L.clickFirst(admin, "button", "Add Webhook");
     await admin.waitForSelector('input[placeholder="Slack Notification"]');
     await admin.type('input[placeholder="Slack Notification"]', "Rejected hook");
     await admin.type('input[type="url"], input[placeholder^="https"]', "https://example.test/hook");

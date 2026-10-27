@@ -274,9 +274,9 @@ export default function KnowledgeBasePage() {
         description="Manage your AI's knowledge and responses"
       />
 
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row">
         {/* ================= LEFT PANEL: Categories ================= */}
-        <div className="w-80 flex-shrink-0 border-r border-ziyrak-border bg-ziyrak-surface flex flex-col">
+        <div className="w-full md:w-80 md:flex-shrink-0 max-h-[40vh] md:max-h-none border-b md:border-b-0 md:border-r border-ziyrak-border bg-ziyrak-surface flex flex-col">
           <div className="px-4 py-3 border-b border-ziyrak-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ziyrak-text">Categories</h3>
             <button
@@ -388,7 +388,7 @@ export default function KnowledgeBasePage() {
           ) : (
             <>
               {/* Entries header */}
-              <div className="px-6 py-3 border-b border-ziyrak-border bg-ziyrak-surface flex items-center justify-between">
+              <div className="px-4 md:px-6 py-3 border-b border-ziyrak-border bg-ziyrak-surface flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CategoryIcon color={selectedCategory.color} name={selectedCategory.name} />
                   <div>

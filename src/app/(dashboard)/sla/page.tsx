@@ -12,6 +12,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn } from "@/lib/utils";
 
 interface SLARuleData {
@@ -66,17 +69,20 @@ export default function SLAPage() {
   const [editingRule, setEditingRule] = useState<SLARuleData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [form, setForm] = useState(defaultForm);
 
   const fetchRules = useCallback(async () => {
     try {
       const res = await fetch("/api/sla");
-      if (res.ok) {
-        const data = await res.json();
-        setRules(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setRules(data.data);
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch SLA rules:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -109,52 +115,26 @@ export default function SLAPage() {
   const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    try {
-      const url = editingRule ? `/api/sla/${editingRule.id}` : "/api/sla";
-      const method = editingRule ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setEditingRule(null);
-        setForm(defaultForm);
-        fetchRules();
-      }
-    } catch (error) {
-      console.error("Failed to save SLA rule:", error);
-    } finally {
-      setSaving(false);
-    }
+    const result = await submitJson(editingRule ? `/api/sla/${editingRule.id}` : "/api/sla", editingRule ? "PUT" : "POST", form);
+    setSaving(false);
+    if (!reportWrite("Saving the SLA rule", result)) return; // the form stays open with what was typed
+    setShowModal(false);
+    setEditingRule(null);
+    setForm(defaultForm);
+    fetchRules();
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/sla/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setDeleteConfirm(null);
-        fetchRules();
-      }
-    } catch (error) {
-      console.error("Failed to delete SLA rule:", error);
-    }
+    const result = await submitJson(`/api/sla/${id}`, "DELETE");
+    if (!reportWrite("Deleting the SLA rule", result)) return;
+    setDeleteConfirm(null);
+    fetchRules();
   };
 
   const handleToggleActive = async (rule: SLARuleData) => {
-    try {
-      const res = await fetch(`/api/sla/${rule.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !rule.isActive }),
-      });
-      if (res.ok) {
-        fetchRules();
-      }
-    } catch (error) {
-      console.error("Failed to toggle SLA rule:", error);
-    }
+    const result = await submitJson(`/api/sla/${rule.id}`, "PUT", { isActive: !rule.isActive });
+    if (!reportWrite(rule.isActive ? "Turning the rule off" : "Turning the rule on", result)) return;
+    fetchRules();
   };
 
   return (
@@ -194,6 +174,8 @@ export default function SLAPage() {
           <div className="flex items-center justify-center h-40">
             <div className="text-sm text-ziyrak-text-light">Loading...</div>
           </div>
+        ) : loadFailed ? (
+          <LoadFailed what="SLA rules" onRetry={fetchRules} />
         ) : rules.length === 0 ? (
           <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

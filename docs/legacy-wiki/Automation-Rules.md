@@ -51,7 +51,9 @@ Ziyrak provides four types of automation rules, each designed for a specific wor
 
 ---
 
-### Keyword Alert
+### Keyword Alert (not available)
+
+> **Not available.** Alert e-mails are switched off until a per-workspace notification setting exists. The rule type can no longer be created, and existing alert rules send nothing. The description below is the original design, kept for reference.
 
 **Purpose:** Send email notifications to specified recipients when important keywords appear in incoming messages.
 

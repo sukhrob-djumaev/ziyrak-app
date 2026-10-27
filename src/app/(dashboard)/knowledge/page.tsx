@@ -20,6 +20,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,6 +98,9 @@ export default function KnowledgeBasePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [entriesFailed, setEntriesFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [loadingEntries, setLoadingEntries] = useState(false);
 
   // Category modal
@@ -119,12 +125,13 @@ export default function KnowledgeBasePage() {
     setLoadingCategories(true);
     try {
       const res = await fetch("/api/knowledge/categories");
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setCategories(data.data);
+      setLoadFailed(false);
     } catch (err) {
       console.error("Failed to fetch categories:", err);
+      setLoadFailed(true);
     } finally {
       setLoadingCategories(false);
     }
@@ -134,12 +141,13 @@ export default function KnowledgeBasePage() {
     setLoadingEntries(true);
     try {
       const res = await fetch(`/api/knowledge/entries?categoryId=${categoryId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEntries(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setEntries(data.data);
+      setEntriesFailed(false);
     } catch (err) {
       console.error("Failed to fetch entries:", err);
+      setEntriesFailed(true);
     } finally {
       setLoadingEntries(false);
     }
@@ -180,25 +188,15 @@ export default function KnowledgeBasePage() {
   async function saveCategory() {
     if (!categoryForm.name.trim()) return;
     setSavingCategory(true);
-    try {
-      const url = editingCategory
-        ? `/api/knowledge/categories/${editingCategory.id}`
-        : "/api/knowledge/categories";
-      const method = editingCategory ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(categoryForm),
-      });
-      if (res.ok) {
-        setShowCategoryModal(false);
-        await fetchCategories();
-      }
-    } catch (err) {
-      console.error("Failed to save category:", err);
-    } finally {
-      setSavingCategory(false);
-    }
+    const result = await submitJson(
+      editingCategory ? `/api/knowledge/categories/${editingCategory.id}` : "/api/knowledge/categories",
+      editingCategory ? "PUT" : "POST",
+      categoryForm
+    );
+    setSavingCategory(false);
+    if (!reportWrite("Saving the category", result)) return; // the form stays open with what was typed
+    setShowCategoryModal(false);
+    await fetchCategories();
   }
 
   // --- Entry CRUD ---
@@ -217,41 +215,22 @@ export default function KnowledgeBasePage() {
   async function saveEntry() {
     if (!entryForm.title.trim() || !selectedCategoryId) return;
     setSavingEntry(true);
-    try {
-      const url = editingEntry
-        ? `/api/knowledge/entries/${editingEntry.id}`
-        : "/api/knowledge/entries";
-      const method = editingEntry ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...entryForm, categoryId: selectedCategoryId }),
-      });
-      if (res.ok) {
-        setShowEntryModal(false);
-        await fetchEntries(selectedCategoryId);
-        await fetchCategories();
-      }
-    } catch (err) {
-      console.error("Failed to save entry:", err);
-    } finally {
-      setSavingEntry(false);
-    }
+    const result = await submitJson(
+      editingEntry ? `/api/knowledge/entries/${editingEntry.id}` : "/api/knowledge/entries",
+      editingEntry ? "PUT" : "POST",
+      { ...entryForm, categoryId: selectedCategoryId }
+    );
+    setSavingEntry(false);
+    if (!reportWrite("Saving the entry", result)) return; // the form stays open with what was typed
+    setShowEntryModal(false);
+    await fetchEntries(selectedCategoryId);
+    await fetchCategories();
   }
 
   async function toggleEntryActive(entry: KnowledgeEntry) {
-    try {
-      const res = await fetch(`/api/knowledge/entries/${entry.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !entry.isActive }),
-      });
-      if (res.ok && selectedCategoryId) {
-        await fetchEntries(selectedCategoryId);
-      }
-    } catch (err) {
-      console.error("Failed to toggle entry:", err);
-    }
+    const result = await submitJson(`/api/knowledge/entries/${entry.id}`, "PUT", { isActive: !entry.isActive });
+    if (!reportWrite(entry.isActive ? "Turning the entry off" : "Turning the entry on", result)) return;
+    if (selectedCategoryId) await fetchEntries(selectedCategoryId);
   }
 
   // --- Delete ---
@@ -259,29 +238,22 @@ export default function KnowledgeBasePage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    try {
-      const url =
-        deleteTarget.type === "category"
-          ? `/api/knowledge/categories/${deleteTarget.id}`
-          : `/api/knowledge/entries/${deleteTarget.id}`;
-      const res = await fetch(url, { method: "DELETE" });
-      if (res.ok) {
-        if (deleteTarget.type === "category") {
-          if (selectedCategoryId === deleteTarget.id) {
-            setSelectedCategoryId(null);
-            setEntries([]);
-          }
-          await fetchCategories();
-        } else if (selectedCategoryId) {
-          await fetchEntries(selectedCategoryId);
-          await fetchCategories();
-        }
+    const result = await submitJson(
+      deleteTarget.type === "category" ? `/api/knowledge/categories/${deleteTarget.id}` : `/api/knowledge/entries/${deleteTarget.id}`,
+      "DELETE"
+    );
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (!reportWrite(deleteTarget.type === "category" ? "Deleting the category" : "Deleting the entry", result)) return;
+    if (deleteTarget.type === "category") {
+      if (selectedCategoryId === deleteTarget.id) {
+        setSelectedCategoryId(null);
+        setEntries([]);
       }
-    } catch (err) {
-      console.error("Failed to delete:", err);
-    } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
+      await fetchCategories();
+    } else if (selectedCategoryId) {
+      await fetchEntries(selectedCategoryId);
+      await fetchCategories();
     }
   }
 
@@ -302,9 +274,9 @@ export default function KnowledgeBasePage() {
         description="Manage your AI's knowledge and responses"
       />
 
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row">
         {/* ================= LEFT PANEL: Categories ================= */}
-        <div className="w-80 flex-shrink-0 border-r border-ziyrak-border bg-ziyrak-surface flex flex-col">
+        <div className="w-full md:w-80 md:flex-shrink-0 max-h-[40vh] md:max-h-none border-b md:border-b-0 md:border-r border-ziyrak-border bg-ziyrak-surface flex flex-col">
           <div className="px-4 py-3 border-b border-ziyrak-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ziyrak-text">Categories</h3>
             <button
@@ -321,6 +293,8 @@ export default function KnowledgeBasePage() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-ziyrak-text-light" />
               </div>
+            ) : loadFailed ? (
+              <LoadFailed what="knowledge categories" onRetry={fetchCategories} />
             ) : categories.length === 0 ? (
               <div className="px-4 py-12 text-center">
                 <FolderOpen className="h-10 w-10 mx-auto mb-3 text-ziyrak-text-light opacity-40" />
@@ -414,7 +388,7 @@ export default function KnowledgeBasePage() {
           ) : (
             <>
               {/* Entries header */}
-              <div className="px-6 py-3 border-b border-ziyrak-border bg-ziyrak-surface flex items-center justify-between">
+              <div className="px-4 md:px-6 py-3 border-b border-ziyrak-border bg-ziyrak-surface flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CategoryIcon color={selectedCategory.color} name={selectedCategory.name} />
                   <div>
@@ -443,6 +417,8 @@ export default function KnowledgeBasePage() {
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin text-ziyrak-text-light" />
                   </div>
+                ) : entriesFailed ? (
+                  <LoadFailed what="entries" onRetry={() => selectedCategoryId && fetchEntries(selectedCategoryId)} />
                 ) : entries.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="h-10 w-10 mx-auto mb-3 text-ziyrak-text-light opacity-40" />

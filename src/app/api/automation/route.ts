@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validTypes = ["auto_route", "auto_tag", "auto_reply", "keyword_alert"];
+    // keyword_alert is no longer creatable: execution sends nothing (see automations/automation.ts).
+    const validTypes = ["auto_route", "auto_tag", "auto_reply"];
     if (!type || !validTypes.includes(type)) {
       return NextResponse.json(
         { error: "Invalid rule type" },

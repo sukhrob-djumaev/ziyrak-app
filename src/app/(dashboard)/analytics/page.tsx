@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { BarChart, LineChart, DonutChart } from "@/components/ui/chart";
 import {
@@ -130,19 +130,24 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>("30d");
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const latest = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const mine = ++latest.current;
     setLoading(true);
     try {
       const res = await fetch(`/api/analytics?period=${period}`);
       if (!res.ok) throw new Error(`status ${res.status}`);
-      setData(await res.json());
+      const json = await res.json();
+      if (mine !== latest.current) return; // a newer period was requested meanwhile
+      setData(json);
       setLoadFailed(false);
     } catch {
+      if (mine !== latest.current) return;
       setData(null); // never leave the previous period's numbers under a new period label
       setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (mine === latest.current) setLoading(false);
     }
   }, [period]);
 

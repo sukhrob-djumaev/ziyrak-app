@@ -6,7 +6,7 @@ const spec = {
     title: "Ziyrak API",
     description:
       "Workspace API for the Ziyrak customer-support dashboard: conversations, customers, tickets, knowledge, automation and webhooks. " +
-      "Supported customer channels are Meta WhatsApp and Web Chat (`widget`). Email, phone/SMS and Telegram are not verified for this release, " +
+      "Supported customer channels are Meta WhatsApp and Web Chat (`webchat`). Email, phone/SMS and Telegram are not verified for this release, " +
       "even where an endpoint still accepts the value. Every call acts inside one workspace and needs the permission of the signed-in member or API key. " +
       "This document lists the commonly used endpoints and is not exhaustive; request and response bodies are summarised, not fully specified.",
     version: "2026-10-27",
@@ -53,7 +53,7 @@ const spec = {
         parameters: [
           { name: "page", in: "query", schema: { type: "integer", default: 1 } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20, maximum: 100 } },
-          { name: "channel", in: "query", schema: { type: "string", enum: ["whatsapp", "widget"], description: "Supported channels; other stored values (email, phone, sms, telegram, api) are not verified for this release." } },
+          { name: "channel", in: "query", schema: { type: "string", enum: ["whatsapp_cloud", "webchat"], description: "Supported channels (Meta WhatsApp, Web Chat); other stored values (email, phone, sms, telegram, api, legacy whatsapp) are not verified for this release." } },
           { name: "status", in: "query", schema: { type: "string", enum: ["active", "resolved", "closed", "escalated"] } },
           { name: "search", in: "query", schema: { type: "string" } },
         ],

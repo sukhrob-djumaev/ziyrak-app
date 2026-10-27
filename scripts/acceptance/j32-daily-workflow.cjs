@@ -28,16 +28,18 @@ const creds = require("./creds.json");
     L.assert(first === "Skip to main content", `first Tab stop is the skip link (${first})`);
     await page.keyboard.press("Enter");
     L.assert((await page.evaluate(() => document.activeElement?.id)) === "main-content", "the skip link moves focus to the main content");
-    L.assert((await page.$$eval("h1", (h) => h.length)) === 1, "the page has exactly one h1");
+    for (const path of ["/tickets", "/customers", "/knowledge", "/analytics", "/automation"]) {
+      await page.goto(L.BASE + path, { waitUntil: "networkidle0" });
+      L.assert((await page.$$eval("h1", (h) => h.length)) === 1, `${path} has exactly one h1`);
+    }
 
     // 3. Keyword Alert is not offered; the supported types are.
     await page.goto(L.BASE + "/automation", { waitUntil: "networkidle0" });
     await L.clickFirst(page, "button", "Add Rule");
-    await page.waitForSelector(".fixed");
+    await page.waitForFunction(() => document.body.innerText.includes("Rule Type"));
     const offered = await page.$$eval(".fixed button", (b) => b.map((x) => x.innerText.trim()));
     L.assert(offered.includes("Auto Route") && offered.includes("Auto Tag") && offered.includes("Auto Reply"), "supported rule types are offered");
     L.assert(!offered.some((t) => /keyword alert/i.test(t)), "Keyword Alert cannot be chosen for a new rule");
-    await page.keyboard.press("Escape");
 
     // 4. Analytics counts real customer messages (stored as role "customer") answered by the assistant.
     const api = await page.evaluate(async () => {
@@ -53,13 +55,14 @@ const creds = require("./creds.json");
     await page.setRequestInterception(true);
     let failList = true;
     let failWrite = true;
-    page.on("request", (r) => {
+    const fault = (r) => {
       const u = new URL(r.url());
       const fail = (status) => r.respond({ status, contentType: "application/json", body: JSON.stringify({}) });
       if (failList && r.method() === "GET" && (u.pathname === "/api/tickets" || u.pathname === "/api/business-hours")) fail(500);
       else if (failWrite && r.method() === "POST" && u.pathname === "/api/customers") fail(500);
       else r.continue();
-    });
+    };
+    page.on("request", fault);
     await page.goto(L.BASE + "/tickets", { waitUntil: "networkidle0" });
     await page.waitForSelector('[data-testid="load-failed"]');
     L.assert(!/No tickets/i.test(await page.evaluate(() => document.body.innerText)), "a ticket list that failed to load is not shown as empty");
@@ -82,18 +85,30 @@ const creds = require("./creds.json");
     await page.waitForFunction(() => /Adding the customer failed/i.test(document.body.innerText), { timeout: 10000 });
     L.assert((await page.$eval('input[placeholder="Customer name"]', (e) => e.value)) === "Refused Person", "refused customer save keeps the form open with the typed values");
     failWrite = false;
+    page.off("request", fault);
     await page.setRequestInterception(false);
 
     // 6. Phone width: the sidebar is replaced by a menu button; the drawer opens, closes on Escape, and navigates.
     await page.setViewport({ width: 390, height: 800 });
     await page.goto(L.BASE + "/", { waitUntil: "networkidle0" });
     L.assert(await page.$eval("aside", (e) => getComputedStyle(e).display === "none"), "the desktop sidebar is hidden at phone width");
-    L.assert((await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)), "the page does not scroll sideways at phone width");
-    await page.click('button[aria-label="Open menu"]');
+    for (const path of ["/", "/tickets", "/customers", "/analytics", "/knowledge"]) {
+      await page.goto(L.BASE + path, { waitUntil: "networkidle0" });
+      const wide = await page.evaluate(() => [...document.querySelectorAll("main *")].some((e) => e.getBoundingClientRect().right > window.innerWidth + 1 && getComputedStyle(e).position !== "fixed" && !e.closest("table, .overflow-auto, .overflow-x-auto, .overflow-y-auto")));
+      L.assert(!wide, `${path}: nothing is clipped past the right edge at phone width`);
+      L.assert(!!(await page.$('button[aria-label="Open menu"]')), `${path}: the menu button is available at phone width`);
+    }
+    await page.goto(L.BASE + "/", { waitUntil: "networkidle0" });
+    await page.focus('button[aria-label="Open menu"]');
+    await page.keyboard.press("Enter"); // keyboard opens it
     await page.waitForSelector('[data-testid="mobile-nav"] a');
     L.assert(await page.$eval('[data-testid="mobile-nav"] [role="dialog"]', (e) => e.getAttribute("aria-modal") === "true"), "the open menu is a modal dialog");
+    // Tab stays inside the open menu.
+    for (let i = 0; i < 40; i++) await page.keyboard.press("Tab");
+    L.assert(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="mobile-nav"]')), "Tab stays inside the open menu");
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector('[data-testid="mobile-nav"]'));
+    L.assert(await page.evaluate(() => document.activeElement?.id === "open-menu"), "focus returns to the menu button after closing");
     await page.click('button[aria-label="Open menu"]');
     await page.waitForSelector('[data-testid="mobile-nav"] a[href="/tickets"]');
     await page.click('[data-testid="mobile-nav"] a[href="/tickets"]');

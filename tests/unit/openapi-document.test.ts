@@ -10,7 +10,7 @@ describe("served OpenAPI document", () => {
     expect(spec.info.contact).toBeUndefined();
     expect(spec.info.license).toBeUndefined();
     const channel = spec.paths["/conversations"].get.parameters.find((p: { name: string }) => p.name === "channel");
-    expect(channel.schema.enum).toEqual(["whatsapp", "widget"]);
+    expect(channel.schema.enum).toEqual(["whatsapp_cloud", "webchat"]);
     expect(spec.info.description).toMatch(/not verified/i);
   });
   it("describes the authentication the API really accepts", async () => {

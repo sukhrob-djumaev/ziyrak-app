@@ -173,10 +173,28 @@ export function Sidebar() {
   useEffect(() => setOpen(false), [pathname, setOpen]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return setOpen(false);
+      if (e.key !== "Tab") return;
+      // Keep Tab inside the open menu (it is modal).
+      const items = [...(drawerRef.current?.querySelectorAll<HTMLElement>("a,button") ?? [])];
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
     drawerRef.current?.querySelector<HTMLElement>("a,button")?.focus();
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.getElementById("open-menu")?.focus(); // focus goes back to the button that opened it
+    };
   }, [open, setOpen]);
 
   return (

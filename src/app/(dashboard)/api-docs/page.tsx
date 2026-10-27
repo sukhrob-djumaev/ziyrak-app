@@ -60,7 +60,7 @@ const apiSections: ApiSection[] = [
         requestBody: {
           message: "How do I reset my password?",
           conversationId: "conv_abc123",
-          channel: "widget",
+          channel: "webchat",
           customerName: "John Doe",
         },
         responseExample: {
@@ -84,7 +84,7 @@ const apiSections: ApiSection[] = [
         responseExample: [
           {
             id: "conv_abc123",
-            channel: "widget",
+            channel: "webchat",
             customerName: "John Doe",
             status: "active",
             createdAt: "2026-04-01T10:00:00Z",
@@ -92,7 +92,7 @@ const apiSections: ApiSection[] = [
         ],
         queryParams: [
           { name: "status", type: "string", required: false, description: "Filter by status: active, closed, archived" },
-          { name: "channel", type: "string", required: false, description: "Filter by channel: widget (Web Chat) or whatsapp. Other stored values are not verified for this release." },
+          { name: "channel", type: "string", required: false, description: "Filter by channel: webchat or whatsapp_cloud. Other stored values are not verified for this release." },
         ],
       },
       {
@@ -100,13 +100,13 @@ const apiSections: ApiSection[] = [
         path: "/api/conversations",
         description: "Create a new conversation.",
         requestBody: {
-          channel: "widget",
+          channel: "webchat",
           customerName: "Jane Smith",
           customerContact: "jane@example.com",
         },
         responseExample: {
           id: "conv_def456",
-          channel: "widget",
+          channel: "webchat",
           customerName: "Jane Smith",
           status: "active",
           createdAt: "2026-04-01T10:00:00Z",
@@ -118,7 +118,7 @@ const apiSections: ApiSection[] = [
         description: "Get a specific conversation with its messages.",
         responseExample: {
           id: "conv_abc123",
-          channel: "widget",
+          channel: "webchat",
           customerName: "John Doe",
           status: "active",
           messages: [

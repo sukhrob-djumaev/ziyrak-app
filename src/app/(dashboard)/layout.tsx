@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { PermissionsProvider } from "@/components/layout/permissions";
-import { MobileNavProvider } from "@/components/layout/mobile-nav";
+import { MobileNavProvider, MobileMenuBar } from "@/components/layout/mobile-nav";
 import { RouteGuard } from "@/components/layout/route-guard";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { redirect } from "next/navigation";
@@ -20,9 +20,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </a>
         <div className="flex h-full">
           <Sidebar />
-          <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 flex flex-col overflow-hidden focus:outline-none">
-            <RouteGuard>{children}</RouteGuard>
-          </main>
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <MobileMenuBar />
+            <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 flex flex-col overflow-hidden focus:outline-none">
+              <RouteGuard>{children}</RouteGuard>
+            </main>
+          </div>
         </div>
       </MobileNavProvider>
     </PermissionsProvider>

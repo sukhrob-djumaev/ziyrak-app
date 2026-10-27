@@ -1,12 +1,11 @@
 "use client";
 
-import { Sun, Moon, LogOut, User, Settings, Users, Menu } from "lucide-react";
+import { Sun, Moon, LogOut, User, Settings, Users } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "@/lib/hooks/use-theme";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useCan } from "@/components/layout/permissions";
-import { useMobileNav } from "@/components/layout/mobile-nav";
 
 interface Me {
   user: { id: string; name: string; username: string };
@@ -39,7 +38,6 @@ export function Header({ title, description, actions }: HeaderProps) {
   const router = useRouter();
   const { toast } = useToast();
   const canReadSettings = useCan("settings:read");
-  const { open: navOpen, setOpen: setNavOpen } = useMobileNav();
   const [me, setMe] = useState<Me | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -94,14 +92,6 @@ export function Header({ title, description, actions }: HeaderProps) {
 
   return (
     <header className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-4 bg-ziyrak-surface border-b border-ziyrak-border transition-theme">
-      <button
-        onClick={() => setNavOpen(true)}
-        aria-label="Open menu"
-        aria-expanded={navOpen}
-        className="md:hidden p-2 -ml-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg"
-      >
-        <Menu className="h-5 w-5" aria-hidden="true" />
-      </button>
       <div className="animate-fade-in min-w-0 flex-1">
         <h1 className="text-lg md:text-xl font-semibold text-ziyrak-text truncate">{title}</h1>
         {description && (

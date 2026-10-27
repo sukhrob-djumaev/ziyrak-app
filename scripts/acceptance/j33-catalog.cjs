@@ -31,6 +31,7 @@ async function saveForm(page, label) {
 // Click an enabled button inside one item's block, after giving the required reason.
 async function action(page, itemKey, label, reason) {
   await fill(page, "#cat-action-reason", reason);
+  await page.waitForFunction((key, text) => [...document.querySelectorAll(`[data-item-key="${key}"] button`)].some((x) => x.innerText.trim() === text && !x.disabled), { timeout: 15000 }, itemKey, label).catch(() => undefined);
   const pending = page.waitForResponse((r) => r.url().endsWith("/api/platform/catalog") && r.request().method() === "POST");
   const clicked = await page.evaluate((key, text) => {
     const b = [...document.querySelectorAll(`[data-item-key="${key}"] button`)].find((x) => x.innerText.trim() === text && !x.disabled);
@@ -117,8 +118,9 @@ async function action(page, itemKey, label, reason) {
     const write = await call(owner, "/api/platform/catalog", "POST", { action: "create_item", key: `j33-owner-${suffix}`, kind: "bundle", reason: "x", terms: { name: "x", description: "", grants: [], priceMinor: 0, currency: "USD", interval: "month" } });
     L.assert([401, 403].includes(write.status), `workspace owner cannot write the catalog (${write.status})`);
     L.assert(L.sql(`SELECT count(*) FROM "CatalogItem" WHERE "key"=${q(`j33-owner-${suffix}`)}`) === "0", "the refused owner write changed nothing");
-    await owner.goto(L.BASE + "/platform/catalog", { waitUntil: "networkidle0" });
-    L.assert(/Access denied|sign in|login/i.test(await L.text(owner)) || owner.url().includes("/login"), "the catalog page shows no catalog to a workspace owner");
+    await owner.goto(L.BASE + "/platform/catalog", { waitUntil: "domcontentloaded" });
+    await owner.waitForFunction(() => /Access denied/i.test(document.body.innerText) || location.pathname.includes("/login"), { timeout: 30000 });
+    L.assert(true, "the catalog page shows a workspace owner an explicit denial");
     L.assert(!(await L.text(owner)).includes(bundleKey), "the owner's page does not reveal catalog items");
 
     L.finish("J33-catalog", { items: 2, versions: 3 });

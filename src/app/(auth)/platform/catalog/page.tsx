@@ -22,7 +22,14 @@ type Console = { capabilities: { key: string; label: string; kind: string }[]; i
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
 const button = "rounded bg-ziyrak-primary px-3 py-1.5 text-white disabled:opacity-50";
-const money = (v: Version) => (v.priceMinor === null ? "No price" : `${(v.priceMinor / 100).toFixed(2)} ${v.currency ?? ""} / ${v.interval ?? ""}`);
+const digitsOf = (currency: string | null) => {
+  try {
+    return currency ? new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2 : 2;
+  } catch {
+    return 2;
+  }
+};
+const money = (v: Version) => (v.priceMinor === null ? "No price" : `${(v.priceMinor / 10 ** digitsOf(v.currency)).toFixed(digitsOf(v.currency))} ${v.currency ?? ""} / ${v.interval ?? ""}`);
 
 export default function CatalogPage() {
   const router = useRouter();
@@ -42,6 +49,7 @@ export default function CatalogPage() {
   const [interval, setInterval] = useState("month");
   const [granted, setGranted] = useState<string[]>([]);
   const [reason, setReason] = useState("");
+  const [actionReason, setActionReason] = useState("");
 
   async function load() {
     const response = await fetch("/api/platform/catalog", { cache: "no-store" });
@@ -90,7 +98,7 @@ export default function CatalogPage() {
     name,
     description,
     grants: granted.map((capability) => ({ capability })),
-    priceMinor: price.trim() === "" ? null : Math.round(Number(price) * 100),
+    priceMinor: price.trim() === "" ? null : Math.round(Number(price) * 10 ** digitsOf(currency.trim().toUpperCase())),
     currency: price.trim() === "" ? null : currency.trim().toUpperCase(),
     interval: price.trim() === "" ? null : interval,
   });
@@ -100,7 +108,7 @@ export default function CatalogPage() {
     setName(v.name);
     setDescription(v.description);
     setGranted(v.grants.map((g) => g.capability));
-    setPrice(v.priceMinor === null ? "" : String(v.priceMinor / 100));
+    setPrice(v.priceMinor === null ? "" : String(v.priceMinor / 10 ** digitsOf(v.currency)));
     setCurrency(v.currency ?? "USD");
     setInterval(v.interval ?? "month");
     setReason("");
@@ -140,6 +148,8 @@ export default function CatalogPage() {
           {message && <p role="status">{message}</p>}
 
           <h2 className="mt-6 text-xl font-semibold">Items</h2>
+          <label htmlFor="cat-action-reason" className="mt-2 block">Reason for publishing, archiving or starting a new version (required, recorded in the audit)</label>
+          <input id="cat-action-reason" className={field} value={actionReason} onChange={(e) => setActionReason(e.target.value)} />
           {data.items.length === 0 && <p>No items yet. Create the first below.</p>}
           {data.items.map((item) => (
             <div key={item.id} className="mt-4" data-item-key={item.key}>
@@ -160,15 +170,15 @@ export default function CatalogPage() {
                         {v.state === "draft" && (
                           <>
                             <button className={button} disabled={busy} onClick={() => startEdit(item, v)}>Edit draft {v.version}</button>{" "}
-                            <button className={button} disabled={busy || v.problems.length > 0} onClick={() => mutate({ action: "publish", versionId: v.id, expectedRev: v.rev, reason: `Publish ${item.key} v${v.version}` }, "Version published.")}>Publish {v.version}</button>
+                            <button className={button} disabled={busy || v.problems.length > 0 || !actionReason.trim()} onClick={() => mutate({ action: "publish", versionId: v.id, expectedRev: v.rev, reason: actionReason.trim() }, "Version published.").then((ok) => ok && setActionReason(""))}>Publish {v.version}</button>
                             {v.problems.length > 0 && <ul className="text-xs">{v.problems.map((p) => <li key={p}>{p}</li>)}</ul>}
                           </>
                         )}
                         {v.state === "published" && (
                           <>
-                            <button className={button} disabled={busy} onClick={() => mutate({ action: "archive", versionId: v.id, reason: `Archive ${item.key} v${v.version}` }, "Version archived.")}>Archive {v.version}</button>{" "}
+                            <button className={button} disabled={busy || !actionReason.trim()} onClick={() => mutate({ action: "archive", versionId: v.id, reason: actionReason.trim() }, "Version archived.").then((ok) => ok && setActionReason(""))}>Archive {v.version}</button>{" "}
                             {!item.versions.some((x) => x.state === "draft") && v.version === Math.max(...item.versions.filter((x) => x.state === "published").map((x) => x.version)) && (
-                              <button className={button} disabled={busy} onClick={() => mutate({ action: "new_draft", itemId: item.id, reason: `New version of ${item.key}` }, "New draft created.")}>New version</button>
+                              <button className={button} disabled={busy || !actionReason.trim()} onClick={() => mutate({ action: "new_draft", itemId: item.id, reason: actionReason.trim() }, "New draft created.").then((ok) => ok && setActionReason(""))}>New version</button>
                             )}
                           </>
                         )}

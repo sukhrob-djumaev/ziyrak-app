@@ -43,10 +43,14 @@ beforeAll(async () => {
 }, 120_000);
 afterAll(async () => {
   const items = await prisma.catalogItem.findMany({ where: { key: { in: keys } }, select: { id: true } });
-  // Published versions are immutable and undeletable by design; the test removes them by lifting the guard for itself only.
-  await prisma.$executeRawUnsafe('ALTER TABLE "CatalogVersion" DISABLE TRIGGER "CatalogVersion_guard"');
-  await prisma.catalogVersion.deleteMany({ where: { itemId: { in: items.map((i) => i.id) } } });
-  await prisma.$executeRawUnsafe('ALTER TABLE "CatalogVersion" ENABLE TRIGGER "CatalogVersion_guard"');
+  // Published versions are immutable and undeletable by design, so cleanup lifts the guard on this table for the duration of
+  // this delete only (restored in finally). Other files never touch catalog tables.
+  try {
+    await prisma.$executeRawUnsafe('ALTER TABLE "CatalogVersion" DISABLE TRIGGER "CatalogVersion_guard"');
+    await prisma.catalogVersion.deleteMany({ where: { itemId: { in: items.map((i) => i.id) } } });
+  } finally {
+    await prisma.$executeRawUnsafe('ALTER TABLE "CatalogVersion" ENABLE TRIGGER "CatalogVersion_guard"');
+  }
   await prisma.catalogItem.deleteMany({ where: { id: { in: items.map((i) => i.id) } } });
   await prisma.platformAccessAudit.deleteMany({ where: { actorUserId: adminId } });
   await prisma.user.delete({ where: { id: adminId } });
@@ -64,9 +68,13 @@ describe("catalog lifecycle", () => {
     expect(created.problems).toEqual([]);
     const published = await publishVersion("t", { versionId: created.id, expectedRev: created.rev, reason: "go" });
     expect(published.state).toBe("published");
-    const audit = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "catalog." } }, orderBy: { createdAt: "asc" } });
-    expect(audit.map((a) => a.action)).toEqual(expect.arrayContaining(["catalog.item.create", "catalog.version.publish"]));
-    expect(audit.every((a) => a.reason.length > 0)).toBe(true);
+    const key = created.itemId;
+    const audit = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "catalog." }, details: { path: ["versionId"], equals: created.id } } });
+    const forItem = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "catalog." } }, orderBy: { createdAt: "asc" } });
+    expect(key).toBeTruthy();
+    expect(audit).toHaveLength(1); // the create row carries the version id
+    expect(forItem.filter((a) => a.action === "catalog.version.publish")).toHaveLength(1);
+    expect(forItem.every((a) => a.reason === "new base bundle" || a.reason === "go")).toBe(true);
   });
 
   it("refuses to publish unknown capabilities, an amount on an on/off key, or an incomplete price - and stays a draft", async () => {
@@ -107,6 +115,27 @@ describe("catalog lifecycle", () => {
     await expect(saveDraft("t", { versionId: c.id, expectedRev: c.rev, terms: { ...terms, name: "Stale" }, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
     await expect(publishVersion("t", { versionId: c.id, expectedRev: c.rev, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
     expect((await prisma.catalogVersion.findUniqueOrThrow({ where: { id: c.id } })).name).toBe("Second");
+  });
+
+  it("keeps the lifecycle rules at the database even against direct SQL", async () => {
+    const c = await createItem("t", { key: newKey(), kind: "bundle", terms, reason: "r" });
+    // draft -> archived, and publishing without a price, are refused by the database itself
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "archived" } })).rejects.toThrow(/cannot be archived/);
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "published", priceMinor: null } })).rejects.toThrow(/sellable|violates check/);
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "bogus" } })).rejects.toThrow(/check/i);
+    await publishVersion("t", { versionId: c.id, expectedRev: c.rev, reason: "r" });
+    // published: identity columns, rev and the archive stamp cannot be rewritten; item key and kind are permanent
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { rev: 99, state: "archived", archivedAt: new Date() } })).rejects.toThrow(/immutable/);
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "archived", archivedAt: null } })).rejects.toThrow(/check|sellable/i);
+    await expect(prisma.catalogItem.update({ where: { id: c.itemId }, data: { kind: "addon" } })).rejects.toThrow(/permanent/);
+    await expect(prisma.catalogItem.update({ where: { id: c.itemId }, data: { key: "renamed" } })).rejects.toThrow(/permanent/);
+    await expect(prisma.$executeRawUnsafe('TRUNCATE "CatalogVersion" CASCADE')).rejects.toThrow(/truncated/);
+    await archiveVersion("t", { versionId: c.id, reason: "r" });
+    await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "published" } })).rejects.toThrow(/immutable/); // archived is final
+  });
+
+  it("rejects an unknown ISO currency", async () => {
+    await expect(createItem("t", { key: newKey(), kind: "bundle", terms: { ...terms, currency: "XYZ" }, reason: "r" })).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("rejects a duplicate key and a malformed key", async () => {

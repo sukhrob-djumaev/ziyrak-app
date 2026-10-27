@@ -20,7 +20,7 @@ const termsInput = z
     description: z.string().trim().max(1000).default(""),
     grants: z.array(grantInput).max(50),
     priceMinor: z.number().int().min(0).max(100_000_000).nullable(),
-    currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
+    currency: z.string().regex(/^[A-Z]{3}$/).refine((c) => (Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf("currency").includes(c), "unknown ISO currency").nullable(),
     interval: z.enum(["month", "year"]).nullable(),
   })
   .strict();
@@ -158,7 +158,9 @@ export async function publishVersion(token: string, input: unknown) {
     if (v.rev !== r.expectedRev) throw new AppError(409, "CONFLICT", "This draft changed since you opened it. Reload and try again");
     const problems = publishProblems(termsOf(v));
     if (problems.length) throw new AppError(400, "VALIDATION_ERROR", "This draft cannot be published", problems);
-    const updated = await tx.catalogVersion.update({ where: { id: v.id }, data: { state: "published", publishedAt: new Date(), publishedBy: actor.userId } });
+    const claimed = await tx.catalogVersion.updateMany({ where: { id: v.id, rev: r.expectedRev, state: "draft" }, data: { state: "published", publishedAt: new Date(), publishedBy: actor.userId } });
+    if (claimed.count !== 1) throw new AppError(409, "CONFLICT", "This draft changed since you opened it. Reload and try again");
+    const updated = await tx.catalogVersion.findUniqueOrThrow({ where: { id: v.id } });
     await writePlatformAudit(tx, { actorUserId: actor.userId, action: "catalog.version.publish", reason: r.reason, details: { itemKey: v.item.key, version: v.version, grants: termsOf(v).grants, priceMinor: v.priceMinor, currency: v.currency, interval: v.interval } });
     return view(updated);
   });
@@ -169,7 +171,9 @@ export async function archiveVersion(token: string, input: unknown) {
   return withPlatformControl(token, "super_admin", async (tx, actor) => {
     const v = await mustFind(tx, r.versionId);
     if (v.state !== "published") throw new AppError(409, "CONFLICT", "Only a published version can be archived");
-    const updated = await tx.catalogVersion.update({ where: { id: v.id }, data: { state: "archived", archivedAt: new Date() } });
+    const claimed = await tx.catalogVersion.updateMany({ where: { id: v.id, state: "published" }, data: { state: "archived", archivedAt: new Date() } });
+    if (claimed.count !== 1) throw new AppError(409, "CONFLICT", "Only a published version can be archived");
+    const updated = await tx.catalogVersion.findUniqueOrThrow({ where: { id: v.id } });
     await writePlatformAudit(tx, { actorUserId: actor.userId, action: "catalog.version.archive", reason: r.reason, details: { itemKey: v.item.key, version: v.version } });
     return view(updated);
   });

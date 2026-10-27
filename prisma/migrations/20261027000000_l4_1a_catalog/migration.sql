@@ -107,5 +107,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- contract-migration: guard trigger on a table created in this migration; it only blocks TRUNCATE and nothing in the previous release uses the table
 CREATE TRIGGER "CatalogVersion_no_truncate" BEFORE TRUNCATE ON "CatalogVersion" FOR EACH STATEMENT EXECUTE FUNCTION "catalog_no_truncate"();
+-- contract-migration: guard trigger on a table created in this migration; it only blocks TRUNCATE and nothing in the previous release uses the table
 CREATE TRIGGER "CatalogItem_no_truncate" BEFORE TRUNCATE ON "CatalogItem" FOR EACH STATEMENT EXECUTE FUNCTION "catalog_no_truncate"();

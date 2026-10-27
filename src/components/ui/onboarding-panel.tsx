@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useCan } from "@/components/layout/permissions";
+import { useCan, useIsOwner } from "@/components/layout/permissions";
 
 interface Step {
   id: "knowledge" | "channel" | "test_reply" | "activation";
@@ -30,7 +30,9 @@ export function OnboardingPanel() {
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   // Activating the workspace and the test reply are owner actions; everyone else only sees progress.
-  const isOwner = useCan("business:billing");
+  const isOwner = useIsOwner();
+  const canOpenKnowledge = useCan("knowledge:create");
+  const canOpenChannels = useCan("channels:read");
 
   const load = useCallback(async () => {
     try {
@@ -115,7 +117,7 @@ export function OnboardingPanel() {
               )}
             </div>
             <div>
-              {LINKS[step.id] && step.status !== "done" && (
+              {LINKS[step.id] && step.status !== "done" && (step.id === "knowledge" ? canOpenKnowledge : canOpenChannels) && (
                 <Link href={LINKS[step.id].href} className="text-sm font-medium text-ziyrak-primary hover:underline">
                   {LINKS[step.id].label}
                 </Link>

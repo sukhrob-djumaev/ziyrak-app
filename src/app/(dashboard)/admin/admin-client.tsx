@@ -542,7 +542,7 @@ export default function AdminClient({
   if (denied)
     return (
       <>
-        <Header title="Administration" />
+        <Header title="People & Access" />
         <div role="alert" className="p-6">
           Access denied. Current workspace administration permission is required.
         </div>
@@ -550,7 +550,7 @@ export default function AdminClient({
     );
   return (
     <>
-      <Header title="Administration" description="Manage users and API access" />
+      <Header title="People & Access" description="Manage users and API access" />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Tab switcher */}

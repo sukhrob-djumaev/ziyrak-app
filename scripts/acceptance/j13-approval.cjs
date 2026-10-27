@@ -21,11 +21,12 @@ async function setApprovalPolicyViaUi(op, on) {
     L.assert((await saved).status() === 200, `the Approvals UI saved the create_ticket policy (${on ? "approval required" : "approval off"})`);
   }
 }
-async function decideViaUi(op, kind) {
+async function decideViaUi(op, kind, actionId) {
   await op.goto(L.BASE + "/approvals", { waitUntil: "networkidle0" });
   await openTab(op, "Waiting");
-  await op.waitForSelector('[data-testid="approval-row"] button');
-  await L.clickFirst(op, '[data-testid="approval-row"] button', kind === "approve" ? "Approve" : "Reject");
+  const row = `[data-testid="approval-row"][data-action-id="${actionId}"]`;
+  await op.waitForSelector(row + " button");
+  await L.clickFirst(op, row + " button", kind === "approve" ? "Approve" : "Reject");
   const done = op.waitForResponse((r) => new URL(r.url()).pathname.endsWith(kind === "approve" ? "/approve" : "/reject") && r.request().method() === "POST");
   await L.clickLast(op, "button", kind === "approve" ? "Approve and run" : "Reject");
   return (await done).status();
@@ -53,7 +54,7 @@ async function decideViaUi(op, kind) {
   out.viewerApprove = (await call(vp, "POST", `/api/actions/${id1}/approve`, {})).s; out.viewerReject = (await call(vp, "POST", `/api/actions/${id1}/reject`, {})).s;
   out.stillPendingAfterViewer = sql(`select status from "ActionExecution" where id='${id1}';`); await vb.close();
   // owner approves through the real Approvals UI
-  out.ownerApprove = await decideViaUi(op, "approve");
+  out.ownerApprove = await decideViaUi(op, "approve", id1);
   await L.sleep(500);
   // The real model supplies a valid but not fixture-specific title. Bind the
   // side effect to the approved action's durable result rather than matching
@@ -64,7 +65,7 @@ async function decideViaUi(op, kind) {
   // rejection path
   out.aiReply2 = await askTicket("Something is broken: the scooter brakes are failing. Open a ticket please.");
   const id2 = sql(`select id from "ActionExecution" where tool='create_ticket' and status='pending_approval' and "businessId"=${BIZB} order by "createdAt" desc limit 1;`);
-  const t2 = tickets(); out.ownerReject = await decideViaUi(op, "reject"); await L.sleep(400);
+  const t2 = tickets(); out.ownerReject = await decideViaUi(op, "reject", id2); await L.sleep(400);
   out.afterReject = { status: sql(`select status from "ActionExecution" where id='${id2}';`), tickets: `${t2} -> ${tickets()}` }; out.approveAfterReject = (await call(op, "POST", `/api/actions/${id2}/approve`, {})).s;
   out.activity = sql(`select action from "ActivityLog" where "businessId"=${BIZB} and (action like 'action.%' or action like 'tool.%') order by "createdAt";`).split("\n");
   await setApprovalPolicyViaUi(op, false);
@@ -92,4 +93,9 @@ async function decideViaUi(op, kind) {
 
   L.finish("J13", out);
   await ob.close();
-})().catch((e) => { console.error("ERR", e); process.exit(1); });
+})().catch((e) => {
+  console.error("ERR", e);
+  // A failure midway must not leave approval switched on for the journeys that follow.
+  try { sql(`update "ToolPolicy" set "requiresHumanApproval"=false where tool='create_ticket' and "businessId"=${BIZB};`); } catch (reset) { console.error("policy reset failed", reset.message); }
+  process.exit(1);
+});

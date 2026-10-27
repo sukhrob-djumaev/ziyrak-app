@@ -474,8 +474,11 @@ export default function WebhooksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ webhookId: wh.id }),
       });
-      const data = await res.json();
-      setTestResult(data);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const e = data?.error;
+        setTestResult({ success: false, error: typeof e === "string" ? e : e?.message || "The test request was refused." });
+      } else setTestResult(data);
     } catch {
       setTestResult({ success: false, error: "Failed to send test request" });
     } finally {
@@ -618,6 +621,7 @@ export default function WebhooksPage() {
                     </div>
 
                     <div className="flex items-center gap-1 flex-shrink-0">
+{canUpdate && (
                       <button
                         onClick={() => handleTest(wh)}
                         disabled={testingId === wh.id}
@@ -631,6 +635,7 @@ export default function WebhooksPage() {
                         )}
                         Test
                       </button>
+)}
 {canUpdate && (
                       <button
                         onClick={() => handleToggleActive(wh)}

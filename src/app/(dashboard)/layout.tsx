@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const ctx = await getTenantContextFromCookies();
   if (!ctx) redirect("/workspaces");
   return (
-    <PermissionsProvider permissions={permissionsForContext(ctx)}>
+    <PermissionsProvider permissions={permissionsForContext(ctx)} isOwner={ctx.role === "owner"}>
       <div className="flex h-full">
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden"><RouteGuard>{children}</RouteGuard></main>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PERMISSIONS, ROLES, hasPermission, type Permission } from "@/lib/rbac/rbac";
-import { permissionsForRole } from "@/lib/rbac/view";
+import { permissionsForRole, permissionsForContext } from "@/lib/rbac/view";
+import type { TenantContext } from "@/lib/tenancy/context";
 import { NAV_SECTIONS, visibleNavigation, permissionForPath } from "@/lib/navigation/dashboard-nav";
 
 /** L3.1 / D01: what the sidebar shows is derived from the same permission table the APIs enforce. */
@@ -47,7 +48,10 @@ describe("dashboard navigation", () => {
     expect(names("admin")).toEqual(all);
   });
   it("drops a section whose items are all hidden", () => {
-    expect(visibleNavigation(permissionsForRole("viewer")).every((s) => s.items.length > 0)).toBe(true);
+    const viewerSections = visibleNavigation(permissionsForRole("viewer")).map((s) => s.title);
+    expect(viewerSections).not.toContain("Channels"); // both of its items need supervisor
+    expect(viewerSections).toContain("Insights"); // Analytics stays
+    expect(visibleNavigation(permissionsForRole("supervisor")).map((s) => s.title)).toContain("Channels");
   });
 });
 
@@ -65,5 +69,26 @@ describe("direct URL requirement", () => {
     expect(permissionForPath("/workspaces")).toBeNull();
     expect(permissionForPath("/api-docs")).toBeNull();
     expect(permissionForPath("/customers-export")).toBeNull();
+  });
+});
+
+describe("permission view for a resolved context (channel scope)", () => {
+  const ctx = (role: string, resourceScope: unknown) => ({ businessId: "b", role, actor: { kind: "user", userId: "u" }, dataConnection: "x", resourceScope }) as unknown as TenantContext;
+  const wide = { kind: "workspace", customerProfileAccess: "write" };
+  const scoped = { kind: "connections", connectionIds: ["c1"], customerProfileAccess: "none" };
+  it("workspace-wide members keep Webhooks and Automation", () => {
+    const v = permissionsForContext(ctx("admin", wide));
+    expect(v).toContain("webhooks:read");
+    expect(v).toContain("automation:read");
+  });
+  it("a member limited to specific channels does not get workspace-wide-only areas, but keeps the rest", () => {
+    const v = permissionsForContext(ctx("admin", scoped));
+    expect(v.some((p) => p.startsWith("webhooks:") || p.startsWith("automation:"))).toBe(false);
+    expect(v).toContain("conversations:read");
+    expect(v).toContain("channels:read");
+  });
+  it("a context with no usable scope hides scope-dependent areas instead of throwing", () => {
+    expect(() => permissionsForContext(ctx("admin", undefined))).not.toThrow();
+    expect(permissionsForContext(ctx("admin", undefined))).not.toContain("webhooks:read");
   });
 });

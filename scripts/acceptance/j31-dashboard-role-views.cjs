@@ -65,7 +65,8 @@ const roles = ["admin", "supervisor", "agent", "viewer"];
         const apiCalls = [];
         const watch = (r) => {
           const p = new URL(r.url()).pathname;
-          if (p.startsWith("/api/") && !/^\/api\/(me|actions|realtime|auth)/.test(p)) apiCalls.push(p);
+          const badge = p === "/api/actions" && new URL(r.url()).search === "?status=pending_approval&limit=1";
+          if (p.startsWith("/api/") && !badge && !/^\/api\/(me|realtime|auth)/.test(p)) apiCalls.push(p + new URL(r.url()).search);
         };
         page.on("request", watch);
         await page.goto(L.BASE + path, { waitUntil: "networkidle0" });
@@ -85,6 +86,8 @@ const roles = ["admin", "supervisor", "agent", "viewer"];
       L.assert(addButton === allowed(role, "admin"), `${role}: Team add control ${addButton ? "shown" : "absent"} matches permission`);
       await page.goto(L.BASE + "/webhooks", { waitUntil: "networkidle0" });
       if (allowed(role, "supervisor")) {
+        const testHook = await page.evaluate(() => [...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Test"));
+        if (testHook) L.assert(allowed(role, "admin"), `${role}: webhook Test button only with webhooks:update`);
         const addHook = await page.evaluate(() => [...document.querySelectorAll("button")].some((b) => /Add (Your First )?Webhook/.test(b.textContent)));
         L.assert(addHook === allowed(role, "admin"), `${role}: Webhook add control matches permission`);
       }
@@ -110,39 +113,55 @@ const roles = ["admin", "supervisor", "agent", "viewer"];
 
     await check(owner, "owner");
 
+    async function loginAs(account, xff) {
+      const browser = await L.launch(`j31-${account.role}-${suffix}`);
+      browsers.push(browser);
+      const page = await browser.newPage();
+      await page.setExtraHTTPHeaders({ "X-Forwarded-For": xff });
+      const events = L.watch(page, "j31-" + account.role);
+      await page.goto(L.BASE + "/login", { waitUntil: "networkidle0" });
+      await page.type("#username", account.username);
+      await page.type("#password", account.password);
+      await Promise.all([page.waitForNavigation({ waitUntil: "networkidle0" }), page.click('button[type="submit"]')]);
+      await page.waitForSelector('header button[aria-label^="Account menu"]');
+      L.assert(!page.url().includes("/login"), `${account.role}: real login succeeds`);
+      return { browser, page, events };
+    }
+    const checked = ["owner"];
+    let admin = null;
+    for (const [i, account] of accounts.entries()) {
+      const { browser, page, events } = await loginAs(account, `198.51.100.${242 + i}`);
+      await check(page, account.role);
+      checked.push(account.role);
+      L.assert(events.pageErrors.length === 0, `${account.role}: no browser runtime exception`);
+      if (account.role === "admin") admin = { browser, page };
+      else {
+        await browser.close();
+        browsers.splice(browsers.indexOf(browser), 1);
+      }
+    }
+    L.assert(checked.length === 5, `all five roles were checked (${checked.join(",")})`);
+
     // 5. Failed writes keep the form open with the entered values and a reason (admin path, forced server rejection).
-    const adminAcc = accounts.find((a) => a.role === "admin");
-    const adminBrowser = await L.launch(`j31-admin-${suffix}`);
-    browsers.push(adminBrowser);
-    const admin = await adminBrowser.newPage();
-    await admin.setExtraHTTPHeaders({ "X-Forwarded-For": "198.51.100.246" });
-    await admin.goto(L.BASE + "/login", { waitUntil: "networkidle0" });
-    await admin.type("#username", adminAcc.username);
-    await admin.type("#password", adminAcc.password);
-    await Promise.all([admin.waitForNavigation({ waitUntil: "networkidle0" }), admin.click('button[type="submit"]')]);
-    await admin.waitForSelector('header button[aria-label^="Account menu"]');
-    await check(admin, "admin");
-    await admin.goto(L.BASE + "/webhooks", { waitUntil: "networkidle0" });
-    await admin.setRequestInterception(true);
-    let mode = "reject";
-    admin.on("request", (r) => {
-      if (mode === "reject" && r.method() === "POST" && new URL(r.url()).pathname === "/api/webhooks")
-        r.respond({ status: 500, contentType: "application/json", body: JSON.stringify({}) });
+    const adminPage = admin.page;
+    await adminPage.goto(L.BASE + "/webhooks", { waitUntil: "networkidle0" });
+    await adminPage.setRequestInterception(true);
+    adminPage.on("request", (r) => {
+      if (r.method() === "POST" && new URL(r.url()).pathname === "/api/webhooks") r.respond({ status: 500, contentType: "application/json", body: JSON.stringify({}) });
       else r.continue();
     });
-    await L.clickFirst(admin, "button", "Add Webhook");
-    await admin.waitForSelector('input[placeholder="Slack Notification"]');
-    await admin.type('input[placeholder="Slack Notification"]', "Rejected hook");
-    await admin.type('input[type="url"], input[placeholder^="https"]', "https://example.test/hook");
-    await L.clickLast(admin, "button", "Create Webhook");
-    await admin.waitForSelector('[role="alert"]');
-    const alertText = await admin.$eval('[role="alert"]', (e) => e.innerText);
+    await L.clickFirst(adminPage, "button", "Add Webhook");
+    await adminPage.waitForSelector('input[placeholder="Slack Notification"]');
+    await adminPage.type('input[placeholder="Slack Notification"]', "Rejected hook");
+    await adminPage.type('input[type="url"], input[placeholder^="https"]', "https://example.test/hook");
+    await L.clickLast(adminPage, "button", "Create Webhook");
+    await adminPage.waitForSelector('[role="alert"]');
+    const alertText = await adminPage.$eval('[role="alert"]', (e) => e.innerText);
     L.assert(/could not save/i.test(alertText), "Rejected webhook write shows a reason");
-    L.assert((await admin.$eval('input[placeholder="Slack Notification"]', (e) => e.value)) === "Rejected hook", "Rejected webhook write keeps the entered values");
-    mode = "off";
-    await admin.setRequestInterception(false);
+    L.assert((await adminPage.$eval('input[placeholder="Slack Notification"]', (e) => e.value)) === "Rejected hook", "Rejected webhook write keeps the entered values");
+    await adminPage.setRequestInterception(false);
 
-    L.finish("J31-dashboard-role-views", { roles: ["owner", ...roles], pages: PAGES.length });
+    L.finish("J31-dashboard-role-views", { rolesChecked: checked, pages: PAGES.length });
   } finally {
     for (const b of browsers.reverse()) await b.close();
   }

@@ -573,7 +573,7 @@ export default function TeamPage() {
     <>
       <Header
         title="Team roster"
-        description="Who can be assigned work, and their departments. This is not a list of login accounts: people who can sign in are managed under Administration."
+        description="Who can be assigned work, and their departments. This is not a list of login accounts: people who can sign in are managed under People & Access."
       />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">

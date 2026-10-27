@@ -29,6 +29,14 @@ describe("submitJson (D05: no false success)", () => {
       else expect(r.message).toMatch(expected as RegExp);
     }
   });
+  it("prefers the written copy for 401/403 over the server's generic text", async () => {
+    reply(403, { error: { code: "FORBIDDEN", message: "Insufficient permissions" } });
+    const r = await submitJson("/x", "PUT", {});
+    expect(!r.ok && r.message).toMatch(/Ask a workspace owner or admin/);
+    reply(401, { error: { message: "Authentication required" } });
+    const r2 = await submitJson("/x", "PUT", {});
+    expect(!r2.ok && r2.message).toMatch(/signed out/);
+  });
   it("turns a network failure into a retry message", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
     const r = await submitJson("/x", "POST", {});

@@ -23,7 +23,7 @@ set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 : "${ACC_DB:?set ACC_DB to the throwaway acceptance database URL (same one start-all.sh used)}"
 
-JOURNEYS="j01-signup j02-auth-session j04-knowledge j05-webchat-setup j06a-webchat-visitor-a j06b-webchat-visitor-b-and-cross-probes j08-tool-create-ticket j09-j10-followup-and-worker-restart j11-handoff j03-tenant-isolation j03b-tenant-isolation-followup j12-widget-security j13-approval j14-automation j15-runtime j04b-semantic-knowledge j17-delivery-recovery j18-workspace-choice j19-live-stream-authority j20-platform-enrollment j21-workspace-role-matrix j22-platform-operators j23-administration-ui j24-settings-context j25-member-access-editor j26-campaign-run j27-managed-ai j28-accounts-onboarding j29-operator-invitations j30-new-business-journey j31-dashboard-role-views j32-daily-workflow"
+JOURNEYS="j01-signup j02-auth-session j04-knowledge j05-webchat-setup j06a-webchat-visitor-a j06b-webchat-visitor-b-and-cross-probes j08-tool-create-ticket j09-j10-followup-and-worker-restart j11-handoff j03-tenant-isolation j03b-tenant-isolation-followup j12-widget-security j13-approval j14-automation j15-runtime j04b-semantic-knowledge j17-delivery-recovery j18-workspace-choice j19-live-stream-authority j20-platform-enrollment j21-workspace-role-matrix j22-platform-operators j23-administration-ui j24-settings-context j25-member-access-editor j26-campaign-run j27-managed-ai j28-accounts-onboarding j29-operator-invitations j30-new-business-journey j31-dashboard-role-views j32-daily-workflow j33-catalog"
 
 fail=""
 for j in $JOURNEYS; do

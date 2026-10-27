@@ -1259,3 +1259,36 @@ model OnboardingState {
   activatedAt     DateTime?
   updatedAt       DateTime  @updatedAt
 }
+
+// ==================== CATALOG (L4.1a, docs/l4.1-catalog-entitlements-design.md) ====================
+// Control-plane only. A published/archived CatalogVersion is immutable (DB trigger); changing terms means a new version.
+model CatalogItem {
+  id        String           @id @default(uuid())
+  key       String           @unique // kebab-case, never reused
+  kind      String // "bundle" | "addon"
+  createdAt DateTime         @default(now())
+  versions  CatalogVersion[]
+}
+
+model CatalogVersion {
+  id          String      @id @default(uuid())
+  itemId      String
+  item        CatalogItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  version     Int
+  state       String      @default("draft") // "draft" | "published" | "archived"
+  name        String
+  description String      @default("")
+  grants      Json        @default("[]") // [{ capability, amount? }] validated against the code registry
+  priceMinor  Int? // test/display price in minor units; collection is L5
+  currency    String?
+  interval    String? // "month" | "year"
+  rev         Int         @default(1) // optimistic concurrency for draft edits
+  createdBy   String?
+  publishedBy String?
+  publishedAt DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([itemId, version])
+}

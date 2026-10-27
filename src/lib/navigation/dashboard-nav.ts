@@ -13,36 +13,35 @@ export interface NavSection {
   items: NavItem[];
 }
 
+/** Grouped by the work a person is doing, not by the table behind the page. */
 export const NAV_SECTIONS: NavSection[] = [
   {
+    items: [{ name: "Dashboard", href: "/", icon: "dashboard" }],
+  },
+  {
+    title: "Support",
     items: [
-      { name: "Dashboard", href: "/", icon: "dashboard" },
       { name: "Conversations", href: "/conversations", icon: "conversations", requires: "conversations:read" },
       { name: "Customers", href: "/customers", icon: "customers", requires: "customers:read" },
       { name: "Tickets", href: "/tickets", icon: "tickets", requires: "tickets:read" },
-    ],
-  },
-  {
-    title: "Knowledge",
-    items: [
-      { name: "Knowledge Base", href: "/knowledge", icon: "knowledge", requires: "knowledge:read" },
-      { name: "Canned Responses", href: "/canned-responses", icon: "canned", requires: "canned:read" },
-      { name: "Automation", href: "/automation", icon: "automation", requires: "automation:read" },
-      { name: "Business Hours", href: "/business-hours", icon: "hours", requires: "business-hours:read" },
-    ],
-  },
-  {
-    title: "Team",
-    items: [
-      { name: "Team Roster", href: "/team", icon: "team", requires: "team:read" },
-      { name: "SLA Rules", href: "/sla", icon: "sla", requires: "sla:read" },
       { name: "Approvals", href: "/approvals", icon: "approvals", requires: "actions:read" },
     ],
   },
   {
-    title: "Channels",
+    title: "Teach the assistant",
+    items: [
+      { name: "Knowledge Base", href: "/knowledge", icon: "knowledge", requires: "knowledge:read" },
+      { name: "Canned Responses", href: "/canned-responses", icon: "canned", requires: "canned:read" },
+      { name: "Automation", href: "/automation", icon: "automation", requires: "automation:read" },
+    ],
+  },
+  {
+    title: "Set up",
     items: [
       { name: "Channels", href: "/channels", icon: "channels", requires: "channels:read" },
+      { name: "Business Hours", href: "/business-hours", icon: "hours", requires: "business-hours:read" },
+      { name: "Team Roster", href: "/team", icon: "team", requires: "team:read" },
+      { name: "SLA Rules", href: "/sla", icon: "sla", requires: "sla:read" },
       { name: "Webhooks", href: "/webhooks", icon: "webhooks", requires: "webhooks:read" },
     ],
   },
@@ -54,11 +53,11 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "System",
+    title: "Workspace",
     items: [
       { name: "People & Access", href: "/admin", icon: "admin", requires: "admin:read" },
-      { name: "API Docs", href: "/api-docs", icon: "docs" },
       { name: "Settings", href: "/settings", icon: "settings", requires: "settings:read" },
+      { name: "API Docs", href: "/api-docs", icon: "docs" },
       { name: "Switch workspace", href: "/workspaces", icon: "switch" },
     ],
   },

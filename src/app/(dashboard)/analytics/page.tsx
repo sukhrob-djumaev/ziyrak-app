@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LoadFailed } from "@/components/ui/load-failed";
 
 // ==================== TYPES ====================
 
@@ -18,6 +19,7 @@ interface AnalyticsData {
   conversationsPerDay: { date: string; count: number }[];
   channelBreakdown: { channel: string; count: number }[];
   avgResponseTime: number;
+  responseTimeSamples: number;
   resolutionRate: number;
   satisfactionAvg: number;
   ticketsByPriority: { priority: string; count: number }[];
@@ -127,17 +129,18 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [period, setPeriod] = useState<Period>("30d");
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/analytics?period=${period}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setData(await res.json());
+      setLoadFailed(false);
     } catch {
-      // silently handle
+      setData(null); // never leave the previous period's numbers under a new period label
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -177,6 +180,8 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {!loading && loadFailed && <LoadFailed what="analytics" onRetry={fetchData} />}
+
       {/* Row 1: Stat cards */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -194,7 +199,7 @@ export default function AnalyticsPage() {
           />
           <StatCard
             title="Avg Response Time"
-            value={formatMinutes(data.avgResponseTime)}
+            value={data.responseTimeSamples > 0 ? formatMinutes(data.avgResponseTime) : "No replies yet"}
             icon={Clock}
             iconColor="bg-amber-50 text-amber-600"
           />

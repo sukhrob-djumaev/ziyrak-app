@@ -3,6 +3,9 @@
 import { Header } from "@/components/layout/header";
 import { Save, Check, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn } from "@/lib/utils";
 
 interface BusinessHoursData {
@@ -102,6 +105,8 @@ export default function BusinessHoursPage() {
   const [config, setConfig] = useState<BusinessHoursData>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [saved, setSaved] = useState(false);
 
   const timeOptions = useMemo(() => generateTimeOptions(), []);
@@ -109,12 +114,13 @@ export default function BusinessHoursPage() {
   const fetchConfig = useCallback(async () => {
     try {
       const res = await fetch("/api/business-hours");
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setConfig(await res.json());
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch business hours:", error);
+      // Never show the default schedule as if it were the saved one: saving it would overwrite the real hours.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -127,23 +133,12 @@ export default function BusinessHoursPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
-    try {
-      const res = await fetch("/api/business-hours", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      }
-    } catch (error) {
-      console.error("Failed to save business hours:", error);
-    } finally {
-      setSaving(false);
-    }
+    const result = await submitJson<BusinessHoursData>("/api/business-hours", "PUT", config);
+    setSaving(false);
+    if (!reportWrite("Saving business hours", result)) return;
+    setConfig(result.data);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   const toggleDay = (day: DayKey) => {
@@ -202,6 +197,15 @@ export default function BusinessHoursPage() {
       return { open: false, label: "Unable to determine status" };
     }
   }, [config]);
+
+  if (loadFailed && !loading) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        <Header title="Business Hours" description="Configure when your support is available" />
+        <LoadFailed what="business hours" onRetry={fetchConfig} />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

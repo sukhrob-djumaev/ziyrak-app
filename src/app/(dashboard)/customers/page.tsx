@@ -22,6 +22,9 @@ import {
   User,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn, formatDate, getStatusColor, getChannelLabel } from "@/lib/utils";
 
 // ---------- Types ----------
@@ -112,6 +115,8 @@ export default function CustomersPage() {
     totalPages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [searchQuery, setSearchQuery] = useState("");
   const [blockedFilter, setBlockedFilter] = useState(false);
 
@@ -162,13 +167,14 @@ export default function CustomersPage() {
         if (blockedFilter) params.set("isBlocked", "true");
 
         const res = await fetch(`/api/customers?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCustomers(data.data);
-          setPagination(data.pagination);
-        }
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const data = await res.json();
+        setCustomers(data.data);
+        setPagination(data.pagination);
+        setLoadFailed(false);
       } catch (error) {
         console.error("Failed to fetch customers:", error);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -218,94 +224,48 @@ export default function CustomersPage() {
 
   const handleSaveEdit = async () => {
     if (!selectedCustomer) return;
-    try {
-      const res = await fetch(`/api/customers/${selectedCustomer.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        setEditMode(false);
-        fetchCustomerDetail(selectedCustomer.id);
-        fetchCustomers(pagination.page);
-      }
-    } catch (error) {
-      console.error("Failed to update customer:", error);
-    }
+    const result = await submitJson(`/api/customers/${selectedCustomer.id}`, "PUT", editForm);
+    if (!reportWrite("Saving the customer", result)) return;
+    setEditMode(false);
+    fetchCustomerDetail(selectedCustomer.id);
+    fetchCustomers(pagination.page);
   };
 
   const handleToggleBlock = async () => {
     if (!selectedCustomer) return;
-    try {
-      const res = await fetch(`/api/customers/${selectedCustomer.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isBlocked: !selectedCustomer.isBlocked }),
-      });
-      if (res.ok) {
-        fetchCustomerDetail(selectedCustomer.id);
-        fetchCustomers(pagination.page);
-      }
-    } catch (error) {
-      console.error("Failed to toggle block:", error);
-    }
+    const result = await submitJson(`/api/customers/${selectedCustomer.id}`, "PUT", { isBlocked: !selectedCustomer.isBlocked });
+    if (!reportWrite(selectedCustomer.isBlocked ? "Unblocking the customer" : "Blocking the customer", result)) return;
+    fetchCustomerDetail(selectedCustomer.id);
+    fetchCustomers(pagination.page);
   };
 
   const handleDeleteCustomer = async (id: string) => {
     if (!confirm("Are you sure you want to delete this customer?")) return;
-    try {
-      const res = await fetch(`/api/customers/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        if (selectedCustomer?.id === id) setSelectedCustomer(null);
-        fetchCustomers(pagination.page);
-      }
-    } catch (error) {
-      console.error("Failed to delete customer:", error);
-    }
+    const result = await submitJson(`/api/customers/${id}`, "DELETE");
+    if (!reportWrite("Deleting the customer", result)) return;
+    if (selectedCustomer?.id === id) setSelectedCustomer(null);
+    fetchCustomers(pagination.page);
   };
 
   const handleAddNote = async () => {
     if (!selectedCustomer || !newNote.trim() || addingNote) return;
     setAddingNote(true);
-    try {
-      const res = await fetch(
-        `/api/customers/${selectedCustomer.id}/notes`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: newNote.trim() }),
-        }
-      );
-      if (res.ok) {
-        setNewNote("");
-        fetchCustomerDetail(selectedCustomer.id);
-      }
-    } catch (error) {
-      console.error("Failed to add note:", error);
-    } finally {
-      setAddingNote(false);
-    }
+    const result = await submitJson(`/api/customers/${selectedCustomer.id}/notes`, "POST", { content: newNote.trim() });
+    setAddingNote(false);
+    if (!reportWrite("Adding the note", result)) return; // the note text stays in the box
+    setNewNote("");
+    fetchCustomerDetail(selectedCustomer.id);
   };
 
   const handleAddCustomer = async () => {
     if (!addForm.name.trim() || addLoading) return;
     setAddLoading(true);
-    try {
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addForm),
-      });
-      if (res.ok) {
-        setShowAddModal(false);
-        setAddForm({ name: "", email: "", phone: "", whatsapp: "", tags: "" });
-        fetchCustomers();
-      }
-    } catch (error) {
-      console.error("Failed to add customer:", error);
-    } finally {
-      setAddLoading(false);
-    }
+    const result = await submitJson("/api/customers", "POST", addForm);
+    setAddLoading(false);
+    if (!reportWrite("Adding the customer", result)) return; // the form stays open with what was typed
+    setShowAddModal(false);
+    setAddForm({ name: "", email: "", phone: "", whatsapp: "", tags: "" });
+    fetchCustomers();
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -417,6 +377,8 @@ export default function CustomersPage() {
               <div className="flex items-center justify-center h-64">
                 <div className="text-sm text-ziyrak-text-light">Loading...</div>
               </div>
+            ) : loadFailed ? (
+              <LoadFailed what="customers" onRetry={() => fetchCustomers(pagination.page)} />
             ) : customers.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
                 <div className="p-4 rounded-full bg-ziyrak-primary-50 mb-4">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
+import { averageFirstResponse } from "@/lib/analytics/response-time";
 
 function getPeriodStart(period: string): Date {
   const now = new Date();
@@ -124,32 +125,8 @@ export async function GET(request: NextRequest) {
     count: g._count.id,
   }));
 
-  // -- Avg response time (estimate from first assistant reply per conversation) --
-  const convFirstResponse: Record<string, number> = {};
-  const convStart: Record<string, Date> = {};
-  for (const m of messages) {
-    if (m.role === "user" && !convStart[m.conversationId]) {
-      convStart[m.conversationId] = new Date(m.createdAt);
-    }
-    if (
-      m.role === "assistant" &&
-      convStart[m.conversationId] &&
-      !convFirstResponse[m.conversationId]
-    ) {
-      const diffMs =
-        new Date(m.createdAt).getTime() -
-        convStart[m.conversationId].getTime();
-      convFirstResponse[m.conversationId] = diffMs / 60000; // minutes
-    }
-  }
-  const responseTimes = Object.values(convFirstResponse);
-  const avgResponseTime =
-    responseTimes.length > 0
-      ? Math.round(
-          (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) *
-            10
-        ) / 10
-      : 0;
+  // -- Avg response time (first customer message to first AI or human reply) --
+  const { minutes: avgResponseTime, sampleSize: responseTimeSamples } = averageFirstResponse(messages);
 
   // -- Resolution rate --
   const resolved = allConversations.filter(
@@ -205,6 +182,7 @@ export async function GET(request: NextRequest) {
     conversationsPerDay,
     channelBreakdown,
     avgResponseTime,
+    responseTimeSamples,
     resolutionRate,
     satisfactionAvg,
     ticketsByPriority: ticketsByPriority.map((g) => ({

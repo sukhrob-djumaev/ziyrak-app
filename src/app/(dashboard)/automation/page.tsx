@@ -14,6 +14,9 @@ import {
   Activity,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn } from "@/lib/utils";
 
 interface ConditionData {
@@ -45,7 +48,7 @@ const ruleTypes = [
   { value: "auto_route", label: "Auto Route", icon: Route, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   { value: "auto_tag", label: "Auto Tag", icon: Tag, color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
   { value: "auto_reply", label: "Auto Reply", icon: MessageSquareReply, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  { value: "keyword_alert", label: "Keyword Alert", icon: Bell, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  { value: "keyword_alert", label: "Keyword Alert (inactive)", icon: Bell, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
 ];
 
 const conditionFields = [
@@ -65,8 +68,11 @@ const filterTabs = [
   { value: "auto_route", label: "Auto Route" },
   { value: "auto_tag", label: "Auto Tag" },
   { value: "auto_reply", label: "Auto Reply" },
-  { value: "keyword_alert", label: "Keyword Alert" },
+  { value: "keyword_alert", label: "Keyword Alert (inactive)" },
 ];
+
+// New rules cannot use a type that does nothing; existing keyword-alert rules stay visible so they can be removed.
+const creatableRuleTypes = ruleTypes.filter((t) => t.value !== "keyword_alert");
 
 const defaultCondition: ConditionData = {
   field: "message_content",
@@ -91,6 +97,8 @@ export default function AutomationPage() {
   const [editingRule, setEditingRule] = useState<AutomationRuleData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [form, setForm] = useState(defaultForm);
   const [typeFilter, setTypeFilter] = useState("all");
 
@@ -99,12 +107,13 @@ export default function AutomationPage() {
       const params = new URLSearchParams();
       if (typeFilter !== "all") params.set("type", typeFilter);
       const res = await fetch(`/api/automation?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRules(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setRules(data.data);
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch automation rules:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -153,57 +162,28 @@ export default function AutomationPage() {
     if (form.actions.some((a) => !a.value.trim())) return;
 
     setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        actions: form.actions.map((a) => ({ type: form.type, value: a.value })),
-      };
-
-      const url = editingRule
-        ? `/api/automation/${editingRule.id}`
-        : "/api/automation";
-      const method = editingRule ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setShowModal(false);
-        fetchRules();
-      }
-    } catch (error) {
-      console.error("Failed to save rule:", error);
-    } finally {
-      setSaving(false);
-    }
+    const payload = {
+      ...form,
+      actions: form.actions.map((a) => ({ type: form.type, value: a.value })),
+    };
+    const result = await submitJson(editingRule ? `/api/automation/${editingRule.id}` : "/api/automation", editingRule ? "PUT" : "POST", payload);
+    setSaving(false);
+    if (!reportWrite("Saving the rule", result)) return; // the form stays open with what was typed
+    setShowModal(false);
+    fetchRules();
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/automation/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setDeleteConfirm(null);
-        fetchRules();
-      }
-    } catch (error) {
-      console.error("Failed to delete rule:", error);
-    }
+    const result = await submitJson(`/api/automation/${id}`, "DELETE");
+    if (!reportWrite("Deleting the rule", result)) return;
+    setDeleteConfirm(null);
+    fetchRules();
   };
 
   const handleToggleActive = async (rule: AutomationRuleData) => {
-    try {
-      const res = await fetch(`/api/automation/${rule.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !rule.isActive }),
-      });
-      if (res.ok) fetchRules();
-    } catch (error) {
-      console.error("Failed to toggle rule:", error);
-    }
+    const result = await submitJson(`/api/automation/${rule.id}`, "PUT", { isActive: !rule.isActive });
+    if (!reportWrite(rule.isActive ? "Turning the rule off" : "Turning the rule on", result)) return;
+    fetchRules();
   };
 
   const addCondition = () => {
@@ -348,6 +328,8 @@ export default function AutomationPage() {
               </div>
             ))}
           </div>
+        ) : loadFailed ? (
+          <LoadFailed what="automation rules" onRetry={fetchRules} />
         ) : rules.length === 0 ? (
           <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-12 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ziyrak-primary-50 mb-4">
@@ -391,9 +373,9 @@ export default function AutomationPage() {
               <div className="flex gap-3 p-4 rounded-lg bg-ziyrak-bg border border-ziyrak-border">
                 <Bell className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-ziyrak-text">Keyword Alert</p>
+                  <p className="text-sm font-medium text-ziyrak-text">Keyword Alert (not available)</p>
                   <p className="text-xs text-ziyrak-text-light mt-0.5">
-                    Get notified via email when specific keywords appear in conversations.
+                    Email alerts are switched off until a per-workspace notification setting exists. Existing alert rules do nothing and can be deleted.
                   </p>
                 </div>
               </div>
@@ -475,9 +457,13 @@ export default function AutomationPage() {
                   </div>
 
                   <div className="flex items-center gap-2 pt-3 border-t border-ziyrak-border">
+                    {rule.type === "keyword_alert" && (
+                      <span className="text-xs text-amber-700 dark:text-amber-400">Sends nothing. Delete it.</span>
+                    )}
                     <button
                       onClick={() => openEditModal(rule)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ziyrak-text-light hover:text-ziyrak-primary hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
+                      disabled={rule.type === "keyword_alert"}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ziyrak-text-light hover:text-ziyrak-primary hover:bg-ziyrak-primary-50 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                       Edit
@@ -586,8 +572,8 @@ export default function AutomationPage() {
                 <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
                   Rule Type
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {ruleTypes.map((rt) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {creatableRuleTypes.map((rt) => (
                     <button
                       key={rt.value}
                       onClick={() =>

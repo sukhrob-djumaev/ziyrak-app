@@ -12,6 +12,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn } from "@/lib/utils";
 
 interface CannedResponseData {
@@ -42,6 +45,8 @@ export default function CannedResponsesPage() {
     useState<CannedResponseData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [form, setForm] = useState(defaultForm);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,12 +57,13 @@ export default function CannedResponsesPage() {
       if (categoryFilter !== "all") params.set("category", categoryFilter);
 
       const res = await fetch(`/api/canned-responses?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setResponses(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setResponses(data.data);
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch canned responses:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -102,56 +108,30 @@ export default function CannedResponsesPage() {
   const handleSave = async () => {
     if (!form.title.trim() || !form.content.trim()) return;
     setSaving(true);
-    try {
-      const url = editingResponse
-        ? `/api/canned-responses/${editingResponse.id}`
-        : "/api/canned-responses";
-      const method = editingResponse ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setEditingResponse(null);
-        setForm(defaultForm);
-        fetchResponses();
-      }
-    } catch (error) {
-      console.error("Failed to save canned response:", error);
-    } finally {
-      setSaving(false);
-    }
+    const result = await submitJson(
+      editingResponse ? `/api/canned-responses/${editingResponse.id}` : "/api/canned-responses",
+      editingResponse ? "PUT" : "POST",
+      form
+    );
+    setSaving(false);
+    if (!reportWrite("Saving the response", result)) return; // the form stays open with what was typed
+    setShowModal(false);
+    setEditingResponse(null);
+    setForm(defaultForm);
+    fetchResponses();
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/canned-responses/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setDeleteConfirm(null);
-        fetchResponses();
-      }
-    } catch (error) {
-      console.error("Failed to delete canned response:", error);
-    }
+    const result = await submitJson(`/api/canned-responses/${id}`, "DELETE");
+    if (!reportWrite("Deleting the response", result)) return;
+    setDeleteConfirm(null);
+    fetchResponses();
   };
 
   const handleToggleActive = async (response: CannedResponseData) => {
-    try {
-      const res = await fetch(`/api/canned-responses/${response.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !response.isActive }),
-      });
-      if (res.ok) {
-        fetchResponses();
-      }
-    } catch (error) {
-      console.error("Failed to toggle canned response:", error);
-    }
+    const result = await submitJson(`/api/canned-responses/${response.id}`, "PUT", { isActive: !response.isActive });
+    if (!reportWrite(response.isActive ? "Turning the response off" : "Turning the response on", result)) return;
+    fetchResponses();
   };
 
   return (
@@ -204,6 +184,8 @@ export default function CannedResponsesPage() {
           <div className="flex items-center justify-center h-40">
             <div className="text-sm text-ziyrak-text-light">Loading...</div>
           </div>
+        ) : loadFailed ? (
+          <LoadFailed what="canned responses" onRetry={fetchResponses} />
         ) : filteredResponses.length === 0 ? (
           <div className="bg-ziyrak-surface rounded-xl border border-ziyrak-border">
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

@@ -13,6 +13,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { LoadFailed } from "@/components/ui/load-failed";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
 interface ActivityData {
@@ -77,6 +78,7 @@ const entityConfig: Record<
 export default function ActivityPage() {
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [page, setPage] = useState(1);
   const [entityFilter, setEntityFilter] = useState("all");
 
@@ -89,18 +91,19 @@ export default function ActivityPage() {
       if (entityFilter !== "all") params.set("entity", entityFilter);
 
       const res = await fetch(`/api/activity?${params.toString()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData({
-          activities: json.data,
-          total: json.pagination.total,
-          page: json.pagination.page,
-          limit: json.pagination.limit,
-          totalPages: json.pagination.totalPages,
-        });
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const json = await res.json();
+      setData({
+        activities: json.data,
+        total: json.pagination.total,
+        page: json.pagination.page,
+        limit: json.pagination.limit,
+        totalPages: json.pagination.totalPages,
+      });
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch activities:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -153,6 +156,8 @@ export default function ActivityPage() {
             <div className="flex items-center justify-center h-40">
               <div className="text-sm text-ziyrak-text-light">Loading...</div>
             </div>
+          ) : loadFailed ? (
+            <LoadFailed what="the activity log" onRetry={fetchActivities} />
           ) : activities.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="p-4 rounded-full bg-ziyrak-primary-50 mb-4">

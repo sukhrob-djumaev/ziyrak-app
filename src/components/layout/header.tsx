@@ -1,11 +1,12 @@
 "use client";
 
-import { Sun, Moon, LogOut, User, Settings, Users } from "lucide-react";
+import { Sun, Moon, LogOut, User, Settings, Users, Menu } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "@/lib/hooks/use-theme";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useCan } from "@/components/layout/permissions";
+import { useMobileNav } from "@/components/layout/mobile-nav";
 
 interface Me {
   user: { id: string; name: string; username: string };
@@ -38,6 +39,7 @@ export function Header({ title, description, actions }: HeaderProps) {
   const router = useRouter();
   const { toast } = useToast();
   const canReadSettings = useCan("settings:read");
+  const { open: navOpen, setOpen: setNavOpen } = useMobileNav();
   const [me, setMe] = useState<Me | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -47,8 +49,15 @@ export function Header({ title, description, actions }: HeaderProps) {
         setUserMenuOpen(false);
       }
     }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setUserMenuOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   useEffect(() => {
@@ -84,9 +93,17 @@ export function Header({ title, description, actions }: HeaderProps) {
   };
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-ziyrak-surface border-b border-ziyrak-border transition-theme">
-      <div className="animate-fade-in">
-        <h2 className="text-xl font-semibold text-ziyrak-text">{title}</h2>
+    <header className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-4 bg-ziyrak-surface border-b border-ziyrak-border transition-theme">
+      <button
+        onClick={() => setNavOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={navOpen}
+        className="md:hidden p-2 -ml-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg"
+      >
+        <Menu className="h-5 w-5" aria-hidden="true" />
+      </button>
+      <div className="animate-fade-in min-w-0 flex-1">
+        <h1 className="text-lg md:text-xl font-semibold text-ziyrak-text truncate">{title}</h1>
         {description && (
           <p className="text-sm text-ziyrak-text-light mt-0.5">{description}</p>
         )}
@@ -97,6 +114,7 @@ export function Header({ title, description, actions }: HeaderProps) {
           onClick={toggleTheme}
           className="p-2 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
           title={theme === "light" ? "Dark mode" : "Light mode"}
+          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
         >
           {theme === "light" ? (
             <Moon className="h-5 w-5" />
@@ -110,6 +128,8 @@ export function Header({ title, description, actions }: HeaderProps) {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
             aria-label={me ? `Account menu for ${me.user.name || me.user.username}` : "Account menu"}
             title={me ? `${me.user.name || me.user.username} · ${me.business.name}` : undefined}
             className="flex items-center justify-center w-8 h-8 rounded-full bg-ziyrak-primary text-white text-sm font-medium hover:bg-ziyrak-primary-dark transition-colors"

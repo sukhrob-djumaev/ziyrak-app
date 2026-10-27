@@ -47,11 +47,11 @@ describe("dashboard navigation", () => {
     expect(names("owner")).toEqual(all);
     expect(names("admin")).toEqual(all);
   });
-  it("drops a section whose items are all hidden", () => {
-    const viewerSections = visibleNavigation(permissionsForRole("viewer")).map((s) => s.title);
-    expect(viewerSections).not.toContain("Channels"); // both of its items need supervisor
-    expect(viewerSections).toContain("Insights"); // Analytics stays
-    expect(visibleNavigation(permissionsForRole("supervisor")).map((s) => s.title)).toContain("Channels");
+  it("drops a section whose items are all hidden, and keeps the work-based group order", () => {
+    const titles = (role: Parameters<typeof permissionsForRole>[0]) => visibleNavigation(permissionsForRole(role)).map((s) => s.title);
+    expect(titles("owner")).toEqual([undefined, "Support", "Teach the assistant", "Set up", "Insights", "Workspace"]);
+    expect(titles("viewer")).toContain("Insights"); // Analytics stays
+    expect(visibleNavigation([]).map((s) => s.title)).toEqual([undefined, "Workspace"]); // no permissions: Dashboard, API Docs and Switch workspace remain
   });
 });
 

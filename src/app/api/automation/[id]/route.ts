@@ -16,7 +16,8 @@ export async function PUT(
     const body = await request.json();
     const { name, description, type, isActive, conditions, actions, priority } = body;
 
-    const validTypes = ["auto_route", "auto_tag", "auto_reply", "keyword_alert"];
+    // keyword_alert cannot be chosen any more: execution sends nothing. Toggling or deleting an old one still works.
+    const validTypes = ["auto_route", "auto_tag", "auto_reply"];
     if (type !== undefined && !validTypes.includes(type)) {
       return NextResponse.json(
         { error: "Invalid rule type" },

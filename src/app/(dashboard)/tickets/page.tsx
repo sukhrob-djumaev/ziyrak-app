@@ -14,6 +14,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { submitJson } from "@/lib/http/submit-json";
+import { useReportWrite } from "@/lib/hooks/use-report-write";
+import { LoadFailed } from "@/components/ui/load-failed";
 import {
   cn,
   formatRelativeTime,
@@ -90,6 +93,8 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [departments, setDepartments] = useState<DepartmentData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const reportWrite = useReportWrite();
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -117,12 +122,13 @@ export default function TicketsPage() {
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
 
       const res = await fetch(`/api/tickets?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTickets(data.data);
-      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      setTickets(data.data);
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch tickets:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -151,63 +157,35 @@ export default function TicketsPage() {
   const handleCreateTicket = async () => {
     if (!createForm.title.trim()) return;
     setSaving(true);
-    try {
-      const res = await fetch("/api/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...createForm,
-          departmentId: createForm.departmentId || undefined,
-        }),
-      });
-      if (res.ok) {
-        setShowCreateModal(false);
-        setCreateForm({
-          title: "",
-          description: "",
-          priority: "medium",
-          status: "open",
-          departmentId: "",
-        });
-        fetchTickets();
-      }
-    } catch (error) {
-      console.error("Failed to create ticket:", error);
-    } finally {
-      setSaving(false);
-    }
+    const result = await submitJson("/api/tickets", "POST", { ...createForm, departmentId: createForm.departmentId || undefined });
+    setSaving(false);
+    if (!reportWrite("Creating the ticket", result)) return; // the form stays open with what was typed
+    setShowCreateModal(false);
+    setCreateForm({
+      title: "",
+      description: "",
+      priority: "medium",
+      status: "open",
+      departmentId: "",
+    });
+    fetchTickets();
   };
 
   const handleUpdateTicket = async (
     id: string,
     updates: Record<string, unknown>
   ) => {
-    try {
-      const res = await fetch(`/api/tickets/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setSelectedTicket(updated);
-        fetchTickets();
-      }
-    } catch (error) {
-      console.error("Failed to update ticket:", error);
-    }
+    const result = await submitJson<TicketData>(`/api/tickets/${id}`, "PUT", updates);
+    if (!reportWrite("Updating the ticket", result)) return;
+    setSelectedTicket(result.data);
+    fetchTickets();
   };
 
   const handleDeleteTicket = async (id: string) => {
-    try {
-      const res = await fetch(`/api/tickets/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setSelectedTicket(null);
-        fetchTickets();
-      }
-    } catch (error) {
-      console.error("Failed to delete ticket:", error);
-    }
+    const result = await submitJson(`/api/tickets/${id}`, "DELETE");
+    if (!reportWrite("Deleting the ticket", result)) return;
+    setSelectedTicket(null);
+    fetchTickets();
   };
 
   const openCount = tickets.filter((t) => t.status === "open").length;
@@ -326,6 +304,8 @@ export default function TicketsPage() {
             <div className="flex items-center justify-center h-40">
               <div className="text-sm text-ziyrak-text-light">Loading...</div>
             </div>
+          ) : loadFailed ? (
+            <LoadFailed what="tickets" onRetry={fetchTickets} />
           ) : tickets.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="p-4 rounded-full bg-ziyrak-primary-50 mb-4">

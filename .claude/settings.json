@@ -2,6 +2,13 @@
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
+       "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(git add:*)", "Bash(git commit:*)", "Bash(git push:*)",
+      "Bash(gh pr:*)", "Bash(gh run:*)",
+      "Bash(npx vitest:*)", "Bash(npx tsc:*)", "Bash(npm run lint:*)", "Bash(npm ci:*)",
+      "Bash(npx prisma:*)", "Bash(node scripts/acceptance/runtime.cjs:*)",
+      "Bash(scripts/acceptance/*)", "Bash(scripts/agent/*)",
+      "Bash(docker exec ziyrak-l11-pg:*)", "Bash(docker exec ziyrak-l12-redis:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

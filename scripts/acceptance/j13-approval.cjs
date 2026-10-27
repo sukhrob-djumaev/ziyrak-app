@@ -71,7 +71,7 @@ async function decideViaUi(op, kind) {
   out.policyAfterReset = sql(`select "requiresHumanApproval" from "ToolPolicy" where tool='create_ticket' and "businessId"=${BIZB};`);
 
   L.assert(out.policy.includes("requiresHumanApproval=true"), `the approval policy is actually set, got ${out.policy}`);
-  L.assert(out.policyAfterReset === "f", `the policy was switched back off through the UI, got ${out.policyAfterReset}`);
+  L.assert(["f", "false"].includes(out.policyAfterReset), `the policy was switched back off through the UI, got ${out.policyAfterReset}`);
   L.assert(out.pendingAction && out.pendingAction.includes("pending_approval"), `create_ticket lands pending_approval, got ${out.pendingAction}`);
   L.assert(out.ticketsWhilePending.match(/^(\d+) -> \1 /), `no ticket is created while the action is pending, got ${out.ticketsWhilePending}`);
   L.assert(out.ownerSeesPending.some((a) => a.startsWith("create_ticket:pending_approval")), `the owner sees the pending action, got ${JSON.stringify(out.ownerSeesPending)}`);

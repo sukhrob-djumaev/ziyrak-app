@@ -56,6 +56,8 @@ const RAW_SQL = [
   "lib/ops/worker-heartbeat.ts",
   "lib/platform/access/authority.ts",
   "lib/platform/dedicated-database.ts",
+  // L4.1c: advisory lock for the daily new-workspace count; the writes in that transaction are the existing provisioning ones.
+  "lib/platform/provisioning.ts",
   "lib/platform/username-reservation.ts",
   "lib/tenancy/scoped-prisma.ts",
   "lib/tenancy/work-lifecycle.ts",

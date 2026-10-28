@@ -18,7 +18,7 @@ import {
  */
 export class AllowanceError extends Error {
   constructor(
-    public reason: "not_configured" | "suspended" | "exhausted" | "accounting_unavailable" | "prompt_too_large" | "duplicate_attempt",
+    public reason: "not_configured" | "suspended" | "exhausted" | "platform_ceiling" | "accounting_unavailable" | "prompt_too_large" | "duplicate_attempt",
     message?: string
   ) {
     super(message ?? `AI allowance unavailable: ${reason}`);

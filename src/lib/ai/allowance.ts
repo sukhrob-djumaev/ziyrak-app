@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma/raw-client";
+import { PLATFORM_CEILING_LOCK, readLimit } from "@/lib/platform/limits";
 
 /**
  * PLAN.md P2 / docs/p2-managed-ai-proposal-2026-10-22.md section 3 — durable
@@ -14,7 +15,7 @@ export type AllowanceKind = "generation" | "embedding";
 
 export type ReserveResult =
   | { ok: true; reservationId: string }
-  | { ok: false; reason: "not_configured" | "suspended" | "exhausted" | "duplicate_attempt" };
+  | { ok: false; reason: "not_configured" | "suspended" | "exhausted" | "platform_ceiling" | "duplicate_attempt" };
 
 export interface ReserveInput {
   businessId: string;
@@ -62,6 +63,14 @@ export async function reserveAllowance(input: ReserveInput): Promise<ReserveResu
     const charged = await chargedTokens(tx, input.businessId, input.kind, periodStart);
     if (charged + tokens > limit) return { ok: false, reason: "exhausted" } as const;
 
+    // L4.1c: platform-wide ceiling. Lock order is the workspace row (above), then this lock, held only for
+    // the sum and the insert; nothing else takes the two in the other order. Replays and refusals above
+    // return before it, so they never queue behind other workspaces.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${PLATFORM_CEILING_LOCK}, 0)`;
+    const ceiling = await readLimit(tx, input.kind === "generation" ? "monthly_generation_tokens_ceiling" : "monthly_embedding_tokens_ceiling");
+    const platformCharged = await platformChargedTokens(tx, input.kind, periodStart);
+    if (platformCharged + tokens > ceiling) return { ok: false, reason: "platform_ceiling" } as const;
+
     const row = await tx.aiUsageReservation.create({
       data: {
         businessId: input.businessId,
@@ -85,6 +94,17 @@ async function chargedTokens(tx: Tx, businessId: string, kind: string, periodSta
     select: { state: true, reservedTokens: true, settledTokens: true },
   });
   return rows.reduce((sum, r) => sum + (r.state === "settled" ? (r.settledTokens ?? r.reservedTokens) : r.reservedTokens), 0);
+}
+
+type PlatformTx = Pick<typeof prisma, "$queryRaw">;
+
+/** Charged tokens for one kind and month across every workspace (settled actuals plus reserved and uncertain bounds). */
+async function platformChargedTokens(tx: PlatformTx, kind: string, periodStart: Date): Promise<number> {
+  const rows = await tx.$queryRaw<{ total: bigint | null }[]>`
+    SELECT COALESCE(SUM(CASE WHEN "state" = 'settled' THEN COALESCE("settledTokens", "reservedTokens") ELSE "reservedTokens" END), 0) AS total
+    FROM "AiUsageReservation"
+    WHERE "kind" = ${kind} AND "periodStart" = ${periodStart} AND "state" <> 'released'`;
+  return Number(rows[0]?.total ?? 0);
 }
 
 /** Settles to the provider-reported usage. Idempotent: only a `reserved` or `uncertain` row can settle. */

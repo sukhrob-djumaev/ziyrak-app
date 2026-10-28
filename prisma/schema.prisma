@@ -1226,7 +1226,18 @@ model AiUsageReservation {
 
   @@unique([businessId, idempotencyKey])
   @@index([businessId, kind, periodStart, state])
+  @@index([kind, periodStart, state])
   @@index([state, expiresAt])
+}
+
+// ==================== PLATFORM LIMITS (L4.1c) ====================
+// Platform-wide spend ceilings and new-workspace abuse limits, one row per code-registered key.
+// A missing row means the code default. Control plane only; written by a super admin with an audit row.
+model PlatformLimit {
+  key       String   @id
+  value     Int
+  updatedBy String
+  updatedAt DateTime @updatedAt
 }
 
 // ==================== ACCOUNT TOKENS (PLAN.md P3) ====================

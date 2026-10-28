@@ -1,6 +1,6 @@
 # Handoff - latest session (2026-10-28)
 
-- Merged L4.1b (PR #55, `081c35c`) after a design review and a security review whose findings were fixed. Evidence: `docs/evidence/l4.1b-entitlements-2026-10-28.md`.
-- Verified on `d70e631`: CI green; browser 34/34. Earlier runs were lost to machine overload (VM/simulator/contactsd) and to a monitor timeout killing a non-detached run; run `run-all.sh` with nohup and watch the log read-only.
-- Cleanup done at the owner's request: merged worktrees and branches, 24 acceptance databases, Docker images/cache/volumes (~60 GB). Kept: ziyrak-l11-pg, ziyrak-l12-redis, owly-db-1 and its volumes, worktree owly-l4-2 (L4.1b, merged: remove before/after the next worktree). Old scratch dirs /private/tmp/ziyrak-l*-acc* remain until `rm -rf` is allowed.
-- Continuation: L4.1c, then L4.2 (owner commercial decisions). Owner inputs still open: backup RPO/RTO, alert routing, incident owners, offboarding, OpenAI key for L1.4 evaluation, task sessions with intended users, bulk-export-after-downgrade decision.
+- Merged L4.1c (PR #56, `98a0327`): platform AI ceilings, daily new-workspace cap, console section, J35. CI green + browser 35/35 on `8aa013e`. Independent security review done, M1/M4 fixed, M2/M3/L1/L3 recorded. Evidence: `docs/evidence/l4.1c-platform-limits-2026-10-28.md`.
+- L4.1b merged earlier (PR #55, `081c35c`). Browser runs: AC power, load under 8, fresh migrated DB, flushed task Redis, detached with nohup, read-only log monitor.
+- Worktree `owly-l4-3` (L4.1c, merged) can be removed. Old scratch dirs /private/tmp/ziyrak-l*-acc* remain until `rm -rf` is allowed; acceptance DBs ziyrak_acceptance_l41* can be dropped.
+- Continuation: L4.2 needs owner commercial decisions (seller entity/country, currencies, pricing, trial/grace, refund/tax/invoice, processor vs merchant of record). Other open owner inputs: backup RPO/RTO, alert routing, incident owners, offboarding, OpenAI key for L1.4, task sessions, bulk-export-after-downgrade.

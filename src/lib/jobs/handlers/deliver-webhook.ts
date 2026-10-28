@@ -1,3 +1,4 @@
+import { isEntitled } from "@/lib/billing/entitlements";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { dispatchHttpRequest } from "@/lib/integrations/http-dispatcher";
@@ -68,6 +69,16 @@ export async function handleDeliverWebhook(
 
   if (delivery.status === "delivered") {
     return; // already succeeded on a previous attempt this exact job retried past
+  }
+
+  // Checked when the job runs, not only when it was queued: a package change stops queued sends for good (no retry loop).
+  if (!(await isEntitled(ctx.businessId, "webhooks.outbound"))) {
+    await db.webhookDelivery.updateMany({
+      where: { id: delivery.id, status: { not: "delivered" } },
+      data: { status: "failed", lastError: "Outbound webhooks are not included in the current package" },
+    });
+    logger.warn("[deliver-webhook] capability no longer granted, not sent", { businessId: ctx.businessId, deliveryId: delivery.id });
+    return;
   }
 
   // Every delivery attempt runs for a recorded person (manual retry). A job without one has no

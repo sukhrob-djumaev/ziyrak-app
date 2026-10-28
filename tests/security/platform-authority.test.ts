@@ -1,3 +1,4 @@
+import { ensureBaselinePurchase } from "@/lib/billing/baseline";
 import { afterAll, beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { randomUUID, createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
@@ -372,6 +373,7 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
     const workspace = await prisma.business.create({
       data: { slug: "platform-grant-" + randomUUID(), name: "Synthetic recovery target" },
     });
+    await ensureBaselinePurchase(prisma, workspace.id);
     try {
       const grant = await prisma.supportGrant.create({
         data: {
@@ -514,6 +516,7 @@ async function assignmentWorkspace() {
     data: { slug: "assignment-" + randomUUID(), name: "Synthetic assignment target" },
   });
   workspaceIds.add(workspace.id);
+  await ensureBaselinePurchase(prisma, workspace.id);
   await prisma.tenantPlacement.create({
     data: {
       businessId: workspace.id,

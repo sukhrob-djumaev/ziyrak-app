@@ -6,6 +6,8 @@ export const SCOPE_SCHEMA: Record<
 > = {
   business: {
     relations: {
+      purchases: { model: "workspacePurchase", many: true },
+      entitlementAdjustments: { model: "entitlementAdjustment", many: true },
       platformAssignments: {
         model: "platformAssignment",
         many: true,
@@ -463,7 +465,7 @@ export const SCOPE_SCHEMA: Record<
     scalars: ["id", "key", "kind", "createdAt"],
   },
   catalogVersion: {
-    relations: { item: { model: "catalogItem", many: false } },
+    relations: { item: { model: "catalogItem", many: false }, purchases: { model: "workspacePurchase", many: true } },
     scalars: [
       "id",
       "itemId",
@@ -483,6 +485,14 @@ export const SCOPE_SCHEMA: Record<
       "createdAt",
       "updatedAt",
     ],
+  },
+  workspacePurchase: {
+    relations: { business: { model: "business", many: false }, version: { model: "catalogVersion", many: false } },
+    scalars: ["id", "businessId", "versionId", "quantity", "source", "state", "startsAt", "endsAt", "reason", "createdBy", "createdAt"],
+  },
+  entitlementAdjustment: {
+    relations: { business: { model: "business", many: false } },
+    scalars: ["id", "businessId", "capability", "granted", "amount", "expiresAt", "reason", "createdBy", "createdAt"],
   },
   onboardingState: {
     relations: { business: { model: "business", many: false } },

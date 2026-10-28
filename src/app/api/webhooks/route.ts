@@ -1,3 +1,4 @@
+import { entitlementDenied } from "@/lib/billing/route-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { parsePagination, paginatedResponse } from "@/lib/pagination";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
@@ -23,6 +24,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "webhooks:create");
   if (!isAuthenticated(ctx)) return ctx;
+  const denied = await entitlementDenied(ctx.businessId, "webhooks.outbound");
+  if (denied) return denied;
 
   const body = await request.json();
   const { name, description, url, method, headers, triggerOn } = body;

@@ -9,6 +9,7 @@ export interface CapabilityDef {
   key: string;
   label: string;
   kind: CapabilityKind;
+  unit?: string;
   /** How overlapping grants from several purchases combine (no guessed universal summation). */
   combine: "union" | "max" | "sum";
   /** Named call sites that must enforce it before the key may be offered (checked by a test in L4.1b). */
@@ -20,6 +21,7 @@ export const CAPABILITIES = [
   { key: "channel.whatsapp_cloud", label: "Meta WhatsApp channel", kind: "boolean", combine: "union", enforcedBy: ["connections-service", "meta-whatsapp-setup"] },
   { key: "automation.rules", label: "Automation rules", kind: "boolean", combine: "union", enforcedBy: ["automation-rules-service", "automation-execution"] },
   { key: "webhooks.outbound", label: "Outbound webhooks", kind: "boolean", combine: "union", enforcedBy: ["webhooks-api", "deliver-webhook-job"] },
+  { key: "seats.members", label: "Team members", kind: "limit", unit: "members", combine: "sum", enforcedBy: ["invitations-service"] },
   { key: "data.export", label: "Workspace data export", kind: "boolean", combine: "union", enforcedBy: ["export-api"] },
 ] as const satisfies readonly CapabilityDef[];
 

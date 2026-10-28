@@ -99,7 +99,17 @@ function view(v: Prisma.CatalogVersionGetPayload<object>) {
 export async function readCatalogConsole(token: string) {
   return withPlatformControl(token, "super_admin", async (tx) => {
     const items = await tx.catalogItem.findMany({ orderBy: { createdAt: "asc" }, include: { versions: { orderBy: { version: "desc" } } } });
+    const workspaces = await tx.business.findMany({
+      orderBy: { createdAt: "asc" },
+      take: 500,
+      select: { id: true, name: true, purchases: { where: { state: "active" }, select: { id: true, source: true, quantity: true, version: { select: { version: true, item: { select: { key: true, kind: true } } } } } } },
+    });
     return {
+      workspaces: workspaces.map((w) => ({
+        id: w.id,
+        name: w.name,
+        purchases: w.purchases.map((p) => ({ id: p.id, source: p.source, quantity: p.quantity, itemKey: p.version.item.key, kind: p.version.item.kind, version: p.version.version })),
+      })),
       capabilities: CAPABILITIES.map((c) => ({ key: c.key, label: c.label, kind: c.kind })),
       items: items.map((i) => ({ id: i.id, key: i.key, kind: i.kind, versions: i.versions.map(view) })),
     };
@@ -109,6 +119,7 @@ export async function readCatalogConsole(token: string) {
 export async function createItem(token: string, input: unknown) {
   const r = parse(createItemInput, input, "catalog item");
   return withPlatformControl(token, "super_admin", async (tx, actor) => {
+    if (PROTECTED_ITEM_KEYS.has(r.key)) throw new AppError(409, "CONFLICT", "This key is reserved");
     if (await tx.catalogItem.findUnique({ where: { key: r.key } })) throw new AppError(409, "CONFLICT", "An item with this key already exists");
     const item = await tx.catalogItem.create({ data: { key: r.key, kind: r.kind } });
     const v = await tx.catalogVersion.create({ data: { itemId: item.id, version: 1, createdBy: actor.userId, ...termsData(r.terms) } });
@@ -136,11 +147,15 @@ export async function saveDraft(token: string, input: unknown) {
   });
 }
 
+/** The baseline is what every new workspace receives; it is changed only by a reviewed migration, never from the console. */
+const PROTECTED_ITEM_KEYS = new Set(["legacy-baseline"]);
+
 export async function newDraft(token: string, input: unknown) {
   const r = parse(newDraftInput, input, "new draft");
   return withPlatformControl(token, "super_admin", async (tx, actor) => {
     const item = await tx.catalogItem.findUnique({ where: { id: r.itemId }, include: { versions: { orderBy: { version: "desc" } } } });
     if (!item) throw new NotFoundError("Catalog item");
+    if (PROTECTED_ITEM_KEYS.has(item.key)) throw new AppError(409, "CONFLICT", "The baseline package cannot be changed from the console");
     if (item.versions.some((x) => x.state === "draft")) throw new AppError(409, "CONFLICT", "This item already has an open draft");
     const base = item.versions.find((x) => x.state === "published") ?? item.versions[0];
     const next = (item.versions[0]?.version ?? 0) + 1;
@@ -170,6 +185,7 @@ export async function archiveVersion(token: string, input: unknown) {
   const r = parse(archiveInput, input, "archive");
   return withPlatformControl(token, "super_admin", async (tx, actor) => {
     const v = await mustFind(tx, r.versionId);
+    if (PROTECTED_ITEM_KEYS.has(v.item.key)) throw new AppError(409, "CONFLICT", "The baseline package cannot be archived from the console");
     if (v.state !== "published") throw new AppError(409, "CONFLICT", "Only a published version can be archived");
     const claimed = await tx.catalogVersion.updateMany({ where: { id: v.id, state: "published" }, data: { state: "archived", archivedAt: new Date() } });
     if (claimed.count !== 1) throw new AppError(409, "CONFLICT", "Only a published version can be archived");

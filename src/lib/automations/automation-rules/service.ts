@@ -1,3 +1,4 @@
+import { assertEntitled } from "@/lib/billing/entitlements";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { assertWorkspaceWideAuthority } from "@/lib/tenancy/workspace-authority";
@@ -41,6 +42,7 @@ export interface CreateRuleInput {
 
 export async function create(ctx: TenantContext, input: CreateRuleInput) {
   assertWorkspaceWideAuthority(ctx, "Automation rules");
+  await assertEntitled(ctx.businessId, "automation.rules");
   const db = getScopedPrisma(ctx);
   return db.automationRule.create({
     data: {
@@ -68,6 +70,9 @@ export interface UpdateRuleInput {
 
 export async function update(ctx: TenantContext, id: string, input: UpdateRuleInput) {
   assertWorkspaceWideAuthority(ctx, "Automation rules");
+  // Switching a rule off stays possible without the capability.
+  const onlySwitchingOff = input.isActive === false && Object.entries(input).every(([k, v]) => k === "isActive" || v === undefined);
+  if (!onlySwitchingOff) await assertEntitled(ctx.businessId, "automation.rules");
   const db = getScopedPrisma(ctx);
   const existing = await db.automationRule.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Automation rule");

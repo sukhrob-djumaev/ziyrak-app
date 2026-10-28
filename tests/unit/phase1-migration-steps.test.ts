@@ -111,9 +111,12 @@ describe("ensureDefaultBusiness", () => {
     const prisma = fakePrisma({
       business: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "biz1" }) },
       settings: { findUnique: vi.fn().mockResolvedValue({ businessName: "Acme Support" }) },
+      workspacePurchase: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn() },
+      catalogVersion: { findFirst: vi.fn().mockResolvedValue({ id: "v1" }) },
     });
 
     await ensureDefaultBusiness(prisma);
+    expect(prisma.workspacePurchase.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ businessId: "biz1", source: "baseline" }) }));
 
     expect(prisma.business.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ name: "Acme Support" }) })
@@ -123,6 +126,8 @@ describe("ensureDefaultBusiness", () => {
   it("falls back to a generic name when there is no pre-existing Settings row", async () => {
     const prisma = fakePrisma({
       business: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "biz1" }) },
+      workspacePurchase: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn() },
+      catalogVersion: { findFirst: vi.fn().mockResolvedValue({ id: "v1" }) },
     });
 
     await ensureDefaultBusiness(prisma);

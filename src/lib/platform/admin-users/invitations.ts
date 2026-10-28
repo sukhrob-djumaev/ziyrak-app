@@ -1,3 +1,5 @@
+import { entitledLimit } from "@/lib/billing/entitlements";
+import { lockTenantWrites } from "@/lib/tenancy/work-lifecycle";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma/raw-client";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
@@ -74,6 +76,14 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
   // One open invitation per address and workspace: revoke it to send a different one (also stops mail flooding).
   const open = await prisma.accountToken.count({ where: { email, ...pendingFor(ctx.businessId) } });
   if (open > 0) throw new AppError(409, "CONFLICT", "An invitation for this address is already pending. Revoke it to send a new one.");
+  // The package's member limit counts people who already belong plus invitations still open.
+  const [members, openInvitations, seatLimit] = await Promise.all([
+    prisma.membership.count({ where: { businessId: ctx.businessId } }),
+    prisma.accountToken.count({ where: pendingFor(ctx.businessId) }),
+    entitledLimit(ctx.businessId, "seats.members"),
+  ]);
+  if (members + openInvitations >= seatLimit)
+    throw new AppError(403, "ENTITLEMENT_REQUIRED", "This workspace's package has no free team seat. Remove a member or open invitation, or ask the platform operator to add seats.", { capability: "seats.members" });
   // Inviting people needs a confirmed identity of your own, and mail is budgeted per workspace and
   // per recipient address so an invitation cannot be used to flood or phish an inbox.
   const sender = ctx.actor.kind === "user" ? await prisma.user.findUnique({ where: { id: ctx.actor.userId }, select: { emailVerifiedAt: true } }) : null;
@@ -134,7 +144,7 @@ export async function previewInvitation(token: string) {
 
 export type AcceptResult =
   | { ok: true; userId: string; businessId: string }
-  | { ok: false; code: "INVALID_LINK" | "SIGN_IN_REQUIRED" | "WRONG_ACCOUNT" | "INVALID_PASSWORD" | "USERNAME_TAKEN" };
+  | { ok: false; code: "INVALID_LINK" | "SIGN_IN_REQUIRED" | "WRONG_ACCOUNT" | "INVALID_PASSWORD" | "USERNAME_TAKEN" | "SEAT_LIMIT" };
 
 class Rollback extends Error {
   constructor(public result: AcceptResult) {
@@ -211,6 +221,13 @@ export async function acceptInvitation(args: {
       }
       const existing = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId } });
       if (!existing) {
+        // Two simultaneous accepts must not both take the last seat: count and create under the workspace write fence.
+        await lockTenantWrites(tx, payload.businessId);
+        const [held, limit] = await Promise.all([
+          tx.membership.count({ where: { businessId: payload.businessId } }),
+          entitledLimit(payload.businessId, "seats.members", tx),
+        ]);
+        if (held >= limit) throw new Rollback({ ok: false, code: "SEAT_LIMIT" });
         const membership = await tx.membership.create({
           data: {
             businessId: payload.businessId,

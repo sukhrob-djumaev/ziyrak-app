@@ -42,10 +42,11 @@ describe("dashboard navigation", () => {
     for (const shown of ["Channels", "Webhooks", "Activity Log", "Approvals"]) expect(s, shown).toContain(shown);
     for (const hidden of ["People & Access", "Settings"]) expect(s, hidden).not.toContain(hidden);
   });
-  it("owners and admins see everything", () => {
+  it("owners see everything; admins see everything except the owner-only Plan & usage", () => {
     const all = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.name));
     expect(names("owner")).toEqual(all);
-    expect(names("admin")).toEqual(all);
+    expect(names("admin")).toEqual(all.filter((n) => n !== "Plan & usage"));
+    for (const role of ["supervisor", "agent", "viewer"] as const) expect(names(role)).not.toContain("Plan & usage");
   });
   it("drops a section whose items are all hidden, and keeps the work-based group order", () => {
     const titles = (role: Parameters<typeof permissionsForRole>[0]) => visibleNavigation(permissionsForRole(role)).map((s) => s.title);

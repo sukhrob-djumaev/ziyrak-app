@@ -1,3 +1,4 @@
+import { assertEntitled, isEntitled } from "@/lib/billing/entitlements";
 import { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
@@ -61,6 +62,7 @@ export class ToolRegistry {
   }
 
   private async isAvailable(ctx: TenantContext, tool: ToolDefinition): Promise<boolean> {
+    if (tool.requiredCapability && !(await isEntitled(ctx.businessId, tool.requiredCapability))) return false;
     const policy = await resolveEffectiveToolPolicy(ctx, tool.name);
     if (!policy.enabledForTenant) return false;
 
@@ -357,6 +359,8 @@ export class ToolRegistry {
         data: { status: "running" },
       });
       if (!admitted.count) return cancelled;
+      // Re-checked at execution so an approval granted before the capability was lost still cannot run.
+      if (tool.requiredCapability) await assertEntitled(executionCtx.businessId, tool.requiredCapability);
       const result = await tool.execute(executionCtx, args, runtimeCtx, admission);
       const saved = await db.actionExecution.updateMany({
         where: { id: actionExecutionId },

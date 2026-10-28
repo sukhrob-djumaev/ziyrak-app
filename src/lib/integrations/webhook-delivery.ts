@@ -1,3 +1,4 @@
+import { assertEntitled } from "@/lib/billing/entitlements";
 import crypto from "crypto";
 import { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -86,6 +87,7 @@ export async function retryDelivery(ctx: TenantContext, deliveryId: string): Pro
       "Retrying a delivery requires a signed-in authorized person"
     );
   assertWorkspaceWideAuthority(ctx, "Webhook delivery");
+  await assertEntitled(ctx.businessId, "webhooks.outbound");
   const db = getScopedPrisma(ctx);
   const delivery = await db.webhookDelivery.findUnique({
     where: { id: deliveryId },

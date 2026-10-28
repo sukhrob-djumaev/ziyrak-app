@@ -1,3 +1,4 @@
+import { CAPABILITIES } from "../src/lib/billing/capabilities";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { vi } from "vitest";
@@ -157,6 +158,8 @@ function createMockPrismaClient() {
     "aiServicePolicy",
     "catalogItem",
     "catalogVersion",
+    "workspacePurchase",
+    "entitlementAdjustment",
     "aiUsageReservation",
     "onboardingState",
     "accountToken",
@@ -216,6 +219,14 @@ function createMockPrismaClient() {
       (client[model] as Record<string, unknown>)[method] = vi.fn();
     }
   }
+
+  // Entitlements: unit tests that mock the whole client behave as a workspace holding the full baseline package, so they keep
+  // testing what they always tested. Entitlement behaviour itself is tested against a real database.
+  const fullGrants = CAPABILITIES.map((c) => (c.kind === "limit" ? { capability: c.key, amount: 1000 } : { capability: c.key }));
+  (client.workspacePurchase as Record<string, unknown>).findMany = vi.fn(async () => [
+    { id: "mock-purchase", versionId: "mock-version", quantity: 1, version: { grants: fullGrants } },
+  ]);
+  (client.entitlementAdjustment as Record<string, unknown>).findMany = vi.fn(async () => []);
 
   // getScopedPrisma() (§8.3) calls `.$extends()` on the resolved data-plane
   // client. Route/unit tests here mock model methods directly and mostly

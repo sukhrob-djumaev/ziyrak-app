@@ -1,3 +1,4 @@
+import { ensureBaselinePurchase } from "@/lib/billing/baseline";
 import { afterAll, describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/prisma/raw-client", async (original) => original());
 vi.mock("@/lib/identity/route-auth", async (original) => original());
@@ -114,6 +115,7 @@ describe("explicit workspace entry (real auth/PG)", () => {
       data: { name: "Second choice", slug: "second-choice-" + crypto.randomUUID() },
     });
     owned.push(other.id);
+    await ensureBaselinePurchase(prisma, other.id);
     await prisma.membership.create({
       data: { businessId: other.id, userId: data.user.id, role: "viewer" },
     });

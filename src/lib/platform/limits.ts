@@ -14,10 +14,11 @@ export const PLATFORM_LIMITS = {
 export type PlatformLimitKey = keyof typeof PLATFORM_LIMITS;
 export const PLATFORM_LIMIT_KEYS = Object.keys(PLATFORM_LIMITS) as PlatformLimitKey[];
 
+/** Lock class ids are distinct from 92841-92844 (workspace fence, control, username reservation); keep it that way. */
 /** Serializes the platform-wide ceiling check. Taken after any workspace row lock, never before it. */
-export const PLATFORM_CEILING_LOCK = 92843;
+export const PLATFORM_CEILING_LOCK = 92845;
 /** Serializes the daily new-workspace count so two signups cannot both pass the last slot. */
-export const SIGNUP_CAP_LOCK = 92844;
+export const SIGNUP_CAP_LOCK = 92846;
 
 type Reader = Pick<Prisma.TransactionClient, "platformLimit">;
 

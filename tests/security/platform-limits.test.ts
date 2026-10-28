@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 
 /** L4.1c - platform-wide AI ceilings (concurrent workspaces), the daily signup cap and the audited console write. */
 const gate = vi.hoisted(() => ({ role: "super_admin" as "super_admin" | "operator", userId: "" }));
@@ -56,6 +56,10 @@ afterAll(async () => {
   await cleanupBusiness(b.businessId);
   await prisma.user.delete({ where: { id: adminId } });
   await releasePlatformLock();
+});
+// The limit row is global: clear it right after each test so files running in parallel see the defaults again.
+afterEach(async () => {
+  await prisma.platformLimit.deleteMany({});
 });
 beforeEach(async () => {
   gate.role = "super_admin";
@@ -120,9 +124,9 @@ describe("console write", () => {
     await expect(setPlatformLimit("t", { key: "max_new_workspaces_per_day", value: 5 })).rejects.toMatchObject({ statusCode: 400 });
     await expect(setPlatformLimit("t", { key: "max_new_workspaces_per_day", value: -1, reason: "r" })).rejects.toMatchObject({ statusCode: 400 });
     await expect(setPlatformLimit("t", { key: "max_new_workspaces_per_day", value: 1_000_001, reason: "r" })).rejects.toMatchObject({ statusCode: 400 });
-    await setPlatformLimit("t", { key: "max_new_workspaces_per_day", value: 5, reason: "tighten" });
+    await setPlatformLimit("t", { key: "max_new_workspaces_per_day", value: 900000, reason: "tighten" });
     const audit = await prisma.platformAccessAudit.findFirstOrThrow({ where: { actorUserId: adminId, action: "platform.limit.set", reason: "tighten" } });
-    expect(audit.details).toMatchObject({ key: "max_new_workspaces_per_day", before: 1000, after: 5 });
+    expect(audit.details).toMatchObject({ key: "max_new_workspaces_per_day", before: 1000, after: 900000 });
   });
 });
 

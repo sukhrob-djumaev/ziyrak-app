@@ -25,6 +25,8 @@ import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/t
 
 // A month no other test reserves in, so the platform-wide sum below holds only this file's rows.
 const NOW = new Date("2031-03-15T12:00:00Z");
+// Token amounts are scaled by U so the lowered ceiling (always >= 5M) stays far above anything other files reserve at the real "now".
+const U = 5000;
 const PERIOD = new Date("2031-03-01T00:00:00Z");
 let a: SeededBusiness;
 let b: SeededBusiness;
@@ -45,8 +47,8 @@ beforeAll(async () => {
   a = await seedBusiness("limits-a");
   b = await seedBusiness("limits-b");
   adminId = (await prisma.user.create({ data: { username: `lim-admin-${Date.now()}`, password: "x", name: "A", platformRole: "super_admin" } })).id;
-  await allowance(a.businessId, 1_000_000);
-  await allowance(b.businessId, 1_000_000);
+  await allowance(a.businessId, 1_000_000_000);
+  await allowance(b.businessId, 1_000_000_000);
 }, 120_000);
 afterAll(async () => {
   await prisma.platformLimit.deleteMany({});
@@ -74,44 +76,47 @@ describe("platform AI ceiling", () => {
   });
 
   it("refuses a reservation that would pass the ceiling even though the workspace has room", async () => {
-    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000, reason: "test" });
-    expect(await reserve(a.businessId, 700, "a1")).toMatchObject({ ok: true });
-    expect(await reserve(b.businessId, 400, "b1")).toEqual({ ok: false, reason: "platform_ceiling" });
-    expect(await reserve(b.businessId, 300, "b2")).toMatchObject({ ok: true });
-    expect(await reserve(b.businessId, 1, "b3")).toEqual({ ok: false, reason: "platform_ceiling" });
+    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000 * U, reason: "test" });
+    expect(await reserve(a.businessId, 700 * U, "a1")).toMatchObject({ ok: true });
+    expect(await reserve(b.businessId, 400 * U, "b1")).toEqual({ ok: false, reason: "platform_ceiling" });
+    expect(await reserve(b.businessId, 300 * U, "b2")).toMatchObject({ ok: true });
+    expect(await reserve(b.businessId, 1 * U, "b3")).toEqual({ ok: false, reason: "platform_ceiling" });
   });
 
   it("holds the ceiling under concurrent reservations from two workspaces", async () => {
-    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000, reason: "test" });
-    const results = await Promise.all(Array.from({ length: 24 }, (_, i) => reserve(i % 2 ? a.businessId : b.businessId, 100, `c${i}`)));
+    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000 * U, reason: "test" });
+    const results = await Promise.all(Array.from({ length: 24 }, (_, i) => reserve(i % 2 ? a.businessId : b.businessId, 100 * U, `c${i}`)));
     expect(results.filter((r) => r.ok)).toHaveLength(10);
     expect(results.filter((r) => !r.ok).every((r) => !r.ok && r.reason === "platform_ceiling")).toBe(true);
     const sum = await prisma.aiUsageReservation.aggregate({ _sum: { reservedTokens: true }, where: { periodStart: PERIOD } });
-    expect(sum._sum.reservedTokens).toBe(1000);
+    expect(sum._sum.reservedTokens).toBe(1000 * U);
   });
 
   it("frees room when a reservation is released and counts settled actuals, not the bound", async () => {
-    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000, reason: "test" });
-    const first = await reserve(a.businessId, 900, "r1");
+    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000 * U, reason: "test" });
+    const first = await reserve(a.businessId, 900 * U, "r1");
     if (!first.ok) throw new Error("setup");
-    expect(await reserve(b.businessId, 200, "r2")).toEqual({ ok: false, reason: "platform_ceiling" });
-    await settleReservation(a.businessId, first.reservationId, 300);
-    expect(await reserve(b.businessId, 600, "r3")).toMatchObject({ ok: true });
-    const second = await reserve(b.businessId, 100, "r4");
+    expect(await reserve(b.businessId, 200 * U, "r2")).toEqual({ ok: false, reason: "platform_ceiling" });
+    await settleReservation(a.businessId, first.reservationId, 300 * U);
+    expect(await reserve(b.businessId, 600 * U, "r3")).toMatchObject({ ok: true });
+    const second = await reserve(b.businessId, 100 * U, "r4");
     if (!second.ok) throw new Error("setup");
     await releaseReservation(b.businessId, second.reservationId);
-    expect(await reserve(b.businessId, 100, "r5")).toMatchObject({ ok: true });
+    expect(await reserve(b.businessId, 100 * U, "r5")).toMatchObject({ ok: true });
   });
 
   it("keeps the generation and embedding ceilings independent", async () => {
-    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 10, reason: "test" });
-    expect(await reserve(a.businessId, 50, "e1", "embedding")).toMatchObject({ ok: true });
+    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000 * U, reason: "test" });
+    expect(await reserve(a.businessId, 1000 * U, "g1")).toMatchObject({ ok: true });
+    expect(await reserve(b.businessId, 1 * U, "g2")).toEqual({ ok: false, reason: "platform_ceiling" });
+    expect(await reserve(a.businessId, 50 * U, "e1", "embedding")).toMatchObject({ ok: true });
   });
 
   it("a replay of an in-flight attempt is not blocked by a full platform", async () => {
-    const first = await reserve(a.businessId, 100, "p1");
-    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 0, reason: "test" });
-    expect(await reserve(a.businessId, 100, "p1")).toEqual(first);
+    await setPlatformLimit("t", { key: "monthly_generation_tokens_ceiling", value: 1000 * U, reason: "test" });
+    const first = await reserve(a.businessId, 1000 * U, "p1");
+    expect(first).toMatchObject({ ok: true });
+    expect(await reserve(a.businessId, 1000 * U, "p1")).toEqual(first);
   });
 });
 

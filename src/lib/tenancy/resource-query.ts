@@ -19,6 +19,8 @@ export const CONTROL_PLANE_ONLY_MODELS = [
   "aiServicePolicy",
   "catalogItem",
   "catalogVersion",
+  "workspacePurchase",
+  "entitlementAdjustment",
   "databaseProfile",
   "storageProfile",
   "revokedToken",

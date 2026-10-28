@@ -9,6 +9,7 @@
  * re-run after a partial failure.
  */
 
+import { ensureBaselinePurchase } from "../src/lib/billing/baseline";
 import crypto from "crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { ROLES } from "../src/lib/rbac/rbac";
@@ -55,9 +56,11 @@ export async function ensureDefaultBusiness(prisma: PrismaClient, slug: string =
   const settings = await prisma.settings.findUnique({ where: { id: "default" } });
   const name = settings?.businessName?.trim() || "Default Business";
 
-  return prisma.business.create({
+  const created = await prisma.business.create({
     data: { slug, name, status: "active" },
   });
+  await ensureBaselinePurchase(prisma, created.id);
+  return created;
 }
 
 export async function ensureTenantPlacement(prisma: PrismaClient, businessId: string) {

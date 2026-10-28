@@ -1,3 +1,4 @@
+import { ensureBaselinePurchase } from "@/lib/billing/baseline";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma/raw-client";
 import { reserveNewUsername } from "./username-reservation";
@@ -110,6 +111,7 @@ export async function provisionBusiness(
         });
 
         await tx.tenantPlacement.create({ data: { businessId: business.id } });
+        await ensureBaselinePurchase(tx, business.id);
 
         const user = await tx.user.create({
           data: { username, password: passwordHash, name: input.ownerName?.trim() || username, email: ownerEmail },

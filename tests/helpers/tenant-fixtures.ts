@@ -1,3 +1,4 @@
+import { ensureBaselinePurchase } from "@/lib/billing/baseline";
 import { recordWorkspaceSelection } from "./workspace-selection";
 import { prisma } from "@/lib/prisma/raw-client";
 import { hashPassword } from "@/lib/identity/auth";
@@ -88,6 +89,7 @@ export async function seedBusiness(label = "test"): Promise<SeededBusiness> {
     data: { slug, name: `Isolation Test Business ${suffix}` },
   });
   await prisma.tenantPlacement.create({ data: { businessId: business.id } });
+  await ensureBaselinePurchase(prisma, business.id);
 
   const passwordHash = await hashPassword("not-a-real-login-password");
   const user = await prisma.user.create({
@@ -161,6 +163,7 @@ export async function findOrCreateDefaultBusiness(): Promise<SeededBusiness> {
     update: {},
     create: { businessId: business.id },
   });
+  await ensureBaselinePurchase(prisma, business.id);
 
   const passwordHash = await hashPassword("not-a-real-login-password");
   const user = await prisma.user.create({

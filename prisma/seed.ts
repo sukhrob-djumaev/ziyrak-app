@@ -1,3 +1,4 @@
+import { ensureBaselinePurchase } from "../src/lib/billing/baseline";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
@@ -35,6 +36,7 @@ async function main() {
     update: {},
     create: { businessId: business.id },
   });
+  await ensureBaselinePurchase(prisma, business.id);
 
   const user = await prisma.user.upsert({
     where: { username: "admin" },

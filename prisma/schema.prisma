@@ -20,18 +20,20 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  platformAssignments  PlatformAssignment[]
-  supportGrants        SupportGrant[]
-  platformAccessAudits PlatformAccessAudit[]
-  memberships          Membership[]
-  config               BusinessConfig?
-  channelConnections   ChannelConnection[]
-  apiKeys              ApiKey[]
-  placement            TenantPlacement?
-  infrastructurePolicy InfrastructurePolicy?
-  aiAllowance          WorkspaceAiAllowance?
-  onboardingState      OnboardingState?
-  aiUsageReservations  AiUsageReservation[]
+  platformAssignments    PlatformAssignment[]
+  supportGrants          SupportGrant[]
+  platformAccessAudits   PlatformAccessAudit[]
+  memberships            Membership[]
+  config                 BusinessConfig?
+  channelConnections     ChannelConnection[]
+  apiKeys                ApiKey[]
+  placement              TenantPlacement?
+  infrastructurePolicy   InfrastructurePolicy?
+  aiAllowance            WorkspaceAiAllowance?
+  onboardingState        OnboardingState?
+  aiUsageReservations    AiUsageReservation[]
+  purchases              WorkspacePurchase[]
+  entitlementAdjustments EntitlementAdjustment[]
 
   // Every tenant-owned model gains a businessId relation back to Business
   // (§7.1, §12), contracted in the same migration that makes each model's
@@ -1271,24 +1273,61 @@ model CatalogItem {
 }
 
 model CatalogVersion {
-  id          String      @id @default(uuid())
+  id          String              @id @default(uuid())
   itemId      String
-  item        CatalogItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item        CatalogItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
   version     Int
-  state       String      @default("draft") // "draft" | "published" | "archived"
+  state       String              @default("draft") // "draft" | "published" | "archived"
   name        String
-  description String      @default("")
-  grants      Json        @default("[]") // [{ capability, amount? }] validated against the code registry
+  description String              @default("")
+  grants      Json                @default("[]") // [{ capability, amount? }] validated against the code registry
   priceMinor  Int? // test/display price in minor units; collection is L5
   currency    String?
   interval    String? // "month" | "year"
-  rev         Int         @default(1) // optimistic concurrency for draft edits
+  rev         Int                 @default(1) // optimistic concurrency for draft edits
   createdBy   String?
   publishedBy String?
   publishedAt DateTime?
   archivedAt  DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  purchases   WorkspacePurchase[]
 
   @@unique([itemId, version])
+}
+
+// ==================== PURCHASES AND ADJUSTMENTS (L4.1b) ====================
+// What a workspace holds. "provider" purchases are written only by the payment lifecycle (L5); L4.1 writes "baseline" and "manual_test".
+model WorkspacePurchase {
+  id         String         @id @default(uuid())
+  businessId String
+  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  versionId  String
+  version    CatalogVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  quantity   Int            @default(1)
+  source     String // "baseline" | "manual_test" | "provider"
+  state      String         @default("active") // "active" | "ended"
+  startsAt   DateTime       @default(now())
+  endsAt     DateTime?
+  reason     String
+  createdBy  String?
+  createdAt  DateTime       @default(now())
+
+  @@index([businessId, state])
+}
+
+// Explicit, expiring, audited commercial adjustment (never a permanent bypass).
+model EntitlementAdjustment {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  capability String
+  granted    Boolean? // boolean capability: true grants it
+  amount     Int? // limit capability: added to the combined amount
+  expiresAt  DateTime
+  reason     String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, expiresAt])
 }

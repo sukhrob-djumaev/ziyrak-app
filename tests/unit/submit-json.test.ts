@@ -37,6 +37,11 @@ describe("submitJson (D05: no false success)", () => {
     const r2 = await submitJson("/x", "PUT", {});
     expect(!r2.ok && r2.message).toMatch(/signed out/);
   });
+  it("shows the server's own words for a package refusal, not the role message", async () => {
+    reply(403, { error: { code: "ENTITLEMENT_REQUIRED", message: "This workspace's current package does not include this feature." } });
+    const r = await submitJson("/x", "POST", {});
+    expect(!r.ok && r.message).toBe("This workspace's current package does not include this feature.");
+  });
   it("turns a network failure into a retry message", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
     const r = await submitJson("/x", "POST", {});

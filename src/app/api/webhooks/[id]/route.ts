@@ -28,12 +28,16 @@ export async function PUT(
 ) {
   const ctx = await requireAuth(request, "webhooks:update");
   if (!isAuthenticated(ctx)) return ctx;
-  const denied = await entitlementDenied(ctx.businessId, "webhooks.outbound");
-  if (denied) return denied;
 
   try {
     const { id } = await params;
     const body = await request.json();
+    // Switching a webhook off stays possible without the capability; anything else needs it.
+    const onlySwitchingOff = body && typeof body === "object" && Object.keys(body).length === 1 && body.isActive === false;
+    if (!onlySwitchingOff) {
+      const denied = await entitlementDenied(ctx.businessId, "webhooks.outbound");
+      if (denied) return denied;
+    }
     const { name, description, url, method, headers, triggerOn, isActive } = body;
 
     const validMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];

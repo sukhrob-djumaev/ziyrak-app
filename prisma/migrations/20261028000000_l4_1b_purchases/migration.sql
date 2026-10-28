@@ -67,3 +67,20 @@ FROM "CatalogItem" i WHERE i."key" = 'legacy-baseline';
 INSERT INTO "WorkspacePurchase" ("id", "businessId", "versionId", "quantity", "source", "state", "reason")
 SELECT gen_random_uuid()::text, b."id", v."id", 1, 'baseline', 'active', 'migration: existing workspace keeps current access'
 FROM "Business" b CROSS JOIN (SELECT cv."id" FROM "CatalogVersion" cv JOIN "CatalogItem" ci ON ci."id" = cv."itemId" WHERE ci."key" = 'legacy-baseline' AND cv."version" = 1) v;
+
+-- A workspace created by any code path (including an older app version during a rolling deploy) receives the baseline package.
+-- The application helper stays as the explicit path and is idempotent against this trigger.
+-- contract-migration: new trigger on an existing table that only inserts a row into a table created in this migration; the previous release does not read it
+CREATE FUNCTION "business_default_package"() RETURNS trigger AS $$
+BEGIN
+  INSERT INTO "WorkspacePurchase" ("id", "businessId", "versionId", "quantity", "source", "state", "reason")
+  SELECT gen_random_uuid()::text, NEW."id", v."id", 1, 'baseline', 'active', 'baseline for a new workspace'
+  FROM "CatalogVersion" v JOIN "CatalogItem" i ON i."id" = v."itemId"
+  WHERE i."key" = 'legacy-baseline' AND v."state" = 'published'
+  ORDER BY v."version" DESC LIMIT 1;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- contract-migration: AFTER INSERT trigger on "Business"; adds a purchase row only, never changes or blocks the insert
+CREATE TRIGGER "Business_default_package" AFTER INSERT ON "Business" FOR EACH ROW EXECUTE FUNCTION "business_default_package"();

@@ -41,6 +41,8 @@ export async function assignVersion(token: string, input: unknown) {
       if (current.length > 0)
         await tx.workspacePurchase.updateMany({ where: { id: { in: current.map((c) => c.id) } }, data: { state: "ended", endsAt: new Date() } });
     }
+    if (await tx.workspacePurchase.findFirst({ where: { businessId: r.businessId, versionId: version.id, state: "active" }, select: { id: true } }))
+      throw new AppError(409, "CONFLICT", "This workspace already holds this version");
     const purchase = await tx.workspacePurchase.create({
       data: { businessId: r.businessId, versionId: version.id, quantity: r.quantity, source: "manual_test", reason: r.reason, createdBy: actor.userId },
     });

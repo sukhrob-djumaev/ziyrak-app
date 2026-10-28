@@ -8,7 +8,7 @@ interface Offer {
   purchases: { id: string; itemKey: string; kind: string; name: string; version: number; quantity: number; source: string }[];
   capabilities: { key: string; label: string; kind: string; granted: boolean; limit: number | null; sources: string[] }[];
   seats: { members: number; openInvitations: number; limit: number };
-  adjustments: { capability: string; expiresAt: string; reason: string }[];
+  adjustments: { capability: string; expiresAt: string }[];
   aiAllowance: { status: string; generation: { used: number; reserved: number; limit: number }; embedding: { used: number; reserved: number; limit: number }; resetsAt: string; note: string } | null;
   availableAddons: { itemKey: string; name: string; description: string; priceMinor: number | null; currency: string | null; interval: string | null }[];
   note: string;
@@ -81,7 +81,7 @@ export default function BillingPage() {
             {offer.adjustments.length > 0 && (
               <section aria-labelledby="adj">
                 <h2 id="adj" className="text-lg font-semibold text-ziyrak-text">Temporary additions</h2>
-                <ul className="mt-1 text-sm">{offer.adjustments.map((a, i) => <li key={i}>{a.capability} until {new Date(a.expiresAt).toLocaleDateString()}: {a.reason}</li>)}</ul>
+                <ul className="mt-1 text-sm">{offer.adjustments.map((a, i) => <li key={i}>{a.capability} until {new Date(a.expiresAt).toLocaleDateString()} (added by the platform team)</li>)}</ul>
               </section>
             )}
             <section aria-labelledby="addons">

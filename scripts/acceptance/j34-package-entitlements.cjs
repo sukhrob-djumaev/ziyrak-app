@@ -21,8 +21,15 @@ async function fill(page, id, value) {
   if (value) await page.type(id, value);
 }
 
+// Leave workspace A on the explicit baseline package whatever happened (other journeys depend on its access).
+function restoreBaseline(aId) {
+  if (!aId) return;
+  L.sql(`UPDATE "WorkspacePurchase" SET "state"='ended', "endsAt"=now() WHERE "businessId"=${q(aId)} AND "state"='active' AND "source"<>'baseline'`);
+  L.sql(`INSERT INTO "WorkspacePurchase" ("id","businessId","versionId","quantity","source","state","reason") SELECT gen_random_uuid()::text, ${q(aId)}, v."id", 1, 'baseline', 'active', 'J34 restore' FROM "CatalogVersion" v JOIN "CatalogItem" i ON i."id"=v."itemId" WHERE i."key"='legacy-baseline' AND v."version"=1 AND NOT EXISTS (SELECT 1 FROM "WorkspacePurchase" p WHERE p."businessId"=${q(aId)} AND p."state"='active' AND p."source"='baseline')`);
+}
 (async () => {
   const browsers = [];
+  let aId;
   try {
     const sb = await L.launch(creds.B.profile);
     browsers.push(sb);
@@ -37,13 +44,13 @@ async function fill(page, id, value) {
     L.assert(published.status === 200, "bundle published");
 
     // Assign it to workspace A through the console, replacing A's baseline.
-    const aId = (await call(admin, "/api/platform/catalog", "GET")).body.workspaces.find((w) => w.name === creds.A.biz)?.id;
+    aId = (await call(admin, "/api/platform/catalog", "GET")).body.workspaces.find((w) => w.name === creds.A.biz)?.id;
     L.assert(aId, "workspace A is listed in the console");
     await admin.reload({ waitUntil: "networkidle0" });
     await admin.select("#ws-select", aId);
     await admin.select("#ws-version", published.body.result.id);
     await admin.evaluate(() => [...document.querySelectorAll("label")].find((l) => l.innerText.includes("Replace the workspace"))?.querySelector("input").click());
-    await fill(admin, "#ws-reason", "J34 move A to the chat-only package");
+    await fill(admin, "#ws-reason", `J34 ${suffix} move A to the chat-only package`);
     const pending = admin.waitForResponse((r) => r.url().endsWith("/api/platform/catalog") && r.request().method() === "POST");
     await L.clickFirst(admin, "button", "Assign version");
     L.assert((await pending).status() === 200, "assignment through the console returned 200");
@@ -82,17 +89,19 @@ async function fill(page, id, value) {
 
     // Assigning the baseline back restores access immediately.
     const baselineId = L.sql(`SELECT v.id FROM "CatalogVersion" v JOIN "CatalogItem" i ON i.id=v."itemId" WHERE i."key"='legacy-baseline' AND v."version"=1`);
-    const back = await call(admin, "/api/platform/catalog", "POST", { action: "assign_version", businessId: aId, versionId: baselineId, replaceBundle: true, reason: "J34 restore baseline" });
+    const back = await call(admin, "/api/platform/catalog", "POST", { action: "assign_version", businessId: aId, versionId: baselineId, replaceBundle: true, reason: `J34 ${suffix} restore baseline` });
     L.assert(back.status === 200, "baseline assigned back");
     const ok = await call(owner, "/api/export?type=conversations&format=json", "GET");
     L.assert(ok.status === 200, `export works again at once (${ok.status})`);
 
     // Exactly one audit row per entitlement action for this run.
-    const rows = L.sql(`SELECT string_agg(action||'='||n, ',' ORDER BY action) FROM (SELECT action, count(*) n FROM "PlatformAccessAudit" WHERE action LIKE 'entitlement.%' AND "workspaceId"=${q(aId)} AND reason LIKE 'J34%' GROUP BY action) t`);
+    const rows = L.sql(`SELECT string_agg(action||'='||n, ',' ORDER BY action) FROM (SELECT action, count(*) n FROM "PlatformAccessAudit" WHERE action LIKE 'entitlement.%' AND "workspaceId"=${q(aId)} AND reason LIKE 'J34 ${suffix}%' GROUP BY action) t`);
     L.assert(rows === "entitlement.assign=2", `one audit row per assignment (${rows})`);
 
+    restoreBaseline(aId);
     L.finish("J34-package-entitlements", { bundle: key });
   } finally {
+    restoreBaseline(aId);
     for (const b of browsers.reverse()) await b.close();
   }
 })().catch((e) => {

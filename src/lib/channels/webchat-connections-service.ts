@@ -103,7 +103,9 @@ export async function updateWebChatConnection(
   connectionId: string,
   patch: { name?: string; allowedOrigins?: string[]; isActive?: boolean }
 ): Promise<Omit<WebChatConnectionView, "embedSnippet">> {
-  await assertEntitled(ctx.businessId, "channel.webchat");
+  // Switching the widget off must always be possible, even after the package loses the channel.
+  const onlySwitchingOff = patch.isActive === false && patch.name === undefined && patch.allowedOrigins === undefined;
+  if (!onlySwitchingOff) await assertEntitled(ctx.businessId, "channel.webchat");
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { id: connectionId, type: "webchat" } });
   if (!existing) throw new NotFoundError("Web Chat connection");
@@ -135,7 +137,7 @@ export async function updateWebChatConnection(
  * is currently stored, never a cached/previous value.
  */
 export async function rotateWebChatToken(ctx: TenantContext, connectionId: string, requestOrigin?: string): Promise<WebChatConnectionView & { token: string }> {
-  await assertEntitled(ctx.businessId, "channel.webchat");
+  // Rotating a token is a security action (a leaked token must be replaceable) and is never package-gated.
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { id: connectionId, type: "webchat" } });
   if (!existing) throw new NotFoundError("Web Chat connection");

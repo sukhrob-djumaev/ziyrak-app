@@ -22,7 +22,7 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma/raw-client";
-import { createItem, publishVersion } from "@/lib/billing/catalog";
+import { archiveVersion, createItem, newDraft, publishVersion } from "@/lib/billing/catalog";
 import { assignVersion, endPurchase, setAdjustment } from "@/lib/billing/purchases";
 import { assertEntitled, entitledLimit, isEntitled, ensureBaselinePurchase } from "@/lib/billing/entitlements";
 import { acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock";
@@ -73,6 +73,22 @@ describe("baseline", () => {
   });
 });
 
+describe("baseline protection", () => {
+  it("cannot be archived, re-versioned or re-created from the console", async () => {
+    const baseline = await prisma.catalogVersion.findFirstOrThrow({ where: { item: { key: "legacy-baseline" } }, include: { item: true } });
+    await expect(archiveVersion("t", { versionId: baseline.id, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(newDraft("t", { itemId: baseline.itemId, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(createItem("t", { key: "legacy-baseline", kind: "bundle", terms: { name: "x", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "USD", interval: "month" }, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
+    expect((await prisma.catalogVersion.findUniqueOrThrow({ where: { id: baseline.id } })).state).toBe("published");
+  });
+  it("assigning the same version twice is a clean conflict", async () => {
+    const addon = await mk("addon", [{ capability: "automation.rules" }]);
+    const first = await assignVersion("t", { businessId: ws.businessId, versionId: addon.id, reason: "dup" });
+    await expect(assignVersion("t", { businessId: ws.businessId, versionId: addon.id, reason: "dup" })).rejects.toMatchObject({ statusCode: 409 });
+    await endPurchase("t", { purchaseId: first.id, reason: "dup" });
+  });
+});
+
 describe("assignment", () => {
   it("replacing the bundle changes access at once; an add-on can be held beside it; ending removes it", async () => {
     const small = await mk("bundle", [{ capability: "channel.webchat" }]);
@@ -100,7 +116,7 @@ describe("assignment", () => {
     expect(await prisma.workspacePurchase.count()).toBe(before);
   });
   it("writes one audit row per assignment change with the reason", async () => {
-    const rows = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "entitlement." }, businessId: ws.businessId } });
+    const rows = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "entitlement." }, businessId: ws.businessId, reason: { not: "dup" } } });
     expect(rows.map((r) => r.action).sort()).toEqual(["entitlement.assign", "entitlement.assign", "entitlement.end"]);
     expect(rows.every((r) => r.reason.length > 0)).toBe(true);
   });

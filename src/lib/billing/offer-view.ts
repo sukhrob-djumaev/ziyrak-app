@@ -50,7 +50,7 @@ export async function getOfferView(businessId: string, now: Date = new Date()) {
       };
     }),
     seats: { members, openInvitations, limit: seatLimit },
-    adjustments: adjustments.map((a) => ({ capability: a.capability, granted: a.granted, amount: a.amount, expiresAt: a.expiresAt, reason: a.reason })),
+    adjustments: adjustments.map((a) => ({ capability: a.capability, granted: a.granted, amount: a.amount, expiresAt: a.expiresAt })),
     aiAllowance: allowance && {
       status: allowance.status,
       generation: allowance.generation,

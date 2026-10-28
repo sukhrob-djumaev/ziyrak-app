@@ -158,6 +158,7 @@ function createMockPrismaClient() {
     "aiServicePolicy",
     "catalogItem",
     "catalogVersion",
+    "platformLimit",
     "workspacePurchase",
     "entitlementAdjustment",
     "aiUsageReservation",

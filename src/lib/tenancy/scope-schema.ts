@@ -486,6 +486,10 @@ export const SCOPE_SCHEMA: Record<
       "updatedAt",
     ],
   },
+  platformLimit: {
+    relations: {},
+    scalars: ["key", "value", "updatedBy", "updatedAt"],
+  },
   workspacePurchase: {
     relations: { business: { model: "business", many: false }, version: { model: "catalogVersion", many: false } },
     scalars: ["id", "businessId", "versionId", "quantity", "source", "state", "startsAt", "endsAt", "reason", "createdBy", "createdAt"],

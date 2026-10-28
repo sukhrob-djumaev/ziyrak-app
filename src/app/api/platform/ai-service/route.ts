@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { readAiServiceConsole, savePolicy, setWorkspaceAllowance } from "@/lib/platform/ai-service";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { setPlatformLimit } from "@/lib/platform/limits-console";
 import { toErrorResponse } from "@/lib/observability/errors";
 
 /** PLAN.md P2 — super-admin-only managed AI policy and allowance management. */
@@ -43,6 +44,9 @@ export async function POST(request: NextRequest) {
         break;
       case "set_allowance":
         result = await setWorkspaceAllowance(token, input);
+        break;
+      case "set_platform_limit":
+        result = await setPlatformLimit(token, input);
         break;
       default:
         return fail("Invalid management action", 400);

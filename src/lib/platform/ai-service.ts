@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { encryptAIProviderCredential, encryptEmbeddingProviderCredential } from "@/lib/ai/config";
 import { periodStartFor } from "@/lib/ai/allowance";
+import { listLimits } from "./limits";
 import { withPlatformControl } from "./access/authority";
 import { writePlatformAudit } from "./access/audit";
 
@@ -159,7 +160,11 @@ export async function readAiServiceConsole(token: string) {
       select: { businessId: true, kind: true, state: true, reservedTokens: true, settledTokens: true },
     });
     const byWorkspace = new Map(allowances.map((a) => [a.businessId, a]));
+    const platformUsage = (kind: string) =>
+      usage.filter((u) => u.kind === kind).reduce((sum, u) => sum + (u.state === "settled" ? (u.settledTokens ?? u.reservedTokens) : u.reservedTokens), 0);
     return {
+      platformLimits: await listLimits(tx),
+      platformUsage: { generation: platformUsage("generation"), embedding: platformUsage("embedding") },
       policies: policies.map(policyView),
       workspaces: businesses.map((b) => {
         const a = byWorkspace.get(b.id);

@@ -5,6 +5,7 @@ import { reserveNewUsername } from "./username-reservation";
 import { Prisma } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/identity/auth";
 import { DEFAULT_TOOL_POLICIES } from "@/lib/tools/policy";
+import { readLimit, SIGNUP_CAP_LOCK } from "./limits";
 import { AppError } from "@/lib/observability/errors";
 import { normalizeEmail } from "@/lib/identity/account-tokens";
 
@@ -83,6 +84,21 @@ function isUniqueViolation(error: unknown, field: string): boolean {
   return haystack.includes(field);
 }
 
+/**
+ * L4.1c: platform-wide cap on new workspaces per UTC day (trial and free-account abuse). The count runs under
+ * its own lock so two simultaneous signups cannot both take the last slot. Every provisioned workspace has its
+ * own new owner account, so a per-owner cap is already structural: no flow gives one user a second workspace.
+ */
+export async function assertSignupCapacity(tx: Prisma.TransactionClient) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SIGNUP_CAP_LOCK}, 0)`;
+  const cap = await readLimit(tx, "max_new_workspaces_per_day");
+  const now = new Date();
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const created = await tx.business.count({ where: { createdAt: { gte: dayStart } } });
+  if (created >= cap)
+    throw new AppError(429, "SIGNUPS_PAUSED", "New workspaces are paused for today. Please try again tomorrow.");
+}
+
 export async function provisionBusiness(
   input: ProvisionBusinessInput
 ): Promise<ProvisionedBusiness> {
@@ -105,6 +121,7 @@ export async function provisionBusiness(
     try {
       return await prisma.$transaction(async (tx) => {
         await reserveNewUsername(tx, username);
+        await assertSignupCapacity(tx);
         const ownerEmail = input.ownerEmail ? normalizeEmail(input.ownerEmail) : null;
         const business = await tx.business.create({
           data: { slug, name: input.businessName.trim(), status: "active" },

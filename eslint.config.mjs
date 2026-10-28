@@ -69,6 +69,8 @@ const eslintConfig = defineConfig([
       // P2 managed-AI allowance: control-plane reservation accounting that
       // must lock the platform-owned allowance row across workspaces/processes.
       "src/lib/ai/allowance.ts",
+      // L4.1c: platform limits are control-plane rows read inside the caller's reservation/signup transaction.
+      "src/lib/platform/limits.ts",
       // L4.1b: package/entitlement reads of control-plane tables only (catalog, purchases, adjustments), keyed by the caller's own businessId.
       "src/lib/billing/entitlements.ts",
       "src/lib/billing/offer-view.ts",

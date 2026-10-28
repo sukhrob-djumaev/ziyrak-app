@@ -23,7 +23,13 @@ type WorkspaceRow = {
   generationUsed: number;
   embeddingUsed: number;
 };
-type Console = { policies: Policy[]; workspaces: WorkspaceRow[] };
+type PlatformLimitRow = { key: string; label: string; value: number; isDefault: boolean; max: number };
+type Console = {
+  policies: Policy[];
+  workspaces: WorkspaceRow[];
+  platformLimits: PlatformLimitRow[];
+  platformUsage: { generation: number; embedding: number };
+};
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
 const button = "rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50";
@@ -51,6 +57,9 @@ export default function AiServicePage() {
   const [genLimit, setGenLimit] = useState("");
   const [embLimit, setEmbLimit] = useState("");
   const [allowanceReason, setAllowanceReason] = useState("");
+  const [limitKey, setLimitKey] = useState("");
+  const [limitValue, setLimitValue] = useState("");
+  const [limitReason, setLimitReason] = useState("");
 
   async function load() {
     const response = await fetch("/api/platform/ai-service", { cache: "no-store" });
@@ -112,7 +121,43 @@ export default function AiServicePage() {
           {error && <p role="alert">{error}</p>}
           {message && <p role="status">{message}</p>}
 
-          <h2 className="mt-6 text-xl font-semibold">Policies</h2>
+          <h2 className="mt-6 text-xl font-semibold">Platform limits</h2>
+          <p className="mt-1 text-sm">
+            Safety ceilings across all workspaces. Used this month: replies {data.platformUsage.generation.toLocaleString()} tokens,
+            knowledge {data.platformUsage.embedding.toLocaleString()} tokens (estimates, not invoices).
+          </p>
+          <table className="mt-2 w-full table-auto text-left text-sm" aria-label="Platform limits">
+            <thead>
+              <tr><th className={cell}>Limit</th><th className={cell}>Value</th><th className={cell}>Source</th></tr>
+            </thead>
+            <tbody>
+              {data.platformLimits.map((l) => (
+                <tr key={l.key}>
+                  <td className={cell}>{l.label}</td><td className={cell}>{l.value.toLocaleString()}</td><td className={cell}>{l.isDefault ? "default" : "set by a super admin"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <form
+            className="mt-4 space-y-3"
+            aria-label="Set platform limit"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void mutate({ action: "set_platform_limit", key: limitKey, value: Number(limitValue), reason: limitReason }, "Platform limit saved.");
+            }}
+          >
+            <label>Limit
+              <select id="limitKey" className={field} value={limitKey} onChange={(e) => setLimitKey(e.target.value)} required>
+                <option value="">Select a limit</option>
+                {data.platformLimits.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+              </select>
+            </label>
+            <label>New value<input id="limitValue" className={field} inputMode="numeric" value={limitValue} onChange={(e) => setLimitValue(e.target.value)} required /></label>
+            <label>Reason<input id="limitReason" className={field} value={limitReason} onChange={(e) => setLimitReason(e.target.value)} required /></label>
+            <button id="saveLimit" className={button} disabled={busy}>Save limit</button>
+          </form>
+
+          <h2 className="mt-8 text-xl font-semibold">Policies</h2>
           <table className="mt-2 w-full table-auto text-left text-sm" aria-label="Policies">
             <thead>
               <tr><th className={cell}>Kind</th><th className={cell}>Version</th><th className={cell}>Name</th><th className={cell}>Provider</th><th className={cell}>Model</th><th className={cell}>Key</th><th className={cell}>Active</th></tr>

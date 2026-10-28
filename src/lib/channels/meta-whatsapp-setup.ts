@@ -1,3 +1,4 @@
+import { assertEntitled } from "@/lib/billing/entitlements";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { MetaWhatsAppCredentialSchema } from "@/lib/secrets";
 import { isConfigFieldClaimedByOtherBusiness } from "@/lib/identity/channel-credential-auth";
@@ -38,6 +39,7 @@ export async function prepareMetaCloudConnection(
   input: { config?: Record<string, unknown>; credential?: unknown },
   existingConfig: Record<string, unknown> | undefined
 ): Promise<{ config: Record<string, unknown> | undefined; verifiedPhoneNumberId?: string }> {
+  await assertEntitled(ctx.businessId, "channel.whatsapp_cloud");
   const { phoneNumberId: _ignoredClientValue, ...safeConfig } = input.config ?? {};
   void _ignoredClientValue;
 

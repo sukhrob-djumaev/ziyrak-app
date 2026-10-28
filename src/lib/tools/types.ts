@@ -53,6 +53,8 @@ export interface ToolDefinition {
   schema: z.ZodType;
   /** Checked for HUMAN actors only (§9.5) — e.g. "tickets:create". Unset means RBAC imposes no extra gate beyond `ToolPolicy.allowedForHumanRoles`. */
   requiredPermission?: Permission;
+  /** Package capability the workspace must hold for this tool to be offered or to run (checked again at execution, so a lost capability stops queued approvals). */
+  requiredCapability?: string;
   /** For conversation-bound tools, resolve/authorize the actual parent before
    * idempotency lookup or ActionExecution creation. May not change attempt IDs.
    */

@@ -1,3 +1,4 @@
+import { isEntitled } from "@/lib/billing/entitlements";
 import { logger } from "@/lib/observability/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
@@ -103,6 +104,9 @@ export async function evaluateRules(
   message: Message,
   conversation: Conversation
 ): Promise<MatchedAction[]> {
+  // Checked at execution, not only when a rule is saved: a package change takes effect on the next message.
+  // The incoming message itself is still stored and answered; only the rules stop firing.
+  if (!(await isEntitled(ctx.businessId, "automation.rules"))) return [];
   const db = getScopedPrisma(ctx);
   const rules = await db.automationRule.findMany({
     where: { isActive: true, requiresReconfirmation: false },

@@ -24,6 +24,7 @@ import {
   Webhook,
   ShieldCheck,
   ChevronLeft,
+  CreditCard,
   ChevronRight,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -51,6 +52,7 @@ const ICONS: Record<string, React.ElementType> = {
   admin: Shield,
   docs: FileCode,
   settings: Settings,
+  billing: CreditCard,
   switch: Users,
 };
 

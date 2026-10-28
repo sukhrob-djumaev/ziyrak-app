@@ -99,7 +99,17 @@ function view(v: Prisma.CatalogVersionGetPayload<object>) {
 export async function readCatalogConsole(token: string) {
   return withPlatformControl(token, "super_admin", async (tx) => {
     const items = await tx.catalogItem.findMany({ orderBy: { createdAt: "asc" }, include: { versions: { orderBy: { version: "desc" } } } });
+    const workspaces = await tx.business.findMany({
+      orderBy: { createdAt: "asc" },
+      take: 500,
+      select: { id: true, name: true, purchases: { where: { state: "active" }, select: { id: true, source: true, quantity: true, version: { select: { version: true, item: { select: { key: true, kind: true } } } } } } },
+    });
     return {
+      workspaces: workspaces.map((w) => ({
+        id: w.id,
+        name: w.name,
+        purchases: w.purchases.map((p) => ({ id: p.id, source: p.source, quantity: p.quantity, itemKey: p.version.item.key, kind: p.version.item.kind, version: p.version.version })),
+      })),
       capabilities: CAPABILITIES.map((c) => ({ key: c.key, label: c.label, kind: c.kind })),
       items: items.map((i) => ({ id: i.id, key: i.key, kind: i.kind, versions: i.versions.map(view) })),
     };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { archiveVersion, createItem, newDraft, publishVersion, readCatalogConsole, saveDraft } from "@/lib/billing/catalog";
+import { assignVersion, endPurchase, setAdjustment } from "@/lib/billing/purchases";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toErrorResponse } from "@/lib/observability/errors";
 
@@ -50,6 +51,15 @@ export async function POST(request: NextRequest) {
         break;
       case "archive":
         result = await archiveVersion(token, input);
+        break;
+      case "assign_version":
+        result = await assignVersion(token, input);
+        break;
+      case "end_purchase":
+        result = await endPurchase(token, input);
+        break;
+      case "set_adjustment":
+        result = await setAdjustment(token, input);
         break;
       default:
         return fail("Invalid catalog action", 400);

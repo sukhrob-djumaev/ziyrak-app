@@ -17,7 +17,8 @@ type Version = {
   problems: string[];
 };
 type Item = { id: string; key: string; kind: "bundle" | "addon"; versions: Version[] };
-type Console = { capabilities: { key: string; label: string; kind: string }[]; items: Item[] };
+type Workspace = { id: string; name: string; purchases: { id: string; source: string; quantity: number; itemKey: string; kind: string; version: number }[] };
+type Console = { workspaces: Workspace[]; capabilities: { key: string; label: string; kind: string }[]; items: Item[] };
 
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
@@ -50,6 +51,10 @@ export default function CatalogPage() {
   const [granted, setGranted] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [actionReason, setActionReason] = useState("");
+  const [wsId, setWsId] = useState("");
+  const [assignVersionId, setAssignVersionId] = useState("");
+  const [replaceBundle, setReplaceBundle] = useState(false);
+  const [wsReason, setWsReason] = useState("");
 
   async function load() {
     const response = await fetch("/api/platform/catalog", { cache: "no-store" });
@@ -189,6 +194,37 @@ export default function CatalogPage() {
               </table>
             </div>
           ))}
+
+          <h2 className="mt-8 text-xl font-semibold">Workspace packages</h2>
+          <p className="text-sm">Assign a published version to a workspace for testing. Paid purchases arrive later; assignments here are marked as added by the platform team.</p>
+          <div className="mt-2 grid max-w-xl gap-3">
+            <label htmlFor="ws-select">Workspace</label>
+            <select id="ws-select" className={field} value={wsId} onChange={(e) => setWsId(e.target.value)}>
+              <option value="">Choose a workspace</option>
+              {data.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            {wsId && (
+              <ul className="text-sm" data-testid="ws-purchases">
+                {(data.workspaces.find((w) => w.id === wsId)?.purchases ?? []).map((p) => (
+                  <li key={p.id} data-purchase={p.id}>
+                    {p.itemKey} v{p.version} ({p.kind}, {p.source}{p.quantity > 1 ? `, ×${p.quantity}` : ""}){" "}
+                    <button type="button" className={button} disabled={busy || !wsReason.trim()} onClick={() => mutate({ action: "end_purchase", purchaseId: p.id, reason: wsReason.trim() }, "Purchase ended.")}>End {p.itemKey}</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label htmlFor="ws-version">Published version to assign</label>
+            <select id="ws-version" className={field} value={assignVersionId} onChange={(e) => setAssignVersionId(e.target.value)}>
+              <option value="">Choose a version</option>
+              {data.items.flatMap((i) => i.versions.filter((v) => v.state === "published").map((v) => <option key={v.id} value={v.id}>{i.key} v{v.version} ({i.kind})</option>))}
+            </select>
+            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={replaceBundle} onChange={(e) => setReplaceBundle(e.target.checked)} /> Replace the workspace&apos;s current bundle</label>
+            <label htmlFor="ws-reason">Reason (recorded in the audit)</label>
+            <input id="ws-reason" className={field} value={wsReason} onChange={(e) => setWsReason(e.target.value)} />
+            <div>
+              <button type="button" className={button} disabled={busy || !wsId || !assignVersionId || !wsReason.trim()} onClick={() => mutate({ action: "assign_version", businessId: wsId, versionId: assignVersionId, replaceBundle, reason: wsReason.trim() }, "Version assigned.")}>Assign version</button>
+            </div>
+          </div>
 
           <h2 className="mt-8 text-xl font-semibold">{editing ? `Edit draft of ${editing.key}` : "Create item"}</h2>
           <form onSubmit={submit} className="mt-2 grid max-w-xl gap-3">

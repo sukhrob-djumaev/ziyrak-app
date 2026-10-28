@@ -1,3 +1,4 @@
+import { entitlementDenied } from "@/lib/billing/route-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
 import * as webhooksService from "@/lib/integrations/webhooks/service";
@@ -7,6 +8,8 @@ import { dispatchHttpRequest, SSRFBlockedError } from "@/lib/integrations/http-d
 export async function POST(request: NextRequest) {
   const ctx = await requireAuth(request, "webhooks:update");
   if (!isAuthenticated(ctx)) return ctx;
+  const denied = await entitlementDenied(ctx.businessId, "webhooks.outbound");
+  if (denied) return denied;
 
   try {
     const body = await request.json();

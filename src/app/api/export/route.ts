@@ -1,3 +1,4 @@
+import { entitlementDenied } from "@/lib/billing/route-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/observability/logger";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
@@ -10,6 +11,8 @@ const DEFAULT_EXPORT_LIMIT = 10000;
 export async function GET(request: NextRequest) {
   const ctx = await requireAuth(request, "export:read");
   if (!isAuthenticated(ctx)) return ctx;
+  const denied = await entitlementDenied(ctx.businessId, "data.export");
+  if (denied) return denied;
 
   try {
     const db = getScopedPrisma(ctx);

@@ -57,6 +57,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: "People & Access", href: "/admin", icon: "admin", requires: "admin:read" },
       { name: "Settings", href: "/settings", icon: "settings", requires: "settings:read" },
+      { name: "Plan & usage", href: "/billing", icon: "billing", requires: "business:billing" },
       { name: "API Docs", href: "/api-docs", icon: "docs" },
       { name: "Switch workspace", href: "/workspaces", icon: "switch" },
     ],

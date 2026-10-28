@@ -1,3 +1,4 @@
+import { assertEntitled } from "@/lib/billing/entitlements";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -73,6 +74,7 @@ export async function createWebChatConnection(
   input: { name?: string; allowedOrigins: string[] },
   requestOrigin?: string
 ): Promise<WebChatConnectionView & { token: string }> {
+  await assertEntitled(ctx.businessId, "channel.webchat");
   const db = getScopedPrisma(ctx);
   const token = generateWebChatToken();
   const credentialRef = await encryptChannelCredential({ type: "webchat", widgetSecret: token });
@@ -101,6 +103,7 @@ export async function updateWebChatConnection(
   connectionId: string,
   patch: { name?: string; allowedOrigins?: string[]; isActive?: boolean }
 ): Promise<Omit<WebChatConnectionView, "embedSnippet">> {
+  await assertEntitled(ctx.businessId, "channel.webchat");
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { id: connectionId, type: "webchat" } });
   if (!existing) throw new NotFoundError("Web Chat connection");
@@ -132,6 +135,7 @@ export async function updateWebChatConnection(
  * is currently stored, never a cached/previous value.
  */
 export async function rotateWebChatToken(ctx: TenantContext, connectionId: string, requestOrigin?: string): Promise<WebChatConnectionView & { token: string }> {
+  await assertEntitled(ctx.businessId, "channel.webchat");
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { id: connectionId, type: "webchat" } });
   if (!existing) throw new NotFoundError("Web Chat connection");

@@ -20,6 +20,7 @@ export const triggerWebhookTool: ToolDefinition = {
   description: "Trigger a configured webhook to notify an external system about an event.",
   schema,
   requiredPermission: "webhooks:update",
+  requiredCapability: "webhooks.outbound",
   async execute(ctx, args) {
     const { webhookName, data } = schema.parse(args);
     const db = getScopedPrisma(ctx);

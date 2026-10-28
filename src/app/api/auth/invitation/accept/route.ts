@@ -15,6 +15,7 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
   WRONG_ACCOUNT: { status: 403, message: "This invitation was sent to a different account." },
   INVALID_PASSWORD: { status: 400, message: "Choose a password of 8 to 72 characters." },
   USERNAME_TAKEN: { status: 409, message: "Choose a different username." },
+  SEAT_LIMIT: { status: 409, message: "This workspace has no free team seat right now. Ask the person who invited you." },
 };
 
 export async function POST(request: NextRequest) {

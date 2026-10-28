@@ -1,3 +1,4 @@
+import { entitlementDenied } from "@/lib/billing/route-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/observability/logger";
 import { requireAuth, isAuthenticated } from "@/lib/identity/route-auth";
@@ -27,6 +28,8 @@ export async function PUT(
 ) {
   const ctx = await requireAuth(request, "webhooks:update");
   if (!isAuthenticated(ctx)) return ctx;
+  const denied = await entitlementDenied(ctx.businessId, "webhooks.outbound");
+  if (denied) return denied;
 
   try {
     const { id } = await params;

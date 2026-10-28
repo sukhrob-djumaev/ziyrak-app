@@ -1,3 +1,4 @@
+import { assertEntitled } from "@/lib/billing/entitlements";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -91,8 +92,15 @@ async function assertTypeConfigurable(ctx: TenantContext, type: string): Promise
   if (type === WHATSAPP_WEB_CHANNEL_TYPE) await assertWhatsAppWebEligible(ctx);
 }
 
+const CHANNEL_CAPABILITY: Record<string, string> = { whatsapp_cloud: "channel.whatsapp_cloud", webchat: "channel.webchat" };
+async function assertChannelEntitled(ctx: TenantContext, type: string) {
+  const key = CHANNEL_CAPABILITY[type];
+  if (key) await assertEntitled(ctx.businessId, key);
+}
+
 export async function upsertByType(ctx: TenantContext, type: string, rawInput: UpsertConnectionInput) {
   await assertTypeConfigurable(ctx, type);
+  await assertChannelEntitled(ctx, type);
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
 
@@ -169,6 +177,8 @@ export async function getOrCreateWhatsAppWebConnection(ctx: TenantContext) {
 
 export async function performAction(ctx: TenantContext, type: string, action: "connect" | "disconnect" | "test") {
   await assertTypeConfigurable(ctx, type);
+  // Switching a channel off is always allowed; turning it on or testing it needs the package to include it.
+  if (action !== "disconnect") await assertChannelEntitled(ctx, type);
   const db = getScopedPrisma(ctx);
   const existing = await db.channelConnection.findFirst({ where: { type } });
 

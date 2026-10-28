@@ -155,6 +155,8 @@ function createMockPrismaClient() {
     "infrastructurePolicy",
     "workspaceAiAllowance",
     "aiServicePolicy",
+    "catalogItem",
+    "catalogVersion",
     "aiUsageReservation",
     "onboardingState",
     "accountToken",

@@ -24,7 +24,7 @@
 - Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
-- Rename Owly->Ziyrak complete on branch `chore/rename-owly-to-ziyrak` (worktree ../ziyrak-wt-rename): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. NOT merged: needs exact-head CI green + browser run; local DB needs `ALTER DATABASE owly RENAME TO ziyrak`.
+- Legacy-name rename complete on branch `chore/rename-owly-to-ziyrak` (worktree ../ziyrak-wt-rename): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. NOT merged: needs exact-head CI green + browser run; local DB needs the old-named dev DB renamed to `ziyrak`.
 
 ## Next actions
 0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.

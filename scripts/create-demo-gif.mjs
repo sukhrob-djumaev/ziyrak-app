@@ -2,8 +2,8 @@ import puppeteer from 'puppeteer';
 import { execSync } from 'child_process';
 import { mkdirSync } from 'fs';
 
-const BASE = 'http://localhost:3000';
-const FRAMES_DIR = '/tmp/ziyrak-gif-frames';
+const BASE = process.env.BASE_URL || 'http://localhost:3000';
+const FRAMES_DIR = process.env.FRAMES_DIR || '/tmp/ziyrak-gif-frames';
 const OUTPUT = './docs/demo.gif';
 
 const pages = [
@@ -28,6 +28,8 @@ async function run() {
 
   const browser = await puppeteer.launch({
     headless: true,
+    // puppeteer 25 resolves its own browser asynchronously; allow a system Chrome
+    executablePath: process.env.CHROMIUM_PATH || undefined,
     args: ['--no-sandbox'],
   });
 

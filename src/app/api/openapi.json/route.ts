@@ -128,7 +128,7 @@ const spec = {
   },
   components: {
     securitySchemes: {
-      cookieAuth: { type: "apiKey", in: "cookie", name: "owly-token", description: "Session cookie set by signing in to the dashboard." },
+      cookieAuth: { type: "apiKey", in: "cookie", name: "ziyrak-token", description: "Session cookie set by signing in to the dashboard." },
       apiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key", description: "Workspace API key created under People & Access. Limited to the key's own workspace and permissions." },
     },
     schemas: {

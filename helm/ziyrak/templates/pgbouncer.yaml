@@ -6,9 +6,9 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ include "owly.fullname" . }}-pgbouncer
+  name: {{ include "ziyrak.fullname" . }}-pgbouncer
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: pgbouncer
 type: Opaque
 stringData:
@@ -18,20 +18,20 @@ stringData:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "owly.fullname" . }}-pgbouncer
+  name: {{ include "ziyrak.fullname" . }}-pgbouncer
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: pgbouncer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "owly.selectorLabels" . | nindent 6 }}
+      {{- include "ziyrak.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: pgbouncer
   template:
     metadata:
       labels:
-        {{- include "owly.selectorLabels" . | nindent 8 }}
+        {{- include "ziyrak.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: pgbouncer
     spec:
       automountServiceAccountToken: false
@@ -54,7 +54,7 @@ spec:
                 secretKeyRef:
                   # With secrets.existingSecret the password comes from that secret (key below), so a
                   # pre-created secret and the in-chart PgBouncer work together (L2.1 / F05).
-                  name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "owly.fullname" . }}-pgbouncer{{ end }}
+                  name: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecret }}{{ else }}{{ include "ziyrak.fullname" . }}-pgbouncer{{ end }}
                   key: {{ if .Values.secrets.existingSecret }}{{ .Values.secrets.existingSecretKeys.dbPassword | default "DB_PASSWORD" }}{{ else }}DB_PASSWORD{{ end }}
             # PgBouncer -> PostgreSQL TLS follows database.sslMode.
             - name: SERVER_TLS_SSLMODE
@@ -90,9 +90,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "owly.fullname" . }}-pgbouncer
+  name: {{ include "ziyrak.fullname" . }}-pgbouncer
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: pgbouncer
 spec:
   ports:
@@ -100,6 +100,6 @@ spec:
       targetPort: pg
       name: pg
   selector:
-    {{- include "owly.selectorLabels" . | nindent 4 }}
+    {{- include "ziyrak.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: pgbouncer
 {{- end }}

@@ -18,7 +18,7 @@ export async function requireAccountAuth(
       { error: { code: "FORBIDDEN", message: "A signed-in person is required" } },
       { status: 403 }
     );
-  const token = request.cookies.get("owly-token")?.value;
+  const token = request.cookies.get("ziyrak-token")?.value;
   const payload = token ? await verifyActiveToken(token) : null;
   if (!payload)
     return NextResponse.json(

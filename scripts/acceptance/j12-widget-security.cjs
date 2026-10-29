@@ -31,7 +31,7 @@ const get = async (path, headers = {}) => { const r = await fetch(L.BASE + path,
   c["B's VALID creds subscribing to A's conversation (SSE)"] = await fetch(`${L.BASE}/api/channels/webchat/${B.conn}/stream?token=${B.token}&conversationId=${aConv}`, { headers: { Origin: OB } }).then((r) => r.status);
   // widget credential presented to admin APIs
   const tok = A.token;
-  for (const [label, headers] of [["Authorization: Bearer <widget token>", { Authorization: "Bearer " + tok }], ["X-API-Key: <widget token>", { "X-API-Key": tok }], ["Cookie owly-token=<widget token>", { Cookie: "owly-token=" + tok }]]) {
+  for (const [label, headers] of [["Authorization: Bearer <widget token>", { Authorization: "Bearer " + tok }], ["X-API-Key: <widget token>", { "X-API-Key": tok }], ["Cookie ziyrak-token=<widget token>", { Cookie: "ziyrak-token=" + tok }]]) {
     for (const path of ["/api/conversations", "/api/channels/webchat-connections", "/api/admin/users", "/api/actions"]) c[`${label} -> GET ${path}`] = await get(path, headers);
   }
   // preflight

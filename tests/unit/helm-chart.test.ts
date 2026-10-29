@@ -7,10 +7,10 @@ import { spawnSync } from "node:child_process";
  */
 const HELM = process.env.HELM_BIN || "helm";
 const available = spawnSync(HELM, ["version", "--short"], { encoding: "utf8", env: { ...process.env } }).status === 0;
-const FIXTURE = "helm/owly/ci/production-values.yaml";
+const FIXTURE = "helm/ziyrak/ci/production-values.yaml";
 
 function render(extra: string[] = [], useFixture = true) {
-  const args = ["template", "t", "helm/owly", ...(useFixture ? ["-f", FIXTURE] : []), ...extra];
+  const args = ["template", "t", "helm/ziyrak", ...(useFixture ? ["-f", FIXTURE] : []), ...extra];
   const r = spawnSync(HELM, args, { encoding: "utf8", env: { ...process.env, HELM_CHART_ROOT: process.cwd() } });
   return { ok: r.status === 0, out: r.stdout, err: r.stderr };
 }

@@ -49,7 +49,7 @@ beforeEach(async () => {
 });
 
 const ask = () =>
-  createRequest("/api/knowledge/test", { method: "POST", body: { question: "When are you open?" }, cookies: { "owly-token": token } });
+  createRequest("/api/knowledge/test", { method: "POST", body: { question: "When are you open?" }, cookies: { "ziyrak-token": token } });
 
 describe("POST /api/knowledge/test for a managed workspace", () => {
   it("omits the platform model from a successful answer", async () => {

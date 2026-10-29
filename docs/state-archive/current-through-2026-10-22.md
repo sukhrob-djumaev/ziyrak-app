@@ -1,7 +1,7 @@
 # Current P1 task (reconciled 2026-10-17)
 
 P1 incomplete/P2 ineligible. Main docs-only. Support text-message read: contract on main
-(9de3f54, 360da65). Development worktree /Users/sukhrob/.codex/worktrees/p1-support-identity/owly
+(9de3f54, 360da65). Development worktree /Users/sukhrob/.codex/worktrees/p1-support-identity/ziyrak
 (detached) already holds d1b81a4 failing regressions, 2a07191 implementation, bb45ed8 gate
 tests + J22 console extension (parent 72873e3). Checked this session on bb45ed8: tsc exit0,
 lint --max-warnings 0 exit0. NOT yet run: platform-authority/support-query tests on real PG,
@@ -17,7 +17,7 @@ identified candidate. Do not touch live 7700, acceptance or user DBs.
 
 Recheck 2026-10-19: Docker daemon not running (docker.sock absent), localhost:5432 closed. Blocker unchanged: user must start Docker Desktop and the shared PG.
 
-Update 2026-10-19 (blocker CLEARED): Docker/PG healthy (owly-db-1). Fresh DB
+Update 2026-10-19 (blocker CLEARED): Docker/PG healthy (ziyrak-db-1). Fresh DB
 ziyrak_test_support_msgs_20261019b migrated (prisma migrate deploy). On dev worktree bb45ed8:
 platform-authority + support-query-profile 129/129 pass; full `npm run test` 150 files,
 1478 passed/23 skipped, exit0 (isolated DB only; skips not a pass). Independent security
@@ -60,12 +60,12 @@ phase/milestone boundary otherwise reached. Prohibited: push/release/new phase w
 Update4 2026-10-19: OWNER APPROVED docs/p1-followup-admission-proposal-2026-10-15.md (bounded
 local implementation + tests only; no deploy/provider/account change/milestone closure). Task:
 delayed follow-up sending admission (fences, coherent admission, retirement markers). Existing
-uncommitted WIP is in /Users/sukhrob/.codex/worktrees/p1-workspace-access/owly on old base c78a1ff
+uncommitted WIP is in /Users/sukhrob/.codex/worktrees/p1-workspace-access/ziyrak on old base c78a1ff
 (16 files +342/-52); do not trust it as current; port selectively onto a fresh dev worktree from
 main 485cc9b. Tests-first: the 3 red cases in tests/security/followup-authority.test.ts.
 
 Update5 2026-10-19 (follow-up admission, IN PROGRESS, dev worktree
-/Users/sukhrob/.codex/worktrees/p1-followup-admission/owly detached, base 7b7942a, commit 9320fbf):
+/Users/sukhrob/.codex/worktrees/p1-followup-admission/ziyrak detached, base 7b7942a, commit 9320fbf):
 ported old WIP + single sending admission: tenancy withAdmissionSession (control fence then
 data fence; shared placement reuses one tx), bound identity/policy/provider/destination readers,
 key expiry judged at final timestamp before the conditional claim, transport after release.
@@ -96,7 +96,7 @@ dedicated test (claim committed + control failure never calls adapter) not writt
 fresh full browser, merge approval to main (code is NOT on main), P1 closure. No push/deploy.
 
 Update7 2026-10-19 (follow-up admission VERIFIED in development, NOT on main): dev worktree
-/Users/sukhrob/.codex/worktrees/p1-followup-admission/owly head 9d37bc8 (base 7b7942a; commits
+/Users/sukhrob/.codex/worktrees/p1-followup-admission/ziyrak head 9d37bc8 (base 7b7942a; commits
 9320fbf, b85e349, 211d903, 9870516, 9d37bc8). Independent security review (read-only subagent,
 ran no checks): no leak/bypass; findings fixed in 9870516 (frozen workspace-bound control reader,
 outer tx timeout margin, notAfter validation, send from admitted row, sequential provider reads in
@@ -136,13 +136,13 @@ timing, housekeeping deletion approval.
 --- Earlier state (still valid for Settings) ---
 
 P1 incomplete/P2 ineligible, MS-2026-10-14; main docs-only. Development
-/Users/sukhrob/.codex/worktrees/p1-support-identity/owly clean504d08e: Settings product7fc5dab
+/Users/sukhrob/.codex/worktrees/p1-support-identity/ziyrak clean504d08e: Settings product7fc5dab
 plus login-wait harness repair. Product digest45f6b5e938e6393a402aebdaa7ca30dc6c020bc64d1b862804162b13622147d3.
 Affected53/full150files1476+1Redis-mode skip/signup81files936/type/strictlint pass exit0;
 independent security/harness source closure clear, reviewers ran no checks. Own3200/PG
 6green exit0 and exact-owned probe stopped/absent. Settings evidence/contract in docs.
 
-Runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly58e9ff3.
+Runtime /Users/sukhrob/.codex/worktrees/r1-delivery-reliability/ziyrak58e9ff3.
 Focused2 buildPd7JxJEi0zqIn_436mr1v J24passed exit0, screenshots inspected; exactowned
 stop/remainingOwned=[] verified. Same productdigest above. Full -settings-full.env
 freshEMPTY ziyrak_acceptance_p1_settings_20261015 recheckedBusiness0; full24 FAILED
@@ -162,7 +162,7 @@ stopped/remainingOwned=[] verified, failedDB/profiles retained. CorrectedJ24 and
 
 Administration89/afcab/buildOxGeKpu78acIcGaW740sU fresh23+supplementuser403/no persistence
 passed exit0, screenshots checked/exactstopnone; separate earlier source. Original
-p1-workspace-access/owly follow-upWIP19focused16pass3admission races excluded. Logout-
+p1-workspace-access/ziyrak follow-upWIP19focused16pass3admission races excluded. Logout-
 surviving schedule approved, final cutoff/R3 acceptance pending, no waivers. Nexteligible
 independent P1 afterSettings: safe support text-message read; restrictedmembereditor
 activation waits delayed lifecycle. Live7700/provider/account/userDB untouched. PairedDB/
@@ -255,7 +255,7 @@ review, full role-by-role browser run. Prohibited: push, P2/P3, deleting DBs/wor
 ## Update14 (2026-10-21, R3 Puppeteer 25 candidate verified, awaiting owner)
 
 Branch r3-puppeteer25 (head after this record; code commit fcb2487 on main a34f8bf), worktree
-/Users/sukhrob/.codex/worktrees/r3-puppeteer25/owly. Not merged, not pushed. Puppeteer 25 removes
+/Users/sukhrob/.codex/worktrees/r3-puppeteer25/ziyrak. Not merged, not pushed. Puppeteer 25 removes
 extract-zip: production audit 5 high -> 0, full 10 -> 5 (braces lint chain only). Verified on
 fcb2487: tsc/lint clean; unit 1573 passed / 23 skips, Redis-backed 1595 passed / 1 skip; Docker
 build + offline non-root probe; full browser 26/26 in headless-shell mode (fresh DB, frozen build).
@@ -277,7 +277,7 @@ deploy, P2/P3, deleting DBs/worktrees.
 
 ## Update16 (2026-10-21, P1 whole-surface review done; fixes on p1-closure)
 
-Branch p1-closure (worktree /Users/sukhrob/.codex/worktrees/p1-closure/owly, head 24d446a plus a docs
+Branch p1-closure (worktree /Users/sukhrob/.codex/worktrees/p1-closure/ziyrak, head 24d446a plus a docs
 commit; based on main 267ad99). Three independent agent reviews of the whole P1 surface; confirmed
 findings fixed tests-first (restricted-admin API keys, workspace-wide automation/flow/webhook config,
 shared customer delete, webhook job fail-closed, campaign pre-authority conversations, inbound resend
@@ -312,11 +312,11 @@ Owner declared P1 complete; tag phase-p1-complete on the commit containing this 
 
 ## Update20 (2026-10-22, P2 started)
 
-P1 complete and tagged. P2 proposal approved (docs/p2-managed-ai-proposal-2026-10-22.md, branch p2-managed-ai, worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/owly). Next: tests-first schema + reservation service, then resolution/enforcement, UI, migration script, security review, browser run, targeted real call with env keys. Prohibited: push/merge/deploy without approval.
+P1 complete and tagged. P2 proposal approved (docs/p2-managed-ai-proposal-2026-10-22.md, branch p2-managed-ai, worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/ziyrak). Next: tests-first schema + reservation service, then resolution/enforcement, UI, migration script, security review, browser run, targeted real call with env keys. Prohibited: push/merge/deploy without approval.
 
 ## Update21 (2026-10-22, P2 verified in development, awaiting merge approval)
 
-Branch p2-managed-ai (worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/owly), candidate ffbeeef plus
+Branch p2-managed-ai (worktree /Users/sukhrob/.codex/worktrees/p2-managed-ai/ziyrak), candidate ffbeeef plus
 this docs/harness commit. Implemented and verified per PLAN P2 result and
 docs/p2-managed-ai-implementation-2026-10-22.md: unit 167 files/1655, security review fixed, fresh-DB frozen
 browser J01-J26 + J27, live OpenAI check 3/3. Topology stopped, Redis container removed, ports free. DBs

@@ -1,6 +1,6 @@
 # Contributing to Ziyrak
 
-Current repository: [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app). This is the Ziyrak project derived from Owly; preserve upstream attribution in [LICENSE](LICENSE). Report security issues according to [SECURITY](SECURITY.md), not a public issue containing exploit details or secrets.
+Current repository: [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app). See [LICENSE](LICENSE) for the license terms. Report security issues according to [SECURITY](SECURITY.md), not a public issue containing exploit details or secrets.
 
 Read [AGENTS](AGENTS.md), the selected task in [PLAN](PLAN.md), [CURRENT](.agent/CURRENT.md) and [HANDOFF](.agent/HANDOFF.md). The current roadmap is [self-service launch preparation](docs/launch-roadmap-2026-10-25.md). Archived phases and wiki pages are not current implementation instructions.
 

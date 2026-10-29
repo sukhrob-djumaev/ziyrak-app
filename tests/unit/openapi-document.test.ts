@@ -15,7 +15,7 @@ describe("served OpenAPI document", () => {
   });
   it("describes the authentication the API really accepts", async () => {
     const spec = await (await GET()).json();
-    expect(spec.components.securitySchemes.cookieAuth.name).toBe("owly-token");
+    expect(spec.components.securitySchemes.cookieAuth.name).toBe("ziyrak-token");
     expect(spec.components.securitySchemes.apiKeyAuth).toMatchObject({ in: "header", name: "x-api-key" });
   });
 });

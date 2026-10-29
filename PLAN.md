@@ -87,7 +87,7 @@ The September 14 code inventory describes the pre-migration baseline; never rest
   scorer/acceptance corrections before broader quality claims. Cookie mutation origin/proxy hardening is included in L1.3.
 - Use isolated worktrees, dependencies, test databases and ports for product work.
   This host's main checkout supplies the live worker. Never run cleanup tests on
-  live `owly`, kill processes by name, or touch port 7700 and its remote-control tunnel.
+  live `ziyrak`, kill processes by name, or touch port 7700 and its remote-control tunnel.
 
 ## Approved product direction — managed service
 
@@ -277,10 +277,10 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
 
 ### R5 — Finish Ziyrak naming and branding
 
-- **Problem/evidence:** user-requested final cleanup (2026-10-14). Owly names remain
+- **Problem/evidence:** user-requested final cleanup (2026-10-14). Ziyrak names remain
   in visible UI/assets, documentation, package/deployment names and internal keys.
 - **Scope/exclusions:** one bounded inventory and rename pass after R4. Search
-  case-insensitively for `owly` and the whole word `owl` in tracked text and filenames;
+  case-insensitively for `ziyrak` and the whole word `owl` in tracked text and filenames;
   inspect referenced logos/icons as well. Update active product text, metadata,
   translations, owned assets, examples and safe internal identifiers to Ziyrak,
   updating all callers/references together. Do not rewrite historical evidence,
@@ -297,7 +297,7 @@ Full criteria and dated results: [docs/milestone-archive.md](docs/milestone-arch
   policy, including auth/session, persistence, deployment-reference or browser
   regressions if those are affected. Branding alone requires no real Meta send;
   a changed provider-facing identifier uses the normal boundary-verification gate.
-- **Completion criteria:** no unintended Owly/Owl branding remains in active product
+- **Completion criteria:** no unintended Ziyrak/Owl branding remains in active product
   surfaces; all retained matches are explained as attribution, history, third-party
   provenance or required compatibility. Links/assets/configuration remain valid and
   affected checks pass on the final candidate. This is the last milestone task;
@@ -597,10 +597,10 @@ The Development Execution Protocol above governs *implementation* — what gets 
 
 ### Repository ownership
 
-- Ziyrak uses its own Git history, beginning from the migration baseline (the new root commit created when Owly's original ancestry was detached).
-- Owly's original history is preserved separately for reference/provenance (backup branch, tag, and/or bundle) — not deleted.
-- Required MIT attribution/license notices from upstream Owly must remain intact in the working tree (`LICENSE`), unchanged by the history change.
-- Future work is committed to the Ziyrak repository/remote, not pushed to the original Owly remote.
+- Ziyrak uses its own Git history, beginning from the migration baseline (the new root commit created when Ziyrak's original ancestry was detached).
+- Ziyrak's original history is preserved separately for reference/provenance (backup branch, tag, and/or bundle) — not deleted.
+- Required MIT attribution/license notices from upstream Ziyrak must remain intact in the working tree (`LICENSE`), unchanged by the history change.
+- Future work is committed to the Ziyrak repository/remote, not pushed to the original Ziyrak remote.
 
 ### Commit philosophy
 

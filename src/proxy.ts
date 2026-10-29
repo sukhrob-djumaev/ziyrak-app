@@ -174,7 +174,7 @@ export async function proxy(request: NextRequest) {
     // A request with a validly signed session token is limited per session; everything else (anonymous, API key,
     // forged or expired token) per client address. Only the signature is checked here — requireAuth() still
     // decides whether the session is actually allowed to do anything.
-    const sessionToken = request.cookies.get("owly-token")?.value;
+    const sessionToken = request.cookies.get("ziyrak-token")?.value;
     const session = sessionToken ? verifyToken(sessionToken) : null;
     const isStream = pathname === "/api/realtime";
     // Keyed by the token's own id (`jti`, signed, not attacker-chosen), not by the user: a stolen token that has
@@ -203,7 +203,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Check for auth token (cookie) or API key (header)
-  const token = request.cookies.get("owly-token")?.value;
+  const token = request.cookies.get("ziyrak-token")?.value;
   const apiKey = request.headers.get("x-api-key");
 
   if (!token && !apiKey) {
@@ -261,7 +261,7 @@ export async function proxy(request: NextRequest) {
       );
     }
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("owly-token");
+    response.cookies.delete("ziyrak-token");
     return response;
   }
 

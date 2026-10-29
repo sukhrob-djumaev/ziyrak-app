@@ -21,7 +21,7 @@ afterAll(async () => {
   await cleanupBusiness(a.businessId);
   await cleanupBusiness(b.businessId);
 });
-const get = async (token: string) => (await import("@/app/api/billing/offer/route")).GET(createRequest("/api/billing/offer", { cookies: { "owly-token": token } }));
+const get = async (token: string) => (await import("@/app/api/billing/offer/route")).GET(createRequest("/api/billing/offer", { cookies: { "ziyrak-token": token } }));
 
 describe("GET /api/billing/offer", () => {
   it("shows the owner their baseline package, capabilities with sources, and seat use", async () => {

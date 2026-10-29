@@ -1,20 +1,14 @@
-# Ziyrak naming: retained compatibility identifiers (R5)
+# Ziyrak naming
 
-R5 renamed active product text, assets, Tailwind color tokens (`ziyrak-*`), the package name and the local image
-tag (`ziyrak:local`). The identifiers below keep the legacy `owly` name on purpose, because renaming them would
-sign users out, orphan data or break external consumers. `tests/unit/r5-branding-scan.test.ts` fails on any other
-Owly/Owl text in `src`, `public`, README, SECURITY, CONTRIBUTING and `package.json`.
+The product, package, cookie (`ziyrak-token`), Redis key prefix (`ziyrak:`), webhook header (`X-Ziyrak-Signature`),
+database names (`ziyrak`, `ziyrak_test`, `ziyrak_load`), Helm chart (`helm/ziyrak`), image tag (`ziyrak:local`) and
+localStorage key (`ziyrak-theme`) all use the Ziyrak name. No legacy-name compatibility shims remain.
 
-| Identifier | Why it stays | Safe transition |
-| --- | --- | --- |
-| Session cookie `owly-token` | Renaming signs every user out and changes the security-reviewed cookie contract. | Dual-read cookie in a dedicated auth change with its own security review. |
-| Default Redis key prefix `owly:` (`REDIS_KEY_PREFIX`) | Queues, cache and rate-limit state live under it. | Set `REDIS_KEY_PREFIX` to a new value at a quiet moment after draining queues. |
-| Webhook header `X-Owly-Signature` | Existing receivers verify it. | Both `X-Ziyrak-Signature` and `X-Owly-Signature` are sent with the same value; remove the legacy one after receivers move. |
-| Database names `owly`, `owly_test`, `owly_load`, compose `POSTGRES_DB`, CI service DB | Live/dev databases and volumes are named by it. | Never rename a live database as cosmetics; new installs may choose any name. |
-| Compose Redis password default `owly-local-redis` | Local-only default; changing it breaks running local containers. | Set `REDIS_PASSWORD`. |
-| Helm chart `helm/owly`, helper names `owly.*`, image `ghcr.io/hesper-labs/owly` | Deployed release and registry names. | New chart/registry path with a release migration plan. |
-| GitHub URLs `Hesper-Labs/owly`, `hsperus/owly` | Upstream repository provenance and license links. | None needed. |
-| Legacy localStorage key `owly-theme` | Read once and migrated to `ziyrak-theme`. (`owly-onboarding-dismissed` / `ziyrak-onboarding-dismissed` belonged to the legacy onboarding checklist, removed in L3.1; stale values are harmless.) | Remove migration code later. |
-| `public/ziyrak.png` artwork | Square crop of the final Ziyrak mark (brain + bolt), supplied by the owner 2026-10-24; source art is low resolution (882x324 lockup, kept as `public/ziyrak-logo.png`). | Replace both with vector/high-resolution art when available. |
-| History: `CHANGELOG.md`, `PLAN.md` records, `docs/*archive*`, `docs/implementation-history.md`, `.agent/` | Historical evidence is not rewritten. | None. |
-| `docs/screenshots/*.png` | Captured before the rename; regenerate with `scripts/screenshots.mjs` when needed. | Regenerate. |
+`tests/unit/r5-branding-scan.test.ts` fails if the previous product name reappears in any tracked text file.
+
+Rename migration notes (one-time, done 2026-10-29): existing sessions signed out once because the cookie name changed;
+Redis state under the old prefix was not carried over; local databases were renamed with `ALTER DATABASE`.
+
+`public/ziyrak.png` is a square crop of the final Ziyrak mark (brain + bolt), supplied by the owner 2026-10-24; the source
+art is low resolution (882x324 lockup, kept as `public/ziyrak-logo.png`). Replace both with vector art when available.
+`docs/screenshots/*.png` were captured before the rename; regenerate with `scripts/screenshots.mjs` when needed.

@@ -41,7 +41,7 @@ function req(actor: string, id: string, body: object) {
   return createRequest(`/api/admin/users/${id}`, {
     method: "PUT",
     body,
-    cookies: { "owly-token": generateToken(actor) },
+    cookies: { "ziyrak-token": generateToken(actor) },
   });
 }
 describe("workspace team authority (real route auth/Postgres)", () => {
@@ -71,7 +71,7 @@ describe("workspace team authority (real route auth/Postgres)", () => {
     const response = await POST(
       createRequest("/api/admin/users", {
         method: "POST",
-        cookies: { "owly-token": generateToken(actor.userId) },
+        cookies: { "ziyrak-token": generateToken(actor.userId) },
         body: { email, role: "admin" },
       })
     );
@@ -128,7 +128,7 @@ describe("workspace team authority (real route auth/Postgres)", () => {
     const d = await DELETE(
       createRequest(`/api/admin/users/${membership.id}`, {
         method: "DELETE",
-        cookies: { "owly-token": generateToken(adminId) },
+        cookies: { "ziyrak-token": generateToken(adminId) },
       }),
       { params: Promise.resolve({ id: membership.id }) }
     );
@@ -197,7 +197,7 @@ describe("workspace team authority (real route auth/Postgres)", () => {
             : await DELETE(
                 createRequest(`/api/admin/users/${row.id}`, {
                   method: "DELETE",
-                  cookies: { "owly-token": generateToken(adminId) },
+                  cookies: { "ziyrak-token": generateToken(adminId) },
                 }),
                 { params: Promise.resolve({ id: row.id }) }
               );

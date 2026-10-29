@@ -35,7 +35,7 @@ export function createRequest(path: string, options: RequestOptions = {}): NextR
     options.workspaceSelection !== false &&
     !Object.prototype.hasOwnProperty.call(cookies, "ziyrak-workspace")
   ) {
-    const selected = workspaceSelectionForToken(cookies["owly-token"]);
+    const selected = workspaceSelectionForToken(cookies["ziyrak-token"]);
     if (selected) request.cookies.set("ziyrak-workspace", selected);
   }
 
@@ -54,7 +54,7 @@ export function createAuthenticatedRequest(
   return createRequest(path, {
     ...options,
     cookies: {
-      "owly-token": token,
+      "ziyrak-token": token,
       ...options.cookies,
     },
   });

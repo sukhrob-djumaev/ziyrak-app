@@ -15,20 +15,20 @@ process.env.JWT_SECRET = "test-secret-key-for-testing-only";
 // never opens a real connection for them. tests/repository/*.test.ts
 // deliberately unmock it (§34.1/§34.2 — real Postgres required for the
 // tenant-scoping extension and composite-FK tests) and need a real,
-// reachable database; matches CI's own owly_test database/credentials
+// reachable database; matches CI's own ziyrak_test database/credentials
 // (.github/workflows/ci.yml) but only as a default, so a differently
 // configured environment isn't overridden.
 //
 // L1.1/F08: the repository tests delete control-plane rows, so the target must
 // be proven disposable before any test file loads. With nothing configured the
-// local owly_test default applies to BOTH URLs; anything configured must pass
+// local ziyrak_test default applies to BOTH URLs; anything configured must pass
 // scripts/safety/db-target.cjs (paired URLs, disposable name, local host,
 // explicit ZIYRAK_DISPOSABLE_DB ownership). No connection is made here.
 if (!process.env.DATABASE_URL && !process.env.DIRECT_DATABASE_URL) {
-  const local = "postgresql://postgres:postgres@localhost:5432/owly_test?schema=public";
+  const local = "postgresql://postgres:postgres@localhost:5432/ziyrak_test?schema=public";
   process.env.DATABASE_URL = local;
   process.env.DIRECT_DATABASE_URL = local;
-  process.env.ZIYRAK_DISPOSABLE_DB = "owly_test";
+  process.env.ZIYRAK_DISPOSABLE_DB = "ziyrak_test";
 }
 assertDisposableTarget(process.env, "test");
 process.env.NODE_ENV = "test";
@@ -36,7 +36,7 @@ process.env.NODE_ENV = "test";
 // adapters selected), every test file gets its own key namespace: files run
 // in parallel against one Redis, and a rate-limit/cache reset in one must
 // never reach another's counters. Unused (and harmless) without Redis.
-process.env.REDIS_KEY_PREFIX = `owly-test:${randomUUID()}:`;
+process.env.REDIS_KEY_PREFIX = `ziyrak-test:${randomUUID()}:`;
 // §46.4 — resolveAIConfig()/the new /api/settings/ai route round-trip real
 // SecretResolver.encrypt()/decrypt() calls (via the process-wide default
 // resolver, getSecretResolver()) rather than mocking the encryption layer

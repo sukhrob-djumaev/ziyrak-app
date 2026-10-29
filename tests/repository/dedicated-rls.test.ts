@@ -21,7 +21,7 @@ import { provisionDedicatedDatabase, migrateBusinessToDedicated, enableRowLevelS
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 
 const SHARED_URL = process.env.DATABASE_URL!;
-const DEDICATED_DB = `owly_rls_${Date.now()}_${process.pid}`;
+const DEDICATED_DB = `ziyrak_rls_${Date.now()}_${process.pid}`;
 const adminUrl = SHARED_URL.replace(/\/[^/?]+(\?|$)/, `/${DEDICATED_DB}$1`);
 const PROFILE_ID = `rls-test-${Date.now()}`;
 

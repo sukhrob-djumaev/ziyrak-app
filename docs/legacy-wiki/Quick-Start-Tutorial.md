@@ -16,8 +16,8 @@ This tutorial walks you through getting Ziyrak up and running with your first AI
 Clone the repository, install dependencies, and start the development server:
 
 ```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+git clone https://github.com/sukhrob-djumaev/ziyrak-app
+cd ziyrak
 cp .env.example .env
 ```
 

@@ -31,11 +31,11 @@ afterAll(async () => {
 });
 
 function asA(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenA, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenA, ...options.cookies } });
 }
 
 function asB(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenB, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenB, ...options.cookies } });
 }
 
 describe("GET/PUT /api/settings/ai (§46.4)", () => {
@@ -132,7 +132,7 @@ describe("PUT /api/settings/ai — supported Anthropic catalog, retired values n
   });
 
   function asC(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-    return createRequest(path, { ...options, cookies: { "owly-token": tokenC, ...options.cookies } });
+    return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenC, ...options.cookies } });
   }
 
   async function storeModel(aiProvider: string, aiModel: string | null) {

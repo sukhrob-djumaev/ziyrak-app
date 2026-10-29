@@ -15,15 +15,15 @@ cd "$here/../.."
 mode="${1:-both}"
 P=ziyrakload
 COMPOSE="docker compose -p $P -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale"
-# F08: the load target must be a proven disposable owly_load database (both URLs),
+# F08: the load target must be a proven disposable ziyrak_load database (both URLs),
 # validated before any Docker, Prisma or process side effect.
-DB_DIRECT="postgresql://postgres:postgres@localhost:55432/owly_load?schema=public"
+DB_DIRECT="postgresql://postgres:postgres@localhost:55432/ziyrak_load?schema=public"
 if [ "$mode" != down ]; then
   # An inherited (possibly production) URL must never leak into this run.
   for v in "${DATABASE_URL:-$DB_DIRECT}" "${DIRECT_DATABASE_URL:-$DB_DIRECT}"; do
     [ "$v" = "$DB_DIRECT" ] || { echo "Inherited DATABASE_URL/DIRECT_DATABASE_URL disagree with the load target; unset them." >&2; exit 1; }
   done
-  DATABASE_URL="$DB_DIRECT" DIRECT_DATABASE_URL="$DB_DIRECT" ZIYRAK_DISPOSABLE_DB=owly_load \
+  DATABASE_URL="$DB_DIRECT" DIRECT_DATABASE_URL="$DB_DIRECT" ZIYRAK_DISPOSABLE_DB=ziyrak_load \
     node scripts/safety/db-target.cjs load || exit 1
 fi
 # Exact image identity: content hash of HEAD plus the working tree, so a stale
@@ -62,7 +62,7 @@ fi
 
 echo "Starting Postgres ..."
 $COMPOSE up -d db
-until docker compose -p $P exec -T db pg_isready -U postgres -d owly_load >/dev/null 2>&1; do sleep 1; done
+until docker compose -p $P exec -T db pg_isready -U postgres -d ziyrak_load >/dev/null 2>&1; do sleep 1; done
 DATABASE_URL="$DB_DIRECT" DIRECT_DATABASE_URL="$DB_DIRECT" npx prisma migrate deploy >/dev/null
 
 echo "Starting the LLM stand-in (300 ms latency) ..."
@@ -96,9 +96,9 @@ run_mode() {
 # connections it took (app + worker replicas all share DEFAULT_POOL_SIZE).
 pgbouncer_report() {
   psql_admin() { $COMPOSE exec -T -e PGPASSWORD=postgres db psql -h pgbouncer -U postgres -d pgbouncer -At -F ' ' -c "$1"; }
-  pools="$(psql_admin 'SHOW POOLS;' | grep '^owly_load ' || true)"
-  xacts="$(psql_admin 'SHOW STATS;' | grep '^owly_load ' | awk '{print $2}' | head -1)"
-  server_conns="$($COMPOSE exec -T -e PGPASSWORD=postgres db psql -U postgres -d owly_load -At -c "SELECT count(*) FROM pg_stat_activity WHERE datname='owly_load' AND application_name <> 'psql'")"
+  pools="$(psql_admin 'SHOW POOLS;' | grep '^ziyrak_load ' || true)"
+  xacts="$(psql_admin 'SHOW STATS;' | grep '^ziyrak_load ' | awk '{print $2}' | head -1)"
+  server_conns="$($COMPOSE exec -T -e PGPASSWORD=postgres db psql -U postgres -d ziyrak_load -At -c "SELECT count(*) FROM pg_stat_activity WHERE datname='ziyrak_load' AND application_name <> 'psql'")"
   echo "PgBouncer pools: $pools"
   echo "PgBouncer transactions served: ${xacts:-0}; Postgres backend connections now: $server_conns (2 app + 2 worker replicas, DEFAULT_POOL_SIZE=20)"
   if echo "$pools" | grep -q ' transaction' && [ "${xacts:-0}" -gt 0 ]; then echo "PASS  runtime traffic went through PgBouncer in transaction-pooling mode"; else echo "FAIL  PgBouncer saw no transaction-pooled traffic"; return 1; fi
@@ -106,10 +106,10 @@ pgbouncer_report() {
 
 status=0
 case "$mode" in
-  up) up_stack "redis://:owly-local-redis@redis:6379"; echo "Replicas on :3201/:3202; seed: $(tail -1 "$work/seed.json"); tear down with: $0 down" ;;
-  redis) run_mode 1 "redis://:owly-local-redis@redis:6379" || status=1 ;;
+  up) up_stack "redis://:ziyrak-local-redis@redis:6379"; echo "Replicas on :3201/:3202; seed: $(tail -1 "$work/seed.json"); tear down with: $0 down" ;;
+  redis) run_mode 1 "redis://:ziyrak-local-redis@redis:6379" || status=1 ;;
   no-redis) run_mode 0 "" || status=1 ;;
-  both) run_mode 1 "redis://:owly-local-redis@redis:6379" || status=1; run_mode 0 "" || status=1 ;;
+  both) run_mode 1 "redis://:ziyrak-local-redis@redis:6379" || status=1; run_mode 0 "" || status=1 ;;
   *) echo "usage: $0 [redis|no-redis|both]"; exit 2 ;;
 esac
 exit $status

@@ -20,10 +20,7 @@ import { handleDeliverWebhook } from "@/lib/jobs/handlers/deliver-webhook";
 import { generateSignature } from "@/lib/integrations/webhook-delivery";
 import { dispatchHttpRequest } from "@/lib/integrations/http-dispatcher";
 
-/**
- * R5 branding transition: outgoing webhooks carry the Ziyrak names and keep the legacy
- * `X-Owly-Signature` header (same value) so existing receivers keep verifying.
- */
+/** Outgoing webhooks carry the Ziyrak user agent and signature header. */
 let a: SeededBusiness;
 const SECRET = "r5-fixture-webhook-secret";
 
@@ -39,7 +36,7 @@ afterEach(async () => {
 });
 
 describe("R5 outgoing webhook identity", () => {
-  it("sends Ziyrak user agent and signature, plus the legacy Owly signature with the same value", async () => {
+  it("sends the Ziyrak user agent and signature", async () => {
     const webhook = await prisma.webhook.create({
       data: {
         businessId: a.businessId,
@@ -79,6 +76,5 @@ describe("R5 outgoing webhook identity", () => {
     const expected = generateSignature(JSON.stringify(payload), SECRET);
     expect(headers["User-Agent"]).toBe("Ziyrak-Webhook/1.0");
     expect(headers["X-Ziyrak-Signature"]).toBe(expected);
-    expect(headers["X-Owly-Signature"]).toBe(expected);
   });
 });

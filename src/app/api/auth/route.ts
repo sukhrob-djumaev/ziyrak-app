@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
 
   if (action === "logout") {
     // End the session server-side, not just in the browser: a copied token must stop working too.
-    const presented = request.cookies.get("owly-token")?.value;
+    const presented = request.cookies.get("ziyrak-token")?.value;
     let revocationFailed = false;
     if (presented) {
       try {

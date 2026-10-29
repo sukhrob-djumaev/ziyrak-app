@@ -59,7 +59,7 @@ function request(path: string, token?: string, key?: string) {
     headers: key ? { "x-api-key": key } : {},
   });
   if (token) {
-    req.cookies.set("owly-token", token);
+    req.cookies.set("ziyrak-token", token);
     req.cookies.set("ziyrak-workspace", business.businessId);
   }
   return req;
@@ -241,7 +241,7 @@ describe("fresh dashboard stream authority, real Postgres", () => {
         where: { id: issuer.membership.id },
         data: { role: "admin" },
       });
-      const value = "owly_key_" + crypto.randomUUID();
+      const value = "ziyrak_key_" + crypto.randomUUID();
       const key = await prisma.apiKey.create({
         data: {
           businessId: business.businessId,

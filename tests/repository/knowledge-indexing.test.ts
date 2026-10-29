@@ -762,7 +762,7 @@ describe("Anthropic generation with no embedding provider (signed-up business, D
             aiModel: "claude-sonnet-5-5",
             aiApiKey: "sk-ant-generation-only",
           },
-          cookies: { "owly-token": generateToken(provisioned.userId) },
+          cookies: { "ziyrak-token": generateToken(provisioned.userId) },
         })
       );
       expect(saved.status).toBe(200);
@@ -850,7 +850,7 @@ describe("embedding configuration changes", () => {
       createRequest("/api/settings/ai", {
         method: "PUT",
         body: { embeddingProvider: "openai", embeddingApiKey: "sk-business-b-embedding" },
-        cookies: { "owly-token": generateToken(businessB.ownerUserId) },
+        cookies: { "ziyrak-token": generateToken(businessB.ownerUserId) },
       })
     );
     expect(response.status).toBe(200);
@@ -900,7 +900,7 @@ describe("API surface", () => {
     const response = await GET(
       createRequest("/api/knowledge/entries", {
         searchParams: { categoryId: category.id },
-        cookies: { "owly-token": generateToken(businessA.ownerUserId) },
+        cookies: { "ziyrak-token": generateToken(businessA.ownerUserId) },
       })
     );
     const data = await parseJsonResponse(response);

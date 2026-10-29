@@ -177,7 +177,7 @@ describe("Injection Attack Prevention", () => {
   describe("Error Response Safety", () => {
     it("should not leak database details in error responses", async () => {
       mockPrisma.conversation.findMany.mockRejectedValue(
-        new Error("PrismaClientKnownRequestError: Connection refused to database owly_production")
+        new Error("PrismaClientKnownRequestError: Connection refused to database ziyrak_production")
       );
 
       const { GET } = await import("@/app/api/conversations/route");
@@ -191,7 +191,7 @@ describe("Injection Attack Prevention", () => {
       // thrown Prisma error's text can never reach the response body.
       expect(data.error).toEqual({ code: "INTERNAL_ERROR", message: "An unexpected error occurred" });
       // Error message should NOT contain database details
-      expect(JSON.stringify(data)).not.toContain("owly_production");
+      expect(JSON.stringify(data)).not.toContain("ziyrak_production");
       expect(JSON.stringify(data)).not.toContain("PrismaClient");
     });
   });

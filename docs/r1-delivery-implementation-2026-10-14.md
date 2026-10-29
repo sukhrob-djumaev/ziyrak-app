@@ -2,7 +2,7 @@
 
 Approved scope: PLAN R1 and the October 14 delivery-contract correction.
 All product work runs in the isolated attached worktree; live main services,
-provider configuration and the `owly` database were not changed.
+provider configuration and the `ziyrak` database were not changed.
 
 ## Implemented, acceptance still open
 

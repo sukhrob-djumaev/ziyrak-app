@@ -3,7 +3,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/hesper-labs/owly
+  repository: ghcr.io/sukhrob-djumaev/ziyrak-app
   pullPolicy: IfNotPresent
   tag: ""  # Defaults to Chart.AppVersion
   digest: ""  # Optional sha256:... ; when set it wins over tag, so the exact tested image is deployed
@@ -119,7 +119,7 @@ database:
   url: ""
   host: "postgresql"
   port: 5432
-  name: "owly"
+  name: "ziyrak"
   user: "postgres"
   password: "postgres"
   sslMode: "prefer"

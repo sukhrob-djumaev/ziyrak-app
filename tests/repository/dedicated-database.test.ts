@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
  * business is provisioned onto a dedicated Postgres database and migrated
  * there with zero application-code changes (only control-plane rows plus a
  * data-migration run). Everything runs against throwaway databases created
- * on the test Postgres server; no customer data and never the live `owly`
+ * on the test Postgres server; no customer data and never the live `ziyrak`
  * database.
  */
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
@@ -21,7 +21,7 @@ import { PROCESS_INBOUND_MESSAGE_JOB } from "@/lib/jobs/job-types";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 
 const SHARED_URL = process.env.DATABASE_URL!;
-const DEDICATED_DB = `owly_dedicated_${Date.now()}_${process.pid}`;
+const DEDICATED_DB = `ziyrak_dedicated_${Date.now()}_${process.pid}`;
 const dedicatedUrl = SHARED_URL.replace(/\/[^/?]+(\?|$)/, `/${DEDICATED_DB}$1`);
 const PROFILE_ID = `dedicated-test-${Date.now()}`;
 const JOB_SCHEMA = `pgboss_dedicated_${process.pid}_${Date.now()}`;

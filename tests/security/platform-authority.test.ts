@@ -104,7 +104,7 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
           proof: "synthetic-wrong-proof",
         }),
       });
-      req.cookies.set("owly-token", a.token);
+      req.cookies.set("ziyrak-token", a.token);
       expect((await POST(req)).status).toBe(attempt < 5 ? 403 : 429);
     }
     expect(await prisma.platformControl.count()).toBe(0);
@@ -127,7 +127,7 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
         },
         body: JSON.stringify({ action: "bootstrap", ...enrollment(a.user.id) }),
       });
-      if (token) r.cookies.set("owly-token", token);
+      if (token) r.cookies.set("ziyrak-token", token);
       return r;
     }
     expect((await GET(req())).status).toBe(401);
@@ -141,7 +141,7 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
     const { GET, POST } = await import("@/app/api/platform/enrollment/route");
     const a = await account();
     const get = new NextRequest("http://localhost:3000/api/platform/enrollment");
-    get.cookies.set("owly-token", a.token);
+    get.cookies.set("ziyrak-token", a.token);
     const initial = await GET(get);
     expect(initial.status).toBe(200);
     expect(initial.headers.get("Cache-Control")).toContain("no-store");
@@ -156,7 +156,7 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
       headers: { origin: "http://localhost:3000", "content-type": "application/json" },
       body: JSON.stringify({ action: "bootstrap", ...enrollment(a.user.id) }),
     });
-    req.cookies.set("owly-token", a.token);
+    req.cookies.set("ziyrak-token", a.token);
     const enrolled = await POST(req);
     expect(enrolled.status).toBe(200);
     expect(await enrolled.json()).toEqual({ success: true, generation: 1 });
@@ -183,12 +183,12 @@ describe("platform bootstrap and recovery authority, isolated real Postgres", ()
         headers: { origin: "http://localhost:3000", "content-type": "application/json" },
         body,
       });
-      req.cookies.set("owly-token", a.token);
+      req.cookies.set("ziyrak-token", a.token);
       expect((await POST(req)).status).toBe(400);
     }
     await revokeToken(a.token);
     const get = new NextRequest("http://localhost:3000/api/platform/enrollment");
-    get.cookies.set("owly-token", a.token);
+    get.cookies.set("ziyrak-token", a.token);
     expect((await GET(get)).status).toBe(401);
     expect(await prisma.platformControl.count()).toBe(0);
   });
@@ -799,7 +799,7 @@ describe("operator HTTP and concurrent authority", () => {
       headers: { origin: "http://localhost:3000", "content-type": "application/json", ...headers },
       ...(method === "POST" ? { body: JSON.stringify(body ?? {}) } : {}),
     });
-    if (token) r.cookies.set("owly-token", token);
+    if (token) r.cookies.set("ziyrak-token", token);
     return r;
   }
   it("denies anonymous/key/cross-origin requests and returns only no-store management metadata", async () => {
@@ -1670,7 +1670,7 @@ describe("support grant management metadata and HTTP boundary", () => {
         },
         body: JSON.stringify(body),
       });
-      if (token) r.cookies.set("owly-token", token);
+      if (token) r.cookies.set("ziyrak-token", token);
       return r;
     };
     for (const response of [await GET(request()), await POST(request())]) {
@@ -1807,7 +1807,7 @@ function limitedSupportRequest(
       ...(options.apiKey !== undefined ? { "x-api-key": options.apiKey } : {}),
     },
   });
-  req.cookies.set("owly-token", options.token ?? fixture.actor.token);
+  req.cookies.set("ziyrak-token", options.token ?? fixture.actor.token);
   if (options.cookieWorkspace) req.cookies.set("ziyrak-workspace", options.cookieWorkspace);
   return req;
 }
@@ -2009,7 +2009,7 @@ describe("P1 request-local limited support list and exposure authority", () => {
     const request = new NextRequest("http://localhost:3000/api/conversations", {
       headers: { "x-workspace-id": x.x.workspace.id },
     });
-    request.cookies.set("owly-token", x.actor.token);
+    request.cookies.set("ziyrak-token", x.actor.token);
     const response = await GET(request);
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -2026,12 +2026,12 @@ describe("P1 request-local limited support list and exposure authority", () => {
       method: "DELETE",
       headers: { origin: "http://localhost:3000" },
     });
-    request.cookies.set("owly-token", x.actor.token);
+    request.cookies.set("ziyrak-token", x.actor.token);
     request.cookies.set("ziyrak-workspace", x.x.workspace.id);
     const response = await route.DELETE(request);
     expect(response.status).toBe(200);
     expect(response.cookies.get("ziyrak-workspace")?.value).toBe("");
-    expect(response.cookies.get("owly-token")).toBeUndefined();
+    expect(response.cookies.get("ziyrak-token")).toBeUndefined();
   });
   it.each(["assignment", "platform", "workspace", "expiry", "audit"] as const)(
     "denies initial support access after %s loss without owner fallback",
@@ -2130,7 +2130,7 @@ describe("P1 request-local limited support list and exposure authority", () => {
           ...(kind === "cross-site" ? { "sec-fetch-site": "cross-site" } : {}),
         },
       });
-      if (kind !== "anonymous") req.cookies.set("owly-token", x.actor.token);
+      if (kind !== "anonymous") req.cookies.set("ziyrak-token", x.actor.token);
       req.cookies.set("ziyrak-workspace", x.x.workspace.id);
       const response = await DELETE(req);
       expect(response.status).toBe(kind === "anonymous" ? 401 : 403);
@@ -2448,7 +2448,7 @@ describe("P1 request-local support text-message read", () => {
     const request = new NextRequest("http://localhost:3000" + messagesPath(x.visible.id), {
       headers: { "x-workspace-id": x.x.workspace.id },
     });
-    request.cookies.set("owly-token", x.actor.token);
+    request.cookies.set("ziyrak-token", x.actor.token);
     const response = await GET(request, { params: Promise.resolve({ id: x.visible.id }) });
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -2773,7 +2773,7 @@ describe("operator invitations, isolated real Postgres", () => {
         headers: { "content-type": "application/json", ...headers },
         body: JSON.stringify({ action: "invite", email: addr(), reason: "Synthetic route invite" }),
       });
-      request.cookies.set("owly-token", who.token);
+      request.cookies.set("ziyrak-token", who.token);
       return POST(request);
     };
     expect((await call(a, {})).status).toBe(403);

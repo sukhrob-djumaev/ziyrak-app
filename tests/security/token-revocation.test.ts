@@ -46,13 +46,13 @@ beforeEach(async () => {
 });
 
 const authed = (token: string, path = "/api/conversations") =>
-  createRequest(path, { cookies: { "owly-token": token } });
+  createRequest(path, { cookies: { "ziyrak-token": token } });
 const logout = (token: string) =>
   authPost(
     createRequest("/api/auth", {
       method: "POST",
       body: { action: "logout" },
-      cookies: { "owly-token": token },
+      cookies: { "ziyrak-token": token },
     })
   );
 
@@ -73,7 +73,7 @@ describe("logout revokes the presented session", () => {
 
     const response = await logout(token);
     expect(response.status).toBe(200);
-    expect(response.cookies.get("owly-token")?.value).toBe(""); // cookie still cleared
+    expect(response.cookies.get("ziyrak-token")?.value).toBe(""); // cookie still cleared
 
     const result = await requireAuth(authed(token));
     expect(isAuthenticated(result)).toBe(false);
@@ -92,7 +92,7 @@ describe("logout revokes the presented session", () => {
     const token = generateToken(business.ownerUserId);
     const cookieStore = await cookies();
     vi.mocked(cookieStore.get).mockImplementation(((name: string) =>
-      name === "owly-token"
+      name === "ziyrak-token"
         ? { name, value: token }
         : name === "ziyrak-workspace"
           ? { name, value: business.businessId }
@@ -109,7 +109,7 @@ describe("logout revokes the presented session", () => {
     const token = generateToken(business.ownerUserId);
     const page = () =>
       proxy(
-        new NextRequest("http://localhost:3000/", { headers: { cookie: `owly-token=${token}` } })
+        new NextRequest("http://localhost:3000/", { headers: { cookie: `ziyrak-token=${token}` } })
       );
     expect((await page()).headers.get("location") ?? "").not.toContain("/login");
     await logout(token);
@@ -219,7 +219,7 @@ describe("review findings: live streams, failed revocation, rate limit", () => {
     try {
       const response = await logout(token);
       expect(response.status).toBe(500);
-      expect(response.cookies.get("owly-token")?.value).toBe("");
+      expect(response.cookies.get("ziyrak-token")?.value).toBe("");
     } finally {
       spy.mockRestore();
     }

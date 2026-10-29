@@ -42,7 +42,7 @@ describe("tenant isolation: dashboard homepage Server Component", () => {
     const { cookies } = await import("next/headers");
     (cookies as ReturnType<typeof vi.fn>).mockResolvedValue({
       get: (name: string) =>
-        name === "owly-token"
+        name === "ziyrak-token"
           ? { value: tokenA }
           : name === "ziyrak-workspace"
             ? { value: businessA.businessId }

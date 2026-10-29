@@ -44,7 +44,7 @@ describe("explicit workspace entry (real auth/PG)", () => {
     const a = await seedBusiness("entry-a"),
       b = await seedBusiness("entry-b");
     owned.push(a.businessId, b.businessId);
-    const cookie = { "owly-token": generateToken(a.ownerUserId) };
+    const cookie = { "ziyrak-token": generateToken(a.ownerUserId) };
     const request = createRequest("/api/workspaces", {
       cookies: cookie,
       workspaceSelection: false,
@@ -104,7 +104,7 @@ describe("explicit workspace entry (real auth/PG)", () => {
     const { response, data } = await signup();
     expect(response.status).toBe(202);
     expect(response.cookies.get("ziyrak-workspace")).toBeUndefined();
-    expect(response.cookies.get("owly-token")).toBeUndefined();
+    expect(response.cookies.get("ziyrak-token")).toBeUndefined();
     expect(
       (await prisma.membership.findMany({ where: { businessId: data.business.id } })).map((m) => m.userId)
     ).toEqual([data.user.id]);

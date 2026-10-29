@@ -100,7 +100,7 @@ describe("Proxy", () => {
         { expiresIn: "7d" }
       );
       const request = createProxyRequest("/api/conversations", {
-        cookies: { "owly-token": validToken },
+        cookies: { "ziyrak-token": validToken },
       });
       const response = await proxy(request);
 
@@ -110,7 +110,7 @@ describe("Proxy", () => {
     it("should reject malformed token (not 3 parts)", async () => {
       const { proxy } = await import("@/proxy");
       const request = createProxyRequest("/api/conversations", {
-        cookies: { "owly-token": "not-a-jwt" },
+        cookies: { "ziyrak-token": "not-a-jwt" },
       });
       const response = await proxy(request);
 
@@ -126,7 +126,7 @@ describe("Proxy", () => {
         { expiresIn: "7d" }
       );
       const request = createProxyRequest("/api/conversations", {
-        cookies: { "owly-token": forgedToken },
+        cookies: { "ziyrak-token": forgedToken },
       });
       const response = await proxy(request);
 
@@ -141,13 +141,13 @@ describe("Proxy", () => {
         { expiresIn: "7d" }
       );
       const request = createProxyRequest("/conversations", {
-        cookies: { "owly-token": forgedToken },
+        cookies: { "ziyrak-token": forgedToken },
       });
       const response = await proxy(request);
 
       expect(response.status).toBe(307);
       expect(response.headers.get("Location")).toContain("/login");
-      expect(response.cookies.get("owly-token")?.value).toBe("");
+      expect(response.cookies.get("ziyrak-token")?.value).toBe("");
     });
   });
 

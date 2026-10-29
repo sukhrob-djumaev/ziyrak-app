@@ -118,7 +118,7 @@ remains open until the approved behavior is implemented and verified.
 ## New executed evidence and verification path
 
 Permanent fixture: `tests/unit/delivery-reliability.test.ts` in the attached
-isolated worktree `/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly`.
+isolated worktree `/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/ziyrak`.
 Dependencies were installed there with `npm ci --ignore-scripts`; no live
 dependencies, environment, provider accounts, databases or services were changed.
 

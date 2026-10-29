@@ -52,7 +52,7 @@ afterAll(async () => {
   }
   await prisma.catalogItem.deleteMany({ where: { id: { in: itemIds } } });
 });
-const authed = (path: string, options: Parameters<typeof createRequest>[1] = {}) => createRequest(path, { ...options, cookies: { "owly-token": token, ...options.cookies } });
+const authed = (path: string, options: Parameters<typeof createRequest>[1] = {}) => createRequest(path, { ...options, cookies: { "ziyrak-token": token, ...options.cookies } });
 
 describe("a package that lacks a capability stops the feature even for the owner", () => {
   it("webhooks: create, update, test and retry are refused with ENTITLEMENT_REQUIRED, reading still works", async () => {
@@ -131,7 +131,7 @@ describe("a package that lacks a capability stops the feature even for the owner
     recordWorkspaceSelection(viewer.id, biz.businessId);
     const viewerToken = generateToken(viewer.id);
     const { POST } = await import("@/app/api/webhooks/route");
-    const res = await POST(createRequest("/api/webhooks", { method: "POST", body: { name: "x", url: "https://example.com", triggerOn: "x" }, cookies: { "owly-token": viewerToken } }));
+    const res = await POST(createRequest("/api/webhooks", { method: "POST", body: { name: "x", url: "https://example.com", triggerOn: "x" }, cookies: { "ziyrak-token": viewerToken } }));
     expect([401, 403]).toContain(res.status);
     const body = await parseJsonResponse(res);
     expect(JSON.stringify(body)).not.toContain("ENTITLEMENT_REQUIRED");

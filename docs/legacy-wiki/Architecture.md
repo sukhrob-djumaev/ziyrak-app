@@ -63,7 +63,7 @@ The admin dashboard is a React-based single-page application served by Next.js. 
 ## Directory Structure
 
 ```
-owly/
+ziyrak/
 +-- prisma/
 |   +-- schema.prisma          # Database schema definition
 |   +-- migrations/            # Database migration files
@@ -187,7 +187,7 @@ Ziyrak uses JWT-based authentication with HTTP-only cookies.
 1. User submits username and password to `POST /api/auth`.
 2. The server verifies the password against the bcrypt hash stored in the `Admin` table.
 3. On success, a JWT token is generated containing the user's ID, username, and role.
-4. The token is set as an HTTP-only cookie named `owly-token`.
+4. The token is set as an HTTP-only cookie named `ziyrak-token`.
 5. The client is redirected to the dashboard.
 
 ### Request Authentication
@@ -195,7 +195,7 @@ Ziyrak uses JWT-based authentication with HTTP-only cookies.
 1. The Next.js middleware (`src/middleware.ts`) intercepts every request.
 2. Public paths (`/login`, `/setup`, `/api/auth`, `/api/health`) are allowed without authentication.
 3. Twilio webhook paths (`/api/channels/phone/*`) are allowed without cookie auth (Twilio uses its own signature verification).
-4. For all other paths, the middleware checks for the `owly-token` cookie.
+4. For all other paths, the middleware checks for the `ziyrak-token` cookie.
 5. If missing: API routes return `401 Unauthorized`, page routes redirect to `/login`.
 
 ### API Key Authentication

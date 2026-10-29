@@ -40,7 +40,7 @@ Normal tenant and dedicated database behavior retain the existing contracts.
   ordering: Prisma canonicalized them. A first expected403 pagination assertion was
   too strict (one bounded row was returned) and was corrected to assert that bound.
   Fresh construction/literal checks remain defensive helper hardening.
-- Clean isolated candidate in /Users/sukhrob/.codex/worktrees/p1-support-query/owly
+- Clean isolated candidate in /Users/sukhrob/.codex/worktrees/p1-support-query/ziyrak
   contains only these changes on0bfe1ae. Full148files **1426passed/1optional skip**,
   type and strict lint passed. Full suite includes real dedicated database/RLS and
   pg-boss worker-restart regressions. Signup-seeded79files **886passed**. The single

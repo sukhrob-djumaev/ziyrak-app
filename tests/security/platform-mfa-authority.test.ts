@@ -67,7 +67,7 @@ const login = async (body: Record<string, unknown>) => {
   });
   return POST(req);
 };
-const tokenFrom = (res: Response) => /owly-token=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")?.[1] ?? null;
+const tokenFrom = (res: Response) => /ziyrak-token=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")?.[1] ?? null;
 
 describe("platform authority and the second factor", () => {
   it("optional mode: an account that has not enrolled keeps working", async () => {
@@ -204,7 +204,7 @@ describe("admin reset and self-service enrollment routes", () => {
         headers: { "content-type": "application/json" },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
-      req.cookies.set("owly-token", token);
+      req.cookies.set("ziyrak-token", token);
       return body ? POST(req) : GET(req);
     };
     const token = generateToken(u.id);

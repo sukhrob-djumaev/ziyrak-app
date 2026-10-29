@@ -6,7 +6,7 @@ and running services were not modified. No push, merge or deployment.
 
 ## Candidate and changes
 
-Isolated checkout: `/Users/sukhrob/.codex/worktrees/r3-operational-safety/owly`.
+Isolated checkout: `/Users/sukhrob/.codex/worktrees/r3-operational-safety/ziyrak`.
 Parent `5bfbdca` contains the verified R1 candidate and ownership-safe harness.
 The [initial assessment](r3-operational-assessment-2026-10-14.md) is historical;
 [remediation audit evidence](evidence/r3-remediation-audit-2026-10-15.json)

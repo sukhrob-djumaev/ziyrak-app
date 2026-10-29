@@ -50,11 +50,11 @@ This section exists only for a reader comparing against the prior version of thi
 
 ## 1. Executive Summary
 
-**Is the current Owly repository a good foundation for Ziyrak?**
+**Is the current Ziyrak repository a good foundation for Ziyrak?**
 
-Yes, conditionally. Owly already solves several genuinely hard problems well — customer identity resolution across channels (`src/lib/customer-resolver.ts`), webhook delivery with real retry/backoff/HMAC signing (`src/lib/webhook-delivery.ts`), a clean additive RBAC model (`src/lib/rbac.ts`), consistent Zod validation (`src/lib/validations.ts`), and a working (if disconnected) semantic-search implementation (`src/lib/ai/semantic-search.ts`). The Next.js/Prisma/Postgres stack, the channel-per-module layout, and the dashboard-mirrors-API structure are all reasonable starting points. Rewriting these from zero would waste real, working engineering.
+Yes, conditionally. Ziyrak already solves several genuinely hard problems well — customer identity resolution across channels (`src/lib/customer-resolver.ts`), webhook delivery with real retry/backoff/HMAC signing (`src/lib/webhook-delivery.ts`), a clean additive RBAC model (`src/lib/rbac.ts`), consistent Zod validation (`src/lib/validations.ts`), and a working (if disconnected) semantic-search implementation (`src/lib/ai/semantic-search.ts`). The Next.js/Prisma/Postgres stack, the channel-per-module layout, and the dashboard-mirrors-API structure are all reasonable starting points. Rewriting these from zero would waste real, working engineering.
 
-However, Owly's foundational assumption — **one running instance = one business** — is incompatible with Ziyrak's core requirement (one platform serving many independent businesses with hard data isolation). This assumption is load-bearing throughout the codebase: a single `Settings` singleton row (`id: "default"`), a single `Admin` table with no tenant concept, a single `Channel` row per channel *type* (not per tenant), API keys that resolve to global admin access, and module-level singleton state for WhatsApp/IMAP sessions. None of this is a surface-level fix; it is the central assumption the rest of the schema and runtime are built on.
+However, Ziyrak's foundational assumption — **one running instance = one business** — is incompatible with Ziyrak's core requirement (one platform serving many independent businesses with hard data isolation). This assumption is load-bearing throughout the codebase: a single `Settings` singleton row (`id: "default"`), a single `Admin` table with no tenant concept, a single `Channel` row per channel *type* (not per tenant), API keys that resolve to global admin access, and module-level singleton state for WhatsApp/IMAP sessions. None of this is a surface-level fix; it is the central assumption the rest of the schema and runtime are built on.
 
 **Which major architectural assumptions must change?**
 
@@ -109,7 +109,7 @@ This section documents what the application **actually does**, based on direct s
 - No job queue package in `package.json` (no BullMQ, Agenda, Bull, pg-boss, node-cron, node-schedule). No queue infrastructure in `docker-compose.yml` or the Helm chart.
 - `node_modules` is **not installed** in this working tree — `npm ci` has not been run here, so the AGENTS.md instruction to consult `node_modules/next/dist/docs/` before writing Next.js-specific code cannot be followed until dependencies are installed (tracked as a Phase 0 setup task, §46.0).
 - Redis is optional everywhere it appears (`src/lib/cache.ts` dynamically imports `redis` only if `REDIS_URL` is set) — it is not a dependency in `package.json` at all, meaning even the "Redis path" in `cache.ts` would fail at runtime today unless a consumer separately installs the `redis` package.
-- Helm chart (`helm/owly/templates/hpa.yaml`) defines a `HorizontalPodAutoscaler` gated on `autoscaling.enabled` — **the deployment tooling already advertises horizontal scaling that the runtime cannot currently support safely** (see §2.7). This inconsistency is a concrete artifact of the single-instance assumption not being enforced anywhere; Phase 8 (§46.8, scalability) is what actually earns the HPA.
+- Helm chart (`helm/ziyrak/templates/hpa.yaml`) defines a `HorizontalPodAutoscaler` gated on `autoscaling.enabled` — **the deployment tooling already advertises horizontal scaling that the runtime cannot currently support safely** (see §2.7). This inconsistency is a concrete artifact of the single-instance assumption not being enforced anywhere; Phase 8 (§46.8, scalability) is what actually earns the HPA.
 
 ### 2.2 Security — authentication bypass at the original baseline
 
@@ -125,7 +125,7 @@ It never calls `verifyToken()` (which lives in `src/lib/auth.ts:35-43` and does 
 
 | Route | File | Verified impact |
 |---|---|---|
-| `POST /api/chat` | `src/app/api/chat/route.ts` | Calls `chat()` directly with attacker-controlled `message`/`conversationId`/`channel`. Any request with a cookie of the form `owly-token=a.b.c` (any garbage — signature is never checked) reaches the full AI agent, including all six tool-calling actions in `src/lib/ai/tools.ts` (create tickets, send internal email via configured SMTP, trigger configured webhooks). |
+| `POST /api/chat` | `src/app/api/chat/route.ts` | Calls `chat()` directly with attacker-controlled `message`/`conversationId`/`channel`. Any request with a cookie of the form `ziyrak-token=a.b.c` (any garbage — signature is never checked) reaches the full AI agent, including all six tool-calling actions in `src/lib/ai/tools.ts` (create tickets, send internal email via configured SMTP, trigger configured webhooks). |
 | `GET /api/realtime` | `src/app/api/realtime/route.ts` | No auth check of any kind — `subscribe(channel, ...)` is called directly off `?channel=` query param. Anyone can open an SSE stream to `global` or any guessed `conversation:<id>` channel and watch live messages. |
 | `POST /api/channels/whatsapp` | `src/app/api/channels/whatsapp/route.ts` | `{action:"disconnect"}` kills the WhatsApp session; `{action:"connect"}` can be spammed to churn Puppeteer instances. No auth check. |
 | `POST /api/channels/email` | `src/app/api/channels/email/route.ts` | Same pattern for the IMAP listener. No auth check. |
@@ -196,7 +196,7 @@ Also confirmed: there is no cron, no `node-cron`/`setInterval`-based scheduler a
 | DB connections | `src/lib/prisma.ts` | One `PrismaPg` adapter, default pool sizing, no `connection_limit` tuning, no PgBouncer anywhere in `docker-compose.yml`/Helm | Connection exhaustion is the likely first bottleneck once replica count > 1, with zero current mitigation |
 | Campaign targeting | `src/lib/campaigns.ts:62-86` | `findTargetCustomers()` fetches `take: 1000` and filters segments in Node, not SQL | Past 1000 customers, campaigns silently target only the first 1000 fetched; filtering does not use any index |
 
-Deployment reality check: `docker-compose.yml` ships exactly one `app` + one `db` container. The **Helm chart already defines an HPA** (`helm/owly/templates/hpa.yaml`) gated on `autoscaling.enabled` — meaning the deployment tooling is already prepared to run multiple replicas, but every stateful piece above would silently misbehave (not error — misbehave) if that HPA were ever turned on today. This is flagged prominently because it's the kind of gap that causes a real incident: someone enables autoscaling because the chart supports it, and rate limiting/realtime/WhatsApp silently break with no error message pointing at the cause.
+Deployment reality check: `docker-compose.yml` ships exactly one `app` + one `db` container. The **Helm chart already defines an HPA** (`helm/ziyrak/templates/hpa.yaml`) gated on `autoscaling.enabled` — meaning the deployment tooling is already prepared to run multiple replicas, but every stateful piece above would silently misbehave (not error — misbehave) if that HPA were ever turned on today. This is flagged prominently because it's the kind of gap that causes a real incident: someone enables autoscaling because the chart supports it, and rate limiting/realtime/WhatsApp silently break with no error message pointing at the cause.
 
 ### 2.8 Data model inconsistencies confirmed directly against `prisma/schema.prisma`
 
@@ -228,7 +228,7 @@ No test currently exercises: tenant isolation (no tenant concept exists yet, so 
 
 ### 2.11 Where this document's findings differ from `AUDIT.md` / `ARCHITECTURE.md`
 
-> **Provenance note (2026-09-30).** `AUDIT.md` and `ARCHITECTURE.md` were local working notes written on 2026-09-14 about the Owly codebase *before* any Ziyrak phase began. They were never committed to the Ziyrak repository and are intentionally absent from it. They describe a system that Phases 0–7 have since replaced (the unverified-JWT `middleware.ts`, the `Settings` singleton, single-tenant data access, the orphaned runtime features, no job queue), so they must not be read as describing the current code. Their verified findings are carried in §2 above; this document remains the sole architecture and execution source of truth.
+> **Provenance note (2026-09-30).** `AUDIT.md` and `ARCHITECTURE.md` were local working notes written on 2026-09-14 about the Ziyrak codebase *before* any Ziyrak phase began. They were never committed to the Ziyrak repository and are intentionally absent from it. They describe a system that Phases 0–7 have since replaced (the unverified-JWT `middleware.ts`, the `Settings` singleton, single-tenant data access, the orphaned runtime features, no job queue), so they must not be read as describing the current code. Their verified findings are carried in §2 above; this document remains the sole architecture and execution source of truth.
 
 Both documents are accurate as of their own write time (2026-09-14, same day) and every major claim in `AUDIT.md` was independently re-verified above and found still true in the current working tree. The differences are additive, not corrective:
 
@@ -1020,7 +1020,7 @@ model ApiKey {
 }
 ```
 
-Key generation produces a secret of the shape `zy_live_<random>`; the **full** secret is shown to the user exactly once, at creation time, and never again — matching the now-standard pattern used by Stripe, GitHub, and similar platforms. `authenticateApiKey(presentedKey)` extracts the prefix (a fast, non-secret lookup to narrow the candidate row), hashes the full presented key, and compares against `keyHash` — a database compromise discloses only hashes, not reusable secrets, directly closing the finding in §2.9. `authenticateApiKey()` then resolves `{ businessId: key.businessId, role: key.role, actor: { kind: "api_key", id: key.id } }` instead of hardcoding `role: "admin"`. An API key can never be assigned `role: "owner"` (enforced at creation time), since owner-only actions (deleting the business) should never be reachable by a leaked long-lived key. `revokedAt`/`expiresAt` give immediate, first-class revocation and optional time-boxing without needing to delete the row (preserving its audit trail) — neither existed in the first pass or in current Owly.
+Key generation produces a secret of the shape `zy_live_<random>`; the **full** secret is shown to the user exactly once, at creation time, and never again — matching the now-standard pattern used by Stripe, GitHub, and similar platforms. `authenticateApiKey(presentedKey)` extracts the prefix (a fast, non-secret lookup to narrow the candidate row), hashes the full presented key, and compares against `keyHash` — a database compromise discloses only hashes, not reusable secrets, directly closing the finding in §2.9. `authenticateApiKey()` then resolves `{ businessId: key.businessId, role: key.role, actor: { kind: "api_key", id: key.id } }` instead of hardcoding `role: "admin"`. An API key can never be assigned `role: "owner"` (enforced at creation time), since owner-only actions (deleting the business) should never be reachable by a leaked long-lived key. `revokedAt`/`expiresAt` give immediate, first-class revocation and optional time-boxing without needing to delete the row (preserving its audit trail) — neither existed in the first pass or in current Ziyrak.
 
 ### 9.5 `ExecutionPrincipal` and AI/system authorization — decoupled from human RBAC (review concern 5, new in this revision)
 
@@ -1207,7 +1207,7 @@ Legend: **[new]** net-new model · **[split]** replaces part of an existing mode
 
 ### 13.1 Guiding rule
 
-Every business currently using this single-tenant installation becomes exactly one row in `Business` — a **"Default Business"** — and every existing row in every table gets backfilled with that business's ID. Nothing is deleted. This directly satisfies the instruction not to discard existing data absent a strong reason, and keeps existing dev/seed/demo data (and, for a real self-hosted Owly deployment being migrated to Ziyrak, the operator's actual production data) intact and queryable exactly as before, just now tenant-scoped.
+Every business currently using this single-tenant installation becomes exactly one row in `Business` — a **"Default Business"** — and every existing row in every table gets backfilled with that business's ID. Nothing is deleted. This directly satisfies the instruction not to discard existing data absent a strong reason, and keeps existing dev/seed/demo data (and, for a real self-hosted Ziyrak deployment being migrated to Ziyrak, the operator's actual production data) intact and queryable exactly as before, just now tenant-scoped.
 
 ### 13.2 Migration sequence (expand → backfill → contract, applied per Prisma migration)
 
@@ -1732,7 +1732,7 @@ A `KnowledgeIngestor` boundary is named (not fully built) for future sources bey
 
 ### 23.1 The problem with today's shape
 
-`owlyTools` (`tools.ts:5-158`) is a flat array shared by every business, and `executeToolCall()` (`tools.ts:160-181`) is a `switch` statement — both are described exactly by the product brief's warned-against anti-pattern. There is no per-tenant availability, no permission check before execution (any tool the AI decides to call runs, regardless of the current conversation's channel/business), and no audit trail beyond whatever log line `logger` happens to emit inside each handler. Additionally — the specific gap review concern 5 identifies — there is no way to express "the AI may do X automatically, but a human must approve Y" at all, since there is no policy dimension separate from a (today nonexistent) role check.
+`ziyrakTools` (`tools.ts:5-158`) is a flat array shared by every business, and `executeToolCall()` (`tools.ts:160-181`) is a `switch` statement — both are described exactly by the product brief's warned-against anti-pattern. There is no per-tenant availability, no permission check before execution (any tool the AI decides to call runs, regardless of the current conversation's channel/business), and no audit trail beyond whatever log line `logger` happens to emit inside each handler. Additionally — the specific gap review concern 5 identifies — there is no way to express "the AI may do X automatically, but a human must approve Y" at all, since there is no policy dimension separate from a (today nonexistent) role check.
 
 ### 23.2 The registry
 
@@ -1740,7 +1740,7 @@ A `KnowledgeIngestor` boundary is named (not fully built) for future sources bey
 export interface ToolResult { success: boolean; message: string; data?: unknown; status: ActionStatus; }
 export interface ToolDefinition {
   name: string;
-  description: string;                 // exposed to the AI, same copy as today's owlyTools descriptions
+  description: string;                 // exposed to the AI, same copy as today's ziyrakTools descriptions
   schema: z.ZodType;                    // replaces the hand-written JSON-schema `parameters` blocks with Zod (reuses validations.ts conventions)
   requiredPermission?: Permission;      // e.g. "tickets:create" — checked for HUMAN actors only (§9.5)
   execute(ctx: TenantContext, args: unknown, runtimeCtx: { conversationId?: string; toolCallId?: string }): Promise<ToolResult>;
@@ -2406,7 +2406,7 @@ These additions supersede the named older deferrals without claiming implementat
 
 ### 44.1 Original migration MVP boundary
 
-| Included in MVP | Excluded from MVP (exists in Owly today, retained but not required to be reconnected/hardened for v1) |
+| Included in MVP | Excluded from MVP (exists in Ziyrak today, retained but not required to be reconnected/hardened for v1) |
 |---|---|
 | `Business`/`Membership`/tenant isolation, all five layers (Phase 1-2) | Platform support tooling was excluded from this original MVP; now scheduled in P1 (§15.2) |
 | Secure-by-default auth (Phase 0/2) | Plugin/hook system (§46.6 — deprecated, not shipped) |
@@ -2860,7 +2860,7 @@ Historical implementation, reviews and acceptance evidence: [Phase 5 record](doc
 *(This phase merges the first pass's Phase 6 "Tool/Action Registry" and Phase 7 "Job Queue/Workers" into one phase, per review concern 11 — see §45.1 for why. It is internally sequenced as three ordered PRs, described in the task list below, specifically so no externally-visible state ever claims durability the codebase doesn't yet have.)*
 
 ### Objective
-Replace `owlyTools`/`executeToolCall`'s switch statement with the `ToolRegistry` (§23); introduce `ActionExecution` (§24) with the attempt-scoped idempotency redesign (§24.4, review concern 10); introduce the `ToolPolicy`/`ExecutionPrincipal` split so AI authorization is independent of human RBAC (§9.5/§23.4, review concern 5); stand up pg-boss and the worker process (§25); implement per-conversation ordering via singleton keys (§25.5, review concern 9); build the shared, DNS-resolution-aware SSRF-hardened outbound HTTP dispatcher (§32.1, review concern 19); make the explicit, reasoned keep/deprecate call on automation rules vs. the flow builder (§44.2); and — because the queue now exists in the same phase — make `schedule_followup`, webhook retry, SLA breach checking, retention, and campaign sending durably real, closing every decorative-scheduling finding from §2.4 in one coherent phase rather than across two with a gap between them.
+Replace `ziyrakTools`/`executeToolCall`'s switch statement with the `ToolRegistry` (§23); introduce `ActionExecution` (§24) with the attempt-scoped idempotency redesign (§24.4, review concern 10); introduce the `ToolPolicy`/`ExecutionPrincipal` split so AI authorization is independent of human RBAC (§9.5/§23.4, review concern 5); stand up pg-boss and the worker process (§25); implement per-conversation ordering via singleton keys (§25.5, review concern 9); build the shared, DNS-resolution-aware SSRF-hardened outbound HTTP dispatcher (§32.1, review concern 19); make the explicit, reasoned keep/deprecate call on automation rules vs. the flow builder (§44.2); and — because the queue now exists in the same phase — make `schedule_followup`, webhook retry, SLA breach checking, retention, and campaign sending durably real, closing every decorative-scheduling finding from §2.4 in one coherent phase rather than across two with a gap between them.
 
 ### Why now
 Depends on Phase 4's `AIOrchestrator` (tools are invoked from within it) and Phase 5's channel adapters (the campaign-send fix needs `ChannelAdapter.sendMessage()`, and the `process-inbound-message` jobs Phase 5's webhook routes already enqueue need this phase's real queue to actually run). This is also the phase that closes the SSRF gap shared by `trigger_webhook` and `webhook-delivery.ts`, since both are being touched here.
@@ -2873,7 +2873,7 @@ Depends on Phase 4's `AIOrchestrator` (tools are invoked from within it) and Pha
 - `src/lib/conversation-engine.ts`'s `checkSLABreaches()` (§2.4, dead).
 - `src/lib/gdpr.ts`'s `applyRetentionPolicy()` (§2.4, dead).
 - `src/instrumentation.ts`/`src/lib/shutdown.ts` (graceful shutdown must now also drain the worker).
-- `package.json`, `docker-compose.yml`, `helm/owly/templates/` (new `worker` service).
+- `package.json`, `docker-compose.yml`, `helm/ziyrak/templates/` (new `worker` service).
 - The `process-inbound-message` job handler stubbed in Phase 5 (§46.5 task 6) — this phase completes its backing queue.
 
 ### Target change
@@ -2886,7 +2886,7 @@ Depends on Phase 4's `AIOrchestrator` (tools are invoked from within it) and Pha
 2. Implement `ExecutionPrincipal` resolution for `ai_agent`/`system_job` actors (§9.5) and wire `ToolRegistry.getAvailableTools()`/`.execute()` to branch on `actor.kind` per §23.2/§9.5 — `ToolPolicy` for AI, RBAC for humans, never conflated.
 3. Extract the five **synchronous** existing tools (`create_ticket`, `assign_to_person`, `send_internal_email`, `get_customer_history`, `trigger_webhook`) into `src/lib/tools/builtin/*.ts`, adding Zod schemas, `requiredPermission`, and seeded default `ToolPolicy` rows per §23.4's table.
 4. Build the shared, DNS-resolution-aware SSRF-hardened HTTP dispatcher (§32.1) and route `trigger_webhook` through it immediately (`webhook-delivery.ts` is routed through it in PR 2, once its retry mechanism is being touched anyway).
-5. Wire `AIOrchestrator` to call `toolRegistry.getAvailableTools(ctx)`/`toolRegistry.execute(...)` instead of the hardcoded `owlyTools` array and `executeToolCall` switch. **`schedule_followup` is defined but its `ToolPolicy.enabledForTenant` defaults to `false` and it is excluded from `getAvailableTools()` — it does not become available until PR 3.**
+5. Wire `AIOrchestrator` to call `toolRegistry.getAvailableTools(ctx)`/`toolRegistry.execute(...)` instead of the hardcoded `ziyrakTools` array and `executeToolCall` switch. **`schedule_followup` is defined but its `ToolPolicy.enabledForTenant` defaults to `false` and it is excluded from `getAvailableTools()` — it does not become available until PR 3.**
 6. Reconnect `automation.ts`'s `evaluateRules()` into `processInboundMessage()` (§44.2's decision), tenant-scoped, with its matched actions actually executed via the `ToolRegistry`/direct conversation-mutation calls rather than just returned and discarded as today. Newly-migrated `AutomationRule.isActive` rows default to requiring an explicit re-confirmation in the dashboard before taking effect post-migration, so no business is surprised by dormant configuration suddenly activating.
 7. Remove the flow-builder and plugin-system UI/routes from the tenant-facing dashboard (§44.2's decision) — retain the underlying code (`flow-builder.ts`, `plugins.ts`) per the instruction not to discard working logic without strong reason, with a code comment/README note explaining the deprecation.
 
@@ -2939,7 +2939,7 @@ Additive: `ActionExecution`, `ToolPolicy` tables, plus pg-boss's own schema tabl
 Phase 4 and Phase 5 complete (`AIOrchestrator` and `ChannelAdapter`, including Phase 5's provisional job-enqueue interface, are both call targets for this phase's work).
 
 ### Explicitly deferred
-Redis-backed queue (BullMQ) — not needed; pg-boss is the standing recommendation unless Phase 8 finds a concrete throughput reason to revisit (§25.1). Per-business job-fan-out for sweeps — noted, not built, unless scale demands it. Third-party/tenant-defined custom tools — a natural registry extension, not built now. A real high-stakes, `requiresHumanApproval` built-in tool (e.g., an actual refund/payment action) — no such tool exists in Owly today to migrate, and none is required for the MVP (§44); the `pending_approval` mechanism is built and tested against a synthetic test tool so it is proven and ready the day a real one is added.
+Redis-backed queue (BullMQ) — not needed; pg-boss is the standing recommendation unless Phase 8 finds a concrete throughput reason to revisit (§25.1). Per-business job-fan-out for sweeps — noted, not built, unless scale demands it. Third-party/tenant-defined custom tools — a natural registry extension, not built now. A real high-stakes, `requiresHumanApproval` built-in tool (e.g., an actual refund/payment action) — no such tool exists in Ziyrak today to migrate, and none is required for the MVP (§44); the `pending_approval` mechanism is built and tested against a synthetic test tool so it is proven and ready the day a real one is added.
 
 ### Implementation history
 
@@ -3022,7 +3022,7 @@ Sequenced last among the "must-have-before-scale" work specifically because ever
 - `src/lib/rate-limit.ts`, `src/lib/cache.ts` (in-memory implementations, §2.7).
 - `src/lib/realtime/` (Phase 5's `RealtimeBus`, currently `InMemoryRealtimeBus` only).
 - `src/lib/platform/tenant-placement.ts` (Phase 3, connection pooling/caching).
-- `docker-compose.yml`, `helm/owly/templates/hpa.yaml`, `helm/owly/values.yaml`.
+- `docker-compose.yml`, `helm/ziyrak/templates/hpa.yaml`, `helm/ziyrak/values.yaml`.
 - `package.json` (add `redis` as a real, non-dynamically-guessed dependency, §2.1/§29).
 
 ### Target change

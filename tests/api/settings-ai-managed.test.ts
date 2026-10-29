@@ -50,7 +50,7 @@ beforeEach(async () => {
 });
 
 const req = (method: string, body?: unknown) =>
-  createRequest("/api/settings/ai", { method, body, cookies: { "owly-token": token } });
+  createRequest("/api/settings/ai", { method, body, cookies: { "ziyrak-token": token } });
 
 async function usedTokens(n: number) {
   await prisma.aiUsageReservation.create({

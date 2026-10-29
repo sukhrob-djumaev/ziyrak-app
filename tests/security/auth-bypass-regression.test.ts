@@ -97,7 +97,7 @@ describe("Auth bypass regression (§2.2 / §46.0)", () => {
       const request = createRequest(path, {
         method,
         body,
-        cookies: { "owly-token": "not-a-real-token" },
+        cookies: { "ziyrak-token": "not-a-real-token" },
       });
       const response = await handler(request);
 
@@ -109,7 +109,7 @@ describe("Auth bypass regression (§2.2 / §46.0)", () => {
       const request = createRequest(path, {
         method,
         body,
-        cookies: { "owly-token": forgedToken() },
+        cookies: { "ziyrak-token": forgedToken() },
       });
       const response = await handler(request);
 

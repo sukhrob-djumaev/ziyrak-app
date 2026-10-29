@@ -289,7 +289,7 @@ describe("settings changes use the shared scan", () => {
       createRequest("/api/settings/ai", {
         method: "PUT",
         body: { embeddingProvider: "openai", embeddingApiKey: "sk-reindex-b" },
-        cookies: { "owly-token": generateToken(businessB.ownerUserId) },
+        cookies: { "ziyrak-token": generateToken(businessB.ownerUserId) },
       })
     );
     expect(response.status).toBe(200);

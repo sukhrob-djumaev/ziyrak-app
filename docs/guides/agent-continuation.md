@@ -7,12 +7,12 @@ The owner approved LP-2026-10-25 launch preparation through L6. The next impleme
 Open this repository in either application and send **`continue`**. For a fresh terminal session, choose one:
 
 ```sh
-cd /Users/sukhrob/Development/Repos/JS/owly
+cd /Users/sukhrob/Development/Repos/JS/ziyrak
 claude "continue"
 ```
 
 ```sh
-codex -C /Users/sukhrob/Development/Repos/JS/owly "continue"
+codex -C /Users/sukhrob/Development/Repos/JS/ziyrak "continue"
 ```
 
 Claude also has `/ziyrak run` (alias of `/ziyrak continue`) and read-only `/ziyrak status`. Plain `continue` is the shared path. Use the installed client's normal account/model/permission configuration; do not bypass sandbox/approval controls or use a mode that skips repository instructions. Local CLI help verified these invocation forms on 2026-10-25; account access remains a client prerequisite.

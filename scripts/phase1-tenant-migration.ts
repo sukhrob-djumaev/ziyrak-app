@@ -21,7 +21,7 @@ import { getSecretResolver } from "../src/lib/secrets/env-key-resolver";
 import { runPhase1TenantMigration } from "./phase1-migration-steps";
 
 const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/owly?schema=public";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/ziyrak?schema=public";
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 

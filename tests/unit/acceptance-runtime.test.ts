@@ -164,7 +164,7 @@ describe("acceptance owned-process recovery", () => {
     const f = fixture();
     const env = {
       ...f.env,
-      ACC_DB: "postgresql://fixture:fixture@127.0.0.1:1/owly",
+      ACC_DB: "postgresql://fixture:fixture@127.0.0.1:1/ziyrak",
       DATABASE_URL: "",
       DIRECT_DATABASE_URL: "",
     };

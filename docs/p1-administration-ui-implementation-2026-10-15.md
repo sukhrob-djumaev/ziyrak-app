@@ -4,7 +4,7 @@
 
 Contract p1-administration-ui-contract-2026-10-15.md, PLAN P1 §§8/9/15/16.
 Code identity is the containing local commit, based onc199376. Isolated development
-checkout p1-support-identity/owly excludes the incomplete follow-up integration.
+checkout p1-support-identity/ziyrak excludes the incomplete follow-up integration.
 
 Server /admin resolves fresh selected cookie/session/membership and requires existing
 admin:read before mounting its client. Missing context redirects to workspace entry;

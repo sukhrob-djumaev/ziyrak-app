@@ -24,7 +24,7 @@
 - Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
-- Legacy-name rename complete on branch `chore/rename-legacy-to-ziyrak` (worktree ../ziyrak-wt-rename): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. NOT merged: needs exact-head CI green + browser run; local DB needs the old-named dev DB renamed to `ziyrak`.
+- Legacy-name rename MERGED (PR #57, `0992611`): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. Exact-head `ac83eda`: CI build+image green, browser 35/35 (system Chrome 155 via CHROMIUM_PATH, stand-in AI, captured mail, AC power). GitGuardian red (believed false positive on public local-dev defaults; owner chose to merge). Open: docs/screenshots + demo.gif still show the old brand (need re-capture); puppeteer 25 async executablePath vs lib.cjs; old `owly_*` docker/session leftovers await delete OK.
 
 ## Next actions
 0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.

@@ -1,4 +1,8 @@
-# Handoff - latest session (2026-10-28)
+# Handoff - latest session (2026-10-29)
+
+- Merged the ziyrak rename (PR #57, `0992611`): exact-head `ac83eda` CI build+image green, browser 35/35 (system Chrome via CHROMIUM_PATH, stand-in AI). GitGuardian red, owner chose to merge. Open: old-brand screenshots/demo.gif, `owly_*` docker/session leftovers, acceptance DBs `ziyrak_acceptance_rename57*`, worktree `ziyrak-wt-rename`, topology still running (stop it).
+
+## Previous session (2026-10-28)
 
 - Merged L4.1c (PR #56, `98a0327`): platform AI ceilings, daily new-workspace cap, console section, J35. CI green + browser 35/35 on `8aa013e`. Independent security review done, M1/M4 fixed, M2/M3/L1/L3 recorded. Evidence: `docs/evidence/l4.1c-platform-limits-2026-10-28.md`.
 - L4.1b merged earlier (PR #55, `081c35c`). Browser runs: AC power, load under 8, fresh migrated DB, flushed task Redis, detached with nohup, read-only log monitor.

@@ -1,6 +1,6 @@
 # Handoff - latest session (2026-10-29)
 
-- Merged the ziyrak rename (PR #57, `0992611`): exact-head `ac83eda` CI build+image green, browser 35/35 (system Chrome via CHROMIUM_PATH, stand-in AI). GitGuardian red, owner chose to merge. Open: old-brand screenshots/demo.gif, old-name session folder (Docker leftovers already deleted), acceptance DBs `ziyrak_acceptance_rename57*`, worktree `ziyrak-wt-rename`, topology still running (stop it).
+- Merged the ziyrak rename (PR #57, `0992611`): exact-head `ac83eda` CI build+image green, browser 35/35 (system Chrome via CHROMIUM_PATH, stand-in AI). GitGuardian red, owner chose to merge. Screenshots and demo.gif re-captured (PR chore/recapture-brand-images). Old-name leftovers removed. Open: acceptance DBs `ziyrak_acceptance_rename57*`, worktree `ziyrak-wt-rename`, topology still running (stop it).
 
 ## Previous session (2026-10-28)
 

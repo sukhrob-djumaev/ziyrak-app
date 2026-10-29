@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import { mkdir } from 'fs/promises';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const DIR = './docs/screenshots';
 
 const pages = [
@@ -30,6 +30,8 @@ async function run() {
 
   const browser = await puppeteer.launch({
     headless: true,
+    // puppeteer 25 resolves its own browser asynchronously; allow a system Chrome
+    executablePath: process.env.CHROMIUM_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 

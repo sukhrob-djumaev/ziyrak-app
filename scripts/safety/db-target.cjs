@@ -3,8 +3,8 @@
 // Diagnostics never include credentials or complete connection URLs.
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const KINDS = {
-  test: /^owly_test(_[a-z0-9]+)?$/,
-  load: /^owly_load$/,
+  test: /^ziyrak_test(_[a-z0-9]+)?$/,
+  load: /^ziyrak_load$/,
 };
 
 function parse(name, value) {

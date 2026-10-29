@@ -22,7 +22,7 @@ export function redisUrl(): string | undefined {
  * can share one Redis.
  */
 export function redisKeyPrefix(): string {
-  return process.env.REDIS_KEY_PREFIX ?? "owly:";
+  return process.env.REDIS_KEY_PREFIX ?? "ziyrak:";
 }
 
 export function createRedisClient(url: string) {

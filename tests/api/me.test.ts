@@ -38,7 +38,7 @@ afterAll(async () => {
 
 const get = async (token?: string, headers: Record<string, string> = {}) => {
   const { GET } = await import("@/app/api/me/route");
-  return GET(createRequest("/api/me", { cookies: token ? { "owly-token": token } : {}, headers }));
+  return GET(createRequest("/api/me", { cookies: token ? { "ziyrak-token": token } : {}, headers }));
 };
 
 describe("GET /api/me", () => {

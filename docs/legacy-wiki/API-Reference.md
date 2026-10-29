@@ -22,7 +22,7 @@ Generate API keys from the Admin page. See [API Keys](API-Keys) for details.
 
 ### Method 2: Session Cookie (Dashboard)
 
-The Ziyrak dashboard uses JWT-based session cookies (`owly-token`). This method is used automatically by the browser when you are logged in. It is not recommended for external integrations.
+The Ziyrak dashboard uses JWT-based session cookies (`ziyrak-token`). This method is used automatically by the browser when you are logged in. It is not recommended for external integrations.
 
 ---
 
@@ -585,10 +585,10 @@ Ziyrak does not currently enforce built-in rate limiting. If you are deploying Z
 ### Nginx Rate Limiting Example
 
 ```nginx
-limit_req_zone $http_x_api_key zone=owly_api:10m rate=60r/m;
+limit_req_zone $http_x_api_key zone=ziyrak_api:10m rate=60r/m;
 
 location /api/ {
-    limit_req zone=owly_api burst=10 nodelay;
+    limit_req zone=ziyrak_api burst=10 nodelay;
     proxy_pass http://localhost:3000;
 }
 ```

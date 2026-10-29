@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "owly.fullname" . }}
+  name: {{ include "ziyrak.fullname" . }}
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "owly.selectorLabels" . | nindent 6 }}
+      {{- include "ziyrak.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: web
   template:
     metadata:
@@ -23,14 +23,14 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "owly.selectorLabels" . | nindent 8 }}
+        {{- include "ziyrak.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "owly.serviceAccountName" . }}
+      serviceAccountName: {{ include "ziyrak.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.migration.enabled }}
@@ -41,9 +41,9 @@ spec:
           command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
             - configMapRef:
-                name: {{ include "owly.fullname" . }}
+                name: {{ include "ziyrak.fullname" . }}
             - secretRef:
-                name: {{ include "owly.secretName" . }}
+                name: {{ include "ziyrak.secretName" . }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
       {{- end }}
@@ -58,18 +58,18 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: {{ include "owly.fullname" . }}
+                name: {{ include "ziyrak.fullname" . }}
             - secretRef:
-                name: {{ include "owly.secretName" . }}
+                name: {{ include "ziyrak.secretName" . }}
           env:
             {{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "owly.fullname" . }}-redis
+                  name: {{ include "ziyrak.fullname" . }}-redis
                   key: password
             - name: REDIS_URL
-              value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
+              value: "redis://:$(REDIS_PASSWORD)@{{ include "ziyrak.fullname" . }}-redis:6379"
             {{- end }}
           {{- if .Values.probes.startup.enabled }}
           # Startup only waits for the process to answer. It must not depend on the database, or a pod that starts
@@ -112,7 +112,7 @@ spec:
       volumes:
         - name: whatsapp-auth
           persistentVolumeClaim:
-            claimName: {{ include "owly.fullname" . }}-whatsapp-auth
+            claimName: {{ include "ziyrak.fullname" . }}-whatsapp-auth
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

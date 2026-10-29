@@ -45,7 +45,7 @@ afterAll(async () => {
 });
 
 const authed = (path: string, token: string, options: Parameters<typeof createRequest>[1] = {}) =>
-  createRequest(path, { ...options, cookies: { "owly-token": token } });
+  createRequest(path, { ...options, cookies: { "ziyrak-token": token } });
 
 async function list(token: string) {
   const { GET } = await import("@/app/api/tool-policies/route");

@@ -32,7 +32,7 @@ afterAll(async () => {
 });
 
 function authedRequest(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenA, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenA, ...options.cookies } });
 }
 
 describe("tenant isolation: automation rules (§33.1)", () => {

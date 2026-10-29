@@ -6,33 +6,33 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ include "owly.fullname" . }}-redis
+  name: {{ include "ziyrak.fullname" . }}-redis
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
 type: Opaque
 stringData:
   # Kept across upgrades (looked up); generated on first install.
-  {{- $existing := lookup "v1" "Secret" .Release.Namespace (printf "%s-redis" (include "owly.fullname" .)) }}
+  {{- $existing := lookup "v1" "Secret" .Release.Namespace (printf "%s-redis" (include "ziyrak.fullname" .)) }}
   password: {{ if .Values.redis.password }}{{ .Values.redis.password | quote }}{{ else if $existing }}{{ index $existing.data "password" | b64dec | quote }}{{ else }}{{ randAlphaNum 32 | quote }}{{ end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "owly.fullname" . }}-redis
+  name: {{ include "ziyrak.fullname" . }}-redis
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "owly.selectorLabels" . | nindent 6 }}
+      {{- include "ziyrak.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: redis
   template:
     metadata:
       labels:
-        {{- include "owly.selectorLabels" . | nindent 8 }}
+        {{- include "ziyrak.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
       automountServiceAccountToken: false
@@ -46,7 +46,7 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "owly.fullname" . }}-redis
+                  name: {{ include "ziyrak.fullname" . }}-redis
                   key: password
           securityContext:
             allowPrivilegeEscalation: false
@@ -69,9 +69,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "owly.fullname" . }}-redis
+  name: {{ include "ziyrak.fullname" . }}-redis
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
 spec:
   ports:
@@ -79,6 +79,6 @@ spec:
       targetPort: redis
       name: redis
   selector:
-    {{- include "owly.selectorLabels" . | nindent 4 }}
+    {{- include "ziyrak.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: redis
 {{- end }}

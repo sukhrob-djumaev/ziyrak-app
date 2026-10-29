@@ -1,10 +1,10 @@
-{{- include "owly.validate" . }}
+{{- include "ziyrak.validate" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "owly.fullname" . }}
+  name: {{ include "ziyrak.fullname" . }}
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
 data:
   NODE_ENV: {{ .Values.config.nodeEnv | quote }}
   NEXT_PUBLIC_APP_URL: {{ .Values.config.appUrl | quote }}

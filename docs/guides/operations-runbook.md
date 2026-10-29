@@ -75,5 +75,5 @@ Minimum first-response steps: check `/api/health/ready` and the worker state; ch
 
 ## 7. Capacity
 
-- Method: `scripts/loadtest/run.sh redis` (2 web replicas + 2 workers behind PgBouncer with shared Redis, stand-in AI at 300 ms). It runs in an isolated Compose project, validates a disposable `owly_load` database, and tears down only what it created.
+- Method: `scripts/loadtest/run.sh redis` (2 web replicas + 2 workers behind PgBouncer with shared Redis, stand-in AI at 300 ms). It runs in an isolated Compose project, validates a disposable `ziyrak_load` database, and tears down only what it created.
 - Results and their limits are recorded in `docs/evidence/l2.2-release-operations-2026-10-26.md`. A stand-in AI and one laptop are **not** the production topology: re-measure on the intended hosting before sizing.

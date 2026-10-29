@@ -4,7 +4,7 @@ Ziyrak is in launch preparation. No released-version support matrix, response SL
 
 ## Reporting
 
-Do not publish secrets, customer data or exploit details in public issues. The current project is [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app), not the upstream Owly repository. Use GitHub private vulnerability reporting there **if enabled**, or an existing private owner contact. A verified owner-controlled private reporting channel and response owner must be established before public launch; no unverified email address or response-time promise is supplied here.
+Do not publish secrets, customer data or exploit details in public issues. The current project is [sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app). Use GitHub private vulnerability reporting there **if enabled**, or an existing private owner contact. A verified owner-controlled private reporting channel and response owner must be established before public launch; no unverified email address or response-time promise is supplied here.
 
 Include the affected commit/version, description, impact, sanitized reproduction and suggested fix if available. Coordinate disclosure privately. Do not test against other customers or production without authorization.
 

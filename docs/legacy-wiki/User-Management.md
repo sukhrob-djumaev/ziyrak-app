@@ -111,7 +111,7 @@ The users table displays the following information for each account:
 ## Security Considerations
 
 - Passwords are hashed with bcrypt before storage. Plain-text passwords are never stored or logged.
-- Authentication uses JWT tokens stored in HTTP-only cookies (`owly-token`).
+- Authentication uses JWT tokens stored in HTTP-only cookies (`ziyrak-token`).
 - There is no built-in password complexity requirement. It is recommended to use strong passwords for all accounts.
 - Session tokens do not currently expire automatically. Users should log out when they are done.
 - All user management actions are recorded in the Activity Log for audit purposes.

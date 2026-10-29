@@ -45,7 +45,7 @@ function authedRequest(
   token: string,
   options: Parameters<typeof createRequest>[1] = {}
 ) {
-  return createRequest(path, { ...options, cookies: { "owly-token": token, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": token, ...options.cookies } });
 }
 
 async function seedPendingApproval(business: SeededBusiness) {

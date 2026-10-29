@@ -30,8 +30,8 @@ Docker Compose is the simplest way to run Ziyrak. It handles PostgreSQL, the app
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+git clone https://github.com/sukhrob-djumaev/ziyrak-app
+cd ziyrak
 ```
 
 ### Step 2: Configure Environment Variables
@@ -96,8 +96,8 @@ Use this method for development or if you prefer to manage PostgreSQL separately
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+git clone https://github.com/sukhrob-djumaev/ziyrak-app
+cd ziyrak
 ```
 
 ### Step 2: Install Dependencies
@@ -115,7 +115,7 @@ cp .env.example .env
 Edit `.env` and set the `DATABASE_URL` to point to your PostgreSQL instance:
 
 ```bash
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/owly?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ziyrak?schema=public"
 ```
 
 Also set your secret keys:
@@ -133,13 +133,13 @@ WEBHOOK_SECRET="<a third output of: openssl rand -hex 32>"
 Make sure PostgreSQL is running, then create the database:
 
 ```bash
-createdb owly
+createdb ziyrak
 ```
 
 Or connect to PostgreSQL and create it manually:
 
 ```sql
-CREATE DATABASE owly;
+CREATE DATABASE ziyrak;
 ```
 
 ### Step 5: Run Database Migrations
@@ -185,7 +185,7 @@ The following table describes all environment variables in `.env.example`:
 | `JWT_SECRET` | Yes | Secret key for signing login tokens. A random string of at least 32 characters (`openssl rand -hex 32`). Ziyrak will not start without it. |
 | `SECRET_KEY_V1` | Yes | Encryption key for stored channel credentials and infrastructure secrets. Random, 32+ characters, different from `JWT_SECRET`. Keys are versioned: to rotate, add `SECRET_KEY_V2`; never delete `SECRET_KEY_V1` while anything is still encrypted under it. |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your Ziyrak instance (e.g. `https://support.example.com`). It is built into the app, so **rebuild after changing it**; use the real public `https://` URL before serving customers or WhatsApp webhooks. |
-| `WEBHOOK_SECRET` | Recommended | HMAC key for the `X-Ziyrak-Signature` header (the legacy `X-Owly-Signature` is sent with the same value) on outgoing webhooks. If empty, outgoing webhooks are sent unsigned. |
+| `WEBHOOK_SECRET` | Recommended | HMAC key for the `X-Ziyrak-Signature` header on outgoing webhooks. If empty, outgoing webhooks are sent unsigned. |
 | `META_WEBHOOK_VERIFY_TOKEN` | For WhatsApp Cloud API | Any random string; enter the same value when registering your webhook with Meta. |
 | `REDIS_URL` | No | Shares rate limits, caching and live updates across several app replicas. Not needed for a single instance. |
 | `TRUSTED_PROXY_HOPS` | Behind a proxy | How many proxies in front of Ziyrak add to `X-Forwarded-For` (so rate limiting sees real client addresses). Use `1` behind a single tunnel or load balancer. |
@@ -270,12 +270,12 @@ Common causes and solutions:
 
 3. **Database does not exist:** Create it manually:
    ```bash
-   createdb owly
+   createdb ziyrak
    ```
 
 4. **Docker networking issue:** If running the app outside Docker but the database inside Docker, use `localhost` (not `db`) as the host:
    ```
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/owly?schema=public"
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ziyrak?schema=public"
    ```
 
 ### Prisma Migration Errors

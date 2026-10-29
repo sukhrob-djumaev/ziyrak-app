@@ -13,7 +13,7 @@ The initial no-dependency-change statement applies only to the assessment below.
 ## Isolation used in this session
 
 The attached R1 worktree is
-`/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/owly`, initially detached
+`/Users/sukhrob/.codex/worktrees/r1-delivery-reliability/ziyrak`, initially detached
 at the source baseline, with its own `node_modules` installed using
 `npm ci --ignore-scripts`. No live `.env` was copied. Fault-injection unit tests
 set both database URLs to an unreachable synthetic target and mock persistence.
@@ -73,7 +73,7 @@ only remaining unresolved risks need an owner decision after that work.
    stale/foreign records; rehearse using test-owned processes only.
 4. `lib.cjs` still falls back to a historical acceptance database without ACC_DB.
    Its default SQL command also derives only user/database from the URL and
-   assumes Docker container `owly-db-1`, ignoring host/port. An ACC_PSQL override
+   assumes Docker container `ziyrak-db-1`, ignoring host/port. An ACC_PSQL override
    is unverified against the app's target. Require an explicit throwaway target
    and verify current database/server identity before collecting evidence.
 5. `start-all.sh` records only the worker PID; web, LLM and hosts have no complete

@@ -7,9 +7,9 @@ on:
     branches: [main]
 
 env:
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/owly_test?schema=public
-  DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/owly_test?schema=public
-  ZIYRAK_DISPOSABLE_DB: owly_test
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ziyrak_test?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ziyrak_test?schema=public
+  ZIYRAK_DISPOSABLE_DB: ziyrak_test
   JWT_SECRET: ci-test-secret-key-do-not-use-in-production
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: owly_test
+          POSTGRES_DB: ziyrak_test
         ports:
           - 5432:5432
         options: >-

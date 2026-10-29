@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "owly.fullname" . }}
+  name: {{ include "ziyrak.fullname" . }}
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "owly.fullname" . }}
+    name: {{ include "ziyrak.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

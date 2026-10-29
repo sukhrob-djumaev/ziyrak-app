@@ -109,7 +109,7 @@ describe("email verification endpoints", () => {
     const { POST: resend } = await import("@/app/api/auth/resend-verification/route");
     const { POST: verify } = await import("@/app/api/auth/verify-email/route");
     const u = await user(addr(), false);
-    const res = await resend(post("/api/auth/resend-verification", {}, { "owly-token": generateToken(u.id) }));
+    const res = await resend(post("/api/auth/resend-verification", {}, { "ziyrak-token": generateToken(u.id) }));
     expect(res.status).toBe(200);
     const token = tokenIn(mail.messages[0].text);
     expect((await verify(post("/api/auth/verify-email", { token }))).status).toBe(200);
@@ -123,7 +123,7 @@ describe("email verification endpoints", () => {
     const { POST: resend } = await import("@/app/api/auth/resend-verification/route");
     expect((await resend(post("/api/auth/resend-verification", {}))).status).toBe(401);
     const u = await user(addr(), false);
-    const cookies = { "owly-token": generateToken(u.id) };
+    const cookies = { "ziyrak-token": generateToken(u.id) };
     const statuses = [];
     for (let i = 0; i < 5; i++) statuses.push((await resend(post("/api/auth/resend-verification", {}, cookies))).status);
     expect(statuses.filter((s) => s === 200)).toHaveLength(3);
@@ -138,7 +138,7 @@ describe("/api/auth/email", () => {
     expect((await POST(post("/api/auth/email", { email: addr(), password: "Old-password-123" }))).status).toBe(401);
     const u = await user(addr(), false);
     await prisma.user.update({ where: { id: u.id }, data: { email: null } });
-    const cookies = { "owly-token": generateToken(u.id) };
+    const cookies = { "ziyrak-token": generateToken(u.id) };
     expect(await parseJsonResponse(await GET(createRequest("/api/auth/email", { cookies })))).toEqual({ email: null, verified: false });
     expect((await POST(post("/api/auth/email", { email: addr(), password: "wrong-password-1" }, cookies))).status).toBe(400);
     expect(mail.messages).toHaveLength(0);

@@ -76,9 +76,9 @@ Ziyrak gives small businesses and solo operators the same multi-channel AI suppo
 
 | Resource | Link |
 |----------|------|
-| GitHub Repository | [github.com/hsperus/owly](https://github.com/hsperus/owly) |
-| Report an Issue | [GitHub Issues](https://github.com/hsperus/owly/issues) |
-| License | [MIT License](https://github.com/hsperus/owly/blob/main/LICENSE) |
+| GitHub Repository | [github.com/sukhrob-djumaev/ziyrak-app](https://github.com/sukhrob-djumaev/ziyrak-app) |
+| Report an Issue | [GitHub Issues](https://github.com/sukhrob-djumaev/ziyrak-app/issues) |
+| License | [MIT License](https://github.com/sukhrob-djumaev/ziyrak-app/blob/main/LICENSE) |
 | Health Check Endpoint | `GET /api/health` |
 
 ---

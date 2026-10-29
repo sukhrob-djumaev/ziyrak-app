@@ -20,7 +20,7 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
 
 export async function POST(request: NextRequest) {
   const body = (await readBoundedJson(request, AUTH_BODY_BYTES).catch(() => null)) ?? null;
-  const cookie = request.cookies.get("owly-token")?.value;
+  const cookie = request.cookies.get("ziyrak-token")?.value;
   const session = cookie ? await verifyActiveToken(cookie) : null;
   const signup =
     typeof body?.username === "string" && typeof body?.password === "string"

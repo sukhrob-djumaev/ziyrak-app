@@ -30,7 +30,7 @@ async function put(actor: string, id: string, body: object) {
     createRequest(`/api/admin/users/${id}`, {
       method: "PUT",
       body,
-      cookies: { "owly-token": generateToken(actor) },
+      cookies: { "ziyrak-token": generateToken(actor) },
     }),
     { params: Promise.resolve({ id }) }
   );
@@ -195,7 +195,7 @@ describe("membership scope editor (real route auth/Postgres)", () => {
     const list = async (actor: string) =>
       (await (
         await LIST(
-          createRequest("/api/admin/users", { cookies: { "owly-token": generateToken(actor) } })
+          createRequest("/api/admin/users", { cookies: { "ziyrak-token": generateToken(actor) } })
         )
       ).json()) as { data: { id: string; scope: unknown }[] };
     const seen = (await list(a.ownerUserId)).data.find((u) => u.id === targetMembership);
@@ -274,7 +274,7 @@ describe("membership scope editor (real route auth/Postgres)", () => {
     const call = async (actor: string) =>
       OPTIONS(
         createRequest("/api/admin/connection-options", {
-          cookies: { "owly-token": generateToken(actor) },
+          cookies: { "ziyrak-token": generateToken(actor) },
         })
       );
     const ok = await call(a.ownerUserId);

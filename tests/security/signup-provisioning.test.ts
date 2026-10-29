@@ -60,7 +60,7 @@ async function signup(overrides: Record<string, unknown> = {}) {
       const login = await (await import("@/app/api/auth/route")).POST(
         createRequest("/api/auth", { method: "POST", body: { action: "login", username: body.username, password: body.password } })
       );
-      (response as Response & { __session?: string }).__session = /owly-token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1] ?? "";
+      (response as Response & { __session?: string }).__session = /ziyrak-token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1] ?? "";
     }
   }
   return { response, data, body };
@@ -70,7 +70,7 @@ function cookieOf(response: Response): string {
   const attached = (response as Response & { __session?: string }).__session;
   if (attached !== undefined) return attached;
   const raw = response.headers.get("set-cookie") ?? "";
-  return /owly-token=([^;]+)/.exec(raw)?.[1] ?? "";
+  return /ziyrak-token=([^;]+)/.exec(raw)?.[1] ?? "";
 }
 
 afterAll(async () => {
@@ -141,7 +141,7 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
     expect(await verifyPassword("correct horse battery", user.password)).toBe(true);
 
     const ctx = await requireAuth(
-      createRequest("/api/anything", { cookies: { "owly-token": cookieOf(response) } })
+      createRequest("/api/anything", { cookies: { "ziyrak-token": cookieOf(response) } })
     );
     expect(ctx).toMatchObject({
       businessId: data.business.id,
@@ -290,7 +290,7 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
     );
     expect(response.status).toBe(200);
     const ctx = await requireAuth(
-      createRequest("/api/anything", { cookies: { "owly-token": cookieOf(response) } })
+      createRequest("/api/anything", { cookies: { "ziyrak-token": cookieOf(response) } })
     );
     expect(ctx).toMatchObject({ businessId: data.business.id, role: "owner" });
   });
@@ -315,14 +315,14 @@ describe("signup creates a complete, isolated business (§46.7)", () => {
     const ctxA = (await requireAuth(
       new NextRequest("http://localhost/api/x", {
         headers: {
-          cookie: `owly-token=${cookieOf(a.response)}; ziyrak-workspace=${a.data.business.id}`,
+          cookie: `ziyrak-token=${cookieOf(a.response)}; ziyrak-workspace=${a.data.business.id}`,
         },
       })
     )) as { businessId: string };
     const ctxB = (await requireAuth(
       new NextRequest("http://localhost/api/x", {
         headers: {
-          cookie: `owly-token=${cookieOf(b.response)}; ziyrak-workspace=${b.data.business.id}`,
+          cookie: `ziyrak-token=${cookieOf(b.response)}; ziyrak-workspace=${b.data.business.id}`,
         },
       })
     )) as { businessId: string };

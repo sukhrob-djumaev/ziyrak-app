@@ -31,8 +31,8 @@ There are several ways to contribute to Ziyrak:
 **1. Fork and clone the repository:**
 
 ```bash
-git clone https://github.com/your-username/owly.git
-cd owly
+git clone https://github.com/your-username/ziyrak.git
+cd ziyrak
 ```
 
 **2. Install dependencies:**
@@ -50,7 +50,7 @@ cp .env.example .env
 Edit `.env` and set your PostgreSQL connection string:
 
 ```
-DATABASE_URL="postgresql://user:password@localhost:5432/owly"
+DATABASE_URL="postgresql://user:password@localhost:5432/ziyrak"
 ```
 
 **4. Set up the database:**

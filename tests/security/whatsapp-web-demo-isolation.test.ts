@@ -74,11 +74,11 @@ let tokenB: string;
 let defaultConnectionId: string;
 
 function asDefault(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenDefault } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenDefault } });
 }
 
 function asB(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenB } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenB } });
 }
 
 function enableDemoFeature(enabled: boolean) {
@@ -142,7 +142,7 @@ describe("WhatsApp Web (dev/demo) — configuration is structurally gated", () =
   /** Every server path that could create/configure/select a "whatsapp" connection, as `token`'s business. */
   async function configurationAttempts(token: string): Promise<Attempt[]> {
     const as = (path: string, options: Parameters<typeof createRequest>[1] = {}) =>
-      createRequest(path, { ...options, cookies: { "owly-token": token } });
+      createRequest(path, { ...options, cookies: { "ziyrak-token": token } });
     const channels = await import("@/app/api/channels/route");
     const typed = await import("@/app/api/channels/[type]/route");
     const web = await import("@/app/api/channels/whatsapp/route");

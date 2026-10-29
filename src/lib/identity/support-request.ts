@@ -75,7 +75,7 @@ async function resolveSupportRequest(
     // Initial admission still establishes the grant before resolving placement.
     const preparedPlacement =
       phase === "exposure" ? await resolveTenantPlacement(businessId) : null;
-    const facts = await authorizeSupportUse(request.cookies.get("owly-token")!.value, {
+    const facts = await authorizeSupportUse(request.cookies.get("ziyrak-token")!.value, {
       grantId,
       businessId,
       operation: route.operation,

@@ -160,11 +160,11 @@ afterAll(async () => {
 });
 
 function asDefault(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenDefault, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenDefault, ...options.cookies } });
 }
 
 function asB(path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": tokenB, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": tokenB, ...options.cookies } });
 }
 
 describe("Phase 2 runtime-isolation audit: /api/chat", () => {

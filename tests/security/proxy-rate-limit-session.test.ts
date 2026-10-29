@@ -19,7 +19,7 @@ const request = (path: string, opts: { token?: string; ip?: string; apiKey?: str
   const headers: Record<string, string> = { "x-forwarded-for": opts.ip ?? "198.51.100.7" };
   if (opts.apiKey) headers["x-api-key"] = opts.apiKey;
   const req = new NextRequest(`http://localhost:3000${path}`, { headers });
-  if (opts.token) req.cookies.set("owly-token", opts.token);
+  if (opts.token) req.cookies.set("ziyrak-token", opts.token);
   return req;
 };
 const statuses = async (n: number, make: () => NextRequest) => {

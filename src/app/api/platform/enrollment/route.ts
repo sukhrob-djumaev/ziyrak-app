@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const account = await requireAccountAuth(request);
   if (!isAccountAuthenticated(account)) return account;
   try {
-    return NextResponse.json(await readPlatformEntry(request.cookies.get("owly-token")!.value), {
+    return NextResponse.json(await readPlatformEntry(request.cookies.get("ziyrak-token")!.value), {
       headers,
     });
   } catch (error) {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       { status: 400, headers }
     );
   try {
-    const token = request.cookies.get("owly-token")!.value;
+    const token = request.cookies.get("ziyrak-token")!.value;
     const result =
       action === "bootstrap"
         ? await bootstrapPlatform(token, input)

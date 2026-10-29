@@ -105,7 +105,7 @@ afterAll(async () => {
 });
 
 function as(token: string, path: string, options: Parameters<typeof createRequest>[1] = {}) {
-  return createRequest(path, { ...options, cookies: { "owly-token": token, ...options.cookies } });
+  return createRequest(path, { ...options, cookies: { "ziyrak-token": token, ...options.cookies } });
 }
 
 describe("GET/PUT /api/settings/business — a signed-up business edits its own profile", () => {

@@ -74,7 +74,7 @@ async function del(
   const request = createRequest(`/api/customers/${id}/gdpr/delete`, {
     method: "DELETE",
     body: init.body,
-    cookies: { "owly-token": token },
+    cookies: { "ziyrak-token": token },
   });
   if (init.rawBody !== undefined) {
     // createRequest only serialises objects; build the raw-body variant directly.

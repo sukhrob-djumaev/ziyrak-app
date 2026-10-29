@@ -4,10 +4,10 @@
 # Used only by scripts/loadtest/run.sh:
 #   docker compose -p ziyrakload -f docker-compose.yml -f scripts/loadtest/compose.override.yml --profile scale ...
 x-loadtest-env: &loadtest-env
-  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly_load?schema=public
-  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly_load?schema=public
+  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/ziyrak_load?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/ziyrak_load?schema=public
   # Empty = Redis off (the control run that shows limit × replicas).
-  REDIS_URL: ${LOADTEST_REDIS_URL-redis://:owly-local-redis@redis:6379}
+  REDIS_URL: ${LOADTEST_REDIS_URL-redis://:ziyrak-local-redis@redis:6379}
   JOB_TRACE: "1"
   SECRET_KEY_V1: loadtest-secret-key-v1-not-a-real-secret
   JWT_SECRET: loadtest-jwt-secret-not-a-real-secret
@@ -20,7 +20,7 @@ x-loadtest-env: &loadtest-env
 services:
   db:
     environment:
-      POSTGRES_DB: owly_load
+      POSTGRES_DB: ziyrak_load
     ports: !override
       - "127.0.0.1:55432:5432"
   redis:

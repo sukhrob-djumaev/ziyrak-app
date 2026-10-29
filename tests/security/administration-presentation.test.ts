@@ -50,7 +50,7 @@ afterAll(async () => {
   vi.unstubAllGlobals();
 });
 function select(userId: string) {
-  jar.set("owly-token", generateToken(userId));
+  jar.set("ziyrak-token", generateToken(userId));
   jar.set("ziyrak-workspace", fixture.businessId);
 }
 async function html(node: React.ReactNode) {
@@ -120,7 +120,7 @@ describe("P1 Administration actual cookie/membership SSR presentation", () => {
   });
   it("does not mount protected controls after actual session revocation", async () => {
     select(actors.get("admin")!);
-    await revokeToken(jar.get("owly-token")!);
+    await revokeToken(jar.get("ziyrak-token")!);
     await expect(html(React.createElement(AdminPage))).rejects.toThrow(
       "FIXTURE_REDIRECT:/workspaces"
     );

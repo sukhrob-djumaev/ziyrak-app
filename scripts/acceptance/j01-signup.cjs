@@ -42,7 +42,7 @@ async function clickText(p, sel, text) {
     const wizardText = (await L.text(p)).slice(0, 500);
     L.assert(wizardText.includes(email), `${key}: the wizard tells the owner which address was mailed`);
     L.assert(!/\bAI\b|API key|provider/.test(wizardText), `${key}: signup shows no AI setup`);
-    const cookiesAfterSignup = (await p.cookies()).filter((k) => k.name === "owly-token");
+    const cookiesAfterSignup = (await p.cookies()).filter((k) => k.name === "ziyrak-token");
     L.assert(cookiesAfterSignup.length === 0, `${key}: signup signs nobody in`);
 
     // The owner confirms the address from the emailed link (explicit button: a scanner's GET cannot consume it).
@@ -79,11 +79,11 @@ async function clickText(p, sel, text) {
     const out = { key, urlAfter: p.url(), cookies, api: ev.requests.filter((r) => r.u.startsWith("/api/")).map((r) => `${r.m} ${r.s} ${r.u}`), failed: ev.failed, consoleErrors: ev.consoleErrors, pageErrors: ev.pageErrors, dashboardHead: (await L.text(p)).replace(/\n+/g, " | ").slice(0, 300), wizardText: wizardText.replace(/\n+/g, " | ") };
 
     L.assert(out.urlAfter.startsWith(L.BASE + "/") && !out.urlAfter.includes("/setup") && !out.urlAfter.includes("/login"), `${key}: landed on the dashboard after signing in, got ${out.urlAfter}`);
-    const cookie = out.cookies.find((c) => c.name === "owly-token");
-    L.assert(!!cookie, `${key}: owly-token cookie was set`);
-    L.assert(cookie && cookie.httpOnly === true, `${key}: owly-token is HttpOnly`);
-    L.assert(cookie && cookie.secure === true, `${key}: owly-token is Secure`);
-    L.assert(cookie && cookie.sameSite === "Lax", `${key}: owly-token is SameSite=Lax, got ${cookie && cookie.sameSite}`);
+    const cookie = out.cookies.find((c) => c.name === "ziyrak-token");
+    L.assert(!!cookie, `${key}: ziyrak-token cookie was set`);
+    L.assert(cookie && cookie.httpOnly === true, `${key}: ziyrak-token is HttpOnly`);
+    L.assert(cookie && cookie.secure === true, `${key}: ziyrak-token is Secure`);
+    L.assert(cookie && cookie.sameSite === "Lax", `${key}: ziyrak-token is SameSite=Lax, got ${cookie && cookie.sameSite}`);
     L.assert(out.dashboardHead.includes(c.biz) || out.dashboardHead.includes("Dashboard"), `${key}: dashboard rendered`);
     L.assert(out.consoleErrors.length === 0, `${key}: no console errors on signup/dashboard, got ${JSON.stringify(out.consoleErrors)}`);
     L.assert(out.pageErrors.length === 0, `${key}: no page errors on signup/dashboard, got ${JSON.stringify(out.pageErrors)}`);

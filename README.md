@@ -1,6 +1,6 @@
 # Ziyrak AI
 
-Ziyrak is a multi-tenant customer-support application developed from Owly. Businesses create private workspaces, add knowledge and supported channels, and use AI managed by Ziyrak. A separate worker processes inbound messages, knowledge indexing and scheduled actions. The platform console, scoped workspace access, managed AI/allowances, verified accounts, recovery and invitations are implemented.
+Ziyrak is a multi-tenant customer-support application. Businesses create private workspaces, add knowledge and supported channels, and use AI managed by Ziyrak. A separate worker processes inbound messages, knowledge indexing and scheduled actions. The platform console, scoped workspace access, managed AI/allowances, verified accounts, recovery and invitations are implemented.
 
 **Current status: launch preparation, not ready for unrestricted paid production.** Checkout, subscriptions and configurable paid add-ons are not implemented. The owner has requested a refreshed self-service launch plan: register, verify, choose a package, pay, configure and start work. [PLAN](PLAN.md) owns the live board; the [October 25 review](docs/project-review-2026-10-25.md) records open security, test-quality and operational findings.
 
@@ -32,6 +32,6 @@ The owner explicitly approved launch preparation through L6. Say **`continue`** 
 
 ## Deployment and provenance
 
-[Compose](docker-compose.yml) and [Helm](helm/owly) describe deployment topology but have open configuration, readiness and image-verification findings. The launch roadmap requires a rehearsal with real web/worker behavior, sender/callback setup, backups/restore, rollback, alerts and required provider acceptance. A health 200 or historical tag is insufficient.
+[Compose](docker-compose.yml) and [Helm](helm/ziyrak) describe deployment topology but have open configuration, readiness and image-verification findings. The launch roadmap requires a rehearsal with real web/worker behavior, sender/callback setup, backups/restore, rollback, alerts and required provider acceptance. A health 200 or historical tag is insufficient.
 
-Legacy `owly` infrastructure identifiers are documented in [branding compatibility](docs/branding-compat.md). Historical wiki material is archived; its old URLs now point to current guides. Required upstream Owly MIT attribution is retained unchanged in [LICENSE](LICENSE).
+Naming is documented in [branding notes](docs/branding-compat.md). Historical wiki material is archived; its old URLs now point to current guides. The license is in [LICENSE](LICENSE).

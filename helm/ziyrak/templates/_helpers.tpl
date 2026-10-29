@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "owly.name" -}}
+{{- define "ziyrak.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "owly.fullname" -}}
+{{- define "ziyrak.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "owly.chart" -}}
+{{- define "ziyrak.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "owly.labels" -}}
-helm.sh/chart: {{ include "owly.chart" . }}
-{{ include "owly.selectorLabels" . }}
+{{- define "ziyrak.labels" -}}
+helm.sh/chart: {{ include "ziyrak.chart" . }}
+{{ include "ziyrak.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,17 +43,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "owly.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "owly.name" . }}
+{{- define "ziyrak.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "ziyrak.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Service account name
 */}}
-{{- define "owly.serviceAccountName" -}}
+{{- define "ziyrak.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "owly.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "ziyrak.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -62,7 +62,7 @@ Service account name
 {{/*
 Database URL - construct from individual fields or use provided URL
 */}}
-{{- define "owly.databaseUrl" -}}
+{{- define "ziyrak.databaseUrl" -}}
 {{- if .Values.database.url }}
 {{- .Values.database.url }}
 {{- else }}
@@ -73,40 +73,40 @@ Database URL - construct from individual fields or use provided URL
 {{/*
 Secret name - use existing or generate
 */}}
-{{- define "owly.secretName" -}}
+{{- define "ziyrak.secretName" -}}
 {{- if .Values.secrets.existingSecret }}
 {{- .Values.secrets.existingSecret }}
 {{- else }}
-{{- include "owly.fullname" . }}
+{{- include "ziyrak.fullname" . }}
 {{- end }}
 {{- end }}
 
 {{/*
 Direct (non-pooled) database URL — migrations and the job queue.
 */}}
-{{- define "owly.directDatabaseUrl" -}}
-{{- include "owly.databaseUrl" . }}
+{{- define "ziyrak.directDatabaseUrl" -}}
+{{- include "ziyrak.databaseUrl" . }}
 {{- end }}
 
 {{/*
 Runtime database URL: through PgBouncer when enabled, else direct.
 */}}
-{{- define "owly.runtimeDatabaseUrl" -}}
+{{- define "ziyrak.runtimeDatabaseUrl" -}}
 {{- if and .Values.pgbouncer.enabled (not .Values.database.url) }}
-{{- printf "postgresql://%s:%s@%s-pgbouncer:5432/%s?schema=public" .Values.database.user .Values.database.password (include "owly.fullname" .) .Values.database.name }}
+{{- printf "postgresql://%s:%s@%s-pgbouncer:5432/%s?schema=public" .Values.database.user .Values.database.password (include "ziyrak.fullname" .) .Values.database.name }}
 {{- else }}
-{{- include "owly.databaseUrl" . }}
+{{- include "ziyrak.databaseUrl" . }}
 {{- end }}
 {{- end }}
 
 {{/*
 Redis URL: external if given, else the in-cluster instance, else empty.
 */}}
-{{- define "owly.redisUrl" -}}
+{{- define "ziyrak.redisUrl" -}}
 {{- if .Values.redis.external.url }}
 {{- .Values.redis.external.url }}
 {{- else if .Values.redis.enabled }}
-{{- printf "redis://%s-redis:6379" (include "owly.fullname" .) }}
+{{- printf "redis://%s-redis:6379" (include "ziyrak.fullname" .) }}
 {{- end }}
 {{- end }}
 
@@ -114,9 +114,9 @@ Redis URL: external if given, else the in-cluster instance, else empty.
 PLAN.md §46.8 guard: more than one app replica (or any autoscaling) without
 shared state would silently break rate limiting and realtime delivery.
 */}}
-{{- define "owly.validate" -}}
+{{- define "ziyrak.validate" -}}
 {{- $multi := or .Values.autoscaling.enabled .Values.worker.autoscaling.enabled (gt (int .Values.replicaCount) 1) -}}
-{{- if and $multi (not (include "owly.redisUrl" .)) -}}
+{{- if and $multi (not (include "ziyrak.redisUrl" .)) -}}
 {{- fail "Multiple app replicas or autoscaling need Redis (redis.enabled=true or redis.external.url): without it every replica keeps its own rate-limit window and misses other replicas' realtime events. See PLAN.md §46.8." -}}
 {{- end -}}
 {{- if not .Values.secrets.existingSecret -}}

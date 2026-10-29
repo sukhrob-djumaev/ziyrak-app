@@ -123,10 +123,7 @@ export async function handleDeliverWebhook(
     "Content-Type": "application/json",
     "User-Agent": "Ziyrak-Webhook/1.0",
     ...(webhook.headers as Record<string, string>),
-    // X-Owly-Signature is the pre-rename header: same value, kept so existing receivers still verify.
-    ...(signature
-      ? { "X-Ziyrak-Signature": signature, "X-Owly-Signature": signature }
-      : {}),
+    ...(signature ? { "X-Ziyrak-Signature": signature } : {}),
   };
 
   try {

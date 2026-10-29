@@ -4,10 +4,10 @@
 # Runtime DB traffic goes through PgBouncer (DATABASE_URL); migrations and
 # pg-boss, which need session features (advisory locks), use the direct URL.
 x-ziyrak-env: &ziyrak-env
-  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/owly?schema=public
-  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/owly?schema=public
+  DATABASE_URL: postgresql://postgres:postgres@pgbouncer:5432/ziyrak?schema=public
+  DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/ziyrak?schema=public
   DATABASE_POOL_MAX: "10"
-  REDIS_URL: redis://:${REDIS_PASSWORD:-owly-local-redis}@redis:6379
+  REDIS_URL: redis://:${REDIS_PASSWORD:-ziyrak-local-redis}@redis:6379
   NODE_ENV: production
   # L2.1: this stack is local/self-test, not a production deployment, so it skips the strict production
   # configuration contract (https URL, trusted proxy hops, SMTP...). Remove this line, and satisfy
@@ -22,7 +22,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: owly
+      POSTGRES_DB: ziyrak
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -45,13 +45,13 @@ services:
     # `noeviction`: when full, writes fail (callers fall back per process)
     # rather than silently dropping other clients' rate-limit counters.
     # Authenticated (set REDIS_PASSWORD in .env) and bound to loopback.
-    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:-owly-local-redis}"]
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:-ziyrak-local-redis}"]
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-owly-local-redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-ziyrak-local-redis}
       interval: 5s
       timeout: 3s
       retries: 5

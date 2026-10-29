@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "owly.fullname" . }}-worker
+  name: {{ include "ziyrak.fullname" . }}-worker
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker
 spec:
   {{- if not .Values.worker.autoscaling.enabled }}
@@ -11,7 +11,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "owly.selectorLabels" . | nindent 6 }}
+      {{- include "ziyrak.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: worker
   template:
     metadata:
@@ -24,7 +24,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "owly.selectorLabels" . | nindent 8 }}
+        {{- include "ziyrak.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: worker
     spec:
       # PLAN.md §46.8 — longer than the worker's own 30 s drain (src/worker.ts),
@@ -34,7 +34,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "owly.serviceAccountName" . }}
+      serviceAccountName: {{ include "ziyrak.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.migration.enabled }}
@@ -45,9 +45,9 @@ spec:
           command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
             - configMapRef:
-                name: {{ include "owly.fullname" . }}
+                name: {{ include "ziyrak.fullname" . }}
             - secretRef:
-                name: {{ include "owly.secretName" . }}
+                name: {{ include "ziyrak.secretName" . }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
       {{- end }}
@@ -65,18 +65,18 @@ spec:
           command: ["node", "--enable-source-maps", "dist/worker.cjs"]
           envFrom:
             - configMapRef:
-                name: {{ include "owly.fullname" . }}
+                name: {{ include "ziyrak.fullname" . }}
             - secretRef:
-                name: {{ include "owly.secretName" . }}
+                name: {{ include "ziyrak.secretName" . }}
           env:
             {{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "owly.fullname" . }}-redis
+                  name: {{ include "ziyrak.fullname" . }}-redis
                   key: password
             - name: REDIS_URL
-              value: "redis://:$(REDIS_PASSWORD)@{{ include "owly.fullname" . }}-redis:6379"
+              value: "redis://:$(REDIS_PASSWORD)@{{ include "ziyrak.fullname" . }}-redis:6379"
             {{- end }}
           # The worker has no HTTP server; it refreshes a file every ~15 s after a successful database write
           # (src/lib/ops/worker-heartbeat.ts). Stale for a minute = event loop stuck or cut off from the database -> restart. It does not prove jobs are moving; alarm on queue.oldestWaitingSeconds for that.

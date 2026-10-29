@@ -206,7 +206,7 @@ interface Biz {
 }
 
 function tokenFrom(response: Response): string {
-  return /owly-token=([^;]+)/.exec(response.headers.get("set-cookie") ?? "")?.[1] ?? "";
+  return /ziyrak-token=([^;]+)/.exec(response.headers.get("set-cookie") ?? "")?.[1] ?? "";
 }
 
 async function call(

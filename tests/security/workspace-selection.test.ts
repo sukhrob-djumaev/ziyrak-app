@@ -22,7 +22,7 @@ afterAll(async () => {
 function req(workspace?: string) {
   return createRequest("/api/conversations", {
     workspaceSelection: false,
-    cookies: { "owly-token": token, ...(workspace ? { "ziyrak-workspace": workspace } : {}) },
+    cookies: { "ziyrak-token": token, ...(workspace ? { "ziyrak-workspace": workspace } : {}) },
   });
 }
 describe("explicit workspace selection (real identity/Postgres)", () => {

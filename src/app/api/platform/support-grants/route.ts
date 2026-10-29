@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (!isAccountAuthenticated(account)) return privateResponse(account);
   try {
     return privateResponse(
-      NextResponse.json(await readSupportConsole(request.cookies.get("owly-token")!.value))
+      NextResponse.json(await readSupportConsole(request.cookies.get("ziyrak-token")!.value))
     );
   } catch (error) {
     return privateResponse(toErrorResponse(error));
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         NextResponse.json({ error: { message: "Invalid management request" } }, { status: 400 })
       );
     const { action, ...input } = body as Record<string, unknown>;
-    const token = request.cookies.get("owly-token")!.value;
+    const token = request.cookies.get("ziyrak-token")!.value;
     let result;
     switch (action) {
       case "issue":

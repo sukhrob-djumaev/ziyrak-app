@@ -19,7 +19,7 @@ import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/t
 import type { TenantContext } from "@/lib/tenancy/context";
 
 const SHARED_URL = process.env.DATABASE_URL!;
-const DEDICATED_DB = `owly_adm_dedicated_${Date.now()}_${process.pid}`;
+const DEDICATED_DB = `ziyrak_adm_dedicated_${Date.now()}_${process.pid}`;
 const dedicatedUrl = SHARED_URL.replace(/\/[^/?]+(\?|$)/, `/${DEDICATED_DB}$1`);
 const PROFILE_ID = `adm-dedicated-${Date.now()}`;
 let moved: SeededBusiness, shared: SeededBusiness, dedicatedCtx: TenantContext;

@@ -4,7 +4,7 @@
 
 Contract: p1-support-list-activation-contract-2026-10-15.md, PLAN P1 §§8/9/15/16.
 Code identity is the containing local commit (Git), based onc78a1ff. Independent
-checkout p1-support-identity/owly excludes the incomplete follow-up integration.
+checkout p1-support-identity/ziyrak excludes the incomplete follow-up integration.
 
 Identity resolves an explicitly selected own support grant only for GET
 /api/conversations + conversations:read. Actual signed person, current platform

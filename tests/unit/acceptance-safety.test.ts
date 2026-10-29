@@ -44,7 +44,7 @@ function calls(log: string) {
 describe("acceptance environment safeguards (R3 prerequisite)", () => {
   it("refuses a mismatched direct database before launching a worker", async () => {
     const f = fixture();
-    f.env.DIRECT_DATABASE_URL = "postgresql://test:test@127.0.0.1:1/owly";
+    f.env.DIRECT_DATABASE_URL = "postgresql://test:test@127.0.0.1:1/ziyrak";
     const r = spawnSync("sh", ["scripts/acceptance/start-all.sh", "worker"], {
       cwd: root,
       env: f.env,

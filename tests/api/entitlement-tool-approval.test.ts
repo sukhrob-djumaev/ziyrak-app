@@ -91,7 +91,7 @@ describe("tool capability", () => {
     const row = await getScopedPrisma(biz.ctx).actionExecution.findFirst({ where: { tool: TOOL, status: "pending_approval" } });
     await holdWithout(["webhooks.outbound"]);
     const { POST } = await import("@/app/api/actions/[id]/approve/route");
-    const res = await POST(createRequest(`/api/actions/${row!.id}/approve`, { method: "POST", cookies: { "owly-token": token } }), { params: Promise.resolve({ id: row!.id }) });
+    const res = await POST(createRequest(`/api/actions/${row!.id}/approve`, { method: "POST", cookies: { "ziyrak-token": token } }), { params: Promise.resolve({ id: row!.id }) });
     const body = await parseJsonResponse(res);
     expect(body.status).toBe("failed");
     expect(executed).not.toHaveBeenCalled();

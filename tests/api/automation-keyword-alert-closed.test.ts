@@ -19,7 +19,7 @@ afterAll(async () => {
   await cleanupBusiness(biz.businessId);
 });
 const authed = (path: string, options: Parameters<typeof createRequest>[1] = {}) =>
-  createRequest(path, { ...options, cookies: { "owly-token": token, ...options.cookies } });
+  createRequest(path, { ...options, cookies: { "ziyrak-token": token, ...options.cookies } });
 
 const rule = (type: string) => ({
   name: "r",

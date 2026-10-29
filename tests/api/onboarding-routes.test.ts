@@ -22,7 +22,7 @@ async function signedUp() {
   recordWorkspaceSelection(r.userId, r.businessId);
   return { ...r, token: generateToken(r.userId) };
 }
-const as = (path: string, token: string, method = "GET") => createRequest(path, { method, body: method === "POST" ? {} : undefined, cookies: { "owly-token": token } });
+const as = (path: string, token: string, method = "GET") => createRequest(path, { method, body: method === "POST" ? {} : undefined, cookies: { "ziyrak-token": token } });
 afterAll(async () => {
   await prisma.business.deleteMany({ where: { id: { in: businessIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -65,7 +65,7 @@ describe("onboarding routes", () => {
     userIds.push(agent.id);
     await prisma.membership.create({ data: { businessId: a.businessId, userId: agent.id, role: "agent" } });
     recordWorkspaceSelection(agent.id, a.businessId);
-    const res = await POST(createRequest("/api/onboarding/test-reply", { method: "POST", body: {}, cookies: { "owly-token": generateToken(agent.id) } }));
+    const res = await POST(createRequest("/api/onboarding/test-reply", { method: "POST", body: {}, cookies: { "ziyrak-token": generateToken(agent.id) } }));
     expect(res.status).toBe(403);
     expect((await parseJsonResponse(res)).error.code).toBe("OWNER_REQUIRED");
   });

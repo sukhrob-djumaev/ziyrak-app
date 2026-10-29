@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const account = await requireAccountAuth(request);
   if (!isAccountAuthenticated(account)) return privateResponse(account);
   try {
-    return privateResponse(NextResponse.json(await readCatalogConsole(request.cookies.get("owly-token")!.value)));
+    return privateResponse(NextResponse.json(await readCatalogConsole(request.cookies.get("ziyrak-token")!.value)));
   } catch (error) {
     return privateResponse(toErrorResponse(error));
   }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const body: unknown = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail("Invalid catalog request", 400);
     const { action, ...input } = body as Record<string, unknown>;
-    const token = request.cookies.get("owly-token")!.value;
+    const token = request.cookies.get("ziyrak-token")!.value;
     let result;
     switch (action) {
       case "create_item":

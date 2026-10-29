@@ -34,8 +34,8 @@ Before installing Ziyrak, make sure you have one of the following setups ready:
 **Step 1: Clone the repository**
 
 ```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+git clone https://github.com/sukhrob-djumaev/ziyrak-app
+cd ziyrak
 ```
 
 **Step 2: Install dependencies**
@@ -54,7 +54,7 @@ Open the `.env` file in your text editor and set the following values:
 
 ```bash
 # Required: Your PostgreSQL connection string
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/owly?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ziyrak?schema=public"
 
 # Required: a random secret for login tokens (generate one with: openssl rand -hex 32)
 JWT_SECRET="paste-a-random-value-here"
@@ -100,8 +100,8 @@ Ziyrak is now running at [http://localhost:3000](http://localhost:3000).
 **Step 1: Clone the repository**
 
 ```bash
-git clone https://github.com/hsperus/owly.git
-cd owly
+git clone https://github.com/sukhrob-djumaev/ziyrak-app
+cd ziyrak
 ```
 
 **Step 2: Configure environment variables**
@@ -233,7 +233,7 @@ A successful response looks like this:
 **Solutions:**
 1. Verify PostgreSQL is running: `pg_isready -U postgres`
 2. Check that the `DATABASE_URL` in your `.env` file is correct
-3. Ensure the `owly` database exists: `createdb owly`
+3. Ensure the `ziyrak` database exists: `createdb ziyrak`
 4. For Docker: check that the `db` container is healthy: `docker compose ps`
 
 ### Port 3000 is already in use

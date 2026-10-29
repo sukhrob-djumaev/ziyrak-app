@@ -20,7 +20,7 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
       const resp = await p.goto(L.BASE + path, { waitUntil: "networkidle0" }); r.nav[path] = `${resp.status()} -> ${p.url().replace(L.BASE, "") }`;
     }
     r.adminUsers = ((await apiGet(p, "/api/admin/users")).b.data || []).map((u) => u.username);
-    tokens[key] = (await p.cookies()).find((k) => k.name === "owly-token").value;
+    tokens[key] = (await p.cookies()).find((k) => k.name === "ziyrak-token").value;
     // real Sign Out through the avatar menu
     await p.goto(L.BASE + "/", { waitUntil: "networkidle0" });
     // The avatar shows the signed-in person's initial (it used to be a hard-coded "A"), so find it by its label.
@@ -46,7 +46,7 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
     await L.sleep(800);
     r.loginUrl = p.url().replace(L.BASE, "");
     r.meAfterLogin = (await apiGet(p, "/api/auth")).b.user?.username;
-    r.cookieAttrs = (await p.cookies()).filter((k) => k.name === "owly-token").map((k) => ({ httpOnly: k.httpOnly, secure: k.secure, sameSite: k.sameSite }));
+    r.cookieAttrs = (await p.cookies()).filter((k) => k.name === "ziyrak-token").map((k) => ({ httpOnly: k.httpOnly, secure: k.secure, sameSite: k.sameSite }));
     r.consoleErrors = [...new Set(ev.consoleErrors)]; r.failedNonPrefetch = ev.failed.filter((f) => !f.u.includes("_rsc="));
     out.perBusiness[key] = r; await b.close();
 
@@ -54,7 +54,7 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
     for (const path of Object.keys(r.nav)) L.assert(/^(200|304) ->/.test(r.nav[path]) && r.nav[path].endsWith(`-> ${path}`), `${key}: ${path} loads (200, or 304 when the browser revalidates the cached prerendered shell) while authenticated, got ${r.nav[path]}`);
     L.assert(r.signOutClicked === true, `${key}: Sign Out control was found and clicked`);
     L.assert(r.afterSignOutUrl.startsWith("/login"), `${key}: sign-out navigates to /login, got ${r.afterSignOutUrl}`);
-    L.assert(!r.cookiesAfterLogout.includes("owly-token"), `${key}: owly-token cookie is cleared after sign-out`);
+    L.assert(!r.cookiesAfterLogout.includes("ziyrak-token"), `${key}: ziyrak-token cookie is cleared after sign-out`);
     for (const [path, status] of Object.entries(r.api_after_logout)) L.assert(status === 401, `${key}: ${path} is 401 after sign-out, got ${status}`);
     L.assert(r.page_after_logout.includes("-> /login"), `${key}: /conversations redirects to /login after sign-out, got ${r.page_after_logout}`);
     L.assert(r.wrongPasswordMsg.includes("Invalid credentials"), `${key}: wrong password shows "Invalid credentials", got ${JSON.stringify(r.wrongPasswordMsg)}`);
@@ -77,13 +77,13 @@ const clickText = async (p, sel, text) => { for (const e of await p.$$(sel)) { c
   for (const [m, url, body] of calls) u[`${m} ${url}`] = await p.evaluate(async (m, url, body) => { const r = await fetch(url, { method: m, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, redirect: "manual" }); return r.status + (r.type === "opaqueredirect" ? " (redirect)" : ""); }, m, url, body);
   const forged = { "structurally-valid garbage a.b.c": "a.b.c", "JWT signed with wrong secret": jwt.sign({ userId: "x" }, "wrong-secret") };
   for (const [name, val] of Object.entries(forged)) {
-    await ctx.setCookie({ name: "owly-token", value: val, domain: "localhost", path: "/" });
+    await ctx.setCookie({ name: "ziyrak-token", value: val, domain: "localhost", path: "/" });
     u[`forged cookie [${name}] API`] = await p.evaluate(async () => (await fetch("/api/conversations")).status);
     u[`forged cookie [${name}] page /conversations`] = await p.goto(L.BASE + "/conversations").then((r) => `${r.status()} -> ${p.url().replace(L.BASE, "")}`);
   }
   await b.close();
   // Stateless-JWT observation: the pre-logout token of A, replayed from a plain HTTP client after A signed out
-  const rep = await fetch(L.BASE + "/api/auth", { headers: { Cookie: "owly-token=" + tokens.A, "X-Forwarded-For": "10.0.0.98" } });
+  const rep = await fetch(L.BASE + "/api/auth", { headers: { Cookie: "ziyrak-token=" + tokens.A, "X-Forwarded-For": "10.0.0.98" } });
   out.replayOldTokenAfterLogout = { status: rep.status, user: (await rep.json()).user?.username };
 
   for (const path of ["/conversations", "/customers", "/admin", "/channels", "/knowledge/test"]) {

@@ -1,6 +1,6 @@
 # P1 Settings permission and request context evidence
 
-Status: product7fc5dab plus harness504d08e committed in isolated p1-support-identity/owly;
+Status: product7fc5dab plus harness504d08e committed in isolated p1-support-identity/ziyrak;
 corrected focused J24 passed; fresh full24 failed at an obsolete J18 denial-text
 assertion after17journeys passed. Repair/rerun pending. Main docs-only. Governed by
 [contract](p1-settings-context-contract-2026-10-15.md) and PLAN P1. No P2 managed-AI

@@ -7,7 +7,7 @@ import { registerChannelAdapter } from "@/lib/channels/registry";
 import { prisma } from "@/lib/prisma/raw-client";
 async function main() {
   const db = process.env.DATABASE_URL!;
-  if (db !== process.env.DIRECT_DATABASE_URL || new URL(db).pathname === "/owly")
+  if (db !== process.env.DIRECT_DATABASE_URL || new URL(db).pathname === "/ziyrak")
     throw new Error("Isolated paired test database required");
   const target = new URL(process.env.DELIVERY_RESTART_PROVIDER!);
   if (target.hostname !== "127.0.0.1")

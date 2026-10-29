@@ -69,8 +69,8 @@ const sql = L.sql;
     L.assert(p.consoleErrors.length === 0, `${path}: no console errors, got ${JSON.stringify(p.consoleErrors)}`);
     L.assert(p.pageErrors.length === 0, `${path}: no page errors, got ${JSON.stringify(p.pageErrors)}`);
   }
-  const authCookie = out.cookie.find((c) => c.name === "owly-token");
-  L.assert(authCookie && authCookie.httpOnly === true && authCookie.secure === true && authCookie.sameSite === "Lax", `owly-token cookie attributes are correct, got ${JSON.stringify(authCookie)}`);
+  const authCookie = out.cookie.find((c) => c.name === "ziyrak-token");
+  L.assert(authCookie && authCookie.httpOnly === true && authCookie.secure === true && authCookie.sameSite === "Lax", `ziyrak-token cookie attributes are correct, got ${JSON.stringify(authCookie)}`);
   L.assert(out.newConversationWidgetLogEmpty === true, `clearing the conversation key alone starts a fresh widget log`);
   L.assert(out.sameVisitor.conversationChanged === true, `a new conversation id is used after clearing the conversation key`);
   L.assert(out.sameVisitor.visitorIdSame === true, `the visitor id persists across conversations`);

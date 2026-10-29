@@ -158,7 +158,7 @@ export async function requireAuth(
   }
 
   // Fall back to cookie auth
-  const token = request.cookies.get("owly-token")?.value;
+  const token = request.cookies.get("ziyrak-token")?.value;
 
   if (!token) {
     return NextResponse.json(
@@ -245,7 +245,7 @@ export function isAuthenticated(result: TenantContext | NextResponse): result is
 export async function getTenantContextFromCookies(): Promise<TenantContext | null> {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
-  const token = cookieStore.get("owly-token")?.value;
+  const token = cookieStore.get("ziyrak-token")?.value;
   if (!token) return null;
 
   const payload = await verifyActiveToken(token);

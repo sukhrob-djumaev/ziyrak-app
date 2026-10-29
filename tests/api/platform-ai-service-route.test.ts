@@ -27,7 +27,7 @@ describe("/api/platform/ai-service", () => {
   it("refuses an ordinary workspace owner on read and on every write, changing nothing", async () => {
     const { GET, POST } = await import("@/app/api/platform/ai-service/route");
     const headers = { origin: "http://localhost:3000" };
-    const cookies = { "owly-token": token };
+    const cookies = { "ziyrak-token": token };
     const read = await GET(createRequest("/api/platform/ai-service", { cookies }));
     expect([401, 403]).toContain(read.status);
     for (const body of [

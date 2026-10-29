@@ -185,7 +185,7 @@ export const fixtures = {
   apiKeyRecord: {
     id: "key-1",
     name: "Integration Key",
-    key: "owly_live_abc123def456",
+    key: "ziyrak_live_abc123def456",
     isActive: true,
     lastUsed: null,
     createdAt: new Date("2025-01-01"),

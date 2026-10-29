@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "owly.fullname" . }}
+  name: {{ include "ziyrak.fullname" . }}
   labels:
-    {{- include "owly.labels" . | nindent 4 }}
+    {{- include "ziyrak.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,7 +12,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "owly.selectorLabels" . | nindent 4 }}
+    {{- include "ziyrak.selectorLabels" . | nindent 4 }}
     # Only the web pods: worker/redis/pgbouncer pods share the name/instance
     # labels and must never become endpoints (PLAN.md §46.8 review).
     app.kubernetes.io/component: web

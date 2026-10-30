@@ -24,7 +24,7 @@
 - Base plus optional add-ons is the agreed starting model; existing implemented capabilities/prices become data-managed.
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
-- Legacy-name rename MERGED (PR #57, `0992611`): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. Exact-head `ac83eda`: CI build+image green, browser 35/35 (system Chrome 155 via CHROMIUM_PATH, stand-in AI, captured mail, AC power). GitGuardian red (believed false positive on public local-dev defaults; owner chose to merge). Screenshots + demo.gif re-captured with the Ziyrak brand (branch chore/recapture-brand-images). Open: puppeteer 25 async executablePath vs lib.cjs; old-name Docker leftovers deleted; old-name session folder still to remove by hand.
+- Legacy-name rename MERGED (PR #57, `0992611`): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. Exact-head `ac83eda`: CI build+image green, browser 35/35 (system Chrome 155 via CHROMIUM_PATH, stand-in AI, captured mail, AC power). GitGuardian red (believed false positive on public local-dev defaults; owner chose to merge). Screenshots + demo.gif re-captured with the Ziyrak brand (branch chore/recapture-brand-images). Harness resolves the async puppeteer 25 executablePath (branch fix/harness-async-executable-path). Old-name leftovers all removed.
 
 ## Next actions
 0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.

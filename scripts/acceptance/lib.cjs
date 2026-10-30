@@ -13,26 +13,28 @@ fs.mkdirSync(SP, { recursive: true });
 // package is a devDependency here for this reason: it downloads and caches its own Chrome for
 // Testing build, and puppeteer-core drives that binary identically. Falling back to it is what makes
 // `start-all.sh`/`run.sh` work out of the box, with no manual CHROMIUM_PATH step.
-function resolveChromium() {
+// puppeteer 25 made `executablePath()` async (puppeteer 24 returned a string), so resolution awaits it and
+// is done inside launch(); awaiting a plain string is harmless, which keeps both majors working.
+async function resolveChromium() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  try {
-    const p = puppeteer.executablePath();
-    if (p) return p;
-  } catch {
-    // fall through
-  }
-  try {
-    return require("puppeteer").executablePath();
-  } catch (e) {
-    throw new Error(
-      "No Chromium/Chrome-for-Testing binary found. Run `npx puppeteer browsers install chrome` " +
-        "or set CHROMIUM_PATH to an existing Chrome/Chromium binary. (" +
-        e.message +
-        ")"
-    );
-  }
+  // executablePath() only reports where puppeteer would keep its Chrome; it is not proof the download happened.
+  const found = async (get) => {
+    try {
+      const p = await get();
+      return p && fs.existsSync(p) ? p : null;
+    } catch {
+      return null;
+    }
+  };
+  const resolved =
+    (await found(() => puppeteer.executablePath())) || (await found(() => require("puppeteer").executablePath()));
+  if (resolved) return resolved;
+  throw new Error(
+    "No Chromium/Chrome-for-Testing binary found. Run `npx puppeteer browsers install chrome` " +
+      "or set CHROMIUM_PATH to an existing Chrome/Chromium binary."
+  );
 }
-const CHROMIUM = resolveChromium();
+exports.resolveChromium = resolveChromium;
 runtime.verifyTopology();
 const BASE = process.env.ACC_BASE_URL || "http://localhost:3100";
 if (BASE !== "http://localhost:3100")
@@ -123,7 +125,7 @@ exports.launch = async (name) => {
   const userDataDir = path.join(SP, "profiles", name);
   fs.mkdirSync(userDataDir, { recursive: true });
   const browser = await puppeteer.launch({
-    executablePath: CHROMIUM,
+    executablePath: await resolveChromium(),
     // ACC_HEADLESS=shell selects Chrome's windowless headless shell (point CHROMIUM_PATH at it): it does not
     // depend on a visible window, so a locked screen or occluded window cannot pause rendering.
     headless: process.env.ACC_HEADLESS === "shell" ? "shell" : true,

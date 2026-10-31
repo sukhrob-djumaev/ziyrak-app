@@ -12,7 +12,8 @@ State files archive: `docs/state-archive/`. Evidence screenshots: `docs/evidence
 - [Customer workspace](guides/customer-workspace.md) — implemented signup, managed AI, roles and current feature limits.
 - [Developer/operator setup](guides/operator-setup.md) — isolated setup, configuration and verification boundaries; not a deployment rehearsal.
 - [LP-2026-10-25 launch roadmap](launch-roadmap-2026-10-25.md) — selected preparation work, task criteria and live-money gates.
-- [Billing and entitlements](billing-and-entitlements-spec.md) — configurable catalog/subscription target; not implemented.
+- [Billing and entitlements](billing-and-entitlements-spec.md) — configurable catalog/subscription target.
+- [Commercial policy (L4.2)](commercial-policy-l4.2.md) — owner decisions: Stripe, MYR, no trial, data-managed policy; plus the owner's [Company and Money Plan](Ziyrak%20—%20Company%20and%20Money%20Plan.md).
 - [Dashboard/access review](dashboard-and-access-review-2026-10-25.md) — source findings and usability/role acceptance requirements.
 - [Historical wiki archive](legacy-wiki/README.md) — superseded originals; old wiki entry points redirect to these current guides.
 

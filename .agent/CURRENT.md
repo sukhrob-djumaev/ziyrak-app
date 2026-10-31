@@ -25,6 +25,7 @@
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
 - Legacy-name rename MERGED (PR #57, `0992611`): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. Exact-head `ac83eda`: CI build+image green, browser 35/35 (system Chrome 155 via CHROMIUM_PATH, stand-in AI, captured mail, AC power). GitGuardian red (believed false positive on public local-dev defaults; owner chose to merge). Screenshots + demo.gif re-captured with the Ziyrak brand (branch chore/recapture-brand-images). Harness resolves the async puppeteer 25 executablePath (branch fix/harness-async-executable-path). Old-name leftovers all removed.
+- L5.0 billing policy (branch docs/l4.2-commercial-policy, worktree /Users/sukhrob/Development/Repos/JS/ziyrak-l4-4): model + migration + console section + publish check implemented; full vitest 2063 passed on disposable DB ziyrak_test_l50 (docker ziyrak-l5-pg :55434), tsc/lint clean. Browser journey, PR/CI and independent review NOT done. Next: L5.1 provider port/Stripe stand-in.
 
 ## Next actions
 0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.

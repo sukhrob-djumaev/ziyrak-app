@@ -4,6 +4,7 @@ import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { withPlatformControl } from "@/lib/platform/access/authority";
 import { writePlatformAudit } from "@/lib/platform/access/audit";
 import { CAPABILITIES, capability } from "./capabilities";
+import { policyProblemsForTerms, readBillingPolicy } from "./policy";
 
 /**
  * L4.1a - super-admin catalog: items (bundle or add-on) with versioned offers. Draft -> published (immutable, DB trigger)
@@ -171,7 +172,8 @@ export async function publishVersion(token: string, input: unknown) {
     const v = await mustFind(tx, r.versionId);
     if (v.state !== "draft") throw new AppError(409, "CONFLICT", "Only a draft can be published");
     if (v.rev !== r.expectedRev) throw new AppError(409, "CONFLICT", "This draft changed since you opened it. Reload and try again");
-    const problems = publishProblems(termsOf(v));
+    const terms = termsOf(v);
+    const problems = [...publishProblems(terms), ...policyProblemsForTerms(terms, await readBillingPolicy(tx))];
     if (problems.length) throw new AppError(400, "VALIDATION_ERROR", "This draft cannot be published", problems);
     const claimed = await tx.catalogVersion.updateMany({ where: { id: v.id, rev: r.expectedRev, state: "draft" }, data: { state: "published", publishedAt: new Date(), publishedBy: actor.userId } });
     if (claimed.count !== 1) throw new AppError(409, "CONFLICT", "This draft changed since you opened it. Reload and try again");

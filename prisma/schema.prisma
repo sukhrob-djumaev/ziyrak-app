@@ -1240,6 +1240,24 @@ model PlatformLimit {
   updatedAt DateTime @updatedAt
 }
 
+// ==================== BILLING POLICY (L5.0, docs/l5-payment-lifecycle-design.md section 2) ====================
+// One row (id "default"); a missing row means the code defaults. Control plane only; written by a super admin with an audit row.
+model BillingPolicy {
+  id                String   @id @default("default")
+  graceDays         Int
+  trialDays         Int // must be 0 until a trial lifecycle is accepted
+  holdRetentionDays Int
+  currencies        String[]
+  intervals         String[]
+  refundPolicyText  String   @default("")
+  refundPolicyUrl   String?
+  supportContact    String   @default("")
+  taxDisplay        String   @default("none") // "none" | "inclusive" | "exclusive"
+  rev               Int      @default(1)
+  updatedBy         String
+  updatedAt         DateTime @updatedAt
+}
+
 // ==================== ACCOUNT TOKENS (PLAN.md P3) ====================
 // Expiring, single-use verification / password-reset / invitation tokens. Only a SHA-256 of the
 // random secret is stored; the secret exists only in the emailed link. Control-plane only.

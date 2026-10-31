@@ -1,6 +1,6 @@
 # Commercial policy (L4.2)
 
-Status: **owner decisions recorded 2026-10-31 for the test-stage launch; sandbox only, no live charge.** Source: owner's [Company and Money Plan](Ziyrak%20—%20Company%20and%20Money%20Plan.md) (Oct 29, 2026) and chat direction of 2026-10-31. Governs L4.2/L5 inputs; `billing-and-entitlements-spec.md` remains the contract.
+Status: **owner decisions recorded 2026-10-31 for the test-stage launch; sandbox only, no live charge.** Source: owner's [Company and Money Plan](company-and-money-plan.md) (Oct 29, 2026) and chat direction of 2026-10-31. Governs L4.2/L5 inputs; `billing-and-entitlements-spec.md` remains the contract.
 
 ## Decisions
 

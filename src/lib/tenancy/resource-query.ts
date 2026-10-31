@@ -20,6 +20,7 @@ export const CONTROL_PLANE_ONLY_MODELS = [
   "catalogItem",
   "catalogVersion",
   "platformLimit",
+  "billingPolicy",
   "workspacePurchase",
   "entitlementAdjustment",
   "databaseProfile",

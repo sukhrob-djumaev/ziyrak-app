@@ -34,7 +34,7 @@ const keys: string[] = [];
 const mk = async (kind: "bundle" | "addon", grants: { capability: string; amount?: number }[]) => {
   const key = `e-${randomUUID().slice(0, 8)}`;
   keys.push(key);
-  const v = await createItem("t", { key, kind, terms: { name: key, description: "", grants, priceMinor: 100, currency: "USD", interval: "month" }, reason: "r" });
+  const v = await createItem("t", { key, kind, terms: { name: key, description: "", grants, priceMinor: 100, currency: "MYR", interval: "month" }, reason: "r" });
   return publishVersion("t", { versionId: v.id, expectedRev: v.rev, reason: "r" });
 };
 
@@ -78,7 +78,7 @@ describe("baseline protection", () => {
     const baseline = await prisma.catalogVersion.findFirstOrThrow({ where: { item: { key: "legacy-baseline" } }, include: { item: true } });
     await expect(archiveVersion("t", { versionId: baseline.id, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
     await expect(newDraft("t", { itemId: baseline.itemId, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
-    await expect(createItem("t", { key: "legacy-baseline", kind: "bundle", terms: { name: "x", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "USD", interval: "month" }, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(createItem("t", { key: "legacy-baseline", kind: "bundle", terms: { name: "x", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "MYR", interval: "month" }, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
     expect((await prisma.catalogVersion.findUniqueOrThrow({ where: { id: baseline.id } })).state).toBe("published");
   });
   it("assigning the same version twice is a clean conflict", async () => {
@@ -106,7 +106,7 @@ describe("assignment", () => {
     await expect(endPurchase("t", { purchaseId: a.id, reason: "again" })).rejects.toMatchObject({ statusCode: 409 });
   });
   it("refuses a draft or archived version and a missing workspace; operators and no session change nothing", async () => {
-    const d = await createItem("t", { key: (keys[keys.push(`e-${randomUUID().slice(0, 8)}`) - 1]), kind: "addon", terms: { name: "d", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "USD", interval: "month" }, reason: "r" });
+    const d = await createItem("t", { key: (keys[keys.push(`e-${randomUUID().slice(0, 8)}`) - 1]), kind: "addon", terms: { name: "d", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "MYR", interval: "month" }, reason: "r" });
     await expect(assignVersion("t", { businessId: ws.businessId, versionId: d.id, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
     const before = await prisma.workspacePurchase.count();
     gate.role = "operator";

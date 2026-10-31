@@ -17,7 +17,7 @@
 - L4.1a MERGED (PR #54, `a977869`): registry + versioned catalog + super-admin console; CI green + browser 33/33 on `b7b1e2b`. Record: `docs/evidence/l4.1a-catalog-2026-10-28.md`. Design: `docs/l4.1-catalog-entitlements-design.md` (Revision 2).
 - L4.1b MERGED (PR #55, `081c35c`): purchases + baseline (trigger + helper), live resolver, enforcement at channels/automation/webhooks/export/seats/tools, owner Plan & usage, console assignment, J34. CI green + browser 34/34 on `d70e631`. Record: `docs/evidence/l4.1b-entitlements-2026-10-28.md`.
 - L4.1c MERGED (PR #56, `98a0327`): platform AI ceilings (locks 92845/92846), daily new-workspace cap, console section, J35. CI green + browser 35/35 on `8aa013e`. Record: `docs/evidence/l4.1c-platform-limits-2026-10-28.md`. Open: M2/M3/L1/L3 follow-ups in the record.
-- Next: L4.2 (needs owner commercial decisions: seller entity/country, currencies, pricing, trial/grace, refund/tax/invoice responsibility, processor vs merchant of record). Browser runs: AC power, load under 10 (quit iOS simulator/VMs), flushed task Redis, migrated fresh DB, run detached with nohup.
+- L4.2 decisions RECORDED 2026-10-31 (`docs/commercial-policy-l4.2.md`): Wyoming LLC seller, Stripe processor, MYR, no free trial, 7-day grace, manual refunds, all pricing/policy console-managed. Task worktree `/Users/sukhrob/Development/Repos/JS/ziyrak-l4-4` branch `docs/l4.2-commercial-policy`. Next: L5 design (billing-policy settings record first, then Stripe test-mode lifecycle). Browser runs: AC power, load under 10 (quit iOS simulator/VMs), flushed task Redis, migrated fresh DB, run detached with nohup.
 - Task-owned leftovers (remove with owner OK): docker `ziyrak-l11-pg` (127.0.0.1:55433), `ziyrak-l12-redis` (127.0.0.1:56379); DBs `ziyrak_acceptance_l12*`, `ziyrak_acceptance_l13a`; worktrees ziyrak-l1-1/-l1-2/-l1-3; scratch `/private/tmp/ziyrak-l1*-acc*`.
 - Start guide: `docs/guides/agent-continuation.md`; run one lead at a time, honor coordinator/task STOP markers.
 - Target contracts: `docs/billing-and-entitlements-spec.md`, `docs/dashboard-and-access-review-2026-10-25.md`.
@@ -25,6 +25,7 @@
   New capabilities still need code. Merchant country/currency/provider and production policies remain open (L4.2).
 
 - Legacy-name rename MERGED (PR #57, `0992611`): cookie `ziyrak-token`, Redis `ziyrak:`, DBs `ziyrak*`, `helm/ziyrak`. Exact-head `ac83eda`: CI build+image green, browser 35/35 (system Chrome 155 via CHROMIUM_PATH, stand-in AI, captured mail, AC power). GitGuardian red (believed false positive on public local-dev defaults; owner chose to merge). Screenshots + demo.gif re-captured with the Ziyrak brand (branch chore/recapture-brand-images). Harness resolves the async puppeteer 25 executablePath (branch fix/harness-async-executable-path). Old-name leftovers all removed.
+- L5.0 billing policy (branch docs/l4.2-commercial-policy, worktree /Users/sukhrob/Development/Repos/JS/ziyrak-l4-4): model + migration + console section + publish check implemented; full vitest 2063 passed on disposable DB ziyrak_test_l50 (docker ziyrak-l5-pg :55434), tsc/lint clean. Browser journey, PR/CI and independent review NOT done. Next: L5.1 provider port/Stripe stand-in.
 
 ## Next actions
 0. Browser runs: Mac on AC + awake; fresh `ziyrak_acceptance_*` DB, `REDIS_URL` and synthetic platform proof hashes set from the start.

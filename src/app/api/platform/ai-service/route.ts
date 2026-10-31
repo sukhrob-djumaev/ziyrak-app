@@ -3,6 +3,7 @@ import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/accou
 import { readAiServiceConsole, savePolicy, setWorkspaceAllowance } from "@/lib/platform/ai-service";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { setPlatformLimit } from "@/lib/platform/limits-console";
+import { saveBillingPolicy } from "@/lib/billing/policy-console";
 import { toErrorResponse } from "@/lib/observability/errors";
 
 /** PLAN.md P2 — super-admin-only managed AI policy and allowance management. */
@@ -47,6 +48,9 @@ export async function POST(request: NextRequest) {
         break;
       case "set_platform_limit":
         result = await setPlatformLimit(token, input);
+        break;
+      case "save_billing_policy":
+        result = await saveBillingPolicy(token, input);
         break;
       default:
         return fail("Invalid management action", 400);

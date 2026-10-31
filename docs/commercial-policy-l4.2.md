@@ -12,6 +12,7 @@ Status: **owner decisions recorded 2026-10-31 for the test-stage launch; sandbox
 | Starting prices | RM199/month; RM169/month-equivalent yearly | **Illustrative catalog data, not code.** Owner changes them in the console. |
 | Free trial | **None** | Trial days stay a policy value fixed at 0; no trial lifecycle is built for launch. |
 | Grace after failed payment | 7 days (default) | Policy value, editable. |
+| Non-payment | **Payment hold**: workspace blocked except payment/account routes; inbound stored, no replies; auto-restore on payment; retention ~2 months (60 days, policy value) | Replaces any fallback plan. No deletion built in L5. |
 | Refunds | Manual, case by case, by the owner | Refund policy text/link is a policy value shown to customers. |
 | Invoices / tax | Stripe receipt/invoice only until selling starts | Tax registration and Malaysian SST are an owner/accountant task before the first paid customer. |
 | Support contact | Owner | Shown on billing pages via policy value. |

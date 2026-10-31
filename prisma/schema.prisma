@@ -34,6 +34,9 @@ model Business {
   aiUsageReservations    AiUsageReservation[]
   purchases              WorkspacePurchase[]
   entitlementAdjustments EntitlementAdjustment[]
+  billingCustomer        BillingCustomer?
+  billingSubscriptions   BillingSubscription[]
+  billingOperations      BillingOperation[]
 
   // Every tenant-owned model gains a businessId relation back to Business
   // (§7.1, §12), contracted in the same migration that makes each model's
@@ -1258,6 +1261,115 @@ model BillingPolicy {
   updatedAt         DateTime @updatedAt
 }
 
+// ==================== PAYMENT LIFECYCLE (L5.1, docs/l5-payment-lifecycle-design.md) ====================
+// All control plane. Provider refs bind to a workspace only through these rows; a valid signature alone never does.
+model ProviderPriceRef {
+  id         String         @id @default(uuid())
+  versionId  String
+  version    CatalogVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  provider   String
+  mode       String // "test" | "live"
+  productRef String?
+  priceRef   String?
+  state      String         @default("pending") // "pending" | "synced" | "failed"
+  attempts   Int            @default(0)
+  lastError  String?
+  syncedAt   DateTime?
+  createdAt  DateTime       @default(now())
+
+  @@unique([provider, mode, versionId])
+}
+
+model BillingCustomer {
+  id          String   @id @default(uuid())
+  businessId  String   @unique
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  provider    String
+  customerRef String
+  createdAt   DateTime @default(now())
+
+  @@unique([provider, customerRef])
+}
+
+model BillingSubscription {
+  id               String                    @id @default(uuid())
+  businessId       String
+  business         Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  provider         String
+  subscriptionRef  String
+  customerRef      String
+  operationId      String?
+  status           String // "incomplete" | "active" | "past_due" | "canceling" | "ended"
+  currentPeriodEnd DateTime?
+  graceEndsAt      DateTime?
+  currency         String
+  lastFetchedAt    DateTime?
+  rev              Int                       @default(1)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  items            BillingSubscriptionItem[]
+
+  @@unique([provider, subscriptionRef])
+  @@index([businessId, status])
+}
+
+model BillingSubscriptionItem {
+  id             String              @id @default(uuid())
+  subscriptionId String
+  subscription   BillingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  versionId      String
+  version        CatalogVersion      @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  quantity       Int                 @default(1)
+  state          String              @default("active") // "active" | "scheduled_remove" | "removed"
+  effectiveAt    DateTime            @default(now())
+
+  @@index([subscriptionId, state])
+}
+
+model BillingOperation {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  kind        String // "checkout" | "change" | "cancel"
+  state       String   @default("pending") // "pending" | "succeeded" | "failed" | "unknown"
+  idemKey     String   @unique
+  quoteHash   String
+  sessionRef  String?
+  requestedBy String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, state])
+}
+
+model ProviderEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventRef    String
+  type        String
+  payloadHash String
+  state       String   @default("received") // "received" | "processed" | "ignored" | "failed"
+  attempts    Int      @default(0)
+  error       String?
+  receivedAt  DateTime @default(now())
+
+  @@unique([provider, eventRef])
+  @@index([state, receivedAt])
+}
+
+model BillingIncident {
+  id         String    @id @default(uuid())
+  businessId String? // null while the provider ref is still unbound
+  kind       String // "paid_not_provisioned" | "unbound_ref" | "reconcile_mismatch" | "paid_after_end"
+  state      String    @default("open") // "open" | "resolved"
+  detail     String
+  createdAt  DateTime  @default(now())
+  resolvedBy String?
+  resolvedAt DateTime?
+
+  @@index([state, createdAt])
+}
+
 // ==================== ACCOUNT TOKENS (PLAN.md P3) ====================
 // Expiring, single-use verification / password-reset / invitation tokens. Only a SHA-256 of the
 // random secret is stored; the secret exists only in the emailed link. Control-plane only.
@@ -1302,25 +1414,27 @@ model CatalogItem {
 }
 
 model CatalogVersion {
-  id          String              @id @default(uuid())
-  itemId      String
-  item        CatalogItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  version     Int
-  state       String              @default("draft") // "draft" | "published" | "archived"
-  name        String
-  description String              @default("")
-  grants      Json                @default("[]") // [{ capability, amount? }] validated against the code registry
-  priceMinor  Int? // test/display price in minor units; collection is L5
-  currency    String?
-  interval    String? // "month" | "year"
-  rev         Int                 @default(1) // optimistic concurrency for draft edits
-  createdBy   String?
-  publishedBy String?
-  publishedAt DateTime?
-  archivedAt  DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  purchases   WorkspacePurchase[]
+  id                String                    @id @default(uuid())
+  itemId            String
+  item              CatalogItem               @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  version           Int
+  state             String                    @default("draft") // "draft" | "published" | "archived"
+  name              String
+  description       String                    @default("")
+  grants            Json                      @default("[]") // [{ capability, amount? }] validated against the code registry
+  priceMinor        Int? // test/display price in minor units; collection is L5
+  currency          String?
+  interval          String? // "month" | "year"
+  rev               Int                       @default(1) // optimistic concurrency for draft edits
+  createdBy         String?
+  publishedBy       String?
+  publishedAt       DateTime?
+  archivedAt        DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  purchases         WorkspacePurchase[]
+  priceRefs         ProviderPriceRef[]
+  subscriptionItems BillingSubscriptionItem[]
 
   @@unique([itemId, version])
 }
@@ -1328,21 +1442,23 @@ model CatalogVersion {
 // ==================== PURCHASES AND ADJUSTMENTS (L4.1b) ====================
 // What a workspace holds. "provider" purchases are written only by the payment lifecycle (L5); L4.1 writes "baseline" and "manual_test".
 model WorkspacePurchase {
-  id         String         @id @default(uuid())
-  businessId String
-  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  versionId  String
-  version    CatalogVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
-  quantity   Int            @default(1)
-  source     String // "baseline" | "manual_test" | "provider"
-  state      String         @default("active") // "active" | "ended"
-  startsAt   DateTime       @default(now())
-  endsAt     DateTime?
-  reason     String
-  createdBy  String?
-  createdAt  DateTime       @default(now())
+  id                 String         @id @default(uuid())
+  businessId         String
+  business           Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  versionId          String
+  version            CatalogVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  quantity           Int            @default(1)
+  source             String // "baseline" | "manual_test" | "provider"
+  state              String         @default("active") // "active" | "ended"
+  startsAt           DateTime       @default(now())
+  endsAt             DateTime?
+  reason             String
+  createdBy          String?
+  createdAt          DateTime       @default(now())
+  subscriptionItemId String? // set for source "provider": the paid item this purchase mirrors
 
   @@index([businessId, state])
+  @@index([subscriptionItemId])
 }
 
 // Explicit, expiring, audited commercial adjustment (never a permanent bypass).

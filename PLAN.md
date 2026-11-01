@@ -28,7 +28,7 @@ Customer experience: [dashboard/access review](docs/dashboard-and-access-review-
 | L1 | Safety and trustworthy verification | Not started / not run | **Next: L1.1 safe DB/process/image test harness**, then dependencies/HTTP, account/secrets and AI scoring. |
 | L2 | Runtime and release operations | Not started / not run | L1; complete configuration/probes, tested image, restore/rollback and monitoring. |
 | L3 | Dashboard, roles and usability | Source review complete; implementation not started / browser not run | L1 safety; permission-aware UI, coherent navigation, honest supported features. |
-| L4 | Catalog/entitlements and commercial policy | Target contract written; implementation not started / not run | Provider-neutral L4.1 follows safety/access; L4.2 merchant/currency/provider and production policy decisions remain open. |
+| L4 | Catalog/entitlements and commercial policy | Target contract written; implementation not started / not run | L4.1a–c merged. L4.2 decisions recorded 2026-10-31 in [commercial policy](docs/commercial-policy-l4.2.md) (Stripe, MYR, no trial, policy data-managed); live-money steps stay gated. |
 | L5 | Sandbox payment lifecycle | Not started / not run | L4; signed durable events, quotes, provisioning, change/failure/recovery and independent review. |
 | L6 | Candidate/release rehearsal | Not started / not run | L1–L5; exact-build full suite and required real-provider/operations evidence. |
 | L7 | Controlled paid pilot, then expansion | Not authorized / not run | Requires L6 evidence and explicit rollout/live-money authorization. |
@@ -175,8 +175,7 @@ New support channels, marketplace payments, dedicated storage and automated ente
 channel connections, sessions and encrypted credentials need a tested migration;
 never discard them or grant new privilege implicitly.
 
-Current open commercial decisions are the seller entity/country, first currencies/markets,
-provider, prices/allowances and trial/grace/cancellation/refund/tax policy (L4.2). They do not block L1–L3
+Commercial decisions for the test stage are recorded in [docs/commercial-policy-l4.2.md](docs/commercial-policy-l4.2.md); production prices, tax registration and entity/account setup stay open (owner). They do not block L1–L3
 or provider-neutral preparation. R2's agreed historical thresholds need the L1.4 scorer/holdout correction
 before renewed quality claims. Provider purchases, email-domain changes and deployment retain their
 external-action boundaries. The [launch roadmap](docs/launch-roadmap-2026-10-25.md) maps the explicit

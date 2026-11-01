@@ -5,10 +5,13 @@ import { RouteGuard } from "@/components/layout/route-guard";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { redirect } from "next/navigation";
 import { permissionsForContext } from "@/lib/rbac/view";
+import { HoldGate } from "@/components/layout/hold-gate";
+import { paymentHold } from "@/lib/billing/payment-hold";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getTenantContextFromCookies();
   if (!ctx) redirect("/workspaces");
+  const hold = await paymentHold(ctx.businessId);
   return (
     <PermissionsProvider permissions={permissionsForContext(ctx)} isOwner={ctx.role === "owner"}>
       <MobileNavProvider>
@@ -23,7 +26,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <MobileMenuBar />
             <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 flex flex-col overflow-hidden focus:outline-none">
-              <RouteGuard>{children}</RouteGuard>
+              {hold.held ? (
+                <HoldGate retentionEndsAt={hold.retentionEndsAt?.toISOString() ?? null} isOwner={ctx.role === "owner"}>
+                  <RouteGuard>{children}</RouteGuard>
+                </HoldGate>
+              ) : (
+                <RouteGuard>{children}</RouteGuard>
+              )}
             </main>
           </div>
         </div>

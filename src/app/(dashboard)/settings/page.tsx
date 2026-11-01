@@ -3,11 +3,13 @@ import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { hasTenantPermission, validateResourceScope } from "@/lib/tenancy/resource-scope";
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
+import { redirectIfHeld } from "@/lib/billing/hold-redirect";
 import SettingsClient from "./settings-client";
 
 export default async function SettingsPage() {
   const ctx = await getTenantContextFromCookies();
   if (!ctx) redirect("/workspaces");
+  await redirectIfHeld(ctx.businessId);
   if (!hasTenantPermission(ctx, "settings:read"))
     return (
       <>

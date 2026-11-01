@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAccountAuth, isAccountAuthenticated } from "@/lib/identity/account-auth";
 import { archiveVersion, createItem, newDraft, publishVersion, readCatalogConsole, saveDraft } from "@/lib/billing/catalog";
 import { assignVersion, endPurchase, setAdjustment } from "@/lib/billing/purchases";
+import { repairProvision } from "@/lib/billing/repair";
+import { getPaymentProvider, billingMode } from "@/lib/billing/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toErrorResponse } from "@/lib/observability/errors";
 
@@ -61,6 +63,12 @@ export async function POST(request: NextRequest) {
       case "set_adjustment":
         result = await setAdjustment(token, input);
         break;
+      case "repair_provision": {
+        const provider = getPaymentProvider();
+        if (!provider) return fail("Billing is not configured", 503);
+        result = await repairProvision(token, input, { provider, mode: billingMode() });
+        break;
+      }
       default:
         return fail("Invalid catalog action", 400);
     }

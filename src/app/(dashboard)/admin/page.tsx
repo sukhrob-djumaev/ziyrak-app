@@ -1,5 +1,6 @@
 import { Header } from "@/components/layout/header";
 import { redirect } from "next/navigation";
+import { redirectIfHeld } from "@/lib/billing/hold-redirect";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { hasTenantPermission, validateResourceScope } from "@/lib/tenancy/resource-scope";
 import AdminClient from "./admin-client";
@@ -8,6 +9,7 @@ import { createHash } from "node:crypto";
 export default async function AdminPage() {
   const ctx = await getTenantContextFromCookies();
   if (!ctx) redirect("/workspaces");
+  await redirectIfHeld(ctx.businessId);
   if (!hasTenantPermission(ctx, "admin:read"))
     return (
       <>

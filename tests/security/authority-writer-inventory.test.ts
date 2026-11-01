@@ -21,7 +21,7 @@ const FENCED = new Set([
 /** Control-plane-resident writers that use the raw client but take the same per-workspace fence
  * explicitly, inside the transaction and before any write. Each must say so in source.
  */
-const RAW_FENCED = new Set(["lib/platform/admin-users/service.ts"]);
+const RAW_FENCED = new Set(["lib/platform/admin-users/service.ts", "lib/billing/member-seats.ts"]);
 /** Platform control plane: account/role provisioning and creation only. None of these reduces a
  * workspace-scoped saved follow-up authority; membership removal/role change, key expiry edits
  * and workspace suspension have no application writer yet and must join FENCED when added.
@@ -43,6 +43,8 @@ const PLATFORM = new Set([
   // P3 invitations create accounts/memberships (never reduce authority); revocation only marks tokens used.
   "lib/platform/admin-users/invitations.ts",
   "lib/platform/provisioning.ts",
+  // L5.2 plan seat suspension: sets/clears Membership.suspendedByPlanAt under the workspace fence; deletes nothing and never touches an owner.
+  "lib/billing/member-seats.ts",
 ]);
 const FORBIDDEN_FOR_EXISTING =
   /\b(membership|business)\.(update|updateMany|updateManyAndReturn|delete|deleteMany|upsert)\(/;

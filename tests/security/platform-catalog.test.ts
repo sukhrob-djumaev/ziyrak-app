@@ -30,7 +30,7 @@ import { acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock
 
 let adminId: string;
 const keys: string[] = [];
-const terms = { name: "Inbox", description: "Web Chat + AI", grants: [{ capability: "channel.webchat" }], priceMinor: 1900, currency: "USD", interval: "month" as const };
+const terms = { name: "Inbox", description: "Web Chat + AI", grants: [{ capability: "channel.webchat" }], priceMinor: 1900, currency: "MYR", interval: "month" as const };
 const newKey = () => {
   const k = `t-${randomUUID().slice(0, 8)}`;
   keys.push(k);
@@ -132,6 +132,11 @@ describe("catalog lifecycle", () => {
     await expect(prisma.$executeRawUnsafe('TRUNCATE "CatalogVersion" CASCADE')).rejects.toThrow(/truncated/);
     await archiveVersion("t", { versionId: c.id, reason: "r" });
     await expect(prisma.catalogVersion.update({ where: { id: c.id }, data: { state: "published" } })).rejects.toThrow(/immutable/); // archived is final
+  });
+
+  it("refuses to publish a price whose currency the billing policy does not allow", async () => {
+    const d = await createItem("t", { key: newKey(), kind: "bundle", terms: { ...terms, currency: "USD" }, reason: "r" });
+    await expect(publishVersion("t", { versionId: d.id, expectedRev: d.rev, reason: "go" })).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("rejects an unknown ISO currency", async () => {

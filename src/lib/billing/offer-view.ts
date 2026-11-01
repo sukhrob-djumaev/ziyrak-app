@@ -16,7 +16,7 @@ export async function getOfferView(businessId: string, now: Date = new Date()) {
       include: { version: { include: { item: true } } },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.membership.count({ where: { businessId } }),
+    prisma.membership.count({ where: { businessId, suspendedByPlanAt: null } }),
     prisma.accountToken.count({ where: { purpose: "invitation", usedAt: null, expiresAt: { gt: now }, payload: { path: ["businessId"], equals: businessId } } }),
     prisma.entitlementAdjustment.findMany({ where: { businessId, expiresAt: { gt: now } }, orderBy: { expiresAt: "asc" } }),
     getCustomerAllowanceView(businessId, now),
@@ -61,6 +61,6 @@ export async function getOfferView(businessId: string, now: Date = new Date()) {
     availableAddons: [...latestPerItem.values()]
       .filter((o) => !held.has(o.itemId) && !heldVersionIds.has(o.id))
       .map((o) => ({ itemKey: o.item.key, name: o.name, description: o.description, priceMinor: o.priceMinor, currency: o.currency, interval: o.interval, grants: o.grants })),
-    note: "Prices are display values. Purchasing is not available yet.",
+    note: "Prices are shown before you pay; the payment partner's final figure applies.",
   };
 }

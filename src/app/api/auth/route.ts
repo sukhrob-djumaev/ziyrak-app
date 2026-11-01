@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     const token = generateToken(user.id, { mfa: second === "passed" });
     const cookie = setAuthCookie(token);
     const memberships = await prisma.membership.findMany({
-      where: { userId: user.id, business: { status: "active" } },
+      where: { userId: user.id, suspendedByPlanAt: null, business: { status: "active" } },
       include: { connectionScopes: true },
     });
     const eligible = memberships.filter((row) => {

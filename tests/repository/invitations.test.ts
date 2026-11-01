@@ -201,6 +201,16 @@ describe("accepting as a new person", () => {
     expect(await acceptInvitation({ token: adminToken, signup: { ...signup, username: newName() } })).toMatchObject({ ok: false, code: "INVALID_LINK" });
     void byAdmin;
   });
+
+  it("is refused when the inviter holds no seat because the plan suspended them", async () => {
+    const admin = await addMember(a.businessId, "admin");
+    await prisma.user.update({ where: { id: admin.userId }, data: { email: addr(), emailVerifiedAt: new Date() } });
+    const adminCtx: TenantContext = { ...human(a, "admin"), actor: { kind: "user", userId: admin.userId } };
+    await createInvitation(adminCtx, { email: addr(), role: "agent" });
+    const token = tokenIn(mail.messages.at(-1)!.text);
+    await prisma.membership.update({ where: { businessId_userId: { businessId: a.businessId, userId: admin.userId } }, data: { suspendedByPlanAt: new Date() } });
+    expect(await acceptInvitation({ token, signup: { ...signup, username: newName() } })).toMatchObject({ ok: false, code: "INVALID_LINK" });
+  });
 });
 
 describe("accepting as an existing person", () => {

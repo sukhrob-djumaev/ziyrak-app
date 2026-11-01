@@ -1,0 +1,97 @@
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+
+/** L5.2 - the reconcile job repairs missed webhooks and ends an unpaid subscription once its grace has run out. */
+vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
+
+import { prisma } from "@/lib/prisma/raw-client";
+import { reconcileSubscriptions } from "@/lib/billing/reconcile";
+import { paymentHold } from "@/lib/billing/payment-hold";
+import type { PaymentProvider, ProviderSubscription } from "@/lib/billing/providers/types";
+
+const tag = `brc-${Date.now()}`;
+const DAY = 86_400_000;
+let late: string, fresh: string, drift: string;
+const ref = (b: string) => `${tag}-${b}-sub`;
+let race = "";
+const remoteStatus = new Map<string, ProviderSubscription["status"]>();
+
+const getSubscription = vi.fn(async (r: string): Promise<ProviderSubscription> => ({
+  ref: r, customerRef: `${tag}-cus`, status: remoteStatus.get(r) ?? "active", cancelAtPeriodEnd: false, currentPeriodEnd: new Date(Date.now() + 10 * DAY), currency: "MYR", items: [], metadata: {}, fetchedAt: new Date(),
+}));
+const cancelSubscription = vi.fn(async (c: { ref: string }) => { remoteStatus.set(c.ref, "canceled"); });
+const provider = { name: "stripe-rc", getSubscription, cancelSubscription } as unknown as PaymentProvider;
+const deps = { provider, mode: "test" as const };
+
+async function workspace(name: string, data: { status: string; graceEndsAt?: Date; lastFetchedAt: Date }) {
+  const b = await prisma.business.create({ data: { name: `${tag}-${name}`, slug: `${tag}-${name}` } });
+  await prisma.billingSubscription.create({ data: { businessId: b.id, provider: "stripe-rc", subscriptionRef: ref(name), customerRef: `${tag}-cus`, currency: "MYR", currentPeriodEnd: new Date(Date.now() + DAY), ...data } });
+  return b.id;
+}
+
+beforeAll(async () => {
+  late = await workspace("late", { status: "past_due", graceEndsAt: new Date(Date.now() - DAY), lastFetchedAt: new Date(Date.now() - 2 * DAY) });
+  fresh = await workspace("fresh", { status: "active", lastFetchedAt: new Date() });
+  drift = await workspace("drift", { status: "active", lastFetchedAt: new Date(Date.now() - 3 * 3_600_000) });
+  remoteStatus.set(ref("late"), "past_due");
+  remoteStatus.set(ref("drift"), "canceled");
+});
+afterAll(async () => {
+  const ids = [late, fresh, drift, race].filter(Boolean);
+  await prisma.workspacePurchase.deleteMany({ where: { businessId: { in: ids } } });
+  await prisma.billingSubscription.deleteMany({ where: { businessId: { in: ids } } });
+  await prisma.billingIncident.deleteMany({ where: { businessId: { in: ids } } });
+  await prisma.business.deleteMany({ where: { id: { in: ids } } });
+});
+
+describe("reconcile", () => {
+  it("ends an unpaid subscription past its grace, cancels it at the provider and puts the workspace on hold", async () => {
+    await reconcileSubscriptions(deps);
+    expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: late } })).status).toBe("ended");
+    expect(cancelSubscription).toHaveBeenCalledWith({ ref: ref("late"), at: "now" }, expect.any(String));
+    expect((await paymentHold(late)).held).toBe(true);
+  });
+
+  it("repairs a stale row from the provider's answer", async () => {
+    expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: drift } })).status).toBe("ended");
+  });
+
+  it("leaves a recently confirmed subscription alone", async () => {
+    expect(getSubscription).not.toHaveBeenCalledWith(ref("fresh"));
+    expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: fresh } })).status).toBe("active");
+  });
+
+  it("is idempotent: a second run cancels nothing more and re-reads only what is still live", async () => {
+    const cancels = cancelSubscription.mock.calls.length;
+    await reconcileSubscriptions(deps);
+    expect(cancelSubscription.mock.calls.length).toBe(cancels);
+    expect(getSubscription).not.toHaveBeenCalledWith(ref("fresh"));
+  });
+
+  it("retries a grace cancel that failed, until the provider reports the subscription canceled", async () => {
+    const stuck = await workspace("stuck", { status: "ended", graceEndsAt: new Date(Date.now() - DAY), lastFetchedAt: new Date() });
+    remoteStatus.set(ref("stuck"), "past_due");
+    try {
+      cancelSubscription.mockRejectedValueOnce(new Error("provider down"));
+      await reconcileSubscriptions(deps);
+      expect(remoteStatus.get(ref("stuck"))).toBe("past_due");
+      await reconcileSubscriptions(deps);
+      expect(cancelSubscription).toHaveBeenLastCalledWith({ ref: ref("stuck"), at: "now" }, expect.any(String));
+      expect(remoteStatus.get(ref("stuck"))).toBe("canceled");
+      const calls = cancelSubscription.mock.calls.length;
+      await reconcileSubscriptions(deps);
+      expect(cancelSubscription.mock.calls.length).toBe(calls);
+    } finally {
+      await prisma.billingSubscription.deleteMany({ where: { businessId: stuck } });
+      await prisma.business.deleteMany({ where: { id: stuck } });
+    }
+  });
+
+  it("two overlapping runs over a workspace past its grace end it once and leave it held", async () => {
+    race = await workspace("race", { status: "past_due", graceEndsAt: new Date(Date.now() - DAY), lastFetchedAt: new Date(Date.now() - 2 * DAY) });
+    remoteStatus.set(ref("race"), "past_due");
+    await Promise.all([reconcileSubscriptions(deps), reconcileSubscriptions(deps)]);
+    expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: race } })).status).toBe("ended");
+    expect((await paymentHold(race)).held).toBe(true);
+    expect(await prisma.billingIncident.count({ where: { businessId: race } })).toBe(0);
+  });
+});

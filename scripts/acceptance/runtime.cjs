@@ -163,7 +163,7 @@ function sameIdentity(a, b) {
 }
 function verifyTopology() {
   const { m } = manifest();
-  const required = { web: [3100], hosts: [4020, 4021, 4022] };
+  const required = { web: [3100], hosts: [4020, 4021, 4022], stripe: [4030] };
   if (process.env.ACC_REAL_AI !== "1") required.llm = [4010];
   for (const [role, ports] of Object.entries(required)) {
     const saved = m.processes[role];
@@ -222,7 +222,7 @@ function portFree(port) {
 }
 async function start(what = "all") {
   manifest();
-  const allowed = ["web", "worker", "llm", "hosts"];
+  const allowed = ["web", "worker", "llm", "hosts", "stripe"];
   if (what !== "all" && !allowed.includes(what)) throw new Error("Unknown acceptance role.");
   const roles = what === "all" ? allowed : [what];
   const started = [];
@@ -237,6 +237,14 @@ async function start(what = "all") {
     // P3: platform mail is captured to a file the journeys read; nothing is delivered anywhere.
     MAIL_TRANSPORT: "capture",
     MAIL_CAPTURE_FILE: path.join(work, "mail.jsonl"),
+    // L5: billing runs against the local Stripe stand-in (test-mode key shape only; nothing reaches Stripe).
+    BILLING_PROVIDER: "stripe",
+    STRIPE_SECRET_KEY: "sk_test_acceptance",
+    STRIPE_WEBHOOK_SECRET: "whsec_acceptance",
+    STRIPE_API_BASE: "http://127.0.0.1:4030",
+    STRIPE_STANDIN_PORT: "4030",
+    STRIPE_STANDIN_WEBHOOK_URL: "http://127.0.0.1:3100/api/billing/webhook",
+    STRIPE_STANDIN_PUBLIC_URL: "http://127.0.0.1:4030",
   };
   if (env.ACC_REAL_AI !== "1") env.OPENAI_BASE_URL = "http://127.0.0.1:4010/v1";
   else delete env.OPENAI_BASE_URL;
@@ -248,6 +256,7 @@ async function start(what = "all") {
     worker: { args: ["--import", "tsx", "src/worker.ts"], ports: [] },
     llm: { args: ["scripts/acceptance/llm-standin.cjs"], ports: [4010] },
     hosts: { args: ["scripts/acceptance/host-sites.cjs"], ports: [4020, 4021, 4022] },
+    stripe: { args: ["scripts/acceptance/stripe-standin.cjs"], ports: [4030] },
   };
   try {
     for (const role of roles) {

@@ -1,3 +1,4 @@
+import { readBillingPolicy } from "@/lib/billing/policy";
 import { z } from "zod";
 import { AppError, NotFoundError } from "@/lib/observability/errors";
 import { encryptAIProviderCredential, encryptEmbeddingProviderCredential } from "@/lib/ai/config";
@@ -164,6 +165,7 @@ export async function readAiServiceConsole(token: string) {
       usage.filter((u) => u.kind === kind).reduce((sum, u) => sum + (u.state === "settled" ? (u.settledTokens ?? u.reservedTokens) : u.reservedTokens), 0);
     return {
       platformLimits: await listLimits(tx),
+      billingPolicy: await readBillingPolicy(tx),
       platformUsage: { generation: platformUsage("generation"), embedding: platformUsage("embedding") },
       policies: policies.map(policyView),
       workspaces: businesses.map((b) => {

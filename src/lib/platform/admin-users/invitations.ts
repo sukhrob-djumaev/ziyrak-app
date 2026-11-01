@@ -78,7 +78,7 @@ export async function createInvitation(ctx: TenantContext, raw: { email: string;
   if (open > 0) throw new AppError(409, "CONFLICT", "An invitation for this address is already pending. Revoke it to send a new one.");
   // The package's member limit counts people who already belong plus invitations still open.
   const [members, openInvitations, seatLimit] = await Promise.all([
-    prisma.membership.count({ where: { businessId: ctx.businessId } }),
+    prisma.membership.count({ where: { businessId: ctx.businessId, suspendedByPlanAt: null } }),
     prisma.accountToken.count({ where: pendingFor(ctx.businessId) }),
     entitledLimit(ctx.businessId, "seats.members"),
   ]);
@@ -165,7 +165,7 @@ export async function acceptInvitation(args: {
   const email = normalizeEmail(row.email);
 
   // The inviter must still be able to grant this today.
-  const inviter = await prisma.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId } });
+  const inviter = await prisma.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId, suspendedByPlanAt: null } });
   if (
     !inviter ||
     !hasPermission(inviter.role, "admin:create") ||
@@ -194,7 +194,7 @@ export async function acceptInvitation(args: {
       if (claimed.count !== 1) throw new Rollback({ ok: false, code: "INVALID_LINK" });
 
       // The inviter's authority is judged inside the same transaction that grants the membership.
-      const inviterNow = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId } });
+      const inviterNow = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId, suspendedByPlanAt: null } });
       if (
         !inviterNow ||
         !hasPermission(inviterNow.role, "admin:create") ||
@@ -224,7 +224,7 @@ export async function acceptInvitation(args: {
         // Two simultaneous accepts must not both take the last seat: count and create under the workspace write fence.
         await lockTenantWrites(tx, payload.businessId);
         const [held, limit] = await Promise.all([
-          tx.membership.count({ where: { businessId: payload.businessId } }),
+          tx.membership.count({ where: { businessId: payload.businessId, suspendedByPlanAt: null } }),
           entitledLimit(payload.businessId, "seats.members", tx),
         ]);
         if (held >= limit) throw new Rollback({ ok: false, code: "SEAT_LIMIT" });

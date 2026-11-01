@@ -35,6 +35,23 @@ export interface SweepRetentionPayload {
 
 export const SWEEP_AI_RESERVATIONS_JOB = "sweep-ai-reservations";
 
+// L5.1 control-plane jobs: the payload carries no workspace (businessId is always "").
+export const PROCESS_PROVIDER_EVENT_JOB = "process-provider-event";
+export interface ProcessProviderEventPayload {
+  businessId: string;
+  eventId: string;
+}
+
+// Recurring, control-plane: sends scheduled removals/decreases that reached period end to the provider.
+export const APPLY_DUE_REDUCTIONS_JOB = "billing-apply-reductions";
+export const RECONCILE_BILLING_JOB = "billing-reconcile";
+
+export const SYNC_PROVIDER_PRICE_JOB = "billing-sync-price";
+export interface SyncProviderPricePayload {
+  businessId: string;
+  versionId: string;
+}
+
 export const RETRY_DELIVERY_JOB = "retry-delivery";
 export interface RetryDeliveryPayload {
   businessId: string;

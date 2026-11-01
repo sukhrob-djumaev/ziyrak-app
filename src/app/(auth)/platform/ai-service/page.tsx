@@ -24,12 +24,37 @@ type WorkspaceRow = {
   embeddingUsed: number;
 };
 type PlatformLimitRow = { key: string; label: string; value: number; isDefault: boolean; max: number };
+type BillingPolicyView = {
+  rev: number;
+  graceDays: number;
+  holdRetentionDays: number;
+  currencies: string[];
+  intervals: string[];
+  refundPolicyText: string;
+  refundPolicyUrl: string | null;
+  supportContact: string;
+  taxDisplay: string;
+};
 type Console = {
+  billingPolicy: BillingPolicyView;
   policies: Policy[];
   workspaces: WorkspaceRow[];
   platformLimits: PlatformLimitRow[];
   platformUsage: { generation: number; embedding: number };
 };
+function seedBp(p: BillingPolicyView) {
+  return {
+    grace: String(p.graceDays),
+    retention: String(p.holdRetentionDays),
+    currencies: p.currencies.join(", "),
+    intervals: p.intervals.join(", "),
+    refundText: p.refundPolicyText,
+    refundUrl: p.refundPolicyUrl ?? "",
+    support: p.supportContact,
+    tax: p.taxDisplay,
+    reason: "",
+  };
+}
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
 const button = "rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50";
@@ -57,6 +82,7 @@ export default function AiServicePage() {
   const [genLimit, setGenLimit] = useState("");
   const [embLimit, setEmbLimit] = useState("");
   const [allowanceReason, setAllowanceReason] = useState("");
+  const [bp, setBp] = useState<{ grace: string; retention: string; currencies: string; intervals: string; refundText: string; refundUrl: string; support: string; tax: string; reason: string } | null>(null);
   const [limitKey, setLimitKey] = useState("");
   const [limitValue, setLimitValue] = useState("");
   const [limitReason, setLimitReason] = useState("");
@@ -92,6 +118,7 @@ export default function AiServicePage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error?.message || "The change could not be saved");
       await load();
+      setBp(null);
       setMessage(success);
     } catch (e) {
       setError(e instanceof Error ? e.message : "The change could not be saved");
@@ -155,6 +182,63 @@ export default function AiServicePage() {
             <label>New value<input id="limitValue" className={field} inputMode="numeric" value={limitValue} onChange={(e) => setLimitValue(e.target.value)} required /></label>
             <label>Reason<input id="limitReason" className={field} value={limitReason} onChange={(e) => setLimitReason(e.target.value)} required /></label>
             <button id="saveLimit" className={button} disabled={busy}>Save limit</button>
+          </form>
+
+          <h2 className="mt-8 text-xl font-semibold">Billing policy</h2>
+          <p className="mt-1 text-sm">
+            Revision {data.billingPolicy.rev}. Applies to future decisions only; it never rewrites a published offer, a purchase or a past invoice.
+            There is no free trial: trial days stay at 0.
+          </p>
+          <form
+            className="mt-4 space-y-3"
+            aria-label="Billing policy"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const v = bp ?? seedBp(data.billingPolicy);
+              const list = (t: string) => t.split(",").map((x) => x.trim()).filter(Boolean);
+              void mutate(
+                {
+                  action: "save_billing_policy",
+                  expectedRev: data.billingPolicy.rev,
+                  graceDays: Number(v.grace),
+                  trialDays: 0,
+                  holdRetentionDays: Number(v.retention),
+                  currencies: list(v.currencies),
+                  intervals: list(v.intervals),
+                  refundPolicyText: v.refundText,
+                  refundPolicyUrl: v.refundUrl.trim() || null,
+                  supportContact: v.support,
+                  taxDisplay: v.tax,
+                  reason: v.reason,
+                },
+                "Billing policy saved.",
+              );
+            }}
+          >
+            {(() => {
+              const v = bp ?? seedBp(data.billingPolicy);
+              const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setBp({ ...v, [k]: e.target.value });
+              return (
+                <>
+                  <label>Grace days after a failed payment (0-30)<input id="bpGrace" className={field} inputMode="numeric" value={v.grace} onChange={set("grace")} required /></label>
+                  <label>Days to keep a held workspace (30-365)<input id="bpRetention" className={field} inputMode="numeric" value={v.retention} onChange={set("retention")} required /></label>
+                  <label>Currencies for new offers (comma separated: MYR, USD)<input id="bpCurrencies" className={field} value={v.currencies} onChange={set("currencies")} required /></label>
+                  <label>Intervals for new offers (month, year)<input id="bpIntervals" className={field} value={v.intervals} onChange={set("intervals")} required /></label>
+                  <label>Refund policy text<textarea id="bpRefundText" className={field} value={v.refundText} onChange={set("refundText")} /></label>
+                  <label>Refund policy link (https, optional)<input id="bpRefundUrl" className={field} value={v.refundUrl} onChange={set("refundUrl")} /></label>
+                  <label>Support contact<input id="bpSupport" className={field} value={v.support} onChange={set("support")} /></label>
+                  <label>Tax display
+                    <select id="bpTax" className={field} value={v.tax} onChange={set("tax")}>
+                      <option value="none">No tax shown</option>
+                      <option value="inclusive">Prices include tax</option>
+                      <option value="exclusive">Tax added on top</option>
+                    </select>
+                  </label>
+                  <label>Reason<input id="bpReason" className={field} value={v.reason} onChange={set("reason")} required /></label>
+                </>
+              );
+            })()}
+            <button id="saveBillingPolicy" className={button} disabled={busy}>Save billing policy</button>
           </form>
 
           <h2 className="mt-8 text-xl font-semibold">Policies</h2>

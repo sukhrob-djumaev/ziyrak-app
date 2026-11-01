@@ -3,6 +3,8 @@ import { getScopedPrisma, type ScopedPrisma } from "@/lib/tenancy/scoped-prisma"
 import { resolveCustomer } from "@/lib/customers/customer-resolver";
 import { chat } from "@/lib/ai/engine";
 import { isOnboardingInactive } from "@/lib/onboarding/service";
+import { isPaymentHold } from "@/lib/billing/payment-hold";
+import { appendCustomerMessage } from "@/lib/conversations/messaging";
 import { evaluateRules, applyAutomationActions } from "@/lib/automations/automation";
 import { createNewConversation } from "@/lib/conversations/conversation-service";
 import type { ZiyrakEvent, MessageReceivedPayload } from "@/lib/events/types";
@@ -266,6 +268,14 @@ export async function processInboundMessage(
   runtime?: { receiptId: string }
 ): Promise<OutboundResult> {
   if (event.businessId !== ctx.businessId) throw new NotFoundError("Inbound event");
+  // Payment hold: keep what the customer wrote so the team sees it once the workspace resumes, but run no automation, AI
+  // or channel send. No delivery operation exists, so the caller marks the receipt processed.
+  if (await isPaymentHold(ctx.businessId)) {
+    const afterCommit: (() => void)[] = [];
+    const held = await getScopedPrisma(ctx).$transaction((tx) => resolveOrCreateConversation(ctx, event, tx, afterCommit));
+    await appendCustomerMessage(ctx, held.id, event.payload.text);
+    return { conversationId: held.id, response: "" };
+  }
   let workCtx = ctx;
   const prepare = async (
     recordConversation?: (

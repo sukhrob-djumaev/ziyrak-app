@@ -199,6 +199,15 @@ describe("deferred identity ceilings, real isolated Postgres; not queue admissio
       statusCode: 403,
     });
   });
+  it("denies deferred work whose issuer membership the plan has suspended", async () => {
+    const { captureDeferredIdentity, refreshDeferredIdentity } = await api(),
+      k = await key();
+    const saved = await captureDeferredIdentity(k.ctx);
+    await prisma.membership.update({ where: { id: k.member.id }, data: { suspendedByPlanAt: new Date() } });
+    await expect(refreshDeferredIdentity(saved, a.businessId)).rejects.toMatchObject({ statusCode: 403 });
+    await prisma.membership.update({ where: { id: k.member.id }, data: { suspendedByPlanAt: null } });
+    expect((await refreshDeferredIdentity(saved, a.businessId)).role).toBe("agent");
+  });
   it("supports explicitly classified legacy workspace keys without guessing or converting issuer origin", async () => {
     const { captureDeferredIdentity, refreshDeferredIdentity } = await api(),
       k = await key();

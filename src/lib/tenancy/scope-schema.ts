@@ -7,6 +7,9 @@ export const SCOPE_SCHEMA: Record<
   business: {
     relations: {
       purchases: { model: "workspacePurchase", many: true },
+      billingCustomer: { model: "billingCustomer", many: false },
+      billingSubscriptions: { model: "billingSubscription", many: true },
+      billingOperations: { model: "billingOperation", many: true },
       entitlementAdjustments: { model: "entitlementAdjustment", many: true },
       platformAssignments: {
         model: "platformAssignment",
@@ -465,7 +468,7 @@ export const SCOPE_SCHEMA: Record<
     scalars: ["id", "key", "kind", "createdAt"],
   },
   catalogVersion: {
-    relations: { item: { model: "catalogItem", many: false }, purchases: { model: "workspacePurchase", many: true } },
+    relations: { item: { model: "catalogItem", many: false }, purchases: { model: "workspacePurchase", many: true }, priceRefs: { model: "providerPriceRef", many: true }, subscriptionItems: { model: "billingSubscriptionItem", many: true } },
     scalars: [
       "id",
       "itemId",
@@ -490,9 +493,55 @@ export const SCOPE_SCHEMA: Record<
     relations: {},
     scalars: ["key", "value", "updatedBy", "updatedAt"],
   },
+  billingPolicy: {
+    relations: {},
+    scalars: [
+      "id",
+      "graceDays",
+      "trialDays",
+      "holdRetentionDays",
+      "currencies",
+      "intervals",
+      "refundPolicyText",
+      "refundPolicyUrl",
+      "supportContact",
+      "taxDisplay",
+      "rev",
+      "updatedBy",
+      "updatedAt",
+    ],
+  },
   workspacePurchase: {
     relations: { business: { model: "business", many: false }, version: { model: "catalogVersion", many: false } },
-    scalars: ["id", "businessId", "versionId", "quantity", "source", "state", "startsAt", "endsAt", "reason", "createdBy", "createdAt"],
+    scalars: ["id", "businessId", "versionId", "quantity", "source", "state", "startsAt", "endsAt", "reason", "createdBy", "createdAt", "subscriptionItemId"],
+  },
+  providerPriceRef: {
+    relations: { version: { model: "catalogVersion", many: false } },
+    scalars: ["id", "versionId", "provider", "mode", "productRef", "priceRef", "state", "attempts", "lastError", "syncedAt", "createdAt"],
+  },
+  billingCustomer: {
+    relations: { business: { model: "business", many: false } },
+    scalars: ["id", "businessId", "provider", "customerRef", "createdAt"],
+  },
+  billingSubscription: {
+    relations: { business: { model: "business", many: false }, items: { model: "billingSubscriptionItem", many: true } },
+    scalars: ["id", "businessId", "provider", "subscriptionRef", "customerRef", "operationId", "status", "currentPeriodEnd", "graceEndsAt", "currency", "lastFetchedAt", "rev", "createdAt", "updatedAt"],
+  },
+  billingSubscriptionItem: {
+    relations: { subscription: { model: "billingSubscription", many: false }, version: { model: "catalogVersion", many: false } },
+    scalars: ["id", "subscriptionId", "versionId", "quantity", "state", "effectiveAt"],
+  },
+  billingOperation: {
+    relations: { business: { model: "business", many: false } },
+    scalars: ["id", "businessId", "kind", "state", "idemKey", "quoteHash", "sessionRef", "requestedBy", "createdAt", "updatedAt"],
+  },
+  providerEvent: {
+    relations: {},
+    scalars: ["id", "provider", "eventRef", "type", "payloadHash", "state", "attempts", "error", "receivedAt"],
+  },
+  billingIncident: {
+    relations: {},
+    scalars: ["id", "businessId", "kind", "state", "detail", "createdAt", "resolvedBy", "resolvedAt"],
   },
   entitlementAdjustment: {
     relations: { business: { model: "business", many: false } },

@@ -1,3 +1,4 @@
+import { paymentHoldDenied } from "@/lib/billing/payment-hold";
 import { requireSupportContext, SUPPORT_GRANT_HEADER } from "./support-request";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -39,7 +40,7 @@ async function authenticateApiKey(presentedKey: string): Promise<TenantContext |
       where: { businessId_userId: { businessId: key.businessId, userId: key.issuedByUserId } },
       include: { connectionScopes: true },
     });
-    if (!issuer || !(["admin", "owner"] as string[]).includes(issuer.role)) return null;
+    if (!issuer || issuer.suspendedByPlanAt || !(["admin", "owner"] as string[]).includes(issuer.role)) return null;
     try {
       if (!scopeIsWithin(resourceScope, scopeFromRecord(issuer))) return null;
     } catch {
@@ -89,7 +90,7 @@ export async function resolveHumanContext(
     where: { businessId_userId: { businessId: selectedWorkspace, userId } },
     include: { connectionScopes: true, business: { select: { status: true } } },
   });
-  if (!membership || membership.business.status !== "active")
+  if (!membership || membership.suspendedByPlanAt || membership.business.status !== "active")
     return { ok: false, reason: "no_membership" };
   let resourceScope;
   try {
@@ -154,7 +155,7 @@ export async function requireAuth(
       );
     }
 
-    return ctx;
+    return (await paymentHoldDenied(ctx.businessId, request.nextUrl.pathname)) ?? ctx;
   }
 
   // Fall back to cookie auth
@@ -222,7 +223,7 @@ export async function requireAuth(
     );
   }
 
-  return result.ctx;
+  return (await paymentHoldDenied(result.ctx.businessId, request.nextUrl.pathname)) ?? result.ctx;
 }
 
 /**

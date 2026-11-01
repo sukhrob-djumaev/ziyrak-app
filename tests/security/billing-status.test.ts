@@ -63,4 +63,21 @@ describe("billing status", () => {
     expect(items.find((i) => i.versionId === synced)).toMatchObject({ quantity: 3, state: "scheduled_remove", pendingQuantity: 1, effectiveAt: eff });
     expect(items.find((i) => i.versionId === unsynced)).toMatchObject({ state: "active", pendingQuantity: null, effectiveAt: null });
   });
+
+  it("lists only this workspace's plan-suspended members", async () => {
+    const mk = async (businessId: string, tag2: string, suspended: boolean) => {
+      const u = await prisma.user.create({ data: { username: `${tag}-${tag2}`, password: "x" } });
+      await prisma.membership.create({ data: { businessId, userId: u.id, role: "agent", suspendedByPlanAt: suspended ? new Date() : null } });
+      return u.id;
+    };
+    const users = [await mk(biz, "s1", true), await mk(biz, "s2", false), await mk(other, "s3", true)];
+    try {
+      const s = await getBillingStatus(biz, null);
+      expect(s.suspendedMembers).toHaveLength(1);
+      expect(s.suspendedMembers[0].role).toBe("agent");
+    } finally {
+      await prisma.membership.deleteMany({ where: { userId: { in: users } } });
+      await prisma.user.deleteMany({ where: { id: { in: users } } });
+    }
+  });
 });

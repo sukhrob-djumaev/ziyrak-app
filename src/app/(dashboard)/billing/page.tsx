@@ -8,6 +8,7 @@ interface Status {
   providerEnabled: boolean;
   hold: { held: boolean; retentionEndsAt: string | null };
   subscription: { status: string; currentPeriodEnd: string | null; graceEndsAt: string | null; currency: string; items: { versionId: string; name: string; kind: string; quantity: number; state: string; pendingQuantity: number | null; effectiveAt: string | null }[] } | null;
+  suspendedMembers: { membershipId: string; role: string; name: string; email: string | null }[];
   sellable: { versionId: string; itemKey: string; kind: string; name: string; description: string; priceMinor: number | null; currency: string | null; interval: string | null }[];
 }
 interface Quote { totalMinor: number; currency: string; interval: string; quotedAt: string; quoteHash: string; lines: { versionId: string; name: string; quantity: number; unitMinor: number }[] }
@@ -214,6 +215,21 @@ function Subscription() {
             {sub.status === "past_due" && sub.graceEndsAt && `. Update your payment method before ${new Date(sub.graceEndsAt).toLocaleDateString()} or the workspace will be paused.`}
           </p>
           <ul className="mt-1">{sub.items.map((i, n) => <li key={n}>{i.name}{i.quantity > 1 ? ` ×${i.quantity}` : ""}</li>)}</ul>
+          {status.suspendedMembers.length > 0 && (
+            <div className="mt-3" data-testid="suspended-members">
+              <h3 className="font-medium">Members without a seat</h3>
+              <p className="text-xs text-ziyrak-text-light">They cannot sign in until a seat is free. Their data is kept.</p>
+              <ul className="mt-1">
+                {status.suspendedMembers.map((m) => (
+                  <li key={m.membershipId} className="flex items-center gap-2">
+                    <span>{m.name || m.email || "Member"} <span className="text-ziyrak-text-light">({m.role})</span></span>
+                    <button type="button" disabled={busy} className="rounded border px-2 py-0.5" data-testid="restore-member"
+                      onClick={() => run(async () => { await api("/api/billing/change/restore-member", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ membershipId: m.membershipId }) }); await refresh(); })}>Give a seat back</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {sub.status === "active" && <ChangePlan status={status} busy={busy} run={run} refresh={refresh} onError={setError} />}
           <button type="button" disabled={busy} className="mt-2 rounded border px-3 py-1.5" data-testid="open-portal"
             onClick={() => run(async () => { window.location.assign((await post("/api/billing/portal")).url); })}>Manage payment details</button>

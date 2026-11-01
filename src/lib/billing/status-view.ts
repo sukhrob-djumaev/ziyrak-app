@@ -7,12 +7,17 @@ import type { BillingMode } from "./providers";
  * provider-synced version of each item that can be sold now, the workspace's current subscription, and the hold.
  */
 export async function getBillingStatus(businessId: string, provider: { name: string; mode: BillingMode } | null) {
-  const [hold, subscription] = await Promise.all([
+  const [hold, subscription, suspended] = await Promise.all([
     paymentHold(businessId),
     prisma.billingSubscription.findFirst({
       where: { businessId, status: { not: "ended" } },
       orderBy: { createdAt: "desc" },
       include: { items: { where: { state: { not: "removed" } }, include: { version: { include: { item: true } } } } },
+    }),
+    prisma.membership.findMany({
+      where: { businessId, suspendedByPlanAt: { not: null } },
+      orderBy: { suspendedByPlanAt: "asc" },
+      select: { id: true, role: true, user: { select: { name: true, email: true } } },
     }),
   ]);
   const versions = provider
@@ -42,6 +47,7 @@ export async function getBillingStatus(businessId: string, provider: { name: str
         effectiveAt: i.state === "scheduled_remove" ? i.effectiveAt : null,
       })),
     },
+    suspendedMembers: suspended.map((m) => ({ membershipId: m.id, role: m.role, name: m.user.name, email: m.user.email })),
     sellable: [...latest.values()].map((v) => ({
       versionId: v.id,
       itemKey: v.item.key,

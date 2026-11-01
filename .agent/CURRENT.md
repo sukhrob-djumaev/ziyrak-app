@@ -56,3 +56,4 @@
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
+- L5 (PR #60): browser 36/36 on `c8c2c92` (stand-in Stripe, AC power); CI build+image green on that head. Open before merge: re-review of security fixes, smoke:stripe (credential-gated), B10 migration test. Evidence: `.agent/HANDOFF.md`.

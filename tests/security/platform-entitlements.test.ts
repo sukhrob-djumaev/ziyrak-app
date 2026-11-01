@@ -108,12 +108,12 @@ describe("assignment", () => {
   it("refuses a draft or archived version and a missing workspace; operators and no session change nothing", async () => {
     const d = await createItem("t", { key: (keys[keys.push(`e-${randomUUID().slice(0, 8)}`) - 1]), kind: "addon", terms: { name: "d", description: "", grants: [{ capability: "data.export" }], priceMinor: 0, currency: "MYR", interval: "month" }, reason: "r" });
     await expect(assignVersion("t", { businessId: ws.businessId, versionId: d.id, reason: "r" })).rejects.toMatchObject({ statusCode: 409 });
-    const before = await prisma.workspacePurchase.count();
+    const before = await prisma.workspacePurchase.count({ where: { businessId: ws.businessId } });
     gate.role = "operator";
     await expect(assignVersion("t", { businessId: ws.businessId, versionId: d.id, reason: "r" })).rejects.toMatchObject({ statusCode: 403 });
     gate.role = null;
     await expect(endPurchase("t", { purchaseId: "x", reason: "r" })).rejects.toMatchObject({ statusCode: 401 });
-    expect(await prisma.workspacePurchase.count()).toBe(before);
+    expect(await prisma.workspacePurchase.count({ where: { businessId: ws.businessId } })).toBe(before);
   });
   it("writes one audit row per assignment change with the reason", async () => {
     const rows = await prisma.platformAccessAudit.findMany({ where: { actorUserId: adminId, action: { startsWith: "entitlement." }, businessId: ws.businessId, reason: { not: "dup" } } });

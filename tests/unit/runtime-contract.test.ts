@@ -29,6 +29,16 @@ describe("runtime configuration contract (F05)", () => {
     expect(validateRuntimeConfig(good as NodeJS.ProcessEnv, "web")).toEqual([]);
   });
 
+  it("requires a test-mode Stripe key and signing secret only when the provider is on", () => {
+    expect(errors({ ...good, BILLING_PROVIDER: "off" })).toEqual([]);
+    expect(errors({ ...good, BILLING_PROVIDER: "paypal" })).toContain("BILLING_PROVIDER");
+    const on = { ...good, BILLING_PROVIDER: "stripe" };
+    expect(errors(on)).toEqual(expect.arrayContaining(["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]));
+    expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: "whsec_x" })).toEqual(["STRIPE_SECRET_KEY"]);
+    expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x" })).toEqual([]);
+    expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x", STRIPE_WEBHOOK_SECRET_NEXT: "bad" })).toEqual(["STRIPE_WEBHOOK_SECRET_NEXT"]);
+  });
+
   it("reports every missing or weak required value at once", () => {
     const bad = errors({ NODE_ENV: "production" });
     for (const key of ["DATABASE_URL", "DIRECT_DATABASE_URL", "JWT_SECRET", "SECRET_KEY_V<n>", "NEXT_PUBLIC_APP_URL", "TRUSTED_PROXY_HOPS", "PLATFORM_SMTP_HOST"]) expect(bad).toContain(key);

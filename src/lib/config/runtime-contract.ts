@@ -99,6 +99,14 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv, role: Role): Findi
     }
   }
 
+  // Payments (L5): off unless BILLING_PROVIDER=stripe; test mode only until live money is separately authorized.
+  if (env.BILLING_PROVIDER && env.BILLING_PROVIDER !== "stripe" && env.BILLING_PROVIDER !== "off") error("BILLING_PROVIDER", "must be \"stripe\" or \"off\"");
+  if (env.BILLING_PROVIDER === "stripe") {
+    if (!env.STRIPE_SECRET_KEY?.startsWith("sk_test_")) error("STRIPE_SECRET_KEY", "must be a Stripe test-mode secret key (sk_test_...); live keys are not accepted");
+    if (!env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) error("STRIPE_WEBHOOK_SECRET", "must be the endpoint signing secret (whsec_...)");
+    if (env.STRIPE_WEBHOOK_SECRET_NEXT && !env.STRIPE_WEBHOOK_SECRET_NEXT.startsWith("whsec_")) error("STRIPE_WEBHOOK_SECRET_NEXT", "must be a signing secret (whsec_...) when set");
+  }
+
   // Platform owner proofs: optional until first enrollment, but a malformed one is a mistake.
   for (const k of ["PLATFORM_BOOTSTRAP_PROOF_SHA256", "PLATFORM_RECOVERY_PROOF_SHA256"]) {
     if (env[k] === undefined || env[k] === "") warn(k, "is not set; platform enrollment/recovery is unavailable");

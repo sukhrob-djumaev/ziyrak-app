@@ -4,6 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { LoadFailed } from "@/components/ui/load-failed";
 
+interface Status {
+  providerEnabled: boolean;
+  hold: { held: boolean; retentionEndsAt: string | null };
+  subscription: { status: string; currentPeriodEnd: string | null; graceEndsAt: string | null; currency: string; items: { name: string; kind: string; quantity: number }[] } | null;
+  sellable: { versionId: string; itemKey: string; kind: string; name: string; description: string; priceMinor: number | null; currency: string | null; interval: string | null }[];
+}
+interface Quote { totalMinor: number; currency: string; interval: string; quotedAt: string; quoteHash: string; lines: { versionId: string; name: string; quantity: number; unitMinor: number }[] }
+
 interface Offer {
   purchases: { id: string; itemKey: string; kind: string; name: string; version: number; quantity: number; source: string }[];
   capabilities: { key: string; label: string; kind: string; granted: boolean; limit: number | null; sources: string[] }[];
@@ -15,6 +23,131 @@ interface Offer {
 }
 
 const sourceLabel: Record<string, string> = { baseline: "included with your workspace", manual_test: "added by the platform team", provider: "subscription" };
+
+const money = (minor: number, currency: string | null) => `${(minor / 100).toFixed(2)} ${currency ?? ""}`.trim();
+const statusText: Record<string, string> = {
+  incomplete: "Waiting for your payment to be confirmed",
+  active: "Active",
+  past_due: "Payment failed - still working while we retry",
+  canceling: "Ends at the close of the paid period",
+  ended: "Ended",
+};
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, { cache: "no-store", ...init });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error?.message ?? "Something went wrong. Try again.");
+  return body as T;
+}
+
+/** Subscribe, see the subscription, and manage payment details. Returning from checkout grants nothing; it waits for the confirmed subscription. */
+function Subscription() {
+  const [status, setStatus] = useState<Status | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      setStatus(await api<Status>("/api/billing/status"));
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+  useEffect(() => {
+    refresh();
+    if (new URLSearchParams(window.location.search).get("checkout") !== "return") return;
+    setConfirming(true);
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      await refresh();
+      if (tries >= 20) {
+        clearInterval(timer);
+        setConfirming(false);
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [refresh]);
+  useEffect(() => {
+    if (status?.subscription && status.subscription.status !== "incomplete") setConfirming(false);
+  }, [status]);
+
+  const lines = Object.entries(cart).filter(([, q]) => q > 0).map(([versionId, quantity]) => ({ versionId, quantity }));
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const post = (url: string, body?: unknown) => api<{ url: string } & Quote>(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+
+  if (!status) return error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null;
+  const sub = status.subscription;
+  return (
+    <section aria-labelledby="sub" data-testid="subscription">
+      <h2 id="sub" className="text-lg font-semibold text-ziyrak-text">Subscription</h2>
+      {status.hold.held && (
+        <p role="status" data-testid="hold-note" className="mt-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+          Your workspace is paused. New messages are saved, but nothing is answered until you subscribe again.
+          {status.hold.retentionEndsAt && ` Your data is kept until ${new Date(status.hold.retentionEndsAt).toLocaleDateString()}.`}
+        </p>
+      )}
+      {confirming && <p role="status" data-testid="confirming" className="mt-2 text-sm">Confirming your payment. This usually takes under a minute.</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+      {sub ? (
+        <div className="mt-2 text-sm" data-testid="sub-state">
+          <p><span className="font-medium">{statusText[sub.status] ?? sub.status}</span>
+            {sub.currentPeriodEnd && ` - paid period ends ${new Date(sub.currentPeriodEnd).toLocaleDateString()}`}
+            {sub.status === "past_due" && sub.graceEndsAt && `. Update your payment method before ${new Date(sub.graceEndsAt).toLocaleDateString()} or the workspace will be paused.`}
+          </p>
+          <ul className="mt-1">{sub.items.map((i, n) => <li key={n}>{i.name}{i.quantity > 1 ? ` ×${i.quantity}` : ""}</li>)}</ul>
+          <button type="button" disabled={busy} className="mt-2 rounded border px-3 py-1.5" data-testid="open-portal"
+            onClick={() => run(async () => { window.location.assign((await post("/api/billing/portal")).url); })}>Manage payment details</button>
+        </div>
+      ) : status.providerEnabled ? (
+        <div className="mt-2 text-sm">
+          <ul className="space-y-2" data-testid="sellable">
+            {status.sellable.map((v) => (
+              <li key={v.versionId}>
+                <label className="flex items-start gap-2">
+                  <input type="checkbox" checked={(cart[v.versionId] ?? 0) > 0} disabled={busy}
+                    onChange={(e) => { setQuote(null); setCart((c) => ({ ...c, [v.versionId]: e.target.checked ? 1 : 0 })); }} />
+                  <span><span className="font-medium">{v.name}</span> - {v.priceMinor === null ? "price not set" : `${money(v.priceMinor, v.currency)}/${v.interval}`}<br /><span className="text-ziyrak-text-light">{v.description}</span></span>
+                </label>
+                {v.kind === "addon" && (cart[v.versionId] ?? 0) > 0 && (
+                  <label className="ml-6 text-xs">Quantity <input type="number" min={1} max={1000} value={cart[v.versionId]} className="w-16 rounded border px-1"
+                    onChange={(e) => { setQuote(null); setCart((c) => ({ ...c, [v.versionId]: Math.max(1, Math.floor(Number(e.target.value) || 1)) })); }} /></label>
+                )}
+              </li>
+            ))}
+            {status.sellable.length === 0 && <li className="text-ziyrak-text-light">Nothing is available to buy right now.</li>}
+          </ul>
+          {!quote ? (
+            <button type="button" disabled={busy || lines.length === 0} className="mt-3 rounded border px-3 py-1.5" data-testid="get-quote"
+              onClick={() => run(async () => setQuote(await post("/api/billing/quote", { lines })))}>Review price</button>
+          ) : (
+            <div className="mt-3" data-testid="quote">
+              <p>Total: <span className="font-medium">{money(quote.totalMinor, quote.currency)}/{quote.interval}</span>. You are sent to our payment partner to pay; nothing is active until the payment is confirmed.</p>
+              <button type="button" disabled={busy} className="mt-2 rounded bg-ziyrak-primary px-3 py-1.5 text-white" data-testid="start-checkout"
+                onClick={() => run(async () => { window.location.assign((await post("/api/billing/checkout", { lines, quoteHash: quote.quoteHash, quotedAt: quote.quotedAt })).url); })}>Continue to payment</button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-ziyrak-text-light">Online payment is not available for this deployment.</p>
+      )}
+    </section>
+  );
+}
 
 /** The owner's read-only view of the package: what is included, where it comes from, and how much is used. */
 export default function BillingPage() {
@@ -43,6 +176,7 @@ export default function BillingPage() {
         {state === "failed" && <LoadFailed what="your plan" onRetry={load} />}
         {state === "ready" && offer && (
           <>
+            <Subscription />
             <section aria-labelledby="held">
               <h2 id="held" className="text-lg font-semibold text-ziyrak-text">Your package</h2>
               <ul className="mt-2 space-y-1 text-sm">

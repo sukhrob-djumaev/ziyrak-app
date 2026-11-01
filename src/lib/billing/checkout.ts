@@ -163,6 +163,13 @@ export async function startCheckout(
   return { url: session.url, operationId: op.id };
 }
 
+/** Provider portal link for the workspace's own customer record; the return URL comes from the env origin. */
+export async function openPortal(businessId: string, provider: PaymentProvider, env: NodeJS.ProcessEnv = process.env): Promise<{ url: string }> {
+  const customer = await prisma.billingCustomer.findUnique({ where: { businessId } });
+  if (!customer) throw new AppError(404, "NOT_FOUND", "There is no subscription to manage yet");
+  return provider.createPortal({ customerRef: customer.customerRef, returnUrl: `${billingReturnOrigin(env)}/billing` });
+}
+
 async function ensureCustomer(actor: { businessId: string; userId: string }, provider: PaymentProvider): Promise<string> {
   const found = await prisma.billingCustomer.findUnique({ where: { businessId: actor.businessId } });
   if (found) return found.customerRef;

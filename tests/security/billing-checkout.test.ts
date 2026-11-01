@@ -111,3 +111,15 @@ describe("start checkout", () => {
     await expect(startCheckout({ businessId: other, userId: user }, body, { ...deps, env: {} as NodeJS.ProcessEnv })).rejects.toMatchObject({ statusCode: 503 });
   });
 });
+
+describe("customer portal", () => {
+  it("opens the portal for the workspace's own customer with an env-origin return URL", async () => {
+    const { openPortal } = await import("@/lib/billing/checkout");
+    const createPortal = vi.fn(async () => ({ url: "https://portal.example/x" }));
+    const p = { name: "stripe", createPortal } as unknown as PaymentProvider;
+    await expect(openPortal(other, p, env)).rejects.toMatchObject({ statusCode: 404 });
+    await prisma.billingCustomer.create({ data: { businessId: other, provider: "stripe", customerRef: `${tag}-ocus` } });
+    expect(await openPortal(other, p, env)).toEqual({ url: "https://portal.example/x" });
+    expect(createPortal).toHaveBeenCalledWith({ customerRef: `${tag}-ocus`, returnUrl: "https://app.example.test/billing" });
+  });
+});

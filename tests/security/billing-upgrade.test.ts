@@ -5,6 +5,7 @@ vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma } from "@/lib/prisma/raw-client";
 import { quoteUpgrade, startUpgrade } from "@/lib/billing/changes";
+import { ProviderError } from "@/lib/billing/providers/types";
 import type { PaymentProvider, ProviderSubscription } from "@/lib/billing/providers/types";
 
 const tag = `bu-${Date.now()}`;
@@ -113,5 +114,24 @@ describe("start upgrade", () => {
   it("another workspace cannot use this workspace's quote", async () => {
     const input = await fresh([{ versionId: v.report, quantity: 3 }]);
     await expect(startUpgrade({ businessId: other, userId: "u1" }, input, deps)).rejects.toMatchObject({ statusCode: 409 });
+  });
+  it("a provider rejection marks the operation failed, so it does not block the next change; an outage leaves it unknown", async () => {
+    await prisma.billingOperation.deleteMany({ where: { businessId: biz, kind: "change" } });
+    changeSubscription.mockRejectedValueOnce(new ProviderError("rejected", "card declined", 402));
+    const input = await fresh([{ versionId: v.report, quantity: 1 }]);
+    await expect(startUpgrade({ businessId: biz, userId: "u1" }, input, deps)).rejects.toBeInstanceOf(ProviderError);
+    expect((await prisma.billingOperation.findFirstOrThrow({ where: { businessId: biz, kind: "change" } })).state).toBe("failed");
+    await prisma.billingOperation.deleteMany({ where: { businessId: biz, kind: "change" } });
+    changeSubscription.mockRejectedValueOnce(new ProviderError("unknown", "timeout"));
+    await expect(startUpgrade({ businessId: biz, userId: "u1" }, await fresh([{ versionId: v.report, quantity: 1 }]), deps)).rejects.toBeInstanceOf(ProviderError);
+    expect((await prisma.billingOperation.findFirstOrThrow({ where: { businessId: biz, kind: "change" } })).state).toBe("unknown");
+  });
+
+  it("an unknown operation blocks a change while recent but not once it is stale", async () => {
+    const input = await fresh([{ versionId: v.report, quantity: 1 }]);
+    await expect(startUpgrade({ businessId: biz, userId: "u1" }, input, deps)).rejects.toMatchObject({ statusCode: 409 });
+    await prisma.billingOperation.updateMany({ where: { businessId: biz, kind: "change" }, data: { createdAt: new Date(Date.now() - 60 * 60 * 1000) } });
+    const out = await startUpgrade({ businessId: biz, userId: "u1" }, await fresh([{ versionId: v.report, quantity: 1 }]), deps);
+    expect(out.confirmed).toBe(true);
   });
 });

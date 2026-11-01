@@ -37,6 +37,7 @@ async function until(fn, what, ms = 45000) {
     browsers.push(sb);
     const admin = await sb.newPage();
     await admin.goto(L.BASE + "/platform/catalog", { waitUntil: "networkidle0" });
+    await L.allowUsd(admin);
     const created = await call(admin, "/api/platform/catalog", "POST", { action: "create_item", key: bundleKey, kind: "bundle", reason: "J36 create", terms: { name: "J36 Inbox", description: "J36 test package", grants: [{ capability: "channel.webchat" }], priceMinor: 1900, currency: "USD", interval: "month" } });
     L.assert(created.status === 200, `the bundle draft is created (${created.status})`);
     const pub = await call(admin, "/api/platform/catalog", "POST", { action: "publish", versionId: created.body.result.id, expectedRev: created.body.result.rev, reason: "J36 publish" });
@@ -51,9 +52,19 @@ async function until(fn, what, ms = 45000) {
     const owner = await ob.newPage();
     await owner.goto(L.BASE + "/login", { waitUntil: "networkidle0" });
     const email = `j36-${suffix}@example.test`;
+    const mailFrom = Date.now() - 1000;
     const su = await call(owner, "/api/auth", "POST", { action: "signup", businessName: `J36 Co ${suffix}`, username: `j36-${suffix}`, email, password: "J36-password-ok-1", name: "J36" }, { "X-Forwarded-For": `198.51.100.${100 + Math.floor(Math.random() * 50)}` });
-    L.assert(su.status === 200 || su.status === 201, `the owner signs up (${su.status})`);
-    const biz = L.sql(`SELECT b.id FROM "Business" b JOIN "User" u ON u."businessId"=b.id WHERE u.username=${q("j36-" + suffix)}`);
+    L.assert(su.status === 202, `the owner signs up (${su.status})`);
+    const vmail = await L.waitForMail(email, { after: mailFrom, match: /verify-email/ });
+    await owner.goto(vmail.link, { waitUntil: "networkidle0" });
+    await owner.click("#confirmEmail");
+    await owner.waitForSelector("#verifyDone");
+    await owner.goto(L.BASE + "/login", { waitUntil: "networkidle0" });
+    await owner.type("#username", "j36-" + suffix);
+    await owner.type("#password", "J36-password-ok-1");
+    await Promise.all([owner.waitForNavigation({ waitUntil: "networkidle0", timeout: 20000 }).catch(() => {}), owner.click('button[type="submit"]')]);
+    await L.sleep(1200);
+    const biz = L.sql(`SELECT m."businessId" FROM "Membership" m JOIN "User" u ON u.id=m."userId" WHERE m.role='owner' AND u.username=${q("j36-" + suffix)}`);
     const subs = () => L.sql(`SELECT coalesce(string_agg(status, ',' ORDER BY "createdAt"), '') FROM "BillingSubscription" WHERE "businessId"=${q(biz)}`);
 
     await owner.goto(L.BASE + "/billing", { waitUntil: "networkidle0" });
@@ -63,7 +74,7 @@ async function until(fn, what, ms = 45000) {
     await owner.evaluate(() => { [...document.querySelectorAll('[data-testid="sellable"] li')].find((l) => l.innerText.includes("J36 Inbox")).querySelector("input[type=checkbox]").click(); });
     await owner.click('[data-testid="get-quote"]');
     await owner.waitForSelector('[data-testid="quote"]');
-    L.assert((await owner.$eval('[data-testid="quote"]', (el) => el.innerText)).includes("$19.00"), "the quote shows the server-priced total");
+    L.assert((await owner.$eval('[data-testid="quote"]', (el) => el.innerText)).includes("19.00 USD"), "the quote shows the server-priced total");
     await Promise.all([owner.waitForNavigation({ waitUntil: "domcontentloaded" }), owner.click('[data-testid="start-checkout"]')]);
     L.assert(owner.url().startsWith(STAND + "/pay/"), `checkout leaves for the payment partner (${owner.url()})`);
     L.assert(subs() === "", "going to checkout grants nothing");
@@ -91,13 +102,13 @@ async function until(fn, what, ms = 45000) {
     // 5. Failed payment shows the grace note; a paid invoice recovers.
     await control(`subscriptions/${subRef}/invoice`, { paid: false });
     await until(() => subs() === "past_due", "the failed payment to be recorded");
-    L.assert(L.sql(`SELECT "graceEndsAt" IS NOT NULL FROM "BillingSubscription" WHERE "businessId"=${q(biz)}`) === "t", "a failed payment starts a grace period");
+    L.assert(L.sql(`SELECT "graceEndsAt" IS NOT NULL FROM "BillingSubscription" WHERE "businessId"=${q(biz)}`) === "true", "a failed payment starts a grace period");
     await owner.goto(L.BASE + "/billing", { waitUntil: "networkidle0" });
     await owner.waitForSelector('[data-testid="sub-state"]');
     L.assert(/payment method/i.test(await owner.$eval('[data-testid="sub-state"]', (el) => el.innerText)), "the owner sees the grace note");
     await control(`subscriptions/${subRef}/invoice`, { paid: true });
     await until(() => subs() === "active", "the payment to recover");
-    L.assert(L.sql(`SELECT "graceEndsAt" IS NULL FROM "BillingSubscription" WHERE "businessId"=${q(biz)}`) === "t", "recovery clears the grace period");
+    L.assert(L.sql(`SELECT "graceEndsAt" IS NULL FROM "BillingSubscription" WHERE "businessId"=${q(biz)}`) === "true", "recovery clears the grace period");
 
     // 6. Cancel at period end (done at the provider, as the portal would) shows as canceling and stays usable.
     const cancel = await fetch(`${STAND}/v1/subscriptions/${subRef}`, { method: "POST", headers: { Authorization: "Bearer sk_test_acceptance", "Content-Type": "application/x-www-form-urlencoded" }, body: "cancel_at_period_end=true" });
@@ -108,6 +119,7 @@ async function until(fn, what, ms = 45000) {
 
     // 7. Boundaries: bad signature, anonymous, and another workspace.
     const anon = await sb.newPage();
+    await anon.goto(L.BASE + "/login", { waitUntil: "domcontentloaded" });
     const bad = await anon.evaluate(async () => { const r = await fetch("/api/billing/webhook", { method: "POST", headers: { "Stripe-Signature": "t=1,v1=00", "Content-Type": "application/json" }, body: "{}" }); return r.status; });
     L.assert(bad === 400, `a webhook with a bad signature is refused (${bad})`);
     const other = await call(admin, "/api/billing/status", "GET");

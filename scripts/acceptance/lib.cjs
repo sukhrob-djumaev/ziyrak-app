@@ -401,3 +401,20 @@ setTimeout(() => {
   console.error("Journey watchdog: exceeded " + (process.env.ACC_JOURNEY_TIMEOUT_MS || 1500000) + "ms");
   process.exit(124);
 }, Number(process.env.ACC_JOURNEY_TIMEOUT_MS || 1500000)).unref();
+
+// The billing policy defaults to MYR only; journeys that price in USD first have the super admin page allow it.
+exports.allowUsd = async (page) => {
+  const rev = Number(exports.sql(`SELECT COALESCE((SELECT "rev" FROM "BillingPolicy" WHERE "id"='default'),0)`) || 0);
+  const r = await page.evaluate(
+    async (rev) => {
+      const res = await fetch("/api/platform/ai-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_billing_policy", expectedRev: rev, graceDays: 7, trialDays: 0, holdRetentionDays: 60, currencies: ["MYR", "USD"], intervals: ["month", "year"], refundPolicyText: "", refundPolicyUrl: null, supportContact: "", taxDisplay: "none", reason: "acceptance: allow USD test prices" }),
+      });
+      return res.status;
+    },
+    rev
+  );
+  exports.assert(r === 200, `billing policy allows USD (${r})`);
+};

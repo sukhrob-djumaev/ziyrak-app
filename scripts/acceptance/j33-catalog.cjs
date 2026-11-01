@@ -52,6 +52,7 @@ async function action(page, itemKey, label, reason) {
     browsers.push(sb);
     const admin = await sb.newPage();
     await admin.goto(L.BASE + "/platform/catalog", { waitUntil: "networkidle0" });
+    await L.allowUsd(admin);
     await admin.waitForSelector("#cat-key");
 
     // The form can only offer implemented capabilities.

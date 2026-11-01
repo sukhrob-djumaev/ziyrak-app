@@ -77,6 +77,7 @@ const eslintConfig = defineConfig([
       // L5.1: webhook inbox and subscription events run before any tenant context exists; every write is keyed by a workspace id resolved from our own binding rows.
       "src/lib/billing/provider-events.ts",
       "src/lib/billing/checkout.ts",
+      "src/lib/billing/changes.ts",
       "src/lib/billing/price-sync.ts",
       "src/lib/billing/payment-hold.ts",
       "src/lib/billing/status-view.ts",

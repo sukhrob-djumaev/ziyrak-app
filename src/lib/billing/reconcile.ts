@@ -62,7 +62,15 @@ async function sweepStuckEvents(deps: CheckoutDeps, now: Date): Promise<number> 
       handled += 1;
     } catch (e) {
       console.error(`[billing-reconcile] event ${ev.eventRef}`, e instanceof Error ? e.message : e);
-      if (ev.attempts + 1 >= MAX_EVENT_ATTEMPTS) {
+      // Every failure counts (the processor only counts provider read errors); at the limit the event leaves the sweep for good.
+      const fresh = await prisma.providerEvent.findUnique({ where: { id: ev.id }, select: { attempts: true } });
+      const attempts = (fresh?.attempts ?? ev.attempts) + (fresh && fresh.attempts !== ev.attempts ? 0 : 1);
+      const exhausted = attempts >= MAX_EVENT_ATTEMPTS;
+      await prisma.providerEvent.update({
+        where: { id: ev.id },
+        data: { attempts, ...(exhausted ? { state: "failed", error: (e instanceof Error ? e.message : String(e)).slice(0, 300) } : {}) },
+      });
+      if (exhausted) {
         await prisma.$transaction((tx) => raiseIncident(tx, null, "paid_not_provisioned", `event ${ev.eventRef} (${ev.type}) could not be processed after ${MAX_EVENT_ATTEMPTS} attempts`));
       }
     }

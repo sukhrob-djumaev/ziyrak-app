@@ -35,6 +35,7 @@ beforeAll(async () => {
     data: [
       { businessId: biz, kind: "paid_not_provisioned", detail: "d1" },
       { businessId: biz, kind: "paid_after_end", detail: "d2" },
+      { businessId: biz, kind: "double_paid", detail: "d3" },
     ],
   });
 });
@@ -64,7 +65,7 @@ describe("repairProvision", () => {
     expect(out).toEqual({ subscriptions: 1, incidentsResolved: 1 });
     expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: biz } })).status).toBe("active");
     const inc = await prisma.billingIncident.findMany({ where: { businessId: biz }, orderBy: { detail: "asc" } });
-    expect(inc.map((i) => i.state)).toEqual(["resolved", "open"]);
+    expect(inc.map((i) => i.state)).toEqual(["resolved", "open", "open"]);
     expect(await prisma.platformAccessAudit.count({ where: { actorUserId: adminId, action: "billing.repair", businessId: biz } })).toBe(1);
   });
 

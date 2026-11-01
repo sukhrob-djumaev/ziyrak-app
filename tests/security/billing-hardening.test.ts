@@ -54,7 +54,7 @@ describe("stuck event sweeper", () => {
     failRefs.add(`${tag}-b`);
     const bad = await prisma.providerEvent.create({ data: { provider: PROV, eventRef: `${tag}-bad`, type: "customer.subscription.updated", payloadHash: "h", subscriptionRef: `${tag}-b`, attempts: 7, receivedAt: old() } });
     await reconcileSubscriptions(deps);
-    expect((await prisma.providerEvent.findUniqueOrThrow({ where: { id: bad.id } })).state).toBe("received");
+    expect((await prisma.providerEvent.findUniqueOrThrow({ where: { id: bad.id } })).state).toBe("failed");
     expect(await prisma.billingIncident.count({ where: { kind: "paid_not_provisioned", state: "open", detail: { contains: `${tag}-bad` } } })).toBe(1);
   });
 
@@ -72,8 +72,26 @@ describe("second paid subscription", () => {
     const ev = await prisma.providerEvent.create({ data: { provider: PROV, eventRef: `${tag}-dbl`, type: "checkout.session.completed", payloadHash: "h", subscriptionRef: `${tag}-second`, clientReference: op.id } });
     await expect(processProviderEvent(ev.id, { provider, providerName: PROV, mode: "test" })).resolves.toBe("ignored");
     expect((await prisma.providerEvent.findUniqueOrThrow({ where: { id: ev.id } })).state).toBe("ignored");
-    expect(await prisma.billingIncident.count({ where: { businessId: a, kind: "paid_not_provisioned", state: "open" } })).toBe(1);
+    expect(await prisma.billingIncident.count({ where: { businessId: a, kind: "double_paid", state: "open" } })).toBe(1);
     expect(await prisma.billingSubscription.count({ where: { businessId: a, status: { not: "ended" } } })).toBe(1);
+  });
+});
+
+describe("double-paid review follow-ups", () => {
+  it("counts a failure that is not a provider read, and retries while only an incomplete row blocks the index", async () => {
+    const d = await biz("e");
+    await sub(d, "e-inc", "incomplete");
+    const op = await prisma.billingOperation.create({ data: { businessId: d, kind: "checkout", idemKey: `${tag}-idem-e`, quoteHash: "q", requestedBy: "u" } });
+    const ev = await prisma.providerEvent.create({ data: { provider: PROV, eventRef: `${tag}-inc`, type: "checkout.session.completed", payloadHash: "h", subscriptionRef: `${tag}-e-paid`, clientReference: op.id, receivedAt: old() } });
+    await expect(processProviderEvent(ev.id, { provider, providerName: PROV, mode: "test" })).rejects.toBeTruthy();
+    expect((await prisma.providerEvent.findUniqueOrThrow({ where: { id: ev.id } })).state).toBe("received");
+    expect(await prisma.billingIncident.count({ where: { businessId: d, kind: "double_paid" } })).toBe(0);
+    await reconcileSubscriptions(deps);
+    expect((await prisma.providerEvent.findUniqueOrThrow({ where: { id: ev.id } })).attempts).toBeGreaterThan(0);
+    await prisma.providerEvent.deleteMany({ where: { id: ev.id } });
+    await prisma.billingOperation.deleteMany({ where: { businessId: d } });
+    await prisma.billingSubscription.deleteMany({ where: { businessId: d } });
+    await prisma.business.delete({ where: { id: d } });
   });
 });
 

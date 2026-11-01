@@ -101,7 +101,10 @@ export async function processProviderEvent(
     // A second paid subscription for a workspace that already has a live one hits the one-live-per-business index. Retrying
     // can never succeed, so stop and leave it for an operator (the customer was charged twice and needs a refund).
     if ((e as { code?: string }).code !== "P2002") throw e;
-    await prisma.$transaction((tx) => raiseIncident(tx, target.businessId, "paid_not_provisioned", `subscription ${snap.ref} was paid but the workspace already has a live subscription`));
+    // An abandoned checkout leaves an "incomplete" row that also occupies the index; it ends on its own, so retry instead of parking a real payment.
+    const blocking = await prisma.billingSubscription.findFirst({ where: { businessId: target.businessId, status: { not: "ended" } }, select: { status: true } });
+    if (blocking?.status === "incomplete") throw e;
+    await prisma.$transaction((tx) => raiseIncident(tx, target.businessId, "double_paid", `subscription ${snap.ref} was paid but the workspace already has a live subscription`));
     return done("ignored", "second live subscription for workspace");
   }
   if (target.operationId && outcome.grantsAccess) {

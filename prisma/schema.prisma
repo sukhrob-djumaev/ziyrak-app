@@ -1367,7 +1367,7 @@ model ProviderEvent {
 model BillingIncident {
   id         String    @id @default(uuid())
   businessId String? // null while the provider ref is still unbound
-  kind       String // "paid_not_provisioned" | "unbound_ref" | "reconcile_mismatch" | "paid_after_end"
+  kind       String // "paid_not_provisioned" | "unbound_ref" | "reconcile_mismatch" | "paid_after_end" | "double_paid"
   state      String    @default("open") // "open" | "resolved"
   detail     String
   createdAt  DateTime  @default(now())

@@ -1,10 +1,13 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma/raw-client";
 import { AppError } from "@/lib/observability/errors";
 import { lockTenantWrites } from "@/lib/tenancy/work-lifecycle";
 import { readBillingPolicy } from "./policy";
 import { applyProviderSnapshot } from "./provider-apply";
+import { entitledLimit } from "./entitlements";
+import { seatsInUse, suspendUnchosen } from "./member-seats";
 import { QUOTE_TTL_MS, type CheckoutDeps } from "./checkout";
 
 /**
@@ -164,8 +167,27 @@ const reductionInput = z
   .object({ lines: z.array(z.object({ versionId: z.string().uuid(), quantity: z.number().int().min(0).max(MAX_QUANTITY) }).strict()).min(1).max(MAX_LINES) })
   .strict();
 
-/** Seat limits need the owner to choose who stays; until that flow exists they are not reducible here. */
-const grantsSeats = (grants: unknown) => Array.isArray(grants) && grants.some((g) => (g as { capability?: string })?.capability === "seats.members");
+const seatAmount = (grants: unknown): number =>
+  Array.isArray(grants) ? grants.reduce((n: number, g) => ((g as { capability?: string })?.capability === "seats.members" ? n + ((g as { amount?: number }).amount ?? 1) : n), 0) : 0;
+const grantsSeats = (grants: unknown) => seatAmount(grants) > 0;
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Members and open invitations that hold a seat today, and the limit once the scheduled decrease of this seat item applies. */
+async function seatUsage(tx: Tx, businessId: string, it: { quantity: number; pendingQuantity: number | null; version: { grants: unknown } }) {
+  const [[members, invited], limit] = await Promise.all([seatsInUse(tx, businessId), entitledLimit(businessId, "seats.members", tx)]);
+  return { members, openInvitations: invited, newLimit: limit - (it.quantity - (it.pendingQuantity ?? it.quantity)) * seatAmount(it.version.grants) };
+}
+
+/** The set of members that fits the new limit and keeps every owner; null when it does not. */
+async function validStayers(tx: Tx, businessId: string, ids: unknown, newLimit: number, invited: number): Promise<string[] | null> {
+  if (!Array.isArray(ids) || ids.some((x) => typeof x !== "string") || new Set(ids).size !== ids.length) return null;
+  const rows = await tx.membership.findMany({ where: { businessId, suspendedByPlanAt: null }, select: { id: true, role: true } });
+  const live = new Set(rows.map((r) => r.id));
+  if (!ids.every((x: string) => live.has(x))) return null;
+  if (!rows.filter((r) => r.role === "owner").every((r) => ids.includes(r.id))) return null;
+  return ids.length + invited <= newLimit ? (ids as string[]) : null;
+}
 
 /** Schedules removals and decreases for the end of the paid period. Nothing is taken away before then and the provider is not called. */
 export async function scheduleReduction(actor: { businessId: string; userId: string }, input: unknown, deps: CheckoutDeps): Promise<{ effectiveAt: string }> {
@@ -185,8 +207,7 @@ export async function scheduleReduction(actor: { businessId: string; userId: str
     for (const l of parsed.data.lines) {
       const it = sub.items.find((i) => i.versionId === l.versionId);
       if (!it || it.version.item.kind === "bundle" || l.quantity >= it.quantity) throw new AppError(400, "VALIDATION_ERROR", "That reduction is not possible");
-      if (grantsSeats(it.version.grants)) throw new AppError(409, "CONFLICT", "Team-size reductions need you to choose who stays; contact support for now");
-      await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "scheduled_remove", pendingQuantity: l.quantity, effectiveAt: sub.currentPeriodEnd ?? new Date() } });
+      await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "scheduled_remove", pendingQuantity: l.quantity, pendingStayers: Prisma.DbNull, effectiveAt: sub.currentPeriodEnd ?? new Date() } });
     }
     await tx.billingSubscription.update({ where: { id: sub.id }, data: { rev: { increment: 1 } } });
     return { effectiveAt: (sub.currentPeriodEnd ?? new Date()).toISOString() };
@@ -199,22 +220,79 @@ export async function cancelReduction(actor: { businessId: string; userId: strin
     await lockTenantWrites(tx, actor.businessId);
     const it = await tx.billingSubscriptionItem.findFirst({ where: { versionId: input.versionId, state: "scheduled_remove", subscription: { businessId: actor.businessId } } });
     if (!it) throw new AppError(404, "NOT_FOUND", "Nothing is scheduled for this package");
-    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "active", pendingQuantity: null } });
+    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "active", pendingQuantity: null, pendingStayers: Prisma.DbNull } });
     await tx.billingSubscription.update({ where: { id: it.subscriptionId }, data: { rev: { increment: 1 } } });
   });
 }
 
-/** Control-plane job body: sends every reduction that has reached its effective time to the provider, one subscription at a time. */
+/** What the owner sees for a scheduled seat decrease: usage against the new limit and who they have kept so far. */
+export async function seatConflict(businessId: string, versionId: string) {
+  return prisma.$transaction(async (tx) => {
+    const it = await tx.billingSubscriptionItem.findFirst({
+      where: { versionId, state: "scheduled_remove", subscription: { businessId } },
+      include: { version: true },
+    });
+    if (!it || !grantsSeats(it.version.grants)) throw new AppError(404, "NOT_FOUND", "No team-size reduction is scheduled");
+    const u = await seatUsage(tx, businessId, it);
+    return { ...u, effectiveAt: it.effectiveAt.toISOString(), chosen: Array.isArray(it.pendingStayers) ? (it.pendingStayers as string[]) : null };
+  });
+}
+
+/** Records who keeps a seat when the scheduled decrease applies. Nobody is suspended until then, and never without a valid choice. */
+export async function chooseStayers(actor: { businessId: string; userId: string }, input: { versionId: string; membershipIds: string[] }): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await lockTenantWrites(tx, actor.businessId);
+    const it = await tx.billingSubscriptionItem.findFirst({
+      where: { versionId: input.versionId, state: "scheduled_remove", subscription: { businessId: actor.businessId } },
+      include: { version: true },
+    });
+    if (!it || !grantsSeats(it.version.grants)) throw new AppError(404, "NOT_FOUND", "No team-size reduction is scheduled");
+    const u = await seatUsage(tx, actor.businessId, it);
+    const ids = input.membershipIds;
+    const ok = await validStayers(tx, actor.businessId, ids, Number.MAX_SAFE_INTEGER, 0);
+    if (!ok) throw new AppError(400, "VALIDATION_ERROR", "Choose current members of this workspace, and keep every owner");
+    if (ids.length + u.openInvitations > u.newLimit) throw new AppError(409, "CONFLICT", `The new limit is ${u.newLimit} seats. Choose fewer people or revoke open invitations`);
+    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { pendingStayers: ids } });
+  });
+}
+
+/**
+ * Control-plane job body: sends every reduction that has reached its effective time to the provider, one subscription at a time.
+ * A seat decrease that leaves more people than seats needs the owner's valid choice; without one it lapses (the old quantity keeps
+ * billing and nobody loses access by inaction), and with one the unchosen members are suspended in the same transaction.
+ */
 export async function applyDueReductions(deps: CheckoutDeps, now: Date = new Date()): Promise<number> {
   const due = await prisma.billingSubscriptionItem.findMany({
     where: { state: "scheduled_remove", effectiveAt: { lte: now }, subscription: { status: "active", provider: deps.provider.name } },
-    include: { subscription: true },
+    include: { subscription: true, version: true },
   });
   const bySub = new Map<string, typeof due>();
   for (const it of due) bySub.set(it.subscriptionId, [...(bySub.get(it.subscriptionId) ?? []), it]);
   let applied = 0;
-  for (const items of bySub.values()) {
-    const sub = items[0].subscription;
+  for (const all of bySub.values()) {
+    const sub = all[0].subscription;
+    const stayers = new Map<string, string[]>();
+    const items: typeof all = [];
+    for (const it of all) {
+      if (!grantsSeats(it.version.grants)) {
+        items.push(it);
+        continue;
+      }
+      const verdict = await prisma.$transaction(async (tx) => {
+        await lockTenantWrites(tx, sub.businessId);
+        const u = await seatUsage(tx, sub.businessId, it);
+        if (u.members + u.openInvitations <= u.newLimit) return "fits" as const;
+        const chosen = await validStayers(tx, sub.businessId, it.pendingStayers, u.newLimit, u.openInvitations);
+        if (chosen) return chosen;
+        await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "active", pendingQuantity: null, pendingStayers: Prisma.DbNull } });
+        await tx.billingSubscription.update({ where: { id: sub.id }, data: { rev: { increment: 1 } } });
+        return "lapsed" as const;
+      });
+      if (verdict === "lapsed") continue;
+      if (verdict !== "fits") stayers.set(it.id, verdict);
+      items.push(it);
+    }
+    if (items.length === 0) continue;
     const remote = await deps.provider.getSubscription(sub.subscriptionRef);
     const refs = await prisma.providerPriceRef.findMany({ where: { provider: deps.provider.name, mode: deps.mode, versionId: { in: items.map((i) => i.versionId) } } });
     const lines = items.flatMap((it) => {
@@ -230,6 +308,9 @@ export async function applyDueReductions(deps: CheckoutDeps, now: Date = new Dat
       await lockTenantWrites(tx, sub.businessId);
       const policy = await readBillingPolicy(tx);
       await applyProviderSnapshot(tx, snap, { businessId: sub.businessId, provider: deps.provider.name, mode: deps.mode, graceDays: policy.graceDays, now });
+      for (const keep of stayers.values()) {
+        await suspendUnchosen(tx, sub.businessId, keep, now);
+      }
     });
     applied += lines.length;
   }

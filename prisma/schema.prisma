@@ -82,6 +82,7 @@ model Membership {
   createdAt             DateTime                    @default(now())
   scopeMode             ResourceScopeMode           @default(workspace)
   customerProfileAccess CustomerProfileAccess       @default(write)
+  suspendedByPlanAt     DateTime? // L5.2: not kept when the seat limit dropped; holds no seat and cannot enter the workspace
   connectionScopes      MembershipConnectionScope[]
 
   @@unique([businessId, id])
@@ -1324,6 +1325,7 @@ model BillingSubscriptionItem {
   effectiveAt    DateTime            @default(now())
   /// Set while state is "scheduled_remove": the quantity to keep from effectiveAt (0 removes the item).
   pendingQuantity Int?
+  pendingStayers  Json? // membership ids the owner keeps when a scheduled seat reduction applies
 
   @@index([subscriptionId, state])
 }

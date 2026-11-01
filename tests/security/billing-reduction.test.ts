@@ -65,10 +65,9 @@ describe("schedule a reduction", () => {
     expect((await itemOf(v.team)).pendingQuantity).toBe(1);
   });
 
-  it("refuses the bundle, an increase, an unknown item and (for now) a seat limit", async () => {
+  it("refuses the bundle, an increase and an unknown item", async () => {
     const s = (lines: unknown[]) => scheduleReduction(actor(), { lines }, deps);
     await expect(s([{ versionId: v.bundle, quantity: 0 }])).rejects.toMatchObject({ statusCode: 400 });
-    await expect(s([{ versionId: v.seat, quantity: 2 }])).rejects.toMatchObject({ statusCode: 409 });
     await expect(s([{ versionId: v.team, quantity: 5 }])).rejects.toMatchObject({ statusCode: 400 });
     await expect(s([{ versionId: "00000000-0000-4000-8000-000000000000", quantity: 0 }])).rejects.toMatchObject({ statusCode: 400 });
   });

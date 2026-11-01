@@ -90,7 +90,7 @@ export async function resolveHumanContext(
     where: { businessId_userId: { businessId: selectedWorkspace, userId } },
     include: { connectionScopes: true, business: { select: { status: true } } },
   });
-  if (!membership || membership.business.status !== "active")
+  if (!membership || membership.suspendedByPlanAt || membership.business.status !== "active")
     return { ok: false, reason: "no_membership" };
   let resourceScope;
   try {

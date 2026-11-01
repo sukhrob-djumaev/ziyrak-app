@@ -9,13 +9,12 @@ import type { CheckoutDeps } from "./checkout";
 import type { ProviderSubscription } from "./providers/types";
 
 /**
- * L5.2 - super-admin repair for a workspace whose provider state and local state disagree (a paid event with no purchase,
- * an unbound ref). It re-reads every live subscription from the provider and applies the answer exactly as the
+ * L5.2 - super-admin repair for a workspace whose provider state and local state disagree (a paid event with no purchase). It re-reads every live subscription from the provider and applies the answer exactly as the
  * reconcile job would, so it can only converge on what the provider reports; it moves no money and sets no state by hand.
- * Open incidents of the repairable kinds are resolved only once the re-read succeeded for every subscription.
+ * Open incidents of the repairable kinds are resolved (tenant-binding alerts such as `unbound_ref` stay open for review) only once the re-read succeeded for every subscription.
  */
 const repairInput = z.object({ businessId: z.string().min(1).max(128), reason: z.string().trim().min(1).max(1000) }).strict();
-const REPAIRABLE = ["paid_not_provisioned", "unbound_ref", "reconcile_mismatch"];
+const REPAIRABLE = ["paid_not_provisioned", "reconcile_mismatch"];
 
 export async function repairProvision(token: string, input: unknown, deps: CheckoutDeps, now: Date = new Date()) {
   const r = repairInput.safeParse(input);

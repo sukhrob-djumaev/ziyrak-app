@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma/raw-client";
 import { lockTenantWrites } from "@/lib/tenancy/work-lifecycle";
-import { applyProviderSnapshot } from "./provider-apply";
+import { applyProviderSnapshot, raiseIncident } from "./provider-apply";
+import { processProviderEvent } from "./provider-events";
 import { readBillingPolicy } from "./policy";
 import type { CheckoutDeps } from "./checkout";
 
@@ -40,7 +41,33 @@ export async function reconcileSubscriptions(deps: CheckoutDeps, now: Date = new
       console.error(`[billing-reconcile] ${row.subscriptionRef}`, e instanceof Error ? e.message : e);
     }
   }
-  return repaired + (await retryGraceCancels(deps, now));
+  return repaired + (await sweepStuckEvents(deps, now)) + (await retryGraceCancels(deps, now));
+}
+
+/** An event is "stuck" when its job never ran or ran out of retries: the row stays "received" and nothing else would read it. */
+const STUCK_EVENT_MS = 10 * 60 * 1000;
+const MAX_EVENT_ATTEMPTS = 8;
+
+/** Re-runs events still unprocessed after the job's own retries should have finished; raises an incident once they keep failing. */
+async function sweepStuckEvents(deps: CheckoutDeps, now: Date): Promise<number> {
+  const events = await prisma.providerEvent.findMany({
+    where: { provider: deps.provider.name, state: "received", receivedAt: { lt: new Date(now.getTime() - STUCK_EVENT_MS) } },
+    orderBy: { receivedAt: "asc" },
+    take: 25,
+  });
+  let handled = 0;
+  for (const ev of events) {
+    try {
+      await processProviderEvent(ev.id, { provider: deps.provider, providerName: deps.provider.name, mode: deps.mode, now: () => now });
+      handled += 1;
+    } catch (e) {
+      console.error(`[billing-reconcile] event ${ev.eventRef}`, e instanceof Error ? e.message : e);
+      if (ev.attempts + 1 >= MAX_EVENT_ATTEMPTS) {
+        await prisma.$transaction((tx) => raiseIncident(tx, null, "paid_not_provisioned", `event ${ev.eventRef} (${ev.type}) could not be processed after ${MAX_EVENT_ATTEMPTS} attempts`));
+      }
+    }
+  }
+  return handled;
 }
 
 /** A cancel that failed when grace expired leaves the row ended while the provider keeps billing; stop it here. The key makes a repeat safe. */

@@ -90,11 +90,20 @@ export async function processProviderEvent(
   }
 
   const now = deps.now?.() ?? new Date();
-  const outcome = await prisma.$transaction(async (tx) => {
-    await lockTenantWrites(tx, target.businessId);
-    const policy = await readBillingPolicy(tx);
-    return applyProviderSnapshot(tx, snap, { businessId: target.businessId, provider: deps.providerName, mode: deps.mode, graceDays: policy.graceDays, now, operationId: target.operationId });
-  });
+  let outcome;
+  try {
+    outcome = await prisma.$transaction(async (tx) => {
+      await lockTenantWrites(tx, target.businessId);
+      const policy = await readBillingPolicy(tx);
+      return applyProviderSnapshot(tx, snap, { businessId: target.businessId, provider: deps.providerName, mode: deps.mode, graceDays: policy.graceDays, now, operationId: target.operationId });
+    });
+  } catch (e) {
+    // A second paid subscription for a workspace that already has a live one hits the one-live-per-business index. Retrying
+    // can never succeed, so stop and leave it for an operator (the customer was charged twice and needs a refund).
+    if ((e as { code?: string }).code !== "P2002") throw e;
+    await prisma.$transaction((tx) => raiseIncident(tx, target.businessId, "paid_not_provisioned", `subscription ${snap.ref} was paid but the workspace already has a live subscription`));
+    return done("ignored", "second live subscription for workspace");
+  }
   if (target.operationId && outcome.grantsAccess) {
     await prisma.billingOperation.update({ where: { id: target.operationId }, data: { state: "succeeded" } });
   }

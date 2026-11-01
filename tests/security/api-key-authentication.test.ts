@@ -80,6 +80,21 @@ describe("API key authentication — real hash-compare path (§9.4/§33.4 item 5
       });
     }
   });
+  it("stops authenticating a key whose issuer was suspended by the plan, and resumes when they are restored", async () => {
+    const { fullKey } = await apiKeysService.create(businessA.ctx, "Issuer plan-suspension key");
+    const membership = await prisma.membership.findUniqueOrThrow({
+      where: { businessId_userId: { businessId: businessA.businessId, userId: businessA.ownerUserId } },
+    });
+    const call = () => requireAuth(createRequest("/api/conversations", { headers: { "x-api-key": fullKey } }), "conversations:read");
+    expect(await call()).toMatchObject({ businessId: businessA.businessId });
+    await prisma.membership.update({ where: { id: membership.id }, data: { suspendedByPlanAt: new Date() } });
+    try {
+      expect(await call()).toMatchObject({ status: 401 });
+    } finally {
+      await prisma.membership.update({ where: { id: membership.id }, data: { suspendedByPlanAt: null } });
+    }
+    expect(await call()).toMatchObject({ businessId: businessA.businessId });
+  });
   it("resolves to the key's own business, not a hardcoded global admin", async () => {
     const dbA = getScopedPrisma(businessA.ctx);
     const customerA = await dbA.customer.create({ data: { name: "A's customer" } });

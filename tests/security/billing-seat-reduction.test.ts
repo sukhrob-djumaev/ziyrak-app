@@ -84,6 +84,24 @@ describe("seat reduction below usage", () => {
     expect(c.people.map((p) => p.membershipId).sort()).toEqual(Object.values(w.m).sort());
   });
 
+  it("counts every scheduled seat decrease of the workspace in one new limit", async () => {
+    const w = await workspace("multi");
+    const before = await entitledLimit(w.biz, "seats.members");
+    await scheduleReduction(w.actor, { lines: [{ versionId: seat, quantity: 3 }] }, deps);
+    expect((await seatConflict(w.biz, seat)).newLimit).toBe(before - 1);
+    const pair = await version("seat-pair", "addon", [{ capability: "seats.members", amount: 2 }]);
+    try {
+      const sub = await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: w.biz } });
+      await prisma.billingSubscriptionItem.create({ data: { subscriptionId: sub.id, versionId: pair, quantity: 2 } });
+      await scheduleReduction(w.actor, { lines: [{ versionId: pair, quantity: 1 }] }, deps);
+      expect((await seatConflict(w.biz, seat)).newLimit).toBe(before - 3);
+      expect((await seatConflict(w.biz, pair)).newLimit).toBe(before - 3);
+    } finally {
+      await prisma.billingSubscriptionItem.deleteMany({ where: { versionId: pair } });
+      await prisma.providerPriceRef.deleteMany({ where: { versionId: pair } });
+    }
+  });
+
   it("validates the owner's choice: owner kept, within the new limit, only this workspace's members", async () => {
     const w = await workspace("choose");
     await scheduleReduction(w.actor, { lines: [{ versionId: seat, quantity: 2 }] }, deps);

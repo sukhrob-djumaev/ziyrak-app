@@ -12,6 +12,7 @@ const tag = `brc-${Date.now()}`;
 const DAY = 86_400_000;
 let late: string, fresh: string, drift: string;
 const ref = (b: string) => `${tag}-${b}-sub`;
+let race = "";
 const remoteStatus = new Map<string, ProviderSubscription["status"]>();
 
 const getSubscription = vi.fn(async (r: string): Promise<ProviderSubscription> => ({
@@ -35,7 +36,7 @@ beforeAll(async () => {
   remoteStatus.set(ref("drift"), "canceled");
 });
 afterAll(async () => {
-  const ids = [late, fresh, drift];
+  const ids = [late, fresh, drift, race].filter(Boolean);
   await prisma.workspacePurchase.deleteMany({ where: { businessId: { in: ids } } });
   await prisma.billingSubscription.deleteMany({ where: { businessId: { in: ids } } });
   await prisma.billingIncident.deleteMany({ where: { businessId: { in: ids } } });
@@ -83,5 +84,14 @@ describe("reconcile", () => {
       await prisma.billingSubscription.deleteMany({ where: { businessId: stuck } });
       await prisma.business.deleteMany({ where: { id: stuck } });
     }
+  });
+
+  it("two overlapping runs over a workspace past its grace end it once and leave it held", async () => {
+    race = await workspace("race", { status: "past_due", graceEndsAt: new Date(Date.now() - DAY), lastFetchedAt: new Date(Date.now() - 2 * DAY) });
+    remoteStatus.set(ref("race"), "past_due");
+    await Promise.all([reconcileSubscriptions(deps), reconcileSubscriptions(deps)]);
+    expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: race } })).status).toBe("ended");
+    expect((await paymentHold(race)).held).toBe(true);
+    expect(await prisma.billingIncident.count({ where: { businessId: race } })).toBe(0);
   });
 });

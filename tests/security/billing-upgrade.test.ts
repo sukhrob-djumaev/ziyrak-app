@@ -135,3 +135,17 @@ describe("start upgrade", () => {
     expect(out.confirmed).toBe(true);
   });
 });
+
+describe("concurrent upgrades", () => {
+  it("two changes quoted from the same subscription state: one wins, the other is told to re-quote and reaches no provider", async () => {
+    await prisma.billingOperation.deleteMany({ where: { businessId: biz } });
+    const a = await fresh([{ versionId: v.seat, quantity: 7 }]);
+    const b = await fresh([{ versionId: v.report, quantity: 2 }]);
+    const calls = changeSubscription.mock.calls.length;
+    const results = await Promise.allSettled([startUpgrade({ businessId: biz, userId: "u1" }, a, deps), startUpgrade({ businessId: biz, userId: "u2" }, b, deps)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const lost = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(lost.reason).toMatchObject({ statusCode: 409 });
+    expect(changeSubscription.mock.calls.length - calls).toBe(1);
+  });
+});

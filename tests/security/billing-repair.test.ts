@@ -15,6 +15,7 @@ vi.mock("@/lib/platform/access/authority", async () => {
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma } from "@/lib/prisma/raw-client";
+import { acquirePlatformLock, releasePlatformLock } from "../helpers/policy-lock";
 import { repairProvision } from "@/lib/billing/repair";
 import type { PaymentProvider, ProviderSubscription } from "@/lib/billing/providers/types";
 
@@ -26,6 +27,7 @@ const getSubscription = vi.fn(async (r: string): Promise<ProviderSubscription> =
 const deps = { provider: { name: `${tag}-prov`, getSubscription } as unknown as PaymentProvider, mode: "test" as const };
 
 beforeAll(async () => {
+  await acquirePlatformLock();
   adminId = (await prisma.user.create({ data: { username: `${tag}-admin`, password: "x", name: "A", platformRole: "super_admin" } })).id;
   gate.userId = adminId;
   biz = (await prisma.business.create({ data: { name: tag, slug: tag } })).id;
@@ -45,6 +47,7 @@ afterAll(async () => {
   await prisma.billingSubscription.deleteMany({ where: { businessId: biz } });
   await prisma.business.deleteMany({ where: { id: { in: [biz, bare] } } });
   await prisma.user.delete({ where: { id: adminId } });
+  await releasePlatformLock();
 });
 
 describe("repairProvision", () => {

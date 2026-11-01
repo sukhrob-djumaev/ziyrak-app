@@ -1,3 +1,4 @@
+import { paymentHoldDenied } from "@/lib/billing/payment-hold";
 import { requireSupportContext, SUPPORT_GRANT_HEADER } from "./support-request";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -154,7 +155,7 @@ export async function requireAuth(
       );
     }
 
-    return ctx;
+    return (await paymentHoldDenied(ctx.businessId, request.nextUrl.pathname)) ?? ctx;
   }
 
   // Fall back to cookie auth
@@ -222,7 +223,7 @@ export async function requireAuth(
     );
   }
 
-  return result.ctx;
+  return (await paymentHoldDenied(result.ctx.businessId, request.nextUrl.pathname)) ?? result.ctx;
 }
 
 /**

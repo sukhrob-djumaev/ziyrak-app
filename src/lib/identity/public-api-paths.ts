@@ -20,6 +20,8 @@ export const PUBLIC_PATH_PREFIXES = [
   // PLAN.md §20.2/§46.7 — authenticated via Meta's own webhook verify token
   // (GET) / X-Hub-Signature-256 (POST), never a JWT/API key.
   "/api/channels/whatsapp-cloud/webhook",
+  // L5.1 — payment provider events, authenticated by the provider's HMAC signature before any database work.
+  "/api/billing/webhook",
 ];
 
 export function isPublicApiPath(pathname: string): boolean {

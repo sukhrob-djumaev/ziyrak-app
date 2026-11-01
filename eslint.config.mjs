@@ -78,6 +78,7 @@ const eslintConfig = defineConfig([
       "src/lib/billing/provider-events.ts",
       "src/lib/billing/checkout.ts",
       "src/lib/billing/price-sync.ts",
+      "src/lib/billing/payment-hold.ts",
       // P3 account tokens: control-plane identity tokens, no tenant context exists yet.
       "src/lib/identity/account-tokens.ts",
       "src/lib/identity/account-service.ts",

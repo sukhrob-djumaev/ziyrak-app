@@ -236,6 +236,8 @@ function createMockPrismaClient() {
     { id: "mock-purchase", versionId: "mock-version", quantity: 1, version: { grants: fullGrants } },
   ]);
   (client.entitlementAdjustment as Record<string, unknown>).findMany = vi.fn(async () => []);
+  // Payment hold: mocked workspaces have no provider subscription, so they are never held.
+  (client.billingSubscription as Record<string, unknown>).findMany = vi.fn(async () => []);
 
   // getScopedPrisma() (§8.3) calls `.$extends()` on the resolved data-plane
   // client. Route/unit tests here mock model methods directly and mostly

@@ -24,7 +24,7 @@ export async function paymentHold(businessId: string, db: Db = prisma): Promise<
   // An unpaid `incomplete` row (abandoned checkout, failed 3DS) grants nothing, so it neither starts nor lifts a hold.
   const grants = rows.some((r) => r.status !== "ended" && r.status !== "incomplete");
   if (!rows.some((r) => r.status === "ended") || grants) return { held: false, since: null, retentionEndsAt: null };
-  const since = new Date(Math.max(...rows.map((r) => r.updatedAt.getTime())));
+  const since = new Date(Math.max(...rows.filter((r) => r.status === "ended").map((r) => r.updatedAt.getTime())));
   const { holdRetentionDays } = await readBillingPolicy(db);
   return { held: true, since, retentionEndsAt: new Date(since.getTime() + holdRetentionDays * 86_400_000) };
 }

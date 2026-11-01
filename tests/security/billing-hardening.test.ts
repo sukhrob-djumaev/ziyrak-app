@@ -99,7 +99,11 @@ describe("payment hold and unpaid rows", () => {
   it("stays held when the only newer row is an unpaid incomplete one, and a first checkout is not held", async () => {
     await sub(c, "c-old", "ended");
     await sub(c, "c-new", "incomplete");
-    expect((await paymentHold(c)).held).toBe(true);
+    const held = await paymentHold(c);
+    expect(held.held).toBe(true);
+    // The retention clock follows the ended row, not an incomplete row that reconcile keeps rewriting.
+    const endedAt = (await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: c, status: "ended" } })).updatedAt;
+    expect(held.since?.getTime()).toBe(endedAt.getTime());
     await prisma.billingSubscription.updateMany({ where: { businessId: c, subscriptionRef: `${tag}-c-new` }, data: { status: "active" } });
     expect((await paymentHold(c)).held).toBe(false);
 

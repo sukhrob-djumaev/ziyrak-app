@@ -188,8 +188,12 @@ export function createStripeProvider(cfg: StripeConfig): PaymentProvider {
       const data = obj(obj(ev.data).object);
       const type = str(ev.type, "event type");
       const isSub = type.startsWith("customer.subscription.");
-      const subscriptionRef =
-        isSub ? (typeof data.id === "string" ? data.id : null) : typeof data.subscription === "string" ? data.subscription : null;
+      // Invoices carry the subscription at `subscription` before API 2025-03-31 and at `parent.subscription_details.subscription` after;
+      // the webhook endpoint's own version decides the shape, so accept both.
+      const parentSub = obj(obj(data.parent).subscription_details).subscription;
+      const subscriptionRef = isSub
+        ? typeof data.id === "string" ? data.id : null
+        : typeof data.subscription === "string" ? data.subscription : typeof parentSub === "string" ? parentSub : null;
       return {
         eventRef: str(ev.id, "event id"),
         type,

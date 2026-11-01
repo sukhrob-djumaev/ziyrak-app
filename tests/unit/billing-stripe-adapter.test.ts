@@ -124,6 +124,13 @@ describe("stripe adapter", () => {
       expect(provider.verifyWebhook(raw, signStripePayload(raw, "whsec_a", now), now).subscriptionRef).toBe("sub_9");
     });
 
+    it("finds an invoice's subscription in both the old and the newer payload shape", () => {
+      const old = body({ id: "evt_i1", type: "invoice.paid", data: { object: { subscription: "sub_1", customer: "cus_1" } } });
+      const next = body({ id: "evt_i2", type: "invoice.paid", data: { object: { parent: { subscription_details: { subscription: "sub_2" } }, customer: "cus_1" } } });
+      expect(provider.verifyWebhook(old, signStripePayload(old, "whsec_a", now), now).subscriptionRef).toBe("sub_1");
+      expect(provider.verifyWebhook(next, signStripePayload(next, "whsec_a", now), now).subscriptionRef).toBe("sub_2");
+    });
+
     it("rejects a bad signature and a body altered after signing", () => {
       const raw = body({ id: "evt_3", type: "x", data: { object: {} } });
       const header = signStripePayload(raw, "whsec_other", now);

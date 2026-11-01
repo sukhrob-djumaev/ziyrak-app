@@ -35,6 +35,19 @@ export interface SweepRetentionPayload {
 
 export const SWEEP_AI_RESERVATIONS_JOB = "sweep-ai-reservations";
 
+// L5.1 control-plane jobs: the payload carries no workspace (businessId is always "").
+export const PROCESS_PROVIDER_EVENT_JOB = "process-provider-event";
+export interface ProcessProviderEventPayload {
+  businessId: string;
+  eventId: string;
+}
+
+export const SYNC_PROVIDER_PRICE_JOB = "billing-sync-price";
+export interface SyncProviderPricePayload {
+  businessId: string;
+  versionId: string;
+}
+
 export const RETRY_DELIVERY_JOB = "retry-delivery";
 export interface RetryDeliveryPayload {
   businessId: string;

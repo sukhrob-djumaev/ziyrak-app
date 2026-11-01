@@ -5,6 +5,10 @@ import { withPlatformControl } from "@/lib/platform/access/authority";
 import { writePlatformAudit } from "@/lib/platform/access/audit";
 import { CAPABILITIES, capability } from "./capabilities";
 import { policyProblemsForTerms, readBillingPolicy } from "./policy";
+import { billingProviderName } from "./providers";
+import { jobQueue } from "@/lib/jobs/queue";
+import { SYNC_PROVIDER_PRICE_JOB } from "@/lib/jobs/job-types";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * L4.1a - super-admin catalog: items (bundle or add-on) with versioned offers. Draft -> published (immutable, DB trigger)
@@ -167,6 +171,22 @@ export async function newDraft(token: string, input: unknown) {
 }
 
 export async function publishVersion(token: string, input: unknown) {
+  const published = await publishVersionTx(token, input);
+  await queuePriceSync(published.id);
+  return published;
+}
+
+/** L5.1: mirror a newly published version into the payment provider. Best effort; the sync job is idempotent and a missed one is retried by reconcile. */
+async function queuePriceSync(versionId: string): Promise<void> {
+  if (!billingProviderName()) return;
+  try {
+    await jobQueue.enqueue(SYNC_PROVIDER_PRICE_JOB, { businessId: "", versionId }, { singletonKey: versionId });
+  } catch (e) {
+    logger.error("[catalog] could not queue provider price sync", e);
+  }
+}
+
+async function publishVersionTx(token: string, input: unknown) {
   const r = parse(publishInput, input, "publish");
   return withPlatformControl(token, "super_admin", async (tx, actor) => {
     const v = await mustFind(tx, r.versionId);

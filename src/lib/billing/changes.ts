@@ -159,3 +159,79 @@ export async function startUpgrade(
     throw e;
   }
 }
+
+const reductionInput = z
+  .object({ lines: z.array(z.object({ versionId: z.string().uuid(), quantity: z.number().int().min(0).max(MAX_QUANTITY) }).strict()).min(1).max(MAX_LINES) })
+  .strict();
+
+/** Seat limits need the owner to choose who stays; until that flow exists they are not reducible here. */
+const grantsSeats = (grants: unknown) => Array.isArray(grants) && grants.some((g) => (g as { capability?: string })?.capability === "seats.members");
+
+/** Schedules removals and decreases for the end of the paid period. Nothing is taken away before then and the provider is not called. */
+export async function scheduleReduction(actor: { businessId: string; userId: string }, input: unknown, deps: CheckoutDeps): Promise<{ effectiveAt: string }> {
+  const parsed = reductionInput.safeParse(input);
+  if (!parsed.success) throw new AppError(400, "VALIDATION_ERROR", "Choose what to reduce");
+  const ids = parsed.data.lines.map((l) => l.versionId);
+  if (new Set(ids).size !== ids.length) throw new AppError(400, "VALIDATION_ERROR", "A package can appear only once");
+  return prisma.$transaction(async (tx) => {
+    await lockTenantWrites(tx, actor.businessId);
+    const business = await tx.business.findUnique({ where: { id: actor.businessId }, select: { status: true } });
+    if (!business || business.status !== "active") throw new AppError(403, "FORBIDDEN", "This workspace cannot change its subscription");
+    const sub = await tx.billingSubscription.findFirst({
+      where: { businessId: actor.businessId, status: "active", provider: deps.provider.name },
+      include: { items: { where: { state: { not: "removed" } }, include: { version: { include: { item: true } } } } },
+    });
+    if (!sub) throw new AppError(409, "CONFLICT", "This workspace has no active subscription to change");
+    for (const l of parsed.data.lines) {
+      const it = sub.items.find((i) => i.versionId === l.versionId);
+      if (!it || it.version.item.kind === "bundle" || l.quantity >= it.quantity) throw new AppError(400, "VALIDATION_ERROR", "That reduction is not possible");
+      if (grantsSeats(it.version.grants)) throw new AppError(409, "CONFLICT", "Team-size reductions need you to choose who stays; contact support for now");
+      await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "scheduled_remove", pendingQuantity: l.quantity, effectiveAt: sub.currentPeriodEnd ?? new Date() } });
+    }
+    await tx.billingSubscription.update({ where: { id: sub.id }, data: { rev: { increment: 1 } } });
+    return { effectiveAt: (sub.currentPeriodEnd ?? new Date()).toISOString() };
+  });
+}
+
+/** Withdraws a scheduled reduction; the item keeps its current quantity. */
+export async function cancelReduction(actor: { businessId: string; userId: string }, input: { versionId: string }): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await lockTenantWrites(tx, actor.businessId);
+    const it = await tx.billingSubscriptionItem.findFirst({ where: { versionId: input.versionId, state: "scheduled_remove", subscription: { businessId: actor.businessId } } });
+    if (!it) throw new AppError(404, "NOT_FOUND", "Nothing is scheduled for this package");
+    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "active", pendingQuantity: null } });
+    await tx.billingSubscription.update({ where: { id: it.subscriptionId }, data: { rev: { increment: 1 } } });
+  });
+}
+
+/** Control-plane job body: sends every reduction that has reached its effective time to the provider, one subscription at a time. */
+export async function applyDueReductions(deps: CheckoutDeps, now: Date = new Date()): Promise<number> {
+  const due = await prisma.billingSubscriptionItem.findMany({
+    where: { state: "scheduled_remove", effectiveAt: { lte: now }, subscription: { status: "active", provider: deps.provider.name } },
+    include: { subscription: true },
+  });
+  const bySub = new Map<string, typeof due>();
+  for (const it of due) bySub.set(it.subscriptionId, [...(bySub.get(it.subscriptionId) ?? []), it]);
+  let applied = 0;
+  for (const items of bySub.values()) {
+    const sub = items[0].subscription;
+    const remote = await deps.provider.getSubscription(sub.subscriptionRef);
+    const refs = await prisma.providerPriceRef.findMany({ where: { provider: deps.provider.name, mode: deps.mode, versionId: { in: items.map((i) => i.versionId) } } });
+    const lines = items.flatMap((it) => {
+      const priceRef = refs.find((r) => r.versionId === it.versionId)?.priceRef;
+      const itemRef = remote.items.find((r) => r.priceRef === priceRef)?.itemRef;
+      if (!priceRef || !itemRef) return [];
+      return [{ priceRef, quantity: it.pendingQuantity ?? 0, itemRef, ...(!it.pendingQuantity ? { remove: true } : {}) }];
+    });
+    if (lines.length === 0) continue;
+    const idemKey = createHash("sha256").update(`reduce|${sub.id}|${items.map((i) => `${i.id}:${i.pendingQuantity}`).sort().join(",")}`).digest("hex");
+    const snap = await deps.provider.changeSubscription({ ref: sub.subscriptionRef, lines }, idemKey);
+    await prisma.$transaction(async (tx) => {
+      await lockTenantWrites(tx, sub.businessId);
+      const policy = await readBillingPolicy(tx);
+      await applyProviderSnapshot(tx, snap, { businessId: sub.businessId, provider: deps.provider.name, mode: deps.mode, graceDays: policy.graceDays, now });
+    });
+    applied += lines.length;
+  }
+  return applied;
+}

@@ -5,6 +5,7 @@ import {
   DELIVER_WEBHOOK_JOB,
   INDEX_KNOWLEDGE_ENTRY_JOB,
   PROCESS_PROVIDER_EVENT_JOB,
+  APPLY_DUE_REDUCTIONS_JOB,
   SYNC_PROVIDER_PRICE_JOB,
 } from "./job-types";
 
@@ -75,6 +76,7 @@ export const QUEUE_CONFIG: Record<string, JobQueueConfig> = {
   [SEND_FOLLOWUP_JOB]: { heartbeatSeconds: 30, retryLimit: 5, retryDelay: 10 },
   [RETRY_DELIVERY_JOB]: { heartbeatSeconds: 30, retryLimit: 5, retryDelay: 10 },
   [PROCESS_PROVIDER_EVENT_JOB]: { retryLimit: 8, retryBackoff: true, retryDelay: 10, expireInSeconds: 60 },
+  [APPLY_DUE_REDUCTIONS_JOB]: { retryLimit: 3, retryBackoff: true, retryDelay: 30, expireInSeconds: 300 },
   [SYNC_PROVIDER_PRICE_JOB]: { retryLimit: 5, retryBackoff: true, retryDelay: 10, expireInSeconds: 60 },
   [DELIVER_WEBHOOK_JOB]: {
     retryLimit: DELIVER_WEBHOOK_MAX_ATTEMPTS - 1,

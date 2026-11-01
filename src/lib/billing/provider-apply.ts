@@ -76,10 +76,17 @@ export async function applyProviderSnapshot(tx: Tx, snap: ProviderSubscription, 
     }
     seen.add(ref.versionId);
     const existing = await tx.billingSubscriptionItem.findFirst({ where: { subscriptionId: row.id, versionId: ref.versionId } });
-    if (existing) await tx.billingSubscriptionItem.update({ where: { id: existing.id }, data: { quantity: it.quantity, state: "active" } });
+    if (existing) {
+      // A scheduled reduction stays scheduled until the provider reports the reduced quantity.
+      const scheduled = existing.state === "scheduled_remove" && existing.pendingQuantity != null && it.quantity > existing.pendingQuantity;
+      await tx.billingSubscriptionItem.update({
+        where: { id: existing.id },
+        data: scheduled ? { quantity: it.quantity } : { quantity: it.quantity, state: "active", pendingQuantity: null },
+      });
+    }
     else await tx.billingSubscriptionItem.create({ data: { subscriptionId: row.id, versionId: ref.versionId, quantity: it.quantity } });
   }
-  await tx.billingSubscriptionItem.updateMany({ where: { subscriptionId: row.id, state: "active", versionId: { notIn: [...seen] } }, data: { state: "removed" } });
+  await tx.billingSubscriptionItem.updateMany({ where: { subscriptionId: row.id, state: { in: ["active", "scheduled_remove"] }, versionId: { notIn: [...seen] } }, data: { state: "removed", pendingQuantity: null } });
 
   await syncPurchases(tx, ctx, row.id, result.grantsAccess, snap.currentPeriodEnd);
   return outcome;
@@ -89,7 +96,7 @@ async function syncPurchases(tx: Tx, ctx: ApplyContext, subscriptionId: string, 
   const items = await tx.billingSubscriptionItem.findMany({ where: { subscriptionId }, include: { version: { include: { item: true } } } });
   for (const item of items) {
     const live = await tx.workspacePurchase.findMany({ where: { subscriptionItemId: item.id, state: "active" } });
-    const want = grants && item.state === "active";
+    const want = grants && (item.state === "active" || item.state === "scheduled_remove");
     if (!want) {
       if (live.length) await tx.workspacePurchase.updateMany({ where: { id: { in: live.map((p) => p.id) } }, data: { state: "ended", endsAt: ctx.now } });
       continue;

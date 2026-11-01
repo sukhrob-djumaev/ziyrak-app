@@ -1322,6 +1322,8 @@ model BillingSubscriptionItem {
   quantity       Int                 @default(1)
   state          String              @default("active") // "active" | "scheduled_remove" | "removed"
   effectiveAt    DateTime            @default(now())
+  /// Set while state is "scheduled_remove": the quantity to keep from effectiveAt (0 removes the item).
+  pendingQuantity Int?
 
   @@index([subscriptionId, state])
 }

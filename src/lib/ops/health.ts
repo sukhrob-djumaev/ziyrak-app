@@ -97,6 +97,7 @@ export async function detail(includeDetail = false) {
   };
   if (!includeDetail) return base;
   const queue = database === "ok" ? await readQueueSignals() : "unknown";
+  const billingIncidents = database === "ok" ? await readOpenBillingIncidents() : "unknown";
   const mem = process.memoryUsage();
   return {
     ...base,
@@ -105,8 +106,19 @@ export async function detail(includeDetail = false) {
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     worker,
     queue,
+    billingIncidents,
     memory: { rssMb: Math.round(mem.rss / 1024 / 1024), heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024) },
   };
+}
+
+/** Open payment incidents (paid-not-provisioned, unbound refs, ...) need an operator; this is the count an alert watches. */
+export async function readOpenBillingIncidents(): Promise<number | "unknown"> {
+  try {
+    const n = await prisma.billingIncident.count({ where: { state: "open" } });
+    return typeof n === "number" ? n : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 /** Constant-time check of the operator token. No token configured means nobody gets the detail. */

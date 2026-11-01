@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 vi.mock("@/lib/prisma/raw-client", async (importOriginal) => importOriginal());
 
 import { prisma } from "@/lib/prisma/raw-client";
+import { readOpenBillingIncidents } from "@/lib/ops/health";
 import { getBillingStatus } from "@/lib/billing/status-view";
 
 const tag = `bs-${Date.now()}`;
@@ -78,6 +79,21 @@ describe("billing status", () => {
     } finally {
       await prisma.membership.deleteMany({ where: { userId: { in: users } } });
       await prisma.user.deleteMany({ where: { id: { in: users } } });
+    }
+  });
+
+  it("counts open payment incidents for the operator alert and ignores resolved ones", async () => {
+    const before = await readOpenBillingIncidents();
+    const rows = await prisma.billingIncident.createManyAndReturn({
+      data: [
+        { businessId: biz, kind: "paid_not_provisioned", detail: `${tag}-a` },
+        { businessId: biz, kind: "unbound_ref", detail: `${tag}-b`, state: "resolved" },
+      ],
+    });
+    try {
+      expect(await readOpenBillingIncidents()).toBeGreaterThanOrEqual((before as number) + 1);
+    } finally {
+      await prisma.billingIncident.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
     }
   });
 });

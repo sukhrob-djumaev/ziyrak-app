@@ -97,6 +97,7 @@ describe("health probes", () => {
     expect(detail.build.sha).toBe("abc1234");
     expect(detail).toHaveProperty("worker");
     expect(detail).toHaveProperty("queue");
+    expect(detail).toHaveProperty("billingIncidents");
     expect(detail.memory).toBeDefined();
     delete process.env.HEALTH_DETAIL_TOKEN;
     // No token configured: nobody gets the detail, not even an empty header.

@@ -53,4 +53,14 @@ describe("billing status", () => {
     expect((await getBillingStatus(other, null)).hold.held).toBe(true);
     expect((await getBillingStatus(other, null)).hold.retentionEndsAt).toBeInstanceOf(Date);
   });
+
+  it("exposes each item's version and a scheduled reduction, and nothing pending for an active item", async () => {
+    const s = await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: biz, status: "past_due" } });
+    const eff = new Date(Date.now() + 86_400_000);
+    await prisma.billingSubscriptionItem.create({ data: { subscriptionId: s.id, versionId: synced, quantity: 3, state: "scheduled_remove", pendingQuantity: 1, effectiveAt: eff } });
+    await prisma.billingSubscriptionItem.create({ data: { subscriptionId: s.id, versionId: unsynced, quantity: 2 } });
+    const items = (await getBillingStatus(biz, null)).subscription!.items;
+    expect(items.find((i) => i.versionId === synced)).toMatchObject({ quantity: 3, state: "scheduled_remove", pendingQuantity: 1, effectiveAt: eff });
+    expect(items.find((i) => i.versionId === unsynced)).toMatchObject({ state: "active", pendingQuantity: null, effectiveAt: null });
+  });
 });

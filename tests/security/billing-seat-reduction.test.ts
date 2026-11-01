@@ -79,7 +79,9 @@ describe("seat reduction below usage", () => {
     await scheduleReduction(w.actor, { lines: [{ versionId: seat, quantity: 2 }] }, deps);
     expect((await seatItem(w.biz)).state).toBe("scheduled_remove");
     expect(await entitledLimit(w.biz, "seats.members")).toBe(before);
-    expect(await seatConflict(w.biz, seat)).toEqual({ members: 4, openInvitations: 0, newLimit: before - 2, effectiveAt: periodEnd.toISOString(), chosen: null });
+    const c = await seatConflict(w.biz, seat);
+    expect(c).toMatchObject({ members: 4, openInvitations: 0, newLimit: before - 2, effectiveAt: periodEnd.toISOString(), chosen: null });
+    expect(c.people.map((p) => p.membershipId).sort()).toEqual(Object.values(w.m).sort());
   });
 
   it("validates the owner's choice: owner kept, within the new limit, only this workspace's members", async () => {

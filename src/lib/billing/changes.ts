@@ -257,7 +257,13 @@ export async function seatConflict(businessId: string, versionId: string) {
     });
     if (!it || !grantsSeats(it.version.grants)) throw new AppError(404, "NOT_FOUND", "No team-size reduction is scheduled");
     const u = await seatUsage(tx, businessId);
-    return { ...u, effectiveAt: it.effectiveAt.toISOString(), chosen: readChoice(it.pendingStayers)?.ids ?? null };
+    const people = await tx.membership.findMany({ where: { businessId, suspendedByPlanAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, role: true, user: { select: { name: true, email: true } } } });
+    return {
+      ...u,
+      effectiveAt: it.effectiveAt.toISOString(),
+      chosen: readChoice(it.pendingStayers)?.ids ?? null,
+      people: people.map((m) => ({ membershipId: m.id, role: m.role, name: m.user.name, email: m.user.email })),
+    };
   });
 }
 

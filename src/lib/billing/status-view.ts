@@ -32,7 +32,15 @@ export async function getBillingStatus(businessId: string, provider: { name: str
       currentPeriodEnd: subscription.currentPeriodEnd,
       graceEndsAt: subscription.graceEndsAt,
       currency: subscription.currency,
-      items: subscription.items.map((i) => ({ name: i.version.name, kind: i.version.item.kind, quantity: i.quantity, state: i.state })),
+      items: subscription.items.map((i) => ({
+        versionId: i.versionId,
+        name: i.version.name,
+        kind: i.version.item.kind,
+        quantity: i.quantity,
+        state: i.state,
+        pendingQuantity: i.state === "scheduled_remove" ? i.pendingQuantity : null,
+        effectiveAt: i.state === "scheduled_remove" ? i.effectiveAt : null,
+      })),
     },
     sellable: [...latest.values()].map((v) => ({
       versionId: v.id,

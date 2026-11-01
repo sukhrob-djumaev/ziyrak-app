@@ -7,10 +7,11 @@ import { LoadFailed } from "@/components/ui/load-failed";
 interface Status {
   providerEnabled: boolean;
   hold: { held: boolean; retentionEndsAt: string | null };
-  subscription: { status: string; currentPeriodEnd: string | null; graceEndsAt: string | null; currency: string; items: { name: string; kind: string; quantity: number }[] } | null;
+  subscription: { status: string; currentPeriodEnd: string | null; graceEndsAt: string | null; currency: string; items: { versionId: string; name: string; kind: string; quantity: number; state: string; pendingQuantity: number | null; effectiveAt: string | null }[] } | null;
   sellable: { versionId: string; itemKey: string; kind: string; name: string; description: string; priceMinor: number | null; currency: string | null; interval: string | null }[];
 }
 interface Quote { totalMinor: number; currency: string; interval: string; quotedAt: string; quoteHash: string; lines: { versionId: string; name: string; quantity: number; unitMinor: number }[] }
+interface SeatConflict { members: number; openInvitations: number; newLimit: number; effectiveAt: string; chosen: string[] | null; people: { membershipId: string; role: string; name: string; email: string | null }[] }
 
 interface Offer {
   purchases: { id: string; itemKey: string; kind: string; name: string; version: number; quantity: number; source: string }[];
@@ -38,6 +39,109 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.error?.message ?? "Something went wrong. Try again.");
   return body as T;
+}
+
+/** Owner picks who keeps a seat when a scheduled team-size decrease applies. Renders nothing for a package that grants no seats. */
+function SeatChoice({ versionId, onError }: { versionId: string; onError: (m: string | null) => void }) {
+  const [c, setC] = useState<SeatConflict | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    api<SeatConflict>(`/api/billing/change/seats?versionId=${versionId}`)
+      .then((r) => {
+        setC(r);
+        setPicked(new Set(r.chosen ?? r.people.filter((p) => p.role === "owner").map((p) => p.membershipId)));
+        setSaved(r.chosen !== null);
+      })
+      .catch(() => setC(null));
+  }, [versionId]);
+  if (!c) return null;
+  const room = c.newLimit - c.openInvitations;
+  const toggle = (id: string) => { setSaved(false); setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
+  const save = async () => {
+    onError(null);
+    try {
+      await api("/api/billing/change/seats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ versionId, membershipIds: [...picked] }) });
+      setSaved(true);
+    } catch (e) {
+      onError((e as Error).message);
+    }
+  };
+  return (
+    <fieldset className="mt-2 rounded border p-2" data-testid="seat-choice">
+      <legend className="px-1 text-xs">Who keeps a seat from {new Date(c.effectiveAt).toLocaleDateString()} (room for {room})</legend>
+      {c.people.map((p) => (
+        <label key={p.membershipId} className="flex items-center gap-2">
+          <input type="checkbox" checked={picked.has(p.membershipId)} disabled={p.role === "owner"} onChange={() => toggle(p.membershipId)} />
+          <span>{p.name || p.email || "Member"} <span className="text-ziyrak-text-light">({p.role})</span></span>
+        </label>
+      ))}
+      <button type="button" className="mt-1 rounded border px-2 py-1" disabled={picked.size > room} data-testid="save-stayers" onClick={save}>Save choice</button>
+      {saved && <span role="status" className="ml-2 text-xs">Saved. Nobody loses access before that date.</span>}
+      {picked.size > room && <span className="ml-2 text-xs text-red-700">Choose at most {room}.</span>}
+    </fieldset>
+  );
+}
+
+/** Change an active subscription: raise a quantity (priced and confirmed before any charge) or schedule a reduction for the period end. */
+function ChangePlan({ status, busy, run, refresh, onError }: { status: Status; busy: boolean; run: (fn: () => Promise<void>) => Promise<void>; refresh: () => Promise<void>; onError: (m: string | null) => void }) {
+  const sub = status.subscription!;
+  const held = new Map(sub.items.map((i) => [i.versionId, i]));
+  const addons = status.sellable.filter((v) => v.kind === "addon");
+  const [target, setTarget] = useState<Record<string, number>>({});
+  const [quote, setQuote] = useState<(Quote & { lines: { versionId: string; name: string; quantity: number; unitMinor: number }[] }) | null>(null);
+  const [lines, setLines] = useState<{ versionId: string; quantity: number }[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const jsonPost = <T,>(url: string, body: unknown) => api<T>(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  const changed = addons.map((v) => ({ v, want: target[v.versionId] ?? held.get(v.versionId)?.quantity ?? 0, have: held.get(v.versionId)?.quantity ?? 0 })).filter((r) => r.want !== r.have);
+  const ups = changed.filter((r) => r.want > r.have).map((r) => ({ versionId: r.v.versionId, quantity: r.want }));
+  const downs = changed.filter((r) => r.want < r.have).map((r) => ({ versionId: r.v.versionId, quantity: r.want }));
+  const done = async (msg: string) => { setQuote(null); setTarget({}); setNotice(msg); await refresh(); };
+
+  return (
+    <div className="mt-4" data-testid="change-plan">
+      <h3 className="font-medium">Change your add-ons</h3>
+      {notice && <p role="status" className="mt-1 text-xs" data-testid="change-notice">{notice}</p>}
+      <ul className="mt-1 space-y-2">
+        {addons.map((v) => {
+          const it = held.get(v.versionId);
+          const scheduled = it?.state === "scheduled_remove";
+          return (
+            <li key={v.versionId} data-testid="change-row">
+              <label className="flex items-center gap-2">
+                <span className="w-48">{v.name} <span className="text-ziyrak-text-light">{v.priceMinor !== null && `${money(v.priceMinor, v.currency)}/${v.interval}`}</span></span>
+                <input type="number" min={0} max={1000} aria-label={`${v.name} quantity`} className="w-16 rounded border px-1" disabled={busy || scheduled}
+                  value={target[v.versionId] ?? it?.quantity ?? 0} onChange={(e) => { setQuote(null); setTarget((t) => ({ ...t, [v.versionId]: Math.max(0, Math.min(1000, Math.floor(Number(e.target.value) || 0))) })); }} />
+              </label>
+              {scheduled && it && (
+                <p className="ml-1 text-xs" data-testid="scheduled">
+                  Goes down to {it.pendingQuantity} on {it.effectiveAt && new Date(it.effectiveAt).toLocaleDateString()}; you keep it until then.{" "}
+                  <button type="button" className="underline" disabled={busy} onClick={() => run(async () => { await jsonPost("/api/billing/change/unschedule", { versionId: v.versionId }); await done("The reduction is cancelled."); })}>Keep it</button>
+                  <SeatChoice versionId={v.versionId} onError={onError} />
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {ups.length > 0 && !quote && (
+        <button type="button" disabled={busy} className="mt-2 rounded border px-3 py-1.5" data-testid="quote-upgrade"
+          onClick={() => run(async () => { setLines(ups); setQuote(await jsonPost("/api/billing/change/quote", { lines: ups })); })}>Review price</button>
+      )}
+      {quote && (
+        <div className="mt-2" data-testid="upgrade-quote">
+          <p>Adds <span className="font-medium">{money(quote.totalMinor, quote.currency)}/{quote.interval}</span>. It starts once the payment is confirmed.</p>
+          <button type="button" disabled={busy} className="mt-1 rounded bg-ziyrak-primary px-3 py-1.5 text-white" data-testid="apply-upgrade"
+            onClick={() => run(async () => { const r = await jsonPost<{ confirmed: boolean }>("/api/billing/change", { lines, quoteHash: quote.quoteHash, quotedAt: quote.quotedAt }); await done(r.confirmed ? "Your add-ons are updated." : "Waiting for the payment to be confirmed."); })}>Confirm and pay</button>
+        </div>
+      )}
+      {downs.length > 0 && (
+        <button type="button" disabled={busy} className="mt-2 ml-2 rounded border px-3 py-1.5" data-testid="schedule-reduction"
+          onClick={() => run(async () => { const r = await jsonPost<{ effectiveAt: string }>("/api/billing/change/schedule", { lines: downs }); await done(`Scheduled for ${new Date(r.effectiveAt).toLocaleDateString()}. You keep everything until then.`); })}>Reduce at the end of the paid period</button>
+      )}
+    </div>
+  );
 }
 
 /** Subscribe, see the subscription, and manage payment details. Returning from checkout grants nothing; it waits for the confirmed subscription. */
@@ -110,6 +214,7 @@ function Subscription() {
             {sub.status === "past_due" && sub.graceEndsAt && `. Update your payment method before ${new Date(sub.graceEndsAt).toLocaleDateString()} or the workspace will be paused.`}
           </p>
           <ul className="mt-1">{sub.items.map((i, n) => <li key={n}>{i.name}{i.quantity > 1 ? ` ×${i.quantity}` : ""}</li>)}</ul>
+          {sub.status === "active" && <ChangePlan status={status} busy={busy} run={run} refresh={refresh} onError={setError} />}
           <button type="button" disabled={busy} className="mt-2 rounded border px-3 py-1.5" data-testid="open-portal"
             onClick={() => run(async () => { window.location.assign((await post("/api/billing/portal")).url); })}>Manage payment details</button>
         </div>

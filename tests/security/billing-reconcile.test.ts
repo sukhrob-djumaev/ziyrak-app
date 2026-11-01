@@ -17,13 +17,13 @@ const remoteStatus = new Map<string, ProviderSubscription["status"]>();
 const getSubscription = vi.fn(async (r: string): Promise<ProviderSubscription> => ({
   ref: r, customerRef: `${tag}-cus`, status: remoteStatus.get(r) ?? "active", cancelAtPeriodEnd: false, currentPeriodEnd: new Date(Date.now() + 10 * DAY), currency: "MYR", items: [], metadata: {}, fetchedAt: new Date(),
 }));
-const cancelSubscription = vi.fn(async () => undefined);
-const provider = { name: "stripe", getSubscription, cancelSubscription } as unknown as PaymentProvider;
+const cancelSubscription = vi.fn(async (c: { ref: string }) => { remoteStatus.set(c.ref, "canceled"); });
+const provider = { name: "stripe-rc", getSubscription, cancelSubscription } as unknown as PaymentProvider;
 const deps = { provider, mode: "test" as const };
 
 async function workspace(name: string, data: { status: string; graceEndsAt?: Date; lastFetchedAt: Date }) {
   const b = await prisma.business.create({ data: { name: `${tag}-${name}`, slug: `${tag}-${name}` } });
-  await prisma.billingSubscription.create({ data: { businessId: b.id, provider: "stripe", subscriptionRef: ref(name), customerRef: `${tag}-cus`, currency: "MYR", currentPeriodEnd: new Date(Date.now() + DAY), ...data } });
+  await prisma.billingSubscription.create({ data: { businessId: b.id, provider: "stripe-rc", subscriptionRef: ref(name), customerRef: `${tag}-cus`, currency: "MYR", currentPeriodEnd: new Date(Date.now() + DAY), ...data } });
   return b.id;
 }
 
@@ -59,9 +59,29 @@ describe("reconcile", () => {
     expect((await prisma.billingSubscription.findFirstOrThrow({ where: { businessId: fresh } })).status).toBe("active");
   });
 
-  it("is idempotent", async () => {
-    const calls = getSubscription.mock.calls.length;
+  it("is idempotent: a second run cancels nothing more and re-reads only what is still live", async () => {
+    const cancels = cancelSubscription.mock.calls.length;
     await reconcileSubscriptions(deps);
-    expect(getSubscription.mock.calls.length).toBe(calls);
+    expect(cancelSubscription.mock.calls.length).toBe(cancels);
+    expect(getSubscription).not.toHaveBeenCalledWith(ref("fresh"));
+  });
+
+  it("retries a grace cancel that failed, until the provider reports the subscription canceled", async () => {
+    const stuck = await workspace("stuck", { status: "ended", graceEndsAt: new Date(Date.now() - DAY), lastFetchedAt: new Date() });
+    remoteStatus.set(ref("stuck"), "past_due");
+    try {
+      cancelSubscription.mockRejectedValueOnce(new Error("provider down"));
+      await reconcileSubscriptions(deps);
+      expect(remoteStatus.get(ref("stuck"))).toBe("past_due");
+      await reconcileSubscriptions(deps);
+      expect(cancelSubscription).toHaveBeenLastCalledWith({ ref: ref("stuck"), at: "now" }, expect.any(String));
+      expect(remoteStatus.get(ref("stuck"))).toBe("canceled");
+      const calls = cancelSubscription.mock.calls.length;
+      await reconcileSubscriptions(deps);
+      expect(cancelSubscription.mock.calls.length).toBe(calls);
+    } finally {
+      await prisma.billingSubscription.deleteMany({ where: { businessId: stuck } });
+      await prisma.business.deleteMany({ where: { id: stuck } });
+    }
   });
 });

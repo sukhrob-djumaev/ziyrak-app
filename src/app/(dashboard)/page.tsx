@@ -4,6 +4,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { OnboardingPanel } from "@/components/ui/onboarding-panel";
 import { AccountEmailBanner } from "@/components/ui/account-email-banner";
 import { LiveRefresh } from "@/components/live-refresh";
+import { redirectIfHeld } from "@/lib/billing/hold-redirect";
 import { getTenantContextFromCookies } from "@/lib/identity/route-auth";
 import { getScopedPrisma } from "@/lib/tenancy/scoped-prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -72,6 +73,7 @@ const channelIcons: Record<string, React.ElementType> = {
 export default async function DashboardPage() {
   const ctx = await getTenantContextFromCookies();
   if (!ctx) redirect("/login");
+  await redirectIfHeld(ctx.businessId);
 
   const stats = await getStats(ctx);
 

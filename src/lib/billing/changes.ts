@@ -9,6 +9,7 @@ import { applyProviderSnapshot } from "./provider-apply";
 import { entitledLimit } from "./entitlements";
 import { seatsInUse, suspendUnchosen } from "./member-seats";
 import { QUOTE_TTL_MS, type CheckoutDeps } from "./checkout";
+import { ProviderError } from "./providers/types";
 
 /**
  * L5.2 - immediate upgrades (docs/l5.2-plan-changes-design.md): add an add-on or raise a quantity on the live
@@ -16,6 +17,8 @@ import { QUOTE_TTL_MS, type CheckoutDeps } from "./checkout";
  * since it was shown makes it stale. Access follows the provider's answer (`pending_if_incomplete`), never the request.
  */
 
+/** A change still unsettled after this long no longer blocks the next one; the provider's idempotency key makes a late replay safe. */
+const OPEN_OP_MS = 30 * 60 * 1000;
 const MAX_LINES = 10;
 const MAX_QUANTITY = 1000;
 
@@ -135,7 +138,10 @@ export async function startUpgrade(
     if (!business || business.status !== "active") throw new AppError(403, "FORBIDDEN", "This workspace cannot change its subscription");
     const current = await tx.billingSubscription.findUnique({ where: { id: sub.id }, select: { rev: true, status: true } });
     if (!current || current.rev !== sub.rev || current.status !== "active") throw new AppError(409, "QUOTE_STALE", "The subscription changed since you reviewed it. Review it again");
-    const open = await tx.billingOperation.findFirst({ where: { businessId: actor.businessId, kind: "change", state: { in: ["pending", "unknown"] } }, select: { id: true } });
+    const open = await tx.billingOperation.findFirst({
+      where: { businessId: actor.businessId, kind: "change", state: { in: ["pending", "unknown"] }, createdAt: { gt: new Date(now.getTime() - OPEN_OP_MS) } },
+      select: { id: true },
+    });
     if (open) throw new AppError(409, "CONFLICT", "Another change is still being confirmed. Try again shortly");
     return tx.billingOperation.create({ data: { businessId: actor.businessId, kind: "change", idemKey, quoteHash: quote.quoteHash, requestedBy: actor.userId } });
   });
@@ -158,7 +164,7 @@ export async function startUpgrade(
     });
     return { status: outcome.status, confirmed, operationId: op.id };
   } catch (e) {
-    await prisma.billingOperation.update({ where: { id: op.id }, data: { state: e instanceof AppError ? "failed" : "unknown" } });
+    await prisma.billingOperation.update({ where: { id: op.id }, data: { state: e instanceof AppError || (e instanceof ProviderError && e.kind === "rejected") ? "failed" : "unknown" } });
     throw e;
   }
 }
@@ -173,19 +179,36 @@ const grantsSeats = (grants: unknown) => seatAmount(grants) > 0;
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-/** Members and open invitations that hold a seat today, and the limit once the scheduled decrease of this seat item applies. */
-async function seatUsage(tx: Tx, businessId: string, it: { quantity: number; pendingQuantity: number | null; version: { grants: unknown } }) {
-  const [[members, invited], limit] = await Promise.all([seatsInUse(tx, businessId), entitledLimit(businessId, "seats.members", tx)]);
-  return { members, openInvitations: invited, newLimit: limit - (it.quantity - (it.pendingQuantity ?? it.quantity)) * seatAmount(it.version.grants) };
+/** Members and open invitations that hold a seat today, and the limit once every scheduled seat decrease of the workspace applies. */
+async function seatUsage(tx: Tx, businessId: string) {
+  const [[members, invited], limit, pending] = await Promise.all([
+    seatsInUse(tx, businessId),
+    entitledLimit(businessId, "seats.members", tx),
+    tx.billingSubscriptionItem.findMany({ where: { state: "scheduled_remove", subscription: { businessId } }, include: { version: true } }),
+  ]);
+  const drop = pending.reduce((n, p) => n + (p.quantity - (p.pendingQuantity ?? p.quantity)) * seatAmount(p.version.grants), 0);
+  return { members, openInvitations: invited, newLimit: limit - drop };
 }
 
-/** The set of members that fits the new limit and keeps every owner; null when it does not. */
-async function validStayers(tx: Tx, businessId: string, ids: unknown, newLimit: number, invited: number): Promise<string[] | null> {
+/** The owner's recorded choice: who stays and when it was made. */
+const readChoice = (raw: unknown): { ids: string[]; at: Date } | null => {
+  const c = raw as { ids?: unknown; at?: unknown } | null;
+  if (!c || !Array.isArray(c.ids) || typeof c.at !== "string" || Number.isNaN(Date.parse(c.at))) return null;
+  return { ids: c.ids as string[], at: new Date(c.at) };
+};
+
+/**
+ * The set of members that fits the new limit and keeps every owner; null when it does not. A choice is stale, and so lapses,
+ * when someone joined after it was made: nobody is suspended without the owner having seen them.
+ */
+async function validStayers(tx: Tx, businessId: string, choice: { ids: unknown; at?: Date }, newLimit: number, invited: number): Promise<string[] | null> {
+  const ids = choice.ids;
   if (!Array.isArray(ids) || ids.some((x) => typeof x !== "string") || new Set(ids).size !== ids.length) return null;
-  const rows = await tx.membership.findMany({ where: { businessId, suspendedByPlanAt: null }, select: { id: true, role: true } });
+  const rows = await tx.membership.findMany({ where: { businessId, suspendedByPlanAt: null }, select: { id: true, role: true, createdAt: true } });
   const live = new Set(rows.map((r) => r.id));
   if (!ids.every((x: string) => live.has(x))) return null;
   if (!rows.filter((r) => r.role === "owner").every((r) => ids.includes(r.id))) return null;
+  if (choice.at && rows.some((r) => !ids.includes(r.id) && r.createdAt > choice.at!)) return null;
   return ids.length + invited <= newLimit ? (ids as string[]) : null;
 }
 
@@ -233,8 +256,8 @@ export async function seatConflict(businessId: string, versionId: string) {
       include: { version: true },
     });
     if (!it || !grantsSeats(it.version.grants)) throw new AppError(404, "NOT_FOUND", "No team-size reduction is scheduled");
-    const u = await seatUsage(tx, businessId, it);
-    return { ...u, effectiveAt: it.effectiveAt.toISOString(), chosen: Array.isArray(it.pendingStayers) ? (it.pendingStayers as string[]) : null };
+    const u = await seatUsage(tx, businessId);
+    return { ...u, effectiveAt: it.effectiveAt.toISOString(), chosen: readChoice(it.pendingStayers)?.ids ?? null };
   });
 }
 
@@ -247,12 +270,12 @@ export async function chooseStayers(actor: { businessId: string; userId: string 
       include: { version: true },
     });
     if (!it || !grantsSeats(it.version.grants)) throw new AppError(404, "NOT_FOUND", "No team-size reduction is scheduled");
-    const u = await seatUsage(tx, actor.businessId, it);
+    const u = await seatUsage(tx, actor.businessId);
     const ids = input.membershipIds;
-    const ok = await validStayers(tx, actor.businessId, ids, Number.MAX_SAFE_INTEGER, 0);
+    const ok = await validStayers(tx, actor.businessId, { ids }, Number.MAX_SAFE_INTEGER, 0);
     if (!ok) throw new AppError(400, "VALIDATION_ERROR", "Choose current members of this workspace, and keep every owner");
     if (ids.length + u.openInvitations > u.newLimit) throw new AppError(409, "CONFLICT", `The new limit is ${u.newLimit} seats. Choose fewer people or revoke open invitations`);
-    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { pendingStayers: ids } });
+    await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { pendingStayers: { ids, at: new Date().toISOString() } } });
   });
 }
 
@@ -280,9 +303,9 @@ export async function applyDueReductions(deps: CheckoutDeps, now: Date = new Dat
       }
       const verdict = await prisma.$transaction(async (tx) => {
         await lockTenantWrites(tx, sub.businessId);
-        const u = await seatUsage(tx, sub.businessId, it);
+        const u = await seatUsage(tx, sub.businessId);
         if (u.members + u.openInvitations <= u.newLimit) return "fits" as const;
-        const chosen = await validStayers(tx, sub.businessId, it.pendingStayers, u.newLimit, u.openInvitations);
+        const chosen = await validStayers(tx, sub.businessId, readChoice(it.pendingStayers) ?? { ids: null }, u.newLimit, u.openInvitations);
         if (chosen) return chosen;
         await tx.billingSubscriptionItem.update({ where: { id: it.id }, data: { state: "active", pendingQuantity: null, pendingStayers: Prisma.DbNull } });
         await tx.billingSubscription.update({ where: { id: sub.id }, data: { rev: { increment: 1 } } });

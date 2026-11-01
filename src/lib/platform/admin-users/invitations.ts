@@ -165,7 +165,7 @@ export async function acceptInvitation(args: {
   const email = normalizeEmail(row.email);
 
   // The inviter must still be able to grant this today.
-  const inviter = await prisma.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId } });
+  const inviter = await prisma.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId, suspendedByPlanAt: null } });
   if (
     !inviter ||
     !hasPermission(inviter.role, "admin:create") ||
@@ -194,7 +194,7 @@ export async function acceptInvitation(args: {
       if (claimed.count !== 1) throw new Rollback({ ok: false, code: "INVALID_LINK" });
 
       // The inviter's authority is judged inside the same transaction that grants the membership.
-      const inviterNow = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId } });
+      const inviterNow = await tx.membership.findFirst({ where: { businessId: payload.businessId, userId: payload.inviterUserId, suspendedByPlanAt: null } });
       if (
         !inviterNow ||
         !hasPermission(inviterNow.role, "admin:create") ||

@@ -10,6 +10,8 @@ import type { CheckoutDeps } from "./checkout";
  */
 export const RECONCILE_STALE_MS = 60 * 60 * 1000;
 const BATCH = 50;
+/** How long after grace ran out an ended subscription is still checked for a provider-side cancel that failed. */
+const CANCEL_RETRY_MS = 14 * 24 * 60 * 60 * 1000;
 
 export async function reconcileSubscriptions(deps: CheckoutDeps, now: Date = new Date()): Promise<number> {
   const stale = new Date(now.getTime() - RECONCILE_STALE_MS);
@@ -38,5 +40,26 @@ export async function reconcileSubscriptions(deps: CheckoutDeps, now: Date = new
       console.error(`[billing-reconcile] ${row.subscriptionRef}`, e instanceof Error ? e.message : e);
     }
   }
-  return repaired;
+  return repaired + (await retryGraceCancels(deps, now));
+}
+
+/** A cancel that failed when grace expired leaves the row ended while the provider keeps billing; stop it here. The key makes a repeat safe. */
+async function retryGraceCancels(deps: CheckoutDeps, now: Date): Promise<number> {
+  const ended = await prisma.billingSubscription.findMany({
+    where: { provider: deps.provider.name, status: "ended", graceEndsAt: { not: null }, updatedAt: { gt: new Date(now.getTime() - CANCEL_RETRY_MS) } },
+    orderBy: { updatedAt: "asc" },
+    take: BATCH,
+  });
+  let cancelled = 0;
+  for (const row of ended) {
+    try {
+      const snap = await deps.provider.getSubscription(row.subscriptionRef);
+      if (snap.status === "canceled") continue;
+      await deps.provider.cancelSubscription({ ref: snap.ref, at: "now" }, `grace-expiry-${snap.ref}`);
+      cancelled += 1;
+    } catch (e) {
+      console.error(`[billing-reconcile] cancel retry ${row.subscriptionRef}`, e instanceof Error ? e.message : e);
+    }
+  }
+  return cancelled;
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isPaymentHold } from "@/lib/billing/payment-hold";
 import {
   validFollowupProvenance,
   type AdmittedFollowup,
@@ -192,6 +193,9 @@ export async function dispatchDelivery(
     throw new DeliveryBusyError("Delivery is still owned by a worker.");
   if (!["ready", "rejected"].includes(op.status) || (op.status === "rejected" && !op.retryable))
     return op;
+  // A paused workspace sends nothing, including work queued before the hold; the delivery stays ready for when payment resumes it.
+  if (await isPaymentHold(ctx.businessId))
+    throw new AppError(402, "PAYMENT_HOLD", "This workspace is paused until payment is made.");
   if (op.response === null)
     throw new AppError(
       409,

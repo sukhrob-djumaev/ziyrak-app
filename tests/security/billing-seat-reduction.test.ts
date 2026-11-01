@@ -67,6 +67,7 @@ afterAll(async () => {
     const members = await prisma.membership.findMany({ where: { businessId: biz }, select: { userId: true } });
     await prisma.business.deleteMany({ where: { id: biz } });
     await prisma.user.deleteMany({ where: { id: { in: members.map((x) => x.userId) } } });
+    await prisma.user.deleteMany({ where: { username: { startsWith: `${tag}-` } } });
   }
   await prisma.providerPriceRef.deleteMany({ where: { versionId: { in: [seat, bundle] } } });
 });
@@ -90,7 +91,7 @@ describe("seat reduction below usage", () => {
     await expect(pick([w.m.owner, other.m.a])).rejects.toMatchObject({ statusCode: 400 });
     await expect(pick([w.m.owner, w.m.a, w.m.b, w.m.c])).rejects.toMatchObject({ statusCode: 409 });
     await pick([w.m.owner, w.m.a]);
-    expect((await seatItem(w.biz)).pendingStayers).toEqual([w.m.owner, w.m.a]);
+    expect((await seatItem(w.biz)).pendingStayers).toMatchObject({ ids: [w.m.owner, w.m.a] });
     expect(await suspended(w.biz)).toEqual([]);
   });
 
@@ -125,6 +126,21 @@ describe("seat reduction below usage", () => {
     await chooseStayers(w.actor, { versionId: seat, membershipIds: [w.m.owner, w.m.a] });
     changeSubscription.mockClear();
     await prisma.membership.delete({ where: { id: w.m.a } });
+    await only(w.biz);
+    await applyDueReductions(deps, after);
+    expect(changeSubscription).not.toHaveBeenCalled();
+    expect(await suspended(w.biz)).toEqual([]);
+  });
+
+  it("a member who joined after the owner's choice is never suspended unseen: the choice lapses", async () => {
+    const w = await workspace("late");
+    await scheduleReduction(w.actor, { lines: [{ versionId: seat, quantity: 2 }] }, deps);
+    await chooseStayers(w.actor, { versionId: seat, membershipIds: [w.m.owner, w.m.a] });
+    await new Promise((r) => setTimeout(r, 20));
+    const u = await prisma.user.create({ data: { username: `${tag}-late-d`, password: "x" } });
+    w.userIds.d = u.id;
+    await prisma.membership.create({ data: { businessId: w.biz, userId: u.id, role: "agent" } });
+    changeSubscription.mockClear();
     await only(w.biz);
     await applyDueReductions(deps, after);
     expect(changeSubscription).not.toHaveBeenCalled();

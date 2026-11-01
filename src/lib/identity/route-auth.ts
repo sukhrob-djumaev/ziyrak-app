@@ -40,7 +40,7 @@ async function authenticateApiKey(presentedKey: string): Promise<TenantContext |
       where: { businessId_userId: { businessId: key.businessId, userId: key.issuedByUserId } },
       include: { connectionScopes: true },
     });
-    if (!issuer || !(["admin", "owner"] as string[]).includes(issuer.role)) return null;
+    if (!issuer || issuer.suspendedByPlanAt || !(["admin", "owner"] as string[]).includes(issuer.role)) return null;
     try {
       if (!scopeIsWithin(resourceScope, scopeFromRecord(issuer))) return null;
     } catch {

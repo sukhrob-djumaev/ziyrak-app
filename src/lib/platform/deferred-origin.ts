@@ -47,7 +47,7 @@ export async function readDeferredIdentity(
     if (!business) return null;
     if (reference.kind === "membership") {
       const member = await tx.membership.findFirst({
-        where: { id: reference.membershipId, businessId, userId: reference.userId },
+        where: { id: reference.membershipId, businessId, userId: reference.userId, suspendedByPlanAt: null },
         include: { connectionScopes: true },
       });
       if (!member || !(ROLES as readonly string[]).includes(member.role)) return null;
@@ -68,7 +68,7 @@ export async function readDeferredIdentity(
     if (key.scopeOrigin === "issuer") {
       if (!key.issuedByUserId) return null;
       const issuer = await tx.membership.findFirst({
-        where: { businessId, userId: key.issuedByUserId },
+        where: { businessId, userId: key.issuedByUserId, suspendedByPlanAt: null },
         include: { connectionScopes: true },
       });
       if (

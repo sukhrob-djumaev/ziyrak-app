@@ -74,6 +74,8 @@ const eslintConfig = defineConfig([
       // L4.1b: package/entitlement reads of control-plane tables only (catalog, purchases, adjustments), keyed by the caller's own businessId.
       "src/lib/billing/entitlements.ts",
       "src/lib/billing/offer-view.ts",
+      // L5.1: webhook inbox and subscription events run before any tenant context exists; every write is keyed by a workspace id resolved from our own binding rows.
+      "src/lib/billing/provider-events.ts",
       // P3 account tokens: control-plane identity tokens, no tenant context exists yet.
       "src/lib/identity/account-tokens.ts",
       "src/lib/identity/account-service.ts",

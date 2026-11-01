@@ -37,6 +37,7 @@ import "@/lib/jobs/handlers/sweep-ai-reservations";
 import "@/lib/jobs/handlers/process-provider-event";
 import "@/lib/jobs/handlers/billing-sync-price";
 import "@/lib/jobs/handlers/billing-apply-reductions";
+import "@/lib/jobs/handlers/billing-reconcile";
 import "@/lib/jobs/handlers/send-followup";
 import "@/lib/jobs/handlers/retry-delivery";
 import "@/lib/jobs/handlers/execute-campaign";

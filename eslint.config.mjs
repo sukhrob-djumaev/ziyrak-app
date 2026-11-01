@@ -78,6 +78,7 @@ const eslintConfig = defineConfig([
       "src/lib/billing/provider-events.ts",
       "src/lib/billing/checkout.ts",
       "src/lib/billing/changes.ts",
+      "src/lib/billing/reconcile.ts",
       "src/lib/billing/member-seats.ts",
       "src/lib/billing/price-sync.ts",
       "src/lib/billing/payment-hold.ts",

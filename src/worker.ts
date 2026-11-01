@@ -23,7 +23,7 @@ import "@/lib/jobs/bootstrap";
 // own header for the full story).
 import "@/lib/channels/bootstrap";
 import { jobQueue } from "@/lib/jobs/queue";
-import { SWEEP_SLA_BREACHES_JOB, SWEEP_RETENTION_JOB, SWEEP_AI_RESERVATIONS_JOB, APPLY_DUE_REDUCTIONS_JOB } from "@/lib/jobs/job-types";
+import { SWEEP_SLA_BREACHES_JOB, SWEEP_RETENTION_JOB, SWEEP_AI_RESERVATIONS_JOB, APPLY_DUE_REDUCTIONS_JOB, RECONCILE_BILLING_JOB } from "@/lib/jobs/job-types";
 import { prisma } from "@/lib/prisma/raw-client";
 import { logger } from "@/lib/observability/logger";
 import { startWorkerHeartbeat } from "@/lib/ops/worker-heartbeat";
@@ -35,6 +35,7 @@ import { startWorkerHeartbeat } from "@/lib/ops/worker-heartbeat";
 // defaults, not an architectural commitment.
 const SLA_BREACH_SWEEP_CRON = "*/15 * * * *"; // every 15 minutes
 const BILLING_REDUCTIONS_CRON = "*/5 * * * *";
+const BILLING_RECONCILE_CRON = "*/10 * * * *";
 const RETENTION_SWEEP_CRON = "0 3 * * *"; // daily at 03:00 UTC
 const AI_RESERVATION_SWEEP_CRON = "*/5 * * * *"; // every five minutes
 
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
   await jobQueue.scheduleRecurring(SWEEP_RETENTION_JOB, RETENTION_SWEEP_CRON, async () => ({}));
   await jobQueue.scheduleRecurring(SWEEP_AI_RESERVATIONS_JOB, AI_RESERVATION_SWEEP_CRON, async () => ({}));
   await jobQueue.scheduleRecurring(APPLY_DUE_REDUCTIONS_JOB, BILLING_REDUCTIONS_CRON, async () => ({ businessId: "" }));
+  await jobQueue.scheduleRecurring(RECONCILE_BILLING_JOB, BILLING_RECONCILE_CRON, async () => ({ businessId: "" }));
   logger.info("[worker] started", { slaBreachCron: SLA_BREACH_SWEEP_CRON, retentionCron: RETENTION_SWEEP_CRON });
 }
 

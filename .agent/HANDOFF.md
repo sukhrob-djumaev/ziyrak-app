@@ -1,10 +1,8 @@
 # Handoff - latest session (2026-11-02)
 
-- Merged L5 (PR #60, `14cec31`; main CI green) and the real-model L1.4 holdout record (PR #61, `d2b6d15`, docs only). L1.4 gate NOT met (missing-knowledge 90% < 95%, human-handoff 80% < 100%; same two cases in all 3 reps: tutoring-5 scorer wording, laundry-6 real hand-off gap). Not tuned on the holdout; fix + re-freeze needs owner decision. Record: `docs/evidence/l1.4-quality-evidence-2026-11-01-real-run.md`.
-- L6 regression on main `d2b6d15` in worktree `ziyrak-l14-eval` (disposable DB `ziyrak_test_l6`, Redis :56382): `npm run test` 2225 passed/11 skipped/0 failed; first run had one onboarding `acquirePolicyLock` hook timeout under load (passes alone 11/11, did not recur); `test:signup-seeded` 1471/1471.
-- Cleanup done (owner OK): all task containers and worktrees removed (l6, l14-eval, l6-acc); only /tmp scratch remains (rm denied).
-- Also merged: PR #62 (`2ace8cf`, strict config refuses non-Stripe STRIPE_API_BASE) and PR #63 (`f094299`, de-flaked billing-status incident-count test after a one-off main CI failure on `2ace8cf`); main CI green on `f094299`. tsc+lint clean on `d2b6d15`.
-- Expanded browser suite on `875a4a7`: 36/36 passed (stand-ins, AC power, fresh DB); record `docs/evidence/l6-candidate-rehearsal-2026-11-02.md`. Continuation: remaining L6 items are external (real channels, sender, outage drill, alerts, restore, capacity); owner decision on L1.4 fix pending. L7 needs explicit authorization.
+- L1.4 fix on branch `fix/l1.4-handoff-callback` (worktree `ziyrak-l14`, commit `dc01902`): callback requests ("Can a manager call me back?") now hand off; decline scorer accepts "we only tutor ..."; new frozen holdout2 (45 cases, 5 domains). Real OpenAI gpt-4o-mini x3: holdout2 8/8 thresholds met (150 turns), evaluation set 8/8 (198 turns). Record `docs/evidence/l1.4-quality-evidence-2026-11-02-holdout2.md`. Human sample review still OPEN; no independent review yet.
+- Earlier this session: L5 (PR #60), PRs #61-#63 merged; browser 36/36 on `875a4a7`. Remaining L6 items are external (hosting target, restore drill, outage drill, sender, real channels). L7 not started.
+- Verification: tsc, lint clean; npm run test 2196 passed, 44 skipped, 1 file failed (onboarding hook timeout at load 15+; passes alone 11/11, the known flake). Lead-only review of the escalation rule (no independent reviewer used): callback regex errs toward hand-off, so a false positive costs a human look and a false negative is the risk it removes. Continuation: PR, merge on exact-head CI green, remove container `ziyrak-l14-pg` and worktree.
 
 ## Previous session (2026-11-01)
 

@@ -1,4 +1,11 @@
-# Handoff - latest session (2026-11-01)
+# Handoff - latest session (2026-11-02)
+
+- Merged L5 (PR #60, `14cec31`; main CI green) and the real-model L1.4 holdout record (PR #61, `d2b6d15`, docs only). L1.4 gate NOT met (missing-knowledge 90% < 95%, human-handoff 80% < 100%; same two cases in all 3 reps: tutoring-5 scorer wording, laundry-6 real hand-off gap). Not tuned on the holdout; fix + re-freeze needs owner decision. Record: `docs/evidence/l1.4-quality-evidence-2026-11-01-real-run.md`.
+- L6 regression on main `d2b6d15` in worktree `ziyrak-l14-eval` (disposable DB `ziyrak_test_l6`, Redis :56382): `npm run test` 2225 passed/11 skipped/0 failed; first run had one onboarding `acquirePolicyLock` hook timeout under load (passes alone 11/11, did not recur); `test:signup-seeded` 1471/1471.
+- Cleanup done (owner OK): old task containers, l4-4 worktree/branch. Remaining: `ziyrak-l6-pg`/`ziyrak-l6-redis` containers and `ziyrak-l14-eval` worktree (remove after L6 work), /tmp scratch (rm denied).
+- Continuation: tsc/lint on `d2b6d15`, expanded browser suite on the exact candidate (AC power, load<10, fresh DB, flushed Redis, nohup), record what stays external (real channels, sender, outage drill, alerts, restore, capacity). L7 needs explicit authorization.
+
+## Previous session (2026-11-01)
 
 - L5 payment lifecycle in PR #60 (worktree `/Users/sukhrob/Development/Repos/JS/ziyrak-l4-4`, branch `docs/l4.2-commercial-policy`), Stripe test mode only. Done: L5.1 checkout/webhook inbox/apply/hold, L5.2 upgrades, scheduled reductions, owner seat choice, restore-member, reconcile job, audited `repair_provision`, open-incident count in operator health, security-review fixes 1-6b.
 - L5.3 tests added (real DB): concurrent webhook delivery (`billing-concurrency`), concurrent upgrades, overlapping reconcile, never-paid workspace keeps baseline (`billing-rollout`; narrower than the full B10 migration test). Local full run before these: 233 files / 2193 tests, tsc+lint clean. CI on each pushed head: check `gh pr checks 60`.

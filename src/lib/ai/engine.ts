@@ -272,6 +272,15 @@ export const NON_ANSWER_REPLIES: readonly string[] = [
   FALLBACK_ALLOWANCE_UNAVAILABLE,
 ];
 
+/** What the model reads back for a tool call. A failed action says so in the result itself, where the model attends most. */
+export function toolMessageContent(toolResult: { success?: boolean; status?: string }): string {
+  if (toolResult.success || toolResult.status === "pending_approval") return JSON.stringify(toolResult);
+  return JSON.stringify({
+    ...toolResult,
+    note: "This action FAILED and was NOT carried out. Tell the customer plainly that it did not work, and say what you did instead.",
+  });
+}
+
 async function callAI(
   ctx: TenantContext,
   config: ResolvedAIConfig,
@@ -376,7 +385,7 @@ async function callAI(
       toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status });
       messages.push({
         role: "tool",
-        content: JSON.stringify(toolResult),
+        content: toolMessageContent(toolResult),
         tool_call_id: toolCall.id,
       });
     }

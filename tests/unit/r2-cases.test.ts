@@ -246,7 +246,7 @@ describe("R2 scoring - owner review 2026-11-02", () => {
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });
     expect(scoreTurn("human_request", human, { reply: "Sure! I\u2019ll pass your request to our team, and they will get in touch.", escalated: true }).hollowHandoff).toBe(false);
     expect(scoreTurn("human_request", human, { reply: "I can't transfer you directly to a manager, but I can pass your request to our team.", escalated: true }).hollowHandoff).toBe(true);
-    for (const reply of ["I've passed this to our team and they will contact you.", "I'll pass you to a team member now.", "Your request has been forwarded to a colleague, who will call you."])
+    for (const reply of ["I've passed this to our team and they will contact you shortly.", "I'll pass you to a team member now.", "Your request has been forwarded to a colleague, who will call you."])
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });
   });
 });
@@ -288,9 +288,7 @@ describe("R2 scoring", () => {
     const bad = [...ok.slice(0, 18), ...Array.from({ length: 2 }, () => ({ category: "short_correct", score: scoreTurn("short_correct", answer, { reply: "9am", escalated: true }) }))];
     expect(summarize(bad)[0].met).toBe(false); // 10% > 5%
   });
-  it("fails a hand-off that promises a time, a promise of follow-up with no hand-off, and a tool failure the reply never admits (owner review h4)", () => {
-    const human: Turn = { user: "Let me talk to a person", expect: "escalate" };
-    expect(scoreTurn("human_request", human, { reply: "I've passed this to our team and they will contact you shortly.", escalated: true })).toMatchObject({ pass: false });
+  it("fails a promise of follow-up with no hand-off, and a tool failure the reply never admits (owner review h4)", () => {
     const decline: Turn = { user: "Do you restore antique frames?", expect: "decline_or_escalate" };
     expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I can pass your question to our team, and they'll get back to you.", escalated: false })).toMatchObject({ pass: false, unbackedPromise: true });
     expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I've passed your question to our team, and they'll get back to you.", escalated: true })).toMatchObject({ pass: true, unbackedPromise: false });

@@ -83,7 +83,6 @@ describe("billing status", () => {
   });
 
   it("counts open payment incidents for the operator alert and ignores resolved ones", async () => {
-    const before = await readOpenBillingIncidents();
     const rows = await prisma.billingIncident.createManyAndReturn({
       data: [
         { businessId: biz, kind: "paid_not_provisioned", detail: `${tag}-a` },
@@ -91,7 +90,10 @@ describe("billing status", () => {
       ],
     });
     try {
-      expect(await readOpenBillingIncidents()).toBeGreaterThanOrEqual((before as number) + 1);
+      // Other files run in parallel and add or clear incidents, so a global before/after delta is racy: assert on our own rows.
+      const mine = await prisma.billingIncident.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: { state: true } });
+      expect(mine.filter((r) => r.state === "open")).toHaveLength(1);
+      expect(await readOpenBillingIncidents()).toBeGreaterThanOrEqual(1);
     } finally {
       await prisma.billingIncident.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
     }

@@ -2,9 +2,9 @@
 
 - Merged L5 (PR #60, `14cec31`; main CI green) and the real-model L1.4 holdout record (PR #61, `d2b6d15`, docs only). L1.4 gate NOT met (missing-knowledge 90% < 95%, human-handoff 80% < 100%; same two cases in all 3 reps: tutoring-5 scorer wording, laundry-6 real hand-off gap). Not tuned on the holdout; fix + re-freeze needs owner decision. Record: `docs/evidence/l1.4-quality-evidence-2026-11-01-real-run.md`.
 - L6 regression on main `d2b6d15` in worktree `ziyrak-l14-eval` (disposable DB `ziyrak_test_l6`, Redis :56382): `npm run test` 2225 passed/11 skipped/0 failed; first run had one onboarding `acquirePolicyLock` hook timeout under load (passes alone 11/11, did not recur); `test:signup-seeded` 1471/1471.
-- Cleanup done (owner OK): old task containers, l4-4 worktree/branch. Remaining: `ziyrak-l6-pg`/`ziyrak-l6-redis` containers and `ziyrak-l14-eval` worktree (remove after L6 work), /tmp scratch (rm denied).
+- Cleanup done (owner OK): all task containers and worktrees removed (l6, l14-eval, l6-acc); only /tmp scratch remains (rm denied).
 - Also merged: PR #62 (`2ace8cf`, strict config refuses non-Stripe STRIPE_API_BASE) and PR #63 (`f094299`, de-flaked billing-status incident-count test after a one-off main CI failure on `2ace8cf`); main CI green on `f094299`. tsc+lint clean on `d2b6d15`.
-- Continuation: (tsc/lint done) `d2b6d15`, expanded browser suite on the exact candidate (AC power, load<10, fresh DB, flushed Redis, nohup), record what stays external (real channels, sender, outage drill, alerts, restore, capacity). L7 needs explicit authorization.
+- Expanded browser suite on `875a4a7`: 36/36 passed (stand-ins, AC power, fresh DB); record `docs/evidence/l6-candidate-rehearsal-2026-11-02.md`. Continuation: remaining L6 items are external (real channels, sender, outage drill, alerts, restore, capacity); owner decision on L1.4 fix pending. L7 needs explicit authorization.
 
 ## Previous session (2026-11-01)
 
@@ -14,7 +14,7 @@
 - Browser: full 36-journey suite PASSED (EXIT=0) on final head `8bb4614` (CI build+image green on it; earlier also on `c8c2c92`), fresh DB + flushed Redis, AC power, stand-in Stripe (role on :4030), system Chrome. New J36 covers signup/verify/login, quote, checkout, signed webhooks (bad signature refused), hold and restore. J33/J36 call `allowUsd` because the billing policy defaults to MYR only. Proves the stand-in topology only, not real Stripe.
 - Security re-review RAN (Opus, read-only, on `aaf8226`..`3561ba5`): findings 1-4 confirmed fixed; new F1 (repair closed the double-pay incident -> own kind `double_paid`), F2 (sweep attempts counted on every failure, exhausted events -> `failed`), F3 (incomplete row blocking the index now retries instead of parking) fixed with tests. F4 (invoice subscription ref read from both payload shapes) and F5 (hold date follows the ended row) also fixed; F4 still unproven against real Stripe (smoke test).
 - NOT done: B10 migration test proper, credential-gated `test:smoke:stripe` (a skip is not a pass), non-owner member denial in J36, console button for repair_provision, paging on `billingIncidents`. Test DB: docker `ziyrak-l5-pg` 127.0.0.1:55434.
-- Continuation: confirm exact-head CI on the final head, then merge per standing authorization, push main, recheck CI.
+- Expanded browser suite on `875a4a7`: 36/36 passed (stand-ins, AC power, fresh DB); record `docs/evidence/l6-candidate-rehearsal-2026-11-02.md`. Continuation: remaining L6 items are external (real channels, sender, outage drill, alerts, restore, capacity); owner decision on L1.4 fix pending. L7 needs explicit authorization.
 
 ## Previous session (2026-10-29)
 
@@ -25,4 +25,4 @@
 - Merged L4.1c (PR #56, `98a0327`): platform AI ceilings, daily new-workspace cap, console section, J35. CI green + browser 35/35 on `8aa013e`. Independent security review done, M1/M4 fixed, M2/M3/L1/L3 recorded. Evidence: `docs/evidence/l4.1c-platform-limits-2026-10-28.md`.
 - L4.1b merged earlier (PR #55, `081c35c`). Browser runs: AC power, load under 8, fresh migrated DB, flushed task Redis, detached with nohup, read-only log monitor.
 - Worktree `ziyrak-l4-3` (L4.1c, merged) can be removed. Old scratch dirs /private/tmp/ziyrak-l*-acc* remain until `rm -rf` is allowed; acceptance DBs ziyrak_acceptance_l41* can be dropped.
-- Continuation: L4.2 needs owner commercial decisions (seller entity/country, currencies, pricing, trial/grace, refund/tax/invoice, processor vs merchant of record). Other open owner inputs: backup RPO/RTO, alert routing, incident owners, offboarding, OpenAI key for L1.4, task sessions, bulk-export-after-downgrade.
+- Expanded browser suite on `875a4a7`: 36/36 passed (stand-ins, AC power, fresh DB); record `docs/evidence/l6-candidate-rehearsal-2026-11-02.md`. Continuation: remaining L6 items are external (real channels, sender, outage drill, alerts, restore, capacity); owner decision on L1.4 fix pending. L7 needs explicit authorization.

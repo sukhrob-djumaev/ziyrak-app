@@ -206,6 +206,7 @@ describe("R2 scoring - owner review 2026-11-02", () => {
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: false, hollowHandoff: true });
     for (const reply of ["Men sizning so'rovingizni jamoaga o'tkazdim, ular siz bilan bog'lanishadi.", "Я передам ваш запрос нашей команде, и они свяжутся с вами."])
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });
+    expect(scoreTurn("human_request", human, { reply: "Sure! I\u2019ll pass your request to our team, and they will get in touch.", escalated: true }).hollowHandoff).toBe(false);
     expect(scoreTurn("human_request", human, { reply: "I can't transfer you directly to a manager, but I can pass your request to our team.", escalated: true }).hollowHandoff).toBe(true);
     for (const reply of ["I've passed this to our team and they will contact you shortly.", "I'll pass you to a team member now.", "Your request has been forwarded to a colleague, who will call you."])
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });

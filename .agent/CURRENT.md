@@ -60,3 +60,4 @@ Within selected implementation scope, merge only with exact-head CI green and re
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
 - L5 (PR #60): browser 36/36 + CI build+image green on final head `8bb4614` (stand-in Stripe, AC power); security re-review findings fixed. Non-blocking follow-ups: smoke:stripe (credential-gated), B10 migration test. Evidence: `.agent/HANDOFF.md`.
+- L1.4 fix rerun 2026-11-02: holdout4 gate 8/8 (pattern scorer), evaluation regression 7/8 (open: 'transfer me to a manager' evasive reply). Branch `fix/l1.4-prompt-quality` (worktree ziyrak-l14r). Criterion OPEN until owner re-reviews `~/Documents/ziyrak-review/l1.4-r4/review-sheet.md`. Record: `docs/evidence/l1.4-fix-rerun-2026-11-02.md`.

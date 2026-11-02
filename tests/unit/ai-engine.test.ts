@@ -213,6 +213,20 @@ describe("AI Engine", () => {
     expect(systemMessage.content).toContain("30-day returns allowed");
   });
 
+  it("tells the model not to invent denials, to confirm hand-offs and tool failures, and to quote bundle prices", async () => {
+    mockPrisma.knowledgeEntry.findMany.mockResolvedValue([]);
+    mockOpenAICreateFn.mockResolvedValue({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] });
+
+    const { chat } = await import("@/lib/ai/engine");
+    await chat(ctx, "conv-1", "Do you offer pick-up?");
+
+    const prompt: string = mockOpenAICreateFn.mock.calls[0][0].messages[0].content;
+    expect(prompt).toMatch(/Never say the business does not offer/);
+    expect(prompt).toMatch(/passed it on/);
+    expect(prompt).toMatch(/If a tool fails, tell the customer what did not work/);
+    expect(prompt).toMatch(/combined price/);
+  });
+
   it("should handle tool calls and recurse", async () => {
     // First call returns tool_calls
     mockOpenAICreateFn

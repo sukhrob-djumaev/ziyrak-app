@@ -103,6 +103,8 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv, role: Role): Findi
   if (env.BILLING_PROVIDER && env.BILLING_PROVIDER !== "stripe" && env.BILLING_PROVIDER !== "off") error("BILLING_PROVIDER", "must be \"stripe\" or \"off\"");
   if (env.BILLING_PROVIDER === "stripe") {
     if (!env.STRIPE_SECRET_KEY?.startsWith("sk_test_")) error("STRIPE_SECRET_KEY", "must be a Stripe test-mode secret key (sk_test_...); live keys are not accepted");
+    // The secret key is sent to this host, so a real deployment may only name Stripe itself; the stand-in is for harnesses.
+    if (env.STRIPE_API_BASE && env.STRIPE_API_BASE !== "https://api.stripe.com") error("STRIPE_API_BASE", "must be unset or https://api.stripe.com in a real deployment");
     if (!env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) error("STRIPE_WEBHOOK_SECRET", "must be the endpoint signing secret (whsec_...)");
     if (env.STRIPE_WEBHOOK_SECRET_NEXT && !env.STRIPE_WEBHOOK_SECRET_NEXT.startsWith("whsec_")) error("STRIPE_WEBHOOK_SECRET_NEXT", "must be a signing secret (whsec_...) when set");
   }

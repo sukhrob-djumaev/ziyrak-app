@@ -29,7 +29,7 @@ const DECLINE = new RegExp(
     String.raw`\bnot\s+(?:sure|certain|able)\b`,
     String.raw`\bunable\s+to\b`,
     String.raw`\bno\s+(?:information|record|details|idea|data|access|way|knowledge)\b`,
-    String.raw`\bonly\s+(?:offer|provide|groom|have)\b`,
+    String.raw`\bonly\s+(?:offer|provide|groom|have|tutor|teach|serve|cater)\b`,
     String.raw`\b(?:team\s+member|colleague|human|someone\s+from\s+our\s+team|connect(?:ing)?\s+you|hand(?:ing)?\s+(?:you\s+)?over|pass(?:ing)?\s+(?:this|you))\b`,
   ].join("|"),
   "i"

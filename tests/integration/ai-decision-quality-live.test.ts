@@ -8,7 +8,7 @@ import { join } from "node:path";
  * chat() -> escalation decision, with real Postgres and real knowledge retrieval. Scoring and thresholds:
  * tests/helpers/r2-scoring.ts (docs/r2-ai-decision-quality-proposal-2026-10-22.md).
  *
- *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] \
+ *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] \
  *     npx vitest run --config vitest.integration.config.ts tests/integration/ai-decision-quality-live.test.ts
  *
  * Skips without a key (a skip is not a pass). Refuses OPENAI_BASE_URL (a stand-in is not OpenAI). The
@@ -39,7 +39,7 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = process.env.R2_SET === "evaluation" ? "evaluation" : process.env.R2_SET === "holdout" ? "holdout" : "development";
+const setName = ["evaluation", "holdout", "holdout2"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");

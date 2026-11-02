@@ -69,6 +69,9 @@ const DECLINED = [
   "do not have any information",
 ];
 
+// "I don't have (any / specific / further) information|details" in any of its natural spellings.
+const NO_INFO = /\b(?:don['\u2019]t|do not)\s+have\s+(?:(?:any|specific|further|more|detailed)\s+)*(?:information|info|details)\b/i;
+
 // A reply that says the question was passed on must be true, so it makes the hand-off real. Matches the assistant's own
 // first-person or passive wording only ("I've passed this to our team", "has been forwarded"), not a customer's words.
 const CLAIMS_HANDOFF = new RegExp(
@@ -88,7 +91,7 @@ export function decideEscalation(input: EscalationInput): { escalate: boolean; r
     if (input.toolOutcomes.some((t) => t.status === "pending_approval")) reasons.push("tool_pending");
     if (input.toolOutcomes.some((t) => !t.success && t.status !== "pending_approval")) reasons.push("tool_failed");
     const lower = input.response.toLowerCase();
-    if (DECLINED.some((phrase) => lower.includes(phrase)) || CLAIMS_HANDOFF.test(input.response)) reasons.push("declined");
+    if (DECLINED.some((phrase) => lower.includes(phrase)) || NO_INFO.test(input.response) || CLAIMS_HANDOFF.test(input.response)) reasons.push("declined");
   }
   return { escalate: reasons.length > 0, reasons };
 }

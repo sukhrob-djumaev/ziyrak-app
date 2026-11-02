@@ -50,6 +50,8 @@ describe("decideEscalation", () => {
       "Our support team will reach out to you at 555-0444.",
       "A team member will contact you about the lock.",
       "I don't have any information about antique frames.",
+      "I don't have specific information about washing trucks or vans.",
+      "I do not have further details on catering.",
     ])
       expect(decideEscalation({ ...base, response }).escalate, response).toBe(true);
     expect(decideEscalation({ ...base, response: "We pass the ball well, and our team is friendly." }).escalate).toBe(false);

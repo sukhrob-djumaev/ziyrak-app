@@ -20,10 +20,11 @@ export interface EscalationInput {
   handoff?: boolean;
 }
 
-const HUMAN_PEOPLE = "(human|person|people|agent|representative|someone|somebody|manager|supervisor|staff|team member|operator)";
+const HUMAN_PEOPLE = "(human|person|people|agent|representative|someone|somebody|manager|supervisor|staff|team member|operator|owner|teacher|instructor|receptionist|doctor|dentist)";
 const HUMAN_REQUESTS: RegExp[] = [
   new RegExp(`\\b(talk|speak|chat|connect|transfer|put me|get me|escalate|pass me)\\b[^.?!]*\\b(to|with|through)?\\s*(a|an|the)?\\s*${HUMAN_PEOPLE}\\b`, "i"),
   new RegExp(`\\bi\\s+(need|want|would like|d like)\\b[^.?!]*\\b${HUMAN_PEOPLE}\\b`, "i"),
+  new RegExp(`\\b${HUMAN_PEOPLE}\\b[^.?!]*\\b(i|we)\\s+can\\s+(talk|speak|chat)\\b`, "i"),
   /\b(real|live)\s+(person|human|agent)\b/i,
   /\b(customer service|support) (agent|representative|team)\b/i,
   /(оператор|менеджер|живой человек|живым человеком|человек[ао]м)/i,
@@ -64,6 +65,14 @@ const DECLINED = [
   "no information about",
 ];
 
+// A reply that says the question was passed on must be true, so it makes the hand-off real. Matches the assistant's own
+// first-person or passive wording only ("I've passed this to our team", "has been forwarded"), not a customer's words.
+const CLAIMS_HANDOFF = new RegExp(
+  "\\b(i(?:'ve|'ll| have| will| am going to)?\\s+(?:passed|pass|forwarded|forward|notified|notify|escalated|escalate|flagged|flag|handed|hand|sent|send)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|them|person)\\b|" +
+    "\\b(?:has|have) been (?:passed|forwarded|escalated|flagged|sent|handed)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|person)\\b)",
+  "i",
+);
+
 export function decideEscalation(input: EscalationInput): { escalate: boolean; reasons: EscalationReason[] } {
   const reasons: EscalationReason[] = [];
   if (input.handoff) reasons.push("handoff");
@@ -74,7 +83,7 @@ export function decideEscalation(input: EscalationInput): { escalate: boolean; r
     if (input.toolOutcomes.some((t) => t.status === "pending_approval")) reasons.push("tool_pending");
     if (input.toolOutcomes.some((t) => !t.success && t.status !== "pending_approval")) reasons.push("tool_failed");
     const lower = input.response.toLowerCase();
-    if (DECLINED.some((phrase) => lower.includes(phrase))) reasons.push("declined");
+    if (DECLINED.some((phrase) => lower.includes(phrase)) || CLAIMS_HANDOFF.test(input.response)) reasons.push("declined");
   }
   return { escalate: reasons.length > 0, reasons };
 }

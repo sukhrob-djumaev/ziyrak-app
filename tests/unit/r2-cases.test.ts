@@ -12,6 +12,7 @@ const evalSet = load("evaluation.json").cases;
 const holdout = load("holdout.json").cases;
 const holdout2 = load("holdout2.json").cases;
 const holdout3 = load("holdout3.json").cases;
+const holdout4 = load("holdout4.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {
@@ -150,6 +151,43 @@ describe("R2 holdout3 (L1.4, frozen after the human review of holdout2)", () => 
   });
 });
 
+describe("R2 holdout4 (L1.4, frozen after the hand-off and scorer fixes after holdout3)", () => {
+  const raw = readFileSync(join(dir, "holdout4.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout4.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout4).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout4.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3];
+    expect(holdout4.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout4.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout4.map((c) => c.id)).size).toBe(holdout4.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout4) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout4.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
 describe("R2 scoring - owner review 2026-11-02", () => {
   const unknown: Turn = { user: "Can you pick me up?", expect: "decline_or_escalate", noDenial: true };
   it("fails an invented flat denial, but not an admission or a hand-off", () => {
@@ -157,6 +195,8 @@ describe("R2 scoring - owner review 2026-11-02", () => {
       expect(scoreTurn("missing_knowledge", unknown, { reply, escalated: false }), reply).toMatchObject({ pass: false, fabricated: true });
     expect(scoreTurn("missing_knowledge", unknown, { reply: "I'm not sure we do pick-ups; I've asked a team member to confirm.", escalated: false }).pass).toBe(true);
     expect(scoreTurn("missing_knowledge", unknown, { reply: "I don't have that information, so I'll check with the team.", escalated: false }).pass).toBe(true);
+    for (const reply of ["I don't have information about pick-ups. I'll pass your question to our team.", "I don't have details on that, but I've passed it to the team.", "I don't have any record of that service; our staff will confirm."])
+      expect(scoreTurn("missing_knowledge", unknown, { reply, escalated: false }), reply).toMatchObject({ fabricated: false });
     // Without the flag (earlier frozen sets) the denial is left to the existing checks.
     expect(scoreTurn("missing_knowledge", { user: "q", expect: "decline_or_escalate" }, { reply: "We only offer dual-control cars.", escalated: false }).fabricated).toBe(false);
   });
@@ -164,6 +204,9 @@ describe("R2 scoring - owner review 2026-11-02", () => {
   it("fails a hand-off that only offers or deflects, and passes one the reply confirms", () => {
     for (const reply of ["If you'd like, I can connect you with a team member.", "I can create a ticket so someone can reach out. Could you share your number?", "I can help you right here!"])
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: false, hollowHandoff: true });
+    for (const reply of ["Men sizning so'rovingizni jamoaga o'tkazdim, ular siz bilan bog'lanishadi.", "Я передам ваш запрос нашей команде, и они свяжутся с вами."])
+      expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });
+    expect(scoreTurn("human_request", human, { reply: "I can't transfer you directly to a manager, but I can pass your request to our team.", escalated: true }).hollowHandoff).toBe(true);
     for (const reply of ["I've passed this to our team and they will contact you shortly.", "I'll pass you to a team member now.", "Your request has been forwarded to a colleague, who will call you."])
       expect(scoreTurn("human_request", human, { reply, escalated: true }), reply).toMatchObject({ pass: true, hollowHandoff: false });
   });

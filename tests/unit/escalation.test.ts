@@ -27,6 +27,29 @@ describe("decideEscalation", () => {
       expect(decideEscalation({ ...base, userMessage }).reasons, userMessage).toContain("human_requested");
   });
 
+  it("E1 escalates 'can I speak with / is there someone I can talk to' requests", () => {
+    for (const userMessage of [
+      "Can I speak with a teacher about my son?",
+      "Is there someone I can talk to about this?",
+      "Is there a manager I can talk to?",
+      "Can I speak to the owner?",
+    ])
+      expect(decideEscalation({ ...base, userMessage }).reasons, userMessage).toContain("human_requested");
+    expect(isExplicitHumanRequest("Are you a human?")).toBe(false);
+    expect(isExplicitHumanRequest("Do you have a manager on duty on Sundays?")).toBe(false);
+  });
+
+  it("makes a claimed hand-off real: a reply that says it passed the question on escalates", () => {
+    for (const response of [
+      "I don't have that information. I've passed your question to our team and they will contact you.",
+      "I'll pass this to our team, who will get back to you.",
+      "Your request has been forwarded to a team member.",
+      "I have notified our staff about this.",
+    ])
+      expect(decideEscalation({ ...base, response }).escalate, response).toBe(true);
+    expect(decideEscalation({ ...base, response: "We pass the ball well, and our team is friendly." }).escalate).toBe(false);
+  });
+
   it("E1 escalates a request that a person call or contact the customer back", () => {
     for (const userMessage of ["Can a manager call me back?", "Could someone phone me tomorrow?", "Please have a team member ring me", "Can a person contact me about this?"])
       expect(decideEscalation({ ...base, userMessage }).reasons, userMessage).toContain("human_requested");

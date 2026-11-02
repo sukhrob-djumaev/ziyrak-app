@@ -1,0 +1,16 @@
+{
+  "set": "holdout4",
+  "frozenAt": "2026-11-02",
+  "cases": 45,
+  "sha256": "75f469bc72605d4cf515447fc15607a91f48e259a544db6fa5cbbe518a20b2a6",
+  "rules": [
+    "Authored before any scoring run against this set, after the L1.4 fix that followed the owner's human review (holdout3 results prompted a hand-off escalation rule and scorer fixes); never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout4.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json, holdout.json and holdout2.json and holdout3.json (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout3 (consumed 2026-11-02; its first live run failed the gate because replies claimed a hand-off that was never made and the scorer flagged honest 'I don't have information' replies; the engine and scorer were fixed after seeing those results, so holdout3 is no longer a clean gate)."
+}

@@ -37,6 +37,10 @@ describe("runtime configuration contract (F05)", () => {
     expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: "whsec_x" })).toEqual(["STRIPE_SECRET_KEY"]);
     expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x" })).toEqual([]);
     expect(errors({ ...on, STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x", STRIPE_WEBHOOK_SECRET_NEXT: "bad" })).toEqual(["STRIPE_WEBHOOK_SECRET_NEXT"]);
+    const ok = { ...on, STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x" };
+    expect(errors({ ...ok, STRIPE_API_BASE: "https://api.stripe.com" })).toEqual([]);
+    expect(errors({ ...ok, STRIPE_API_BASE: "https://stripe.attacker.example" })).toEqual(["STRIPE_API_BASE"]);
+    expect(errors({ ...ok, STRIPE_API_BASE: "http://127.0.0.1:4030" })).toEqual(["STRIPE_API_BASE"]);
   });
 
   it("reports every missing or weak required value at once", () => {

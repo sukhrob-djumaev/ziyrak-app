@@ -8,7 +8,7 @@ import { join } from "node:path";
  * chat() -> escalation decision, with real Postgres and real knowledge retrieval. Scoring and thresholds:
  * tests/helpers/r2-scoring.ts (docs/r2-ai-decision-quality-proposal-2026-10-22.md).
  *
- *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] \
+ *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] [R2_DUMP=/path/all-turns.json] \
  *     npx vitest run --config vitest.integration.config.ts tests/integration/ai-decision-quality-live.test.ts
  *
  * Skips without a key (a skip is not a pass). Refuses OPENAI_BASE_URL (a stand-in is not OpenAI). The
@@ -96,7 +96,7 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
   }, 120_000);
 
   it(`scores the ${setName} set against the proposal thresholds`, async () => {
-    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string }[] = [];
+    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string; escalated: boolean }[] = [];
     for (let rep = 1; rep <= reps; rep++) {
       for (const c of cases) {
         const b = businesses.get(c.domain)!;
@@ -107,7 +107,7 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
           const reply = await chat(b.ctx, convo.id, turn.user);
           const escalated = (await prisma.conversation.findUniqueOrThrow({ where: { id: convo.id } })).status === "escalated";
           const toolCalled = c.tool ? (await prisma.actionExecution.count({ where: { businessId: b.businessId, conversationId: convo.id } })) > toolsBefore : undefined;
-          results.push({ category: c.category, id: c.id, rep, turn: i, score: scoreTurn(c.category, turn, { reply, escalated, toolCalled }), reply });
+          results.push({ category: c.category, id: c.id, rep, turn: i, score: scoreTurn(c.category, turn, { reply, escalated, toolCalled }), reply, escalated });
         }
       }
     }
@@ -125,6 +125,11 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
       failures: results.filter((r) => !r.score.pass && !r.score.inconclusive).map((r) => ({ id: r.id, rep: r.rep, turn: r.turn, reply: r.reply.slice(0, 300), score: r.score })),
     };
     if (process.env.R2_OUT) writeFileSync(process.env.R2_OUT, JSON.stringify(out, null, 2));
+    // Every turn with its customer message, for the human review sample (docs/r2-human-review-rubric.md); the scorer verdict is kept apart so a reviewer can sample blind.
+    if (process.env.R2_DUMP) {
+      const dump = results.map((r) => ({ id: r.id, category: r.category, rep: r.rep, turn: r.turn, user: cases.find((c) => c.id === r.id)!.turns[r.turn].user, reply: r.reply, escalated: r.escalated, pass: r.score.pass, inconclusive: !!r.score.inconclusive }));
+      writeFileSync(process.env.R2_DUMP, JSON.stringify(dump, null, 2));
+    }
     console.log(JSON.stringify({ ...out, failures: out.failures.length }, null, 2));
     // Only the frozen sets (evaluation, holdout) gate; the development set is for tuning.
     if (setName !== "development") expect(gate.problems).toEqual([]);

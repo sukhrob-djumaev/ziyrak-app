@@ -45,9 +45,15 @@ describe("decideEscalation", () => {
       "I'll pass this to our team, who will get back to you.",
       "Your request has been forwarded to a team member.",
       "I have notified our staff about this.",
+      "I don't have information about massage therapy. However, I can pass your question to our team, and they'll get back to you with the details.",
+      "I can forward this to the owner and they will get back to you.",
+      "Our support team will reach out to you at 555-0444.",
+      "A team member will contact you about the lock.",
+      "I don't have any information about antique frames.",
     ])
       expect(decideEscalation({ ...base, response }).escalate, response).toBe(true);
     expect(decideEscalation({ ...base, response: "We pass the ball well, and our team is friendly." }).escalate).toBe(false);
+    expect(decideEscalation({ ...base, response: "Our team will be at the shop from 9am, and you can contact us there." }).escalate).toBe(false);
   });
 
   it("E1 escalates a request that a person call or contact the customer back", () => {

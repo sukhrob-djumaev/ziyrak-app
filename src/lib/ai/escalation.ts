@@ -63,13 +63,18 @@ const DECLINED = [
   "beyond my knowledge",
   "connect you with",
   "no information about",
+  "don't have information",
+  "don't have any information",
+  "do not have information",
+  "do not have any information",
 ];
 
 // A reply that says the question was passed on must be true, so it makes the hand-off real. Matches the assistant's own
 // first-person or passive wording only ("I've passed this to our team", "has been forwarded"), not a customer's words.
 const CLAIMS_HANDOFF = new RegExp(
-  "\\b(i(?:'ve|'ll| have| will| am going to)?\\s+(?:passed|pass|forwarded|forward|notified|notify|escalated|escalate|flagged|flag|handed|hand|sent|send)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|them|person)\\b|" +
-    "\\b(?:has|have) been (?:passed|forwarded|escalated|flagged|sent|handed)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|person)\\b)",
+  "\\b(i(?:'ve|'ll| have| will| can| am going to)?\\s+(?:passed|pass|forwarded|forward|notified|notify|escalated|escalate|flagged|flag|handed|hand|sent|send)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|them|person)\\b|" +
+    "\\b(?:has|have) been (?:passed|forwarded|escalated|flagged|sent|handed)\\b[^.?!]*\\b(team|staff|colleague|manager|owner|someone|person)\\b|" +
+    "\\b(team(?: member)?|staff|colleague|manager|owner|someone|they|he|she)\\s*(?:will|'ll)\\s+(?:get back to|reach out|contact|call|be in touch|follow up|respond)\\b)",
   "i",
 );
 

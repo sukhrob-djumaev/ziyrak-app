@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout4 (consumed 2026-11-02: gate passed 8/8 by the pattern scorer, then the owner's review found unbacked follow-up promises, undisclosed tool failures and unbacked 'shortly'; the engine and scorer were changed after seeing those results)."
+  "supersedes": "holdout4 (consumed 2026-11-02: gate passed 8/8 by the pattern scorer, then the owner's review found unbacked follow-up promises, undisclosed tool failures and unbacked 'shortly'; the engine and scorer were changed after seeing those results).",
+  "consumed": "2026-11-02: gate failed (failed-tool disclosure 86.7%; time-promise scorer rule); engine and scorer changed afterwards. Do not reuse as a clean gate. Edit does not change the hash of holdout5.json."
 }

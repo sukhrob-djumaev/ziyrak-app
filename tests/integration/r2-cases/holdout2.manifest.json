@@ -1,0 +1,16 @@
+{
+  "set": "holdout2",
+  "frozenAt": "2026-11-02",
+  "cases": 45,
+  "sha256": "a69ad6a978ced24d73e8f0a64ae1c3964295432c05f6200b7b4c17cafc033958",
+  "rules": [
+    "Authored before any scoring run against this set, after the first holdout was consumed by its real-model run; never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and the consumed holdout.json (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout (frozen 2026-10-26, consumed by the 2026-11-01 real-model run; its two misses were then addressed in the escalation rule and the decline scorer, so it no longer measures unseen cases)."
+}

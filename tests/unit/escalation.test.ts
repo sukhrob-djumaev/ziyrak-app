@@ -27,8 +27,13 @@ describe("decideEscalation", () => {
       expect(decideEscalation({ ...base, userMessage }).reasons, userMessage).toContain("human_requested");
   });
 
+  it("E1 escalates a request that a person call or contact the customer back", () => {
+    for (const userMessage of ["Can a manager call me back?", "Could someone phone me tomorrow?", "Please have a team member ring me", "Can a person contact me about this?"])
+      expect(decideEscalation({ ...base, userMessage }).reasons, userMessage).toContain("human_requested");
+  });
+
   it("E1 does not fire on questions that merely mention people", () => {
-    for (const userMessage of ["Are you a human or a bot?", "Do you have a person who handles invoices on Monday?", "Is the manager's special still on?"])
+    for (const userMessage of ["Are you a human or a bot?", "Do you have a person who handles invoices on Monday?", "Is the manager's special still on?", "Do you call customers back after a missed delivery?"])
       expect(isExplicitHumanRequest(userMessage), userMessage).toBe(false);
   });
 

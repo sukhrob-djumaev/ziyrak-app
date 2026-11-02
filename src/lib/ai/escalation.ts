@@ -30,10 +30,13 @@ const HUMAN_REQUESTS: RegExp[] = [
   /\b(operator|odam|inson|menejer|xodim)\s+(bilan|kerak)/i,
   /\boperator bilan\b/i,
 ];
+// "Can a manager call me back?" asks for a person to reach the customer, so it is a request even though it opens like a question.
+const CALLBACK_REQUEST = new RegExp(`\\b${HUMAN_PEOPLE}\\b[^.?!]*\\b(call|phone|ring|contact|reach|email|message|text)\\s+(me|us)\\b`, "i");
 // Questions that only mention people ("are you a human?") are not requests for one.
 const HUMAN_QUESTION = /^\s*(are|is|do|does|can)\b/i;
 
 export function isExplicitHumanRequest(message: string): boolean {
+  if (CALLBACK_REQUEST.test(message)) return true;
   if (HUMAN_QUESTION.test(message) && !/\b(talk|speak|connect|transfer|get me|put me)\b/i.test(message)) return false;
   return HUMAN_REQUESTS.some((re) => re.test(message));
 }

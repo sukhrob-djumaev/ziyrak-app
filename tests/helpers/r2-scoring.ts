@@ -50,7 +50,7 @@ const ADMITS_UNKNOWN = /\bnot\s+(?:sure|certain)\b|\b(?:don't|do\s*not)\s+(?:kno
 const HANDOFF_CONFIRMED = /\b(?:connecting|handing|passing|transferring|forwarding)\s+(?:you|this|your)\b|\b(?:passed|forwarded|escalated|handed)\s+(?:it|this|that|your|the)\b|\b(?:i(?:'ve|\s+have|'ll|\s+will)|we(?:'ve|\s+have|'ll|\s+will)|has\s+been|have\s+been|is\s+being|are\s+being)\b[^.!?]*\b(?:pass|forward|hand|notif|alert|flag|escalat|connect|arrang|reach|contact|call|inform|let\s+\w+\s+know)/i;
 
 // The same confirmation in the other languages the product serves (Uzbek, Russian): the scorer must not call these hollow.
-const HANDOFF_CONFIRMED_OTHER = /\b(?:o'tkazdim|yubordim|bog'lanishadi|bog'lanamiz)\b|(?:передам|передал[аи]?|перенаправил[аи]?|свяжутся)/i;
+const HANDOFF_CONFIRMED_OTHER = /\b(?:o'tkazdim|yubordim|yetkazdim|bog'lanishadi|bog'lanamiz|aloqaga\s+chiqishadi)\b|(?:передам|передал[аи]?|перенаправил[аи]?|свяжутся)/i;
 
 // Negation words. A bare "no" is only a denial when it introduces a lack ("no information"), not in "no problem".
 const NEGATION = /n't\b|\b(?:not|never|cannot|unable|without)\b|\bno\s+(?:longer|information|record|details|idea|data|access|way|knowledge|availability|stock)\b/i;

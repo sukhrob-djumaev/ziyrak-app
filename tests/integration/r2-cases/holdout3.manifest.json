@@ -1,0 +1,16 @@
+{
+  "set": "holdout3",
+  "frozenAt": "2026-11-02",
+  "cases": 45,
+  "sha256": "e197082ae8f0514aba992dd3cd92271d0dadec483a686eeed71616b39cfa6313",
+  "rules": [
+    "Authored before any scoring run against this set, after the owner's human review of holdout2; never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout3.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json, holdout.json and holdout2.json (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout2 (consumed 2026-11-02; the owner's human review of it found invented denials, hollow hand-offs and a wrong bundle price that the scorer passed, which the prompt and scorer now address)."
+}

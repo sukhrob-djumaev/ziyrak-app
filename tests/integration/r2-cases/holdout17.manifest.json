@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout16 (consumed 2026-11-03: failed-tool proxy fault; missing-knowledge 90%)."
+  "supersedes": "holdout16 (consumed 2026-11-03: failed-tool proxy fault; missing-knowledge 90%).",
+  "consumed": "Consumed 2026-11-03 by the gate on 4a170e3: valid, 7/8 met; multi-turn 83.3% (5 turns of 30) - all five were correct safety replies flagged by a bare 'safe' pattern (case-design fault). Do not tune against it."
 }

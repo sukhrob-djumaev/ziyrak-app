@@ -234,6 +234,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/start your reply by saying that what they asked for did not go through/);
     expect(prompt).toMatch(/Never say the business cannot, does not or will not do something .*specialist or medical/);
     expect(prompt).toMatch(/Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere/);
+    expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
   });
 
   it("should handle tool calls and recurse", async () => {

@@ -1,0 +1,16 @@
+{
+  "set": "holdout15",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "b3cea9e7711272e8a409b976fcbb143ec9e4fa05f9b3fd6dfd8495d8abbe6ad1",
+  "rules": [
+    "Authored before any scoring run against this set, after the prompt rule against refusing or redirecting offer questions that followed the holdout14 gate (deflections without a hand-off; loose patterns replaced); never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout15.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout14 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout14 (consumed 2026-11-03: failed tool 100% but missing-knowledge and one safety turn missed)."
+}

@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout13 (consumed 2026-11-03: valid run, 7/8; failed tool 86.7%, two undisclosed failures)."
+  "supersedes": "holdout13 (consumed 2026-11-03: valid run, 7/8; failed tool 86.7%, two undisclosed failures).",
+  "consumed": "2026-11-03: gate run on c37630e was invalid (5/8 met): failed tool 100%, but missing-knowledge declined 83.3% and fabricated 5, multi-turn 90%. Causes: two cases whose knowledge implied the denial, a loose 'no' pattern, and two real deflections without a hand-off. Further tuning needs holdout15."
 }

@@ -16,6 +16,7 @@ const holdout4 = load("holdout4.json").cases;
 const holdout5 = load("holdout5.json").cases;
 const holdout6 = load("holdout6.json").cases;
 const holdout7 = load("holdout7.json").cases;
+const holdout8 = load("holdout8.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {
@@ -302,6 +303,43 @@ describe("R2 holdout7 (L1.4, frozen after the decline-detector fix that followed
   });
 });
 
+describe("R2 holdout8 (L1.4, frozen after the auto hand-off rule that followed the holdout6 human review)", () => {
+  const raw = readFileSync(join(dir, "holdout8.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout8.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout8).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout8.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3, ...holdout4, ...holdout5, ...holdout6, ...holdout7];
+    expect(holdout8.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout8.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout8.map((c) => c.id)).size).toBe(holdout8.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout8) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout8.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
 describe("R2 scoring - owner review 2026-11-02", () => {
   const unknown: Turn = { user: "Can you pick me up?", expect: "decline_or_escalate", noDenial: true };
   it("fails an invented flat denial, but not an admission or a hand-off", () => {
@@ -368,6 +406,10 @@ describe("R2 scoring", () => {
     const decline: Turn = { user: "Do you restore antique frames?", expect: "decline_or_escalate" };
     expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I can pass your question to our team, and they'll get back to you.", escalated: false })).toMatchObject({ pass: false, unbackedPromise: true });
     expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I've passed your question to our team, and they'll get back to you.", escalated: true })).toMatchObject({ pass: true, unbackedPromise: false });
+    // Owner decision 2026-11-03: hand off automatically; asking permission first and leaving it unflagged is not a hand-off.
+    expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have specific information about that. Would you like me to pass your question along to the team?", escalated: false })).toMatchObject({ pass: false, askedConsentOnly: true });
+    expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have specific information about that. I've passed your question to our team. What is the best number to reach you?", escalated: true })).toMatchObject({ pass: true, askedConsentOnly: false });
+    expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have specific information about that. Would you like me to pass your question along to the team?", escalated: true })).toMatchObject({ pass: false, askedConsentOnly: true });
     const tool: Turn = { user: "Please email the site, I'm Ravi, call 555-0222", expect: "escalate" };
     expect(scoreTurn("tool_failed", tool, { reply: "I've created a ticket for your lost sunglasses. The team will reach out to you at 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: false, undisclosedFailure: true });
     expect(scoreTurn("tool_failed", tool, { reply: "I couldn't send that email, so I created a ticket instead and passed it to our team, who will call you on 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: true, undisclosedFailure: false });

@@ -10,4 +10,10 @@ describe("toolMessageContent", () => {
     expect(JSON.parse(toolMessageContent({ success: true }))).toEqual({ success: true });
     expect(JSON.parse(toolMessageContent({ success: false, status: "pending_approval" })).note).toBeUndefined();
   });
+  it("reminds the model of an earlier failed action when a later one succeeds", () => {
+    const out = JSON.parse(toolMessageContent({ success: true }, true));
+    expect(out.note).toMatch(/earlier action in this turn FAILED and was NOT carried out/);
+    expect(out.note).toMatch(/start your reply/);
+    expect(JSON.parse(toolMessageContent({ success: true }, false)).note).toBeUndefined();
+  });
 });

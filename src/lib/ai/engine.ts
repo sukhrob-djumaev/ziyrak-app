@@ -275,8 +275,14 @@ export const NON_ANSWER_REPLIES: readonly string[] = [
 ];
 
 /** What the model reads back for a tool call. A failed action says so in the result itself, where the model attends most. */
-export function toolMessageContent(toolResult: { success?: boolean; status?: string }): string {
-  if (toolResult.success || toolResult.status === "pending_approval") return JSON.stringify(toolResult);
+export function toolMessageContent(toolResult: { success?: boolean; status?: string }, earlierFailure = false): string {
+  if (toolResult.success || toolResult.status === "pending_approval") {
+    if (!earlierFailure) return JSON.stringify(toolResult);
+    return JSON.stringify({
+      ...toolResult,
+      note: "An earlier action in this turn FAILED and was NOT carried out. Despite this success, start your reply by telling the customer that the earlier action did not go through, then say what this action did instead.",
+    });
+  }
   return JSON.stringify({
     ...toolResult,
     note: "This action FAILED and was NOT carried out. Tell the customer plainly that it did not work, and say what you did instead.",
@@ -384,10 +390,11 @@ async function callAI(
         toolCallId: toolCall.id,
       });
 
+      const earlierFailure = toolOutcomes.some((o) => !o.success && o.status !== "pending_approval");
       toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status });
       messages.push({
         role: "tool",
-        content: toolMessageContent(toolResult),
+        content: toolMessageContent(toolResult, earlierFailure),
         tool_call_id: toolCall.id,
       });
     }

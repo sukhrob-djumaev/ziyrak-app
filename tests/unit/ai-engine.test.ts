@@ -222,13 +222,14 @@ describe("AI Engine", () => {
 
     const prompt: string = mockOpenAICreateFn.mock.calls[0][0].messages[0].content;
         expect(prompt).toMatch(/passed it on/);
-    expect(prompt).toMatch(/If a tool fails .*say so plainly in the reply and say what you did instead/);
+    expect(prompt).toMatch(/If a tool fails .*and say what you did instead/);
     expect(prompt).toMatch(/combined price/);
     expect(prompt).toMatch(/tell them you have passed the question to the team/);
     expect(prompt).not.toMatch(/offer to connect them/);
     expect(prompt).toMatch(/safety or health line .*state it in your reply/);
     expect(prompt).toMatch(/Only call a ticket high priority or urgent if you set that priority/);
     expect(prompt).toMatch(/plain customer terms, not internal setup details/);
+    expect(prompt).toMatch(/start your reply by saying that what they asked for did not go through/);
     expect(prompt).toMatch(/Never say the business cannot, does not or will not do something .*specialist or medical/);
   });
 

@@ -1,0 +1,16 @@
+{
+  "set": "holdout11",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "5fe919265a3efeb1b7f2bbdbf9433023915e5c223ca9b2526bcf23633633e766",
+  "rules": [
+    "Authored before any scoring run against this set, after the tool-failure-first prompt rule that followed the holdout10 gate failure (one undisclosed tool failure); never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout11.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout10 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout10 (consumed 2026-11-03: gate failed 7/8, one reply never said the requested email failed)."
+}

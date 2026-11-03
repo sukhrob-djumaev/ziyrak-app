@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout9 (consumed 2026-11-03: gate failed 7/8, one invented denial on a medical-sounding request)."
+  "supersedes": "holdout9 (consumed 2026-11-03: gate failed 7/8, one invented denial on a medical-sounding request).",
+  "consumed": "2026-11-03: gate run on 2afc2a8 failed 7/8 (failed tool 93.3%: one reply created a ticket but never said the requested email failed, rep 3). The no-invented-denial fix held (0 fabricated). Prompt rule strengthened afterwards; further tuning needs a new set (holdout11)."
 }

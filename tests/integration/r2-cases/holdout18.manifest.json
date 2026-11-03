@@ -1,0 +1,16 @@
+{
+  "set": "holdout18",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "cc3002c42323f842c01c788dc700326d3cebcc9517acc009eaead80e51d79053",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout17 gate met 7/8 and its only miss (multi-turn) was five correct safety replies flagged by an over-broad bare-word 'safe' pattern in the case design; no prompt, engine or scorer change since holdout17; never use it to tune.",
+    "A run on this set is a gate. Any edit to holdout18.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout17 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout17 (consumed 2026-11-03: 7/8, valid; multi-turn 83.3% from five false 'safe' flags)."
+}

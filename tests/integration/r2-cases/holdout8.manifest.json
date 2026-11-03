@@ -1,0 +1,17 @@
+{
+  "set": "holdout8",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "41a82150f7ae277266ec135bbd95eb7a072fe9cf1de631a27d0b0e27516bc77d",
+  "rules": [
+    "Authored before any scoring run against this set, after the prompt hand-off rule, safety-line rule and consent-only scorer check that followed the holdout6 human review; never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout8.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout7 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). Safety-line mention (allergens, emergencies) is judged by the human review, not the scorer. noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout7 (gate passed 8/8 on 944cc44, but the human review of holdout6 asked for an auto hand-off rule).",
+  "consumed": "2026-11-03: gate run on 11528a9 failed 7/8 (mixed multi-turn 80%). All 9 failed turns were case or scorer-design problems (forbidden patterns matching a correct bundle comparison price and the word 'note'; emergency vet reply with the hospital number not counted as handled), not model defects. Scorer changed afterwards; further tuning needs a new set (holdout9)."
+}

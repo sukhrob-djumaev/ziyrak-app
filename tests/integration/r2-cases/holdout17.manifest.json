@@ -1,0 +1,17 @@
+{
+  "set": "holdout17",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "2e3d8ef757441b7d8af81265622a2a12d80b4fd0f490af83f73a4fea7c2d8659",
+  "rules": [
+    "Authored before any scoring run against this set, after diagnosing the holdout16 failed-tool misses as a scorer proxy fault (a ticket counted as the failing email tool) plus the model not using the tool the customer asked for; never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout17.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout16 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout16 (consumed 2026-11-03: failed-tool proxy fault; missing-knowledge 90%).",
+  "consumed": "Consumed 2026-11-03 by the gate on 4a170e3: valid, 7/8 met; multi-turn 83.3% (5 turns of 30) - all five were correct safety replies flagged by a bare 'safe' pattern (case-design fault). Do not tune against it."
+}

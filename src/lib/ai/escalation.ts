@@ -8,6 +8,7 @@ export type EscalationReason = "human_requested" | "no_support" | "tool_failed" 
 export interface ToolOutcome {
   success: boolean;
   status?: string;
+  name?: string;
 }
 
 export interface EscalationInput {

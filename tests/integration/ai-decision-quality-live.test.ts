@@ -8,7 +8,7 @@ import { join } from "node:path";
  * chat() -> escalation decision, with real Postgres and real knowledge retrieval. Scoring and thresholds:
  * tests/helpers/r2-scoring.ts (docs/r2-ai-decision-quality-proposal-2026-10-22.md).
  *
- *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2|holdout3|holdout4|holdout5|holdout6|holdout7 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] [R2_DUMP=/path/all-turns.json] \
+ *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2|holdout3|holdout4|holdout5|holdout6|holdout7|holdout8|holdout9|holdout10|holdout11|holdout12|holdout13|holdout14|holdout15|holdout16|holdout17|holdout18 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] [R2_DUMP=/path/all-turns.json] \
  *     npx vitest run --config vitest.integration.config.ts tests/integration/ai-decision-quality-live.test.ts
  *
  * Skips without a key (a skip is not a pass). Refuses OPENAI_BASE_URL (a stand-in is not OpenAI). The
@@ -39,11 +39,13 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
+const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");
-const cases = (JSON.parse(readFileSync(join(dir, `${setName}.json`), "utf8")) as { cases: Case[] }).cases;
+// R2_ONLY (a case-id regex) narrows a diagnostic run; the gate then reports the run as incomplete, so it can never pass as a gate.
+const onlyCases = process.env.R2_ONLY ? new RegExp(process.env.R2_ONLY) : null;
+const cases = (JSON.parse(readFileSync(join(dir, `${setName}.json`), "utf8")) as { cases: Case[] }).cases.filter((c) => !onlyCases || onlyCases.test(c.id));
 const shared = JSON.parse(readFileSync(join(dir, "shared.json"), "utf8")) as { secret: { title: string; content: string } };
 
 describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> real OpenAI`, () => {
@@ -96,18 +98,20 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
   }, 120_000);
 
   it(`scores the ${setName} set against the proposal thresholds`, async () => {
-    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string; escalated: boolean }[] = [];
+    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string; escalated: boolean; ran: string[] }[] = [];
     for (let rep = 1; rep <= reps; rep++) {
       for (const c of cases) {
         const b = businesses.get(c.domain)!;
         const convo = await prisma.conversation.create({ data: { businessId: b.businessId, channel: "webchat", customerName: "Eval", customerContact: `${c.id}-${rep}` } });
         for (const [i, turn] of c.turns.entries()) {
           await prisma.conversation.update({ where: { id: convo.id }, data: { status: "active" } });
-          const toolsBefore = await prisma.actionExecution.count({ where: { businessId: b.businessId, conversationId: convo.id } });
+                    const runBefore = await prisma.actionExecution.findMany({ where: { businessId: b.businessId, conversationId: convo.id }, select: { id: true } });
           const reply = await chat(b.ctx, convo.id, turn.user);
           const escalated = (await prisma.conversation.findUniqueOrThrow({ where: { id: convo.id } })).status === "escalated";
-          const toolCalled = c.tool ? (await prisma.actionExecution.count({ where: { businessId: b.businessId, conversationId: convo.id } })) > toolsBefore : undefined;
-          results.push({ category: c.category, id: c.id, rep, turn: i, score: scoreTurn(c.category, turn, { reply, escalated, toolCalled }), reply, escalated });
+          // Only the tool under test counts: a different tool (a ticket) running says nothing about whether the failing one was tried.
+          const ran = (await prisma.actionExecution.findMany({ where: { businessId: b.businessId, conversationId: convo.id, id: { notIn: runBefore.map((r) => r.id) } }, select: { tool: true, status: true } })).map((r) => `${r.tool}:${r.status}`);
+          const toolCalled = c.tool ? ran.some((r) => r.startsWith(`${c.tool}:`)) : undefined;
+          results.push({ category: c.category, id: c.id, rep, turn: i, score: scoreTurn(c.category, turn, { reply, escalated, toolCalled }), reply, escalated, ran });
         }
       }
     }
@@ -127,7 +131,7 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
     if (process.env.R2_OUT) writeFileSync(process.env.R2_OUT, JSON.stringify(out, null, 2));
     // Every turn with its customer message, for the human review sample (docs/r2-human-review-rubric.md); the scorer verdict is kept apart so a reviewer can sample blind.
     if (process.env.R2_DUMP) {
-      const dump = results.map((r) => ({ id: r.id, category: r.category, rep: r.rep, turn: r.turn, user: cases.find((c) => c.id === r.id)!.turns[r.turn].user, reply: r.reply, escalated: r.escalated, pass: r.score.pass, inconclusive: !!r.score.inconclusive }));
+      const dump = results.map((r) => ({ id: r.id, category: r.category, rep: r.rep, turn: r.turn, user: cases.find((c) => c.id === r.id)!.turns[r.turn].user, reply: r.reply, escalated: r.escalated, ran: r.ran, pass: r.score.pass, inconclusive: !!r.score.inconclusive }));
       writeFileSync(process.env.R2_DUMP, JSON.stringify(dump, null, 2));
     }
     console.log(JSON.stringify({ ...out, failures: out.failures.length }, null, 2));

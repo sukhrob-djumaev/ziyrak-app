@@ -81,14 +81,17 @@ ${knowledgeSection}
 
 ## Important Guidelines
 - Always be helpful and try to resolve the customer's issue
-- If you cannot answer a question from the knowledge base, honestly say so and offer to connect them with a team member
+- If you cannot answer a question from the knowledge base, honestly say so and tell them you have passed the question to the team
 - Use the create_ticket tool when a customer reports a problem that needs human intervention
 - Use send_internal_email to notify relevant team members about urgent issues
+- When the customer asks for something a tool does (such as emailing the team), use that tool for it, as well as any ticket
 - Use get_customer_history to check if the customer has contacted before
 - Never make up information that isn't in your knowledge base
-- Never say the business does not offer, provide or allow something unless the knowledge base says so. If the knowledge base is silent, say you don't have that information and that you have passed the question to the team
+- If the knowledge base has a safety or health line (allergens, medical, legal, hazards) that touches what the customer asked, state it in your reply even when you cannot answer the exact question
+- Never say the business cannot, does not or will not do something (offer, provide, allow, handle, treat, administer), including anything that sounds specialist or medical, unless the knowledge base says so. If the knowledge base is silent, say you don't have that information and that you have passed the question to the team. Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere instead
 - When a customer needs a person, or you cannot answer, say plainly that you have passed it on and what happens next (for example "I've passed this to our team and they will contact you"). Do not just offer to do it, and do not ask permission first
-- If a tool fails (for example an email could not be sent), say so plainly in the reply and say what you did instead (for example "I couldn't send that email, so I created a ticket"). Never present the substitute as if it were what they asked for, and never claim an action succeeded when it did not
+- If a tool fails (for example an email could not be sent), start your reply by saying that what they asked for did not go through, even if you then did something else that worked, and say what you did instead . Only say something failed if a tool result reported the failure; never describe a failure for something you did not try. Describe the failure in plain customer terms, not internal setup details. Never present the substitute as if it were what they asked for, and never claim an action succeeded when it did not
+- Only call a ticket high priority or urgent if you set that priority on it. Never tell a customer to contact "your internal team"; you are the business's assistant, so say "our team"
 - Speak to the customer directly ("you", "your"), never about them in the third person. Do not promise a time ("shortly", "soon"). If you do not already have the customer's phone number or email from this chat, ask for the best way to reach them
 - If the customer cannot wait (locked out, stranded, a safety problem, something urgent), say you have passed it to the team as urgent and give any emergency or call-out contact in the knowledge base. Never offer to dispatch or book anything you have no tool for
 - If the customer asks to be transferred to a manager or any person, say you have passed their request to the team and what happens next. Do not say you cannot transfer them
@@ -273,8 +276,21 @@ export const NON_ANSWER_REPLIES: readonly string[] = [
 ];
 
 /** What the model reads back for a tool call. A failed action says so in the result itself, where the model attends most. */
-export function toolMessageContent(toolResult: { success?: boolean; status?: string }): string {
-  if (toolResult.success || toolResult.status === "pending_approval") return JSON.stringify(toolResult);
+/** Last thing the model reads before replying: which requested actions did not happen. */
+export function failureReminder(failed: string[]): string | null {
+  if (failed.length === 0) return null;
+  return `Reminder before you reply: these actions FAILED this turn and did not go through: ${[...new Set(failed)].join(", ")}. Begin your reply by telling the customer plainly that what they asked for through them did not go through, then say what you did instead.`;
+}
+
+export function toolMessageContent(toolResult: { success?: boolean; status?: string }, earlierFailures: string[] = []): string {
+  if (toolResult.success || toolResult.status === "pending_approval") {
+    if (!earlierFailures.length) return JSON.stringify(toolResult);
+    return JSON.stringify({
+      ...toolResult,
+      failedActions: earlierFailures,
+      note: `An earlier action in this turn FAILED and was NOT carried out (${earlierFailures.join(", ")}). Despite this success, start your reply by telling the customer that what they asked for through that action did not go through, then say what this action did instead.`,
+    });
+  }
   return JSON.stringify({
     ...toolResult,
     note: "This action FAILED and was NOT carried out. Tell the customer plainly that it did not work, and say what you did instead.",
@@ -382,13 +398,17 @@ async function callAI(
         toolCallId: toolCall.id,
       });
 
-      toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status });
+      const earlierFailures = toolOutcomes.filter((o) => !o.success && o.status !== "pending_approval").map((o) => o.name ?? "an earlier action");
+      toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status, name: toolCall.name });
       messages.push({
         role: "tool",
-        content: toolMessageContent(toolResult),
+        content: toolMessageContent(toolResult, earlierFailures),
         tool_call_id: toolCall.id,
       });
     }
+
+    const reminder = failureReminder(toolOutcomes.filter((o) => !o.success && o.status !== "pending_approval").map((o) => o.name ?? "an action"));
+    if (reminder) messages.push({ role: "system", content: reminder });
 
     // Continue the conversation with tool results
     return callAI(ctx, config, messages, conversationId, depth + 1, true, toolOutcomes);

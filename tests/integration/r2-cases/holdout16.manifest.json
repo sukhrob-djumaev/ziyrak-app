@@ -1,0 +1,17 @@
+{
+  "set": "holdout16",
+  "frozenAt": "2026-11-03",
+  "cases": 45,
+  "sha256": "879ed99901784defb2565b1fc525084a28a19c033ba694f665430de6ff383d76",
+  "rules": [
+    "Authored before any scoring run against this set, after the final-position failed-action reminder that followed the holdout15 gate (undisclosed email failures in 4 of 15 failed-tool turns); never use it to tune prompts, retrieval, policies or scorer thresholds.",
+    "A run on this set is a gate. Any edit to holdout16.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout15 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout15 (consumed 2026-11-03: 7/8; failed tool 73.3%).",
+  "consumed": "Consumed 2026-11-03 by the gate on 4b8bc0e (invalid: missing-knowledge declined 90%, fabricated 3, failed tool 66.7%, multi-turn 90%). Failed-tool misses traced to a scorer proxy (any tool counted, not the email) and the model not using the requested tool; fishchip-4/9 case flaws. Do not tune against it."
+}

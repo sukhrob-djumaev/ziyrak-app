@@ -223,7 +223,7 @@ describe("AI Engine", () => {
     const prompt: string = mockOpenAICreateFn.mock.calls[0][0].messages[0].content;
     expect(prompt).toMatch(/Never say the business does not offer/);
     expect(prompt).toMatch(/passed it on/);
-    expect(prompt).toMatch(/If a tool fails, tell the customer what did not work/);
+    expect(prompt).toMatch(/If a tool fails .*say so plainly in the reply and say what you did instead/);
     expect(prompt).toMatch(/combined price/);
   });
 

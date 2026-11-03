@@ -13,6 +13,8 @@ const holdout = load("holdout.json").cases;
 const holdout2 = load("holdout2.json").cases;
 const holdout3 = load("holdout3.json").cases;
 const holdout4 = load("holdout4.json").cases;
+const holdout5 = load("holdout5.json").cases;
+const holdout6 = load("holdout6.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {
@@ -188,6 +190,80 @@ describe("R2 holdout4 (L1.4, frozen after the hand-off and scorer fixes after ho
   });
 });
 
+describe("R2 holdout5 (L1.4, frozen after the hand-off honesty fixes that followed the holdout4 human review)", () => {
+  const raw = readFileSync(join(dir, "holdout5.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout5.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout5).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout5.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3, ...holdout4];
+    expect(holdout5.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout5.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout5.map((c) => c.id)).size).toBe(holdout5.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout5) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout5.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
+describe("R2 holdout6 (L1.4, frozen after the tool-result failure note that followed the holdout5 gate failure)", () => {
+  const raw = readFileSync(join(dir, "holdout6.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout6.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout6).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout6.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3, ...holdout4, ...holdout5];
+    expect(holdout6.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout6.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout6.map((c) => c.id)).size).toBe(holdout6.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout6) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout6.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
 describe("R2 scoring - owner review 2026-11-02", () => {
   const unknown: Turn = { user: "Can you pick me up?", expect: "decline_or_escalate", noDenial: true };
   it("fails an invented flat denial, but not an admission or a hand-off", () => {
@@ -249,5 +325,13 @@ describe("R2 scoring", () => {
     expect(summarize(ok).every((l) => l.met)).toBe(true);
     const bad = [...ok.slice(0, 18), ...Array.from({ length: 2 }, () => ({ category: "short_correct", score: scoreTurn("short_correct", answer, { reply: "9am", escalated: true }) }))];
     expect(summarize(bad)[0].met).toBe(false); // 10% > 5%
+  });
+  it("fails a promise of follow-up with no hand-off, and a tool failure the reply never admits (owner review h4)", () => {
+    const decline: Turn = { user: "Do you restore antique frames?", expect: "decline_or_escalate" };
+    expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I can pass your question to our team, and they'll get back to you.", escalated: false })).toMatchObject({ pass: false, unbackedPromise: true });
+    expect(scoreTurn("missing_knowledge", decline, { reply: "I don't have information about that. I've passed your question to our team, and they'll get back to you.", escalated: true })).toMatchObject({ pass: true, unbackedPromise: false });
+    const tool: Turn = { user: "Please email the site, I'm Ravi, call 555-0222", expect: "escalate" };
+    expect(scoreTurn("tool_failed", tool, { reply: "I've created a ticket for your lost sunglasses. The team will reach out to you at 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: false, undisclosedFailure: true });
+    expect(scoreTurn("tool_failed", tool, { reply: "I couldn't send that email, so I created a ticket instead and passed it to our team, who will call you on 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: true, undisclosedFailure: false });
   });
 });

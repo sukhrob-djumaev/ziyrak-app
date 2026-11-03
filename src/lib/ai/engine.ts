@@ -275,12 +275,13 @@ export const NON_ANSWER_REPLIES: readonly string[] = [
 ];
 
 /** What the model reads back for a tool call. A failed action says so in the result itself, where the model attends most. */
-export function toolMessageContent(toolResult: { success?: boolean; status?: string }, earlierFailure = false): string {
+export function toolMessageContent(toolResult: { success?: boolean; status?: string }, earlierFailures: string[] = []): string {
   if (toolResult.success || toolResult.status === "pending_approval") {
-    if (!earlierFailure) return JSON.stringify(toolResult);
+    if (!earlierFailures.length) return JSON.stringify(toolResult);
     return JSON.stringify({
       ...toolResult,
-      note: "An earlier action in this turn FAILED and was NOT carried out. Despite this success, start your reply by telling the customer that the earlier action did not go through, then say what this action did instead.",
+      failedActions: earlierFailures,
+      note: `An earlier action in this turn FAILED and was NOT carried out (${earlierFailures.join(", ")}). Despite this success, start your reply by telling the customer that what they asked for through that action did not go through, then say what this action did instead.`,
     });
   }
   return JSON.stringify({
@@ -390,11 +391,11 @@ async function callAI(
         toolCallId: toolCall.id,
       });
 
-      const earlierFailure = toolOutcomes.some((o) => !o.success && o.status !== "pending_approval");
-      toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status });
+      const earlierFailures = toolOutcomes.filter((o) => !o.success && o.status !== "pending_approval").map((o) => o.name ?? "an earlier action");
+      toolOutcomes.push({ success: Boolean(toolResult.success), status: toolResult.status, name: toolCall.name });
       messages.push({
         role: "tool",
-        content: toolMessageContent(toolResult, earlierFailure),
+        content: toolMessageContent(toolResult, earlierFailures),
         tool_call_id: toolCall.id,
       });
     }

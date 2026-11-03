@@ -11,9 +11,11 @@ describe("toolMessageContent", () => {
     expect(JSON.parse(toolMessageContent({ success: false, status: "pending_approval" })).note).toBeUndefined();
   });
   it("reminds the model of an earlier failed action when a later one succeeds", () => {
-    const out = JSON.parse(toolMessageContent({ success: true }, true));
+    const out = JSON.parse(toolMessageContent({ success: true }, ["send_internal_email"]));
     expect(out.note).toMatch(/earlier action in this turn FAILED and was NOT carried out/);
     expect(out.note).toMatch(/start your reply/);
-    expect(JSON.parse(toolMessageContent({ success: true }, false)).note).toBeUndefined();
+    expect(out.note).toMatch(/send_internal_email/);
+    expect(out.failedActions).toEqual(["send_internal_email"]);
+    expect(JSON.parse(toolMessageContent({ success: true }, [])).note).toBeUndefined();
   });
 });

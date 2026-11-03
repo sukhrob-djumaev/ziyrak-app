@@ -223,6 +223,8 @@ describe("AI Engine", () => {
     const prompt: string = mockOpenAICreateFn.mock.calls[0][0].messages[0].content;
         expect(prompt).toMatch(/passed it on/);
     expect(prompt).toMatch(/If a tool fails .*and say what you did instead/);
+    expect(prompt).toMatch(/Only say something failed if a tool result reported the failure/);
+    expect(prompt).not.toMatch(/I couldn't send that email/);
     expect(prompt).toMatch(/combined price/);
     expect(prompt).toMatch(/tell them you have passed the question to the team/);
     expect(prompt).not.toMatch(/offer to connect them/);

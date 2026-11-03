@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout10 (consumed 2026-11-03: gate failed 7/8, one reply never said the requested email failed)."
+  "supersedes": "holdout10 (consumed 2026-11-03: gate failed 7/8, one reply never said the requested email failed).",
+  "consumed": "2026-11-03: gate run on 62ee20f was invalid (12/15 tool_failed turns never called the tool: the model copied the prompt's example sentence and claimed an email failure it never tried) and 2 safety cases scored too strictly (h11-boxgym-9, h11-nailbar-4). Prompt example removed; further tuning needs a new set (holdout12)."
 }

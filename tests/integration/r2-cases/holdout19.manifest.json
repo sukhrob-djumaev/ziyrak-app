@@ -12,5 +12,6 @@
     "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
     "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
   ],
-  "supersedes": "holdout18 (consumed 2026-11-03: 8/8 valid; owner review 0 hard defects, 6 action items)."
+  "supersedes": "holdout18 (consumed 2026-11-03: 8/8 valid; owner review 0 hard defects, 6 action items).",
+  "consumed": "2026-11-04: gate invalid (tool_failed 9/15 evaluable); missing knowledge 80% with 6 fabricated capabilities. Do not reuse."
 }

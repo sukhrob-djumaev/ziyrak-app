@@ -275,6 +275,12 @@ export const NON_ANSWER_REPLIES: readonly string[] = [
 ];
 
 /** What the model reads back for a tool call. A failed action says so in the result itself, where the model attends most. */
+/** Last thing the model reads before replying: which requested actions did not happen. */
+export function failureReminder(failed: string[]): string | null {
+  if (failed.length === 0) return null;
+  return `Reminder before you reply: these actions FAILED this turn and did not go through: ${[...new Set(failed)].join(", ")}. Begin your reply by telling the customer plainly that what they asked for through them did not go through, then say what you did instead.`;
+}
+
 export function toolMessageContent(toolResult: { success?: boolean; status?: string }, earlierFailures: string[] = []): string {
   if (toolResult.success || toolResult.status === "pending_approval") {
     if (!earlierFailures.length) return JSON.stringify(toolResult);
@@ -399,6 +405,9 @@ async function callAI(
         tool_call_id: toolCall.id,
       });
     }
+
+    const reminder = failureReminder(toolOutcomes.filter((o) => !o.success && o.status !== "pending_approval").map((o) => o.name ?? "an action"));
+    if (reminder) messages.push({ role: "system", content: reminder });
 
     // Continue the conversation with tool results
     return callAI(ctx, config, messages, conversationId, depth + 1, true, toolOutcomes);

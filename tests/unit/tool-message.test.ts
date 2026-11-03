@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toolMessageContent } from "@/lib/ai/engine";
+import { toolMessageContent, failureReminder } from "@/lib/ai/engine";
 
 describe("toolMessageContent", () => {
   it("tells the model a failed action did not happen", () => {
@@ -17,5 +17,17 @@ describe("toolMessageContent", () => {
     expect(out.note).toMatch(/send_internal_email/);
     expect(out.failedActions).toEqual(["send_internal_email"]);
     expect(JSON.parse(toolMessageContent({ success: true }, [])).note).toBeUndefined();
+  });
+});
+
+describe("failureReminder", () => {
+  it("is empty when nothing failed", () => {
+    expect(failureReminder([])).toBeNull();
+  });
+  it("names each failed action and tells the model how to open its reply", () => {
+    const text = failureReminder(["send_internal_email"]) ?? "";
+    expect(text).toMatch(/send_internal_email/);
+    expect(text).toMatch(/did not go through/);
+    expect(text).toMatch(/Begin your reply/);
   });
 });

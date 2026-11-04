@@ -1,0 +1,14 @@
+{
+  "set": "holdout27",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "651e36aaeb564e146137b805801c20f91495b0137e7a578293be50602379d798",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout26 gate failed (two price-only items were handed off; an injury turn gave the emergency number and skipped the tool) and the prompt was changed."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout26 (consumed 2026-11-04: invalid and failed)."
+}

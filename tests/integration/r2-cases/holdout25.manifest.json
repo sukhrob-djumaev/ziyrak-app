@@ -1,0 +1,15 @@
+{
+  "set": "holdout25",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "f6ce8fb57eee24550342f26ee84cf20d455ef679e6998b301dd4889edb0d85b5",
+  "rules": [
+    "Authored before any scoring run against this set, after the owner review of the holdout24 gate (0 hard defects of 43; the failed-tool turns stopped to confirm a phone number instead of acting; a minor injury lacked the medical pointer) and the prompt/scorer change made in response (act immediately on given contact details, state the number afterwards, medical pointer on every injury, no unexecuted offers to pass things on).",
+    "Not tuned against its results; any further prompt, engine or scorer change after scoring needs a new set."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout24 (consumed 2026-11-04: valid, failed one threshold)."
+}

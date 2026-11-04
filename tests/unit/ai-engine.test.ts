@@ -239,6 +239,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/start with a sentence telling them to get medical help if it is needed \(every reply to a reported injury, however small, must have it\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice never replaces the tool call, and you may only say you have passed it to the team after a tool call in that turn did so \(a minor injury still needs the tool call\)/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
+    expect(prompt).toMatch(/a price listed for the item is the answer to "what is X"/);
     expect(prompt).toMatch(/never recommend other businesses, classes, tutorials, software or outside services/);
     expect(prompt).toMatch(/Do not work out facts the knowledge base does not state \(for example, opening hours do not show that a particular lesson, session or service runs at a given time/);
     expect(prompt).toMatch(/Never show the customer a ticket id, ticket title or priority label/);

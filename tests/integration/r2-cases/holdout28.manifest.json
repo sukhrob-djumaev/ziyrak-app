@@ -1,0 +1,14 @@
+{
+  "set": "holdout28",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "eb373f347f2c6c4b2f738d94cb991939016da86e13edecceb09c85a792379a1a",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout27 gate was invalid (injury turns wrote the medical sentence and claimed a hand-off with no tool call) and the injury bullet was reordered so the tool call comes first."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout27 (consumed 2026-11-04: invalid, injury turns skipped the tool)."
+}

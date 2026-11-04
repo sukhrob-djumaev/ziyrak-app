@@ -229,20 +229,23 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/tell them you have passed the question to the team/);
     expect(prompt).not.toMatch(/offer to connect them/);
     expect(prompt).toMatch(/safety or health line .*state it in your reply/);
-    expect(prompt).toMatch(/do not call a ticket high priority or urgent unless you set that priority/);
+    expect(prompt).toMatch(/do not call a ticket high priority or urgent unless the tool result shows that priority/);
     expect(prompt).toMatch(/plain customer terms, not internal setup details/);
     expect(prompt).toMatch(/start your reply by saying that what they asked for did not go through/);
     expect(prompt).toMatch(/Never say the business cannot, does not or will not do something .*specialist or medical/);
     expect(prompt).toMatch(/Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere/);
     expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
     expect(prompt).toMatch(/State a safety rule from the knowledge base as a rule, at the strength it is written/);
-    expect(prompt).toMatch(/start by telling them to get medical help if it is needed \(even for a minor injury\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice never replaces the tool call, and you may only say you have passed it to the team after a tool call in that turn did so \(a minor injury still needs the tool call\)/);
+    expect(prompt).toMatch(/start with a sentence telling them to get medical help if it is needed \(every reply to a reported injury, however small, must have it\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice never replaces the tool call, and you may only say you have passed it to the team after a tool call in that turn did so \(a minor injury still needs the tool call\)/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
     expect(prompt).toMatch(/never recommend other businesses, classes, tutorials, software or outside services/);
     expect(prompt).toMatch(/Do not work out facts the knowledge base does not state \(for example, opening hours do not show that a particular lesson, session or service runs at a given time/);
     expect(prompt).toMatch(/Never show the customer a ticket id, ticket title or priority label/);
-    expect(prompt).toMatch(/repeat it back so they can check it/);
+    expect(prompt).toMatch(/act immediately in that turn: never ask them to confirm details they already gave/);
+    expect(prompt).toMatch(/state the phone number or email you passed on, as a statement/);
+    expect(prompt).toMatch(/every reply to a reported injury, however small, must have it/);
+    expect(prompt).toMatch(/Never end a reply by offering to pass something to the team/);
     expect(prompt).toMatch(/state the limit and say you have passed the request to the team in case an exception is possible/);
   });
 

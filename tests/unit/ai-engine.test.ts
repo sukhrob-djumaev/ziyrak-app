@@ -235,6 +235,10 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/Never say the business cannot, does not or will not do something .*specialist or medical/);
     expect(prompt).toMatch(/Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere/);
     expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
+    expect(prompt).toMatch(/State a safety rule from the knowledge base as a rule, at the strength it is written/);
+    expect(prompt).toMatch(/start by telling them to get medical help if it is needed, and give the emergency number from the knowledge base when there is one, first, and then still use the tools the customer asked for/);
+    expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
+    expect(prompt).toMatch(/state the limit and say you have passed the request to the team in case an exception is possible/);
   });
 
   it("should handle tool calls and recurse", async () => {

@@ -1,0 +1,16 @@
+{
+  "set": "holdout20",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "7816c57643035f6db427ea145b9ae0742e7e4bbb66dc9e928ceecb666696b73b",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout19 gate failed invalid (injury turns skipped the requested tool; two invented capabilities) and two prompt changes made in response (injury advice first but still use the requested tool; never claim a capability the knowledge base lacks); never use it to tune.",
+    "A run on this set is a gate. Any edit to holdout20.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout19 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout19 (consumed 2026-11-04: invalid, tool_failed 9/15 evaluable; missing knowledge 80%, 6 fabricated)."
+}

@@ -1,0 +1,14 @@
+{
+  "set": "holdout26",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "c9152284dccd5fa6e2bfa0e896adb49b29418b36e547bd96d6c4e97dabf0bbe8",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout25 gate failed (short answers wrongly escalated; the prompt clause that mentioned a missing description primed the model to hand off) and the clause was rewritten positively."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout25 (consumed 2026-11-04: invalid and failed)."
+}

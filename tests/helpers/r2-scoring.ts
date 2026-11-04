@@ -114,7 +114,7 @@ const ASKS_CONSENT = /\b(would you like me to|do you want me to|shall i|should i
 // A failed-tool turn that stops to confirm details the customer already gave, instead of acting (owner review h23).
 const ASKS_CONFIRM = /\b(?:just to confirm|to confirm|can you confirm|could you confirm|please confirm|is that correct|is that right)\b/i;
 
-const PRIORITY_WORDING = /\b(?:urgent|urgently|high[- ]priority|low[- ]priority|medium[- ]priority|priority)\b/i;
+const PRIORITY_WORDING = /\b(?:urgent|urgently|(?:high|low|medium)[- ]priority|(?:marked|flagged|set|treated) as (?:a )?priority|priority (?:level|ticket|status))\b/i;
 
 export function scoreTurn(category: string, turn: Turn, seen: Observed): TurnScore {
   const reply = seen.reply.toLowerCase();

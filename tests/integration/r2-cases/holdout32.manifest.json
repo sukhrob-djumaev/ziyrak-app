@@ -1,0 +1,14 @@
+{
+  "set": "holdout32",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "8b5a960d0eaa1e5a8d985e9fd77b23de90f3f0b4a2c7a1ed1f30590ad2923847",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout31 gate (priority wording from a contradictory prompt line, a scorer false positive on top priority, and a case whose item was missing from the knowledge base)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout31 (consumed 2026-11-05: invalid, 53.3% failed-tool and 80% multi-turn)."
+}

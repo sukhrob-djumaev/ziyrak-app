@@ -1,0 +1,16 @@
+{
+  "set": "holdout21",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "e1e26e42232570dade82e08f94048fa0ef420e1913a04d21cf195b1d57ca2ac8",
+  "rules": [
+    "Authored before any scoring run against this set, after the owner review of holdout20 (0 hard defects but general-assistant drift, undisclosed tool failure, invented ticket fields) and the prompt/scorer changes made in response (answer only from the knowledge base and hand off; no outside referrals; disclose failures, read back numbers, no ticket ids; do not infer facts or add conditions; scorer flags outside referral); never use it to tune.",
+    "A run on this set is a gate. Any edit to holdout21.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout20 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout20 (consumed 2026-11-04: 8/8 valid; owner review 0 hard defects of 44, action items on scope drift and tool_failed disclosure)."
+}

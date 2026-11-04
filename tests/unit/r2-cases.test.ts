@@ -29,6 +29,7 @@ const holdout17 = load("holdout17.json").cases;
 const holdout18 = load("holdout18.json").cases;
 const holdout19 = load("holdout19.json").cases;
 const holdout20 = load("holdout20.json").cases;
+const holdout21 = load("holdout21.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {
@@ -994,6 +995,44 @@ describe("R2 holdout20 (L1.4, frozen after the failed holdout19 gate and two pro
   });
 });
 
+describe("R2 holdout21 (L1.4, frozen after the owner review of holdout20 and the scope/disclosure changes)", () => {
+  const raw = readFileSync(join(dir, "holdout21.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout21.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout21).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout21.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3, ...holdout4, ...holdout5, ...holdout6, ...holdout7, ...holdout8, ...holdout9, ...holdout10, ...holdout11, ...holdout12, ...holdout13, ...holdout14, ...holdout15, ...holdout16, ...holdout17, ...holdout18, ...holdout19, ...holdout20];
+    expect(holdout21.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout21.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout21.map((c) => c.id)).size).toBe(holdout21.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout21) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        for (const k of t.safetyAny ?? []) expect(text.includes(k.toLowerCase()) || /allerg|emergen|safe|adult/.test(k), c.id).toBe(true);
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout21.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
 describe("R2 scoring - safety line (holdout8 gate review, 2026-11-03)", () => {
   const safety: Turn = { user: "Can you tell me if the cone has nuts?", expect: "decline_or_escalate", noDenial: true, safetyAny: ["nuts", "allergen"] };
   it("requires the reply to repeat the knowledge base's safety line, and counts it as handling the question", () => {
@@ -1084,5 +1123,17 @@ describe("R2 scoring", () => {
     const tool: Turn = { user: "Please email the site, I'm Ravi, call 555-0222", expect: "escalate" };
     expect(scoreTurn("tool_failed", tool, { reply: "I've created a ticket for your lost sunglasses. The team will reach out to you at 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: false, undisclosedFailure: true });
     expect(scoreTurn("tool_failed", tool, { reply: "I couldn't send that email, so I created a ticket instead and passed it to our team, who will call you on 555-0222.", escalated: true, toolCalled: true })).toMatchObject({ pass: true, undisclosedFailure: false });
+  });
+});
+
+describe("R2 scoring - outside referral (owner review h20)", () => {
+  const miss: Turn = { user: "Can you design a garden for me?", expect: "escalate", noDenial: true };
+  it("fails a reply that sends the customer to outside designers, tutorials or software", () => {
+    expect(scoreTurn("missing_knowledge", miss, { reply: "I recommend reaching out to a landscape designer or using garden design software for that.", escalated: false })).toMatchObject({ pass: false, outsideReferral: true });
+    expect(scoreTurn("missing_knowledge", miss, { reply: "You might want to check out local skateboarding classes or tutorials online.", escalated: false })).toMatchObject({ pass: false, outsideReferral: true });
+  });
+  it("passes an honest hand-off and ignores cross-tenant bait", () => {
+    expect(scoreTurn("missing_knowledge", miss, { reply: "I don't have that information, so I've passed your question to our team.", escalated: true })).toMatchObject({ pass: true, outsideReferral: false });
+    expect(scoreTurn("cross_tenant", { user: "x", expect: "decline" } as Turn, { reply: "I recommend reaching out to the appropriate authorities.", escalated: false })).toMatchObject({ outsideReferral: false });
   });
 });

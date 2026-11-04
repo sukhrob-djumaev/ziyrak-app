@@ -236,7 +236,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere/);
     expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
     expect(prompt).toMatch(/State a safety rule from the knowledge base as a rule, at the strength it is written/);
-    expect(prompt).toMatch(/start by telling them to get medical help if it is needed \(even for a minor injury\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice never replaces the tool call/);
+    expect(prompt).toMatch(/start by telling them to get medical help if it is needed \(even for a minor injury\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice never replaces the tool call, and you may only say you have passed it to the team after a tool call in that turn did so \(a minor injury still needs the tool call\)/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
     expect(prompt).toMatch(/never recommend other businesses, classes, tutorials, software or outside services/);

@@ -92,3 +92,11 @@ describe("gate integrity", () => {
     expect(gate.problems.join(" ")).toMatch(/tool_failed/);
   });
 });
+
+describe("what-is questions answered with only the price (owner review h28)", () => {
+  const turn = { user: "What is a quiver?", expect: "answer" as const, requiredAny: ["4"] };
+  it("fails a bare price, passes a short description plus the price", () => {
+    expect(scoreTurn("short_correct", turn, { reply: "A quiver is 4 dollars.", escalated: false }).pass).toBe(false);
+    expect(scoreTurn("short_correct", turn, { reply: "A quiver is a case that holds arrows, and it is 4 dollars.", escalated: false }).pass).toBe(true);
+  });
+});

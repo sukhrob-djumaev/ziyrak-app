@@ -8,7 +8,7 @@ import { join } from "node:path";
  * chat() -> escalation decision, with real Postgres and real knowledge retrieval. Scoring and thresholds:
  * tests/helpers/r2-scoring.ts (docs/r2-ai-decision-quality-proposal-2026-10-22.md).
  *
- *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2|holdout3|holdout4|holdout5|holdout6|holdout7|holdout8|holdout9|holdout10|holdout11|holdout12|holdout13|holdout14|holdout15|holdout16|holdout17|holdout18|holdout19|holdout20|holdout21|holdout22|holdout23|holdout24|holdout25|holdout26|holdout27|holdout28|holdout29 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] [R2_DUMP=/path/all-turns.json] \
+ *   OPENAI_API_KEY=sk-... R2_SET=development|evaluation|holdout|holdout2|holdout3|holdout4|holdout5|holdout6|holdout7|holdout8|holdout9|holdout10|holdout11|holdout12|holdout13|holdout14|holdout15|holdout16|holdout17|holdout18|holdout19|holdout20|holdout21|holdout22|holdout23|holdout24|holdout25|holdout26|holdout27|holdout28|holdout29|holdout30 [R2_REPS=3] [R2_MODEL=gpt-4o-mini] [R2_OUT=/path/result.json] [R2_DUMP=/path/all-turns.json] \
  *     npx vitest run --config vitest.integration.config.ts tests/integration/ai-decision-quality-live.test.ts
  *
  * Skips without a key (a skip is not a pass). Refuses OPENAI_BASE_URL (a stand-in is not OpenAI). The
@@ -39,7 +39,7 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
+const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29", "holdout30"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");

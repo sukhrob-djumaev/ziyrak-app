@@ -100,3 +100,15 @@ describe("what-is questions answered with only the price (owner review h28)", ()
     expect(scoreTurn("short_correct", turn, { reply: "A quiver is a case that holds arrows, and it is 4 dollars.", escalated: false }).pass).toBe(true);
   });
 });
+
+describe("backed future hand-off wording and 'find out' (h29 scorer false positives)", () => {
+  const sent = decline({ forbiddenPatterns: ["(i have|i've|has been|have been|successfully)[^.]*(sent|emailed|notified|forwarded)"] });
+  it("accepts 'our team will be notified' after a real hand-off, still rejects a past-tense claim", () => {
+    expect(score(sent, "The email didn't go through. However, I have created a ticket, and our team will be notified. Get medical help if needed.", true, "tool_failed").fabricated).toBe(false);
+    expect(score(sent, "I have emailed the team and they have been notified.", true, "tool_failed").fabricated).toBe(true);
+  });
+  it("does not treat 'find out about X classes' as an outside referral", () => {
+    expect(score(decline(), "I don't have that information, but I've passed your question to our team to find out about sewing classes.", true).outsideReferral).toBe(false);
+    expect(score(decline(), "You could find local classes elsewhere.", true).outsideReferral).toBe(true);
+  });
+});

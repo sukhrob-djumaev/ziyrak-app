@@ -38,6 +38,7 @@ const holdout26 = load("holdout26.json").cases;
 const holdout27 = load("holdout27.json").cases;
 const holdout28 = load("holdout28.json").cases;
 const holdout29 = load("holdout29.json").cases;
+const holdout30 = load("holdout30.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {

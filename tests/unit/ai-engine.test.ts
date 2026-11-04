@@ -236,7 +236,9 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/Do not answer a question about what the business offers by saying you cannot help or by sending the customer elsewhere/);
     expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
     expect(prompt).toMatch(/State a safety rule from the knowledge base as a rule, at the strength it is written/);
-    expect(prompt).toMatch(/start with a sentence telling them to get medical help if it is needed \(every reply to a reported injury, however small, must have it\), and give the emergency number from the knowledge base when there is one, first, and then, in the same turn, still call the tool the customer asked for \(such as emailing the team\) and create any ticket as usual; advice or an emergency number never replaces the tool call \(the tool call is always made in that same turn\), and you may only say you have passed it to the team after a tool call in that turn did so \(a minor injury still needs the tool call\)/);
+    expect(prompt).toMatch(/If the customer says someone is hurt or unwell, first call the tool the customer asked for \(such as emailing the team\)/);
+    expect(prompt).toMatch(/Only after the tool result, write the reply: it starts with a sentence telling them to get medical help if it is needed \(every reply to a reported injury must have it\)/);
+    expect(prompt).toMatch(/advice or an emergency number never replaces it/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
     expect(prompt).toMatch(/that price is the whole answer to "what is X" for any item/);
@@ -245,7 +247,6 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/Never show the customer a ticket id, ticket title or priority label/);
     expect(prompt).toMatch(/act immediately in that turn: never ask them to confirm details they already gave/);
     expect(prompt).toMatch(/state the phone number or email you passed on, as a statement/);
-    expect(prompt).toMatch(/every reply to a reported injury, however small, must have it/);
     expect(prompt).toMatch(/Never end a reply by offering to pass something to the team/);
     expect(prompt).toMatch(/state the limit and say you have passed the request to the team in case an exception is possible/);
   });

@@ -1,0 +1,16 @@
+{
+  "set": "holdout22",
+  "frozenAt": "2026-11-04",
+  "cases": 45,
+  "sha256": "c7b798a520946fe27cff2ac2f84ff1ec15b99fc64819a0eb066bf596a0224c7e",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout21 gate failure (invalid; the What-is-X questions answered with the price but also claiming no information and handing off; schedules inferred from opening hours; injury turns skipping the requested tool) and the prompt changes made in response (state what the knowledge base says and stop; opening hours do not show a session runs; call the requested tool in the same turn as injury advice); never use it to tune.",
+    "A run on this set is a gate. Any edit to holdout22.json changes the hash and must be a deliberate, reviewed re-freeze with a new date and a note here.",
+    "Disjoint from development.json, evaluation.json and holdout through holdout21 (ids, domains, business questions)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4). noDenial cases assume the case's own knowledge is silent on the asked offering."
+  ],
+  "supersedes": "holdout21 (consumed 2026-11-04: invalid, tool_failed 10/15 evaluable; short correct 30% wrongly escalated; 3 fabricated)."
+}

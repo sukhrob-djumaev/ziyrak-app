@@ -112,3 +112,11 @@ describe("backed future hand-off wording and 'find out' (h29 scorer false positi
     expect(score(decline(), "You could find local classes elsewhere.", true).outsideReferral).toBe(true);
   });
 });
+
+describe("ticket priority wording in a hand-off reply (owner review h23/h28)", () => {
+  it("fails a reply that calls the ticket urgent, passes one that only says it was passed on", () => {
+    const t = decline();
+    expect(score(t, "I have created a ticket and it's marked as urgent. Get medical help if needed.", true, "tool_failed").pass).toBe(false);
+    expect(score(t, "I've passed this to our team. Get medical help if needed.", true, "tool_failed").priorityWording).toBe(false);
+  });
+});

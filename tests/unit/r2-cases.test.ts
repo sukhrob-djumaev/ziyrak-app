@@ -44,6 +44,7 @@ const holdout32 = load("holdout32.json").cases;
 const holdout33 = load("holdout33.json").cases;
 const holdout34 = load("holdout34.json").cases;
 const holdout35 = load("holdout35.json").cases;
+const holdout36 = load("holdout36.json").cases;
 
 describe("R2 case set", () => {
   it("has the planned sizes and categories", () => {
@@ -1540,6 +1541,45 @@ describe("R2 holdout35 (L1.4, frozen after the holdout34 gate and the prompt wor
   });
   it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
     const missing = holdout35.filter((x) => x.category === "missing_knowledge");
+    expect(missing.length).toBeGreaterThanOrEqual(10);
+    expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
+    expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);
+  });
+});
+
+// holdout35 was consumed (invalid: failed-tool 86.7%); holdout36 excludes it.
+describe("R2 holdout36 (L1.4, frozen after the holdout35 gate and the prompt wording fix)", () => {
+  const raw = readFileSync(join(dir, "holdout36.json"), "utf8");
+  const manifest = JSON.parse(readFileSync(join(dir, "holdout36.manifest.json"), "utf8")) as { sha256: string; cases: number; frozenAt: string };
+  it("matches its frozen manifest - editing it needs a deliberate re-freeze", () => {
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(manifest.sha256);
+    expect(holdout36).toHaveLength(manifest.cases);
+  });
+  it("covers every category and shares no id, domain or business question with any earlier set", () => {
+    for (const c of ["short_correct", "grounded_long", "missing_knowledge", "human_request", "tool_failed", "cross_tenant", "mixed_multi_turn"])
+      expect(holdout36.filter((x) => x.category === c).length, c).toBeGreaterThanOrEqual(5);
+    const earlier = [...dev, ...evalSet, ...holdout, ...holdout2, ...holdout3, ...holdout4, ...holdout5, ...holdout6, ...holdout7, ...holdout8, ...holdout9, ...holdout10, ...holdout11, ...holdout12, ...holdout13, ...holdout14, ...holdout15, ...holdout16, ...holdout17, ...holdout18, ...holdout19, ...holdout20, ...holdout21, ...holdout22, ...holdout23, ...holdout24, ...holdout25, ...holdout26, ...holdout27, ...holdout28, ...holdout29, ...holdout30, ...holdout31, ...holdout35];
+    expect(holdout36.some((c) => earlier.some((e) => e.id === c.id || e.domain === c.domain))).toBe(false);
+    const msgs = new Set(earlier.flatMap((c) => c.turns.map((t) => t.user)));
+    expect(holdout36.flatMap((c) => c.turns.map((t) => t.user)).filter((m) => msgs.has(m))).toEqual([]);
+    expect(new Set(holdout36.map((c) => c.id)).size).toBe(holdout36.length);
+  });
+  it("is well-formed and every required fact appears in that case's own knowledge", () => {
+    for (const c of holdout36) {
+      const text = JSON.stringify(c.knowledge).toLowerCase();
+      for (const t of c.turns) {
+        expect(["answer", "decline_or_escalate", "escalate"]).toContain(t.expect);
+        for (const p of t.forbiddenPatterns ?? []) expect(() => new RegExp(p, "i")).not.toThrow();
+        for (const k of t.safetyAny ?? []) expect(text.includes(k.toLowerCase()) || /allerg|emergen|safe|adult/.test(k), c.id).toBe(true);
+        if (t.expect === "answer") {
+          expect(t.requiredAny?.length).toBeGreaterThan(0);
+          expect((t.requiredAny ?? []).some((r) => text.includes(r.toLowerCase())), c.id).toBe(true);
+        }
+      }
+    }
+  });
+  it("asks the Can-you/Do-you questions that probe invented denials, and prices bundles from one entry", () => {
+    const missing = holdout36.filter((x) => x.category === "missing_knowledge");
     expect(missing.length).toBeGreaterThanOrEqual(10);
     expect(missing.every((c) => c.turns[0].noDenial === true)).toBe(true);
     expect(missing.every((c) => /^(can|do)\b/i.test(c.turns[0].user))).toBe(true);

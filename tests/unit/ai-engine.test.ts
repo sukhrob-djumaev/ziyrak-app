@@ -246,7 +246,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/Do not work out facts the knowledge base does not state \(for example, opening hours do not show that a particular lesson, session or service runs at a given time/);
     expect(prompt).toMatch(/Never show the customer a ticket id or ticket title/);
     expect(prompt).toMatch(/act immediately in that turn: never ask them to confirm details they already gave/);
-    expect(prompt).toMatch(/state the phone number or email you passed on, as a statement/);
+    expect(prompt).toMatch(/state the phone number or email the customer gave, as a statement/);
     expect(prompt).toMatch(/Never end a reply by offering to pass something to the team/);
     expect(prompt).toMatch(/state the limit and say you have passed the request to the team in case an exception is possible/);
   });

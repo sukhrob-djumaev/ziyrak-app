@@ -1,0 +1,14 @@
+{
+  "set": "holdout38",
+  "frozenAt": "2026-11-06",
+  "cases": 45,
+  "sha256": "17c2455aff774923e78e49b9901bea74582cacfc1a6820ee093c624575cf7cd4",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout37 owner review r14 (112 wording, hedged allergen answers)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout37 (gate valid 8/8, consumed 2026-11-06 by owner review r14: 112 over-applied, allergen answer softened)."
+}

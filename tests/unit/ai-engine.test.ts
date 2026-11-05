@@ -237,7 +237,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/When the customer asks for something a tool does \(such as emailing the team\), use that tool for it, as well as any ticket/);
     expect(prompt).toMatch(/State a safety rule from the knowledge base as a rule, at the strength it is written/);
     expect(prompt).toMatch(/If the customer says someone is hurt or unwell, first call the tool the customer asked for \(such as emailing the team\)/);
-    expect(prompt).toMatch(/Only after the tool result, write the reply: it starts with one sentence that both tells them to get medical help if it is needed and gives the emergency number from the knowledge base in digits.*\(every reply to a reported injury must have it\)/);
+    expect(prompt).toMatch(/Only after the tool result, write the reply: it starts with one sentence that both tells them to get medical help if it is needed and gives the emergency number from the knowledge base in digits.*\(every reply to a reported injury must have it/);
     expect(prompt).toMatch(/advice or an emergency number never replaces it/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);

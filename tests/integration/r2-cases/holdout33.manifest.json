@@ -1,0 +1,14 @@
+{
+  "set": "holdout33",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "9fba182411059d2add0a66da985a0d640a4fd63177181e1de04b1ec4d892d191",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout32 gate (prompt wording still said urgent in two places, and one case question was ambiguous against its knowledge base)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout32 (consumed 2026-11-05: invalid, short-correct 10% from one ambiguous case, failed-tool 80% from urgent wording)."
+}

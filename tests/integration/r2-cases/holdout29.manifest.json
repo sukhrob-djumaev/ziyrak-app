@@ -1,0 +1,14 @@
+{
+  "set": "holdout29",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "23844b0d521dc28aca0ab5cae96e1d5636a63dc5e6fa5337855b86913bde7ef0",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout28 owner review (what-is questions answered with a bare price, priority wording) and the prompt and scorer changes."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout27 (consumed 2026-11-05: invalid, injury turns skipped the tool)."
+}

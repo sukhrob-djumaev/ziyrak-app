@@ -1,0 +1,14 @@
+{
+  "set": "holdout30",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "f912dbfa98662466c06de2fdf25babdc03136e80fa4990e30eda5c7080778174",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout29 gate (scorer false positives on a backed 'will be notified' and on 'find out about')."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout29 (consumed 2026-11-05: invalid, scorer false positives)."
+}

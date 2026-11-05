@@ -1,0 +1,14 @@
+{
+  "set": "holdout31",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "6c6ba10b920c95bca201c71e14c61d941f93242c2bb341334e956df110c2a9fc",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout30 gate (reply wording that called the ticket urgent, fixed at the tool result and scored)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout30 (consumed 2026-11-05: valid 8/8 but 5 of 15 failed-tool replies called the ticket urgent)."
+}

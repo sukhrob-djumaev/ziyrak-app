@@ -229,7 +229,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/tell them you have passed the question to the team/);
     expect(prompt).not.toMatch(/offer to connect them/);
     expect(prompt).toMatch(/safety or health line .*state it in your reply/);
-    expect(prompt).toMatch(/do not call a ticket high priority or urgent unless the tool result shows that priority/);
+    expect(prompt).toMatch(/never describe a ticket as high priority, urgent or any other priority/);
     expect(prompt).toMatch(/plain customer terms, not internal setup details/);
     expect(prompt).toMatch(/start your reply by saying that what they asked for did not go through/);
     expect(prompt).toMatch(/Never say the business cannot, does not or will not do something .*specialist or medical/);
@@ -241,10 +241,10 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/advice or an emergency number never replaces it/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
-    expect(prompt).toMatch(/that price is the whole answer to "what is X" for any item/);
+    expect(prompt).toMatch(/answer "what is X" with one plain sentence saying what the item is in everyday words/);
     expect(prompt).toMatch(/never recommend other businesses, classes, tutorials, software or outside services/);
     expect(prompt).toMatch(/Do not work out facts the knowledge base does not state \(for example, opening hours do not show that a particular lesson, session or service runs at a given time/);
-    expect(prompt).toMatch(/Never show the customer a ticket id, ticket title or priority label/);
+    expect(prompt).toMatch(/Never show the customer a ticket id or ticket title/);
     expect(prompt).toMatch(/act immediately in that turn: never ask them to confirm details they already gave/);
     expect(prompt).toMatch(/state the phone number or email you passed on, as a statement/);
     expect(prompt).toMatch(/Never end a reply by offering to pass something to the team/);

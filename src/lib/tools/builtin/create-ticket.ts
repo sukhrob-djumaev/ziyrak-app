@@ -38,7 +38,7 @@ export const createTicketTool: ToolDefinition = {
     return {
       success: true,
       status: "succeeded",
-      message: `Ticket created: ${ticket.title} (Priority: ${ticket.priority})`,
+      message: "Ticket created and passed to the team.",
       data: { ticketId: ticket.id },
     };
   },

@@ -39,7 +39,7 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29", "holdout30", "holdout31", "holdout32", "holdout33", "holdout34"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
+const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29", "holdout30", "holdout31", "holdout32", "holdout33", "holdout34", "holdout35"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");

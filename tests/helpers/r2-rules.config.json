@@ -125,7 +125,6 @@
     "tripp\\w*",
     "scrap\\w*",
     "bruis\\w*",
-    "burn\\w*",
     "\\bsting\\w*",
     "\\bstung\\b",
     "prick\\w*",
@@ -133,9 +132,10 @@
     "swoll\\w*",
     "swell\\w*",
     "sprain\\w*",
-    "\\bpain\\w*",
     "\\bsore\\b",
-    "\\bcut (?:my|myself)\\b"
+    "\\bcut (?:my|myself)\\b",
+    "\\bburn(?:s|ed|t)\\b",
+    "\\bpain(?:s|ful)?\\b"
   ],
   "allergy": [
     "allerg\\w*",
@@ -166,5 +166,20 @@
     "this",
     "and",
     "to"
+  ],
+  "injuryPolicyQuestion": [
+    "\\bwhat if\\b",
+    "\\bshould i (?:tell|mention|say)\\b",
+    "\\bdo i (?:have|need) to (?:tell|say|mention)\\b",
+    "\\bneed to tell\\b",
+    "\\bskip telling\\b",
+    "\\bif (?:i|someone|a child) (?:get|gets|got) (?:hurt|injured)\\b",
+    "\\bin case of\\b",
+    "\\b(?:old|previous|past|healed|former)\\s+(?:\\w+\\s+){0,2}injur"
+  ],
+  "injuryReport": [
+    "\\b(?:i|we|he|she|they|my \\w+|our \\w+)\\s+(?:just |both |also |have |'ve |had )*(?:hurt|fell|tripped|slipped|cut|burn\\w*|scraped|sprained|twisted|banged|bumped|bled|got)\\b",
+    "\\b(?:hurt|scraped|cut|burned|sprained|twisted) my\\b",
+    "\\bmy [\\w ]{1,25}? (?:is|are|was) [\\w ]{0,15}?(?:hurt|sore|swollen|bleeding|painful|bruised)"
   ]
 }

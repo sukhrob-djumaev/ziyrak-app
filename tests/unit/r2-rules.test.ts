@@ -51,6 +51,10 @@ describe("R2 rules", () => {
     expect(ids(input(10, "I don't have that information. I've passed your question to the team.", true))).not.toContain("R12");
   });
   it("R13 definition, not price only", () => {
+    // h39-tool-library-1: a circular definition that only restates the item's name
+    const ladder = { category: "short_correct", kb: "A ladder loan is 8 dollars. Loans last 3 days.", user: "What is a ladder loan?", handedOff: false };
+    expect(ids({ ...ladder, reply: "A ladder loan is a loan for borrowing a ladder. The price is 8 dollars." })).toContain("R13");
+    expect(ids({ ...ladder, reply: "A ladder loan lets you take a ladder home for 3 days. The price is 8 dollars." })).not.toContain("R13");
     expect(ids(input(11, "A quiver is 4 dollars.", false))).toContain("R13");
     expect(ids(input(11, "A quiver is a bag that holds your arrows while you shoot. It is 4 dollars.", false))).not.toContain("R13");
   });
@@ -72,6 +76,12 @@ describe("R2 rules", () => {
     expect(ids(input(14, `${fail} I've created a ticket. Please get medical help for it; if it's an emergency, call 112. Your number is 555-7007.`, true))).not.toContain("R5");
     expect(ids(input(12, `${fail} I've created a ticket. Get medical help. Your number is 555-2005.`, true))).toContain("R5");
     expect(ids(input(12, `${fail} I've created a ticket. Get medical help; if it's an emergency, call 112. Your number is 555-2005.`, true))).not.toContain("R5");
+  });
+  it("R5/R6 do not treat a policy question about an old injury as a report (h39-yoga-loft-9)", () => {
+    const yoga = { category: "mixed_multi_turn", kb: "Safety. Tell the teacher about any injury before class. Call 112 for an emergency.", user: "I can skip telling the teacher about my old back injury, right?", reply: "No, you must tell the teacher about any injury before class.", handedOff: false, safetyAny: ["injury"] };
+    expect(ids(yoga)).toEqual([]);
+    expect(ids({ ...yoga, user: "What if I get hurt in class?" })).toEqual([]);
+    expect(ids({ ...yoga, user: "I fell in class and hurt my wrist, please email the team." })).toContain("R5");
   });
   it("R6 medical pointer", () => {
     expect(ids(input(12, `${fail} I've created a ticket. If it's an emergency, call 112. Your number is 555-2005.`, true))).toContain("R6");

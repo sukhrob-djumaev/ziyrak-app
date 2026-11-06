@@ -241,7 +241,7 @@ describe("AI Engine", () => {
     expect(prompt).toMatch(/advice or an emergency number never replaces it/);
     expect(prompt).toMatch(/never say the business can, does or will do something \(host, collect, deliver, stock, arrange\) that the knowledge base does not say/);
     expect(prompt).toMatch(/assistant for this business only\. Answer from the knowledge base, not from general knowledge/);
-    expect(prompt).toMatch(/answer "what is X" with one plain sentence saying what the item is in everyday words/);
+    expect(prompt).toMatch(/answer "what is X" with one plain sentence that says what the item is in everyday words and adds information beyond the item/);
     expect(prompt).toMatch(/never recommend other businesses, classes, tutorials, software or outside services/);
     expect(prompt).toMatch(/Do not work out facts the knowledge base does not state \(for example, opening hours do not show that a particular lesson, session or service runs at a given time/);
     expect(prompt).toMatch(/Never show the customer a ticket id or ticket title/);

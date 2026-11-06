@@ -25,7 +25,7 @@ const R = {
   completed: re(config.completedHandoff), offer: re(config.offerHandoff), failure: re(config.failureDisclosed),
   confirm: re(config.blockingConfirm), priority: re(config.unverifiedPriority), internals: re(config.ticketInternals, "i"),
   placeholder: re(config.placeholders.caseSensitive, ""), soft: re(config.softSafety), invention: re(config.invention),
-  unknown: re(config.admitsUnknown), referral: re(config.outsideReferral), injury: re(config.injury), allergy: re(config.allergy),
+  unknown: re(config.admitsUnknown), referral: re(config.outsideReferral), injury: re(config.injury), injuryPolicy: re(config.injuryPolicyQuestion), injuryReport: re(config.injuryReport), allergy: re(config.allergy),
 };
 const STOP = new Set(config.stopWords);
 const sentencesOf = (s: string) => s.split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
@@ -33,7 +33,8 @@ const words = (s: string) => s.toLowerCase().match(/[a-z]+/g) ?? [];
 const digits = (s: string) => s.replace(/\D/g, "");
 const emergencyNumber = (kb: string) => /\b(?:call|dial)\s+(\d{3})\b/i.exec(kb)?.[1];
 const phoneIn = (s: string) => /\+?\d[\d\s().-]{5,}\d/.exec(s)?.[0];
-const isInjury = (user: string) => R.injury.test(user);
+// An injury report is the customer's own injury happening now; a question about policy, an old injury or a hypothetical is not one.
+const isInjury = (user: string) => R.injury.test(user) && (R.injuryReport.test(user) || !R.injuryPolicy.test(user));
 const singular = (w: string) => w.replace(/(?:es|s)$/, "");
 
 /** KB bundles of the form "A X with a Y together are N dollars" plus the single prices "A X is P dollars". */

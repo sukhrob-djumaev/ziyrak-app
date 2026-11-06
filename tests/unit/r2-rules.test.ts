@@ -30,6 +30,8 @@ describe("R2 rules", () => {
     expect(ids(input(4, "I don't have that information. Would you like me to pass your question to the team?", true))).toContain("R1");
     expect(ids(input(4, "I don't have that information. I've passed your question to the team.", true))).not.toContain("R1");
     expect(ids(input(4, "I don't have that information. Would you like me to pass your question to the team?", false))).not.toContain("R1");
+    // h39-yoga-loft-7: "I did create a ticket ... it's been passed to the team" is a completed hand-off
+    expect(ids(input(4, "I don't have that information, but I did create a ticket and it's been passed to the team.", true))).not.toContain("R1");
   });
   it("R9 no placeholder names", () => {
     expect(ids(input(5, "Welcome to My Business! I don't have that information.", false))).toContain("R9");

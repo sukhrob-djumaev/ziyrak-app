@@ -8,7 +8,10 @@
     "passed it to the team",
     "i['\u2019]ll pass",
     "has been passed",
-    "have been passed"
+    "have been passed",
+    "(?:it|that|this)['\u2019]s been passed",
+    "been passed (?:on )?to",
+    "i (?:did |also )?(?:create|raise|open)d? (?:a|the) ticket"
   ],
   "offerHandoff": [
     "would you like me to",

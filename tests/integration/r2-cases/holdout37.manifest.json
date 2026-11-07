@@ -1,0 +1,14 @@
+{
+  "set": "holdout37",
+  "frozenAt": "2026-11-06",
+  "cases": 45,
+  "sha256": "520e2b4825595e4af644278fa8646cbbcd2143b065bd9c2c3082ec635d6dea91",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout36 gate (replies called the hand-off urgent)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout36 (consumed 2026-11-06: failed-tool 73.3%, replies said 'for urgent attention')."
+}

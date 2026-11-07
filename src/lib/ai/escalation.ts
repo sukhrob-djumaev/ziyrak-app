@@ -82,13 +82,16 @@ const CLAIMS_HANDOFF = new RegExp(
   "i",
 );
 
+// Refusing to share hidden or private data is not a knowledge gap, so it must not silently flag the conversation for a person.
+const REFUSES_TO_DISCLOSE = /\b(?:can(?:'|\u2019)?t|cannot|can not|won(?:'|\u2019)?t|unable to)\s+(?:share|disclose|reveal|give out)\b/i;
+
 export function decideEscalation(input: EscalationInput): { escalate: boolean; reasons: EscalationReason[] } {
   const reasons: EscalationReason[] = [];
   if (input.handoff) reasons.push("handoff");
   else {
     if (isExplicitHumanRequest(input.userMessage)) reasons.push("human_requested");
     const supported = input.retrievedCount > 0 || input.toolOutcomes.some((t) => t.success && t.status !== "pending_approval");
-    if (!supported && !isSocialTurn(input.userMessage)) reasons.push("no_support");
+    if (!supported && !isSocialTurn(input.userMessage) && !REFUSES_TO_DISCLOSE.test(input.response)) reasons.push("no_support");
     if (input.toolOutcomes.some((t) => t.status === "pending_approval")) reasons.push("tool_pending");
     if (input.toolOutcomes.some((t) => !t.success && t.status !== "pending_approval")) reasons.push("tool_failed");
     const lower = input.response.toLowerCase();

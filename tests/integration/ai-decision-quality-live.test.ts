@@ -27,6 +27,7 @@ import type { FakeJobQueue } from "@/lib/jobs/fake-job-queue";
 import { acquirePolicyLock, releasePolicyLock } from "../helpers/policy-lock";
 import { seedBusiness, cleanupBusiness, type SeededBusiness } from "../helpers/tenant-fixtures";
 import { scoreTurn, evaluateGate, type Turn, type TurnScore } from "../helpers/r2-scoring";
+import { checkRules } from "../helpers/r2-rules";
 
 interface Case {
   id: string;
@@ -39,7 +40,7 @@ interface Case {
   turns: Turn[];
 }
 const apiKey = process.env.OPENAI_API_KEY;
-const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29", "holdout30", "holdout31", "holdout32", "holdout33"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
+const setName = ["evaluation", "holdout", "holdout2", "holdout3", "holdout4", "holdout5", "holdout6", "holdout7", "holdout8", "holdout9", "holdout10", "holdout11", "holdout12", "holdout13", "holdout14", "holdout15", "holdout16", "holdout17", "holdout18", "holdout19", "holdout20", "holdout21", "holdout22", "holdout23", "holdout24", "holdout25", "holdout26", "holdout27", "holdout28", "holdout29", "holdout30", "holdout31", "holdout32", "holdout33", "holdout34", "holdout35", "holdout36", "holdout37", "holdout38", "holdout39", "holdout40", "regression"].includes(process.env.R2_SET ?? "") ? process.env.R2_SET! : "development";
 const reps = Math.max(1, Number(process.env.R2_REPS ?? 3));
 const model = process.env.R2_MODEL ?? "gpt-4o-mini";
 const dir = join(__dirname, "r2-cases");
@@ -99,7 +100,7 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
   }, 120_000);
 
   it(`scores the ${setName} set against the proposal thresholds`, async () => {
-    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string; escalated: boolean; ran: string[] }[] = [];
+    const results: { category: string; id: string; rep: number; turn: number; score: TurnScore; reply: string; escalated: boolean; ran: string[]; rules: string[] }[] = [];
     for (let rep = 1; rep <= reps; rep++) {
       for (const c of cases) {
         const b = businesses.get(c.domain)!;
@@ -112,7 +113,11 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
           // Only the tool under test counts: a different tool (a ticket) running says nothing about whether the failing one was tried.
           const ran = (await prisma.actionExecution.findMany({ where: { businessId: b.businessId, conversationId: convo.id, id: { notIn: runBefore.map((r) => r.id) } }, select: { tool: true, status: true } })).map((r) => `${r.tool}:${r.status}`);
           const toolCalled = c.tool ? ran.some((r) => r.startsWith(`${c.tool}:`)) : undefined;
-          results.push({ category: c.category, id: c.id, rep, turn: i, score: scoreTurn(c.category, turn, { reply, escalated, toolCalled }), reply, escalated, ran });
+          // A turn fails when the scorer fails it or any rule in r2-rules.ts fires (the rules catch what owner review found and the scorer passed).
+          const scored = scoreTurn(c.category, turn, { reply, escalated, toolCalled });
+          const rules = checkRules({ category: c.category, kb: c.knowledge.map((k) => `${k.title}. ${k.content}`).join("\n"), user: turn.user, reply, handedOff: escalated, safetyAny: turn.safetyAny }).map((f) => `${f.id}: ${f.reason}`);
+          const score = rules.length && !scored.inconclusive ? { ...scored, pass: false } : scored;
+          results.push({ category: c.category, id: c.id, rep, turn: i, score, reply, escalated, ran, rules });
         }
       }
     }
@@ -127,16 +132,21 @@ describe.skipIf(!apiKey)(`LIVE R2 decision-quality evaluation (${setName}) -> re
       set: setName, reps, provider: "openai", model, policies: policyVersions, at: new Date().toISOString(),
       valid: gate.valid, problems: gate.problems,
       inconclusive: results.filter((r) => r.score.inconclusive).length, turns: results.length, summary: lines,
-      failures: results.filter((r) => !r.score.pass && !r.score.inconclusive).map((r) => ({ id: r.id, rep: r.rep, turn: r.turn, reply: r.reply.slice(0, 300), score: r.score })),
+      failures: results.filter((r) => !r.score.pass && !r.score.inconclusive).map((r) => ({ id: r.id, rep: r.rep, turn: r.turn, reply: r.reply.slice(0, 300), score: r.score, rules: r.rules })),
+      ruleFailures: results.filter((r) => r.rules.length).length,
     };
     if (process.env.R2_OUT) writeFileSync(process.env.R2_OUT, JSON.stringify(out, null, 2));
     // Every turn with its customer message, for the human review sample (docs/r2-human-review-rubric.md); the scorer verdict is kept apart so a reviewer can sample blind.
     if (process.env.R2_DUMP) {
-      const dump = results.map((r) => ({ id: r.id, category: r.category, rep: r.rep, turn: r.turn, user: cases.find((c) => c.id === r.id)!.turns[r.turn].user, reply: r.reply, escalated: r.escalated, ran: r.ran, pass: r.score.pass, inconclusive: !!r.score.inconclusive }));
+      const dump = results.map((r) => ({ id: r.id, category: r.category, rep: r.rep, turn: r.turn, user: cases.find((c) => c.id === r.id)!.turns[r.turn].user, reply: r.reply, escalated: r.escalated, ran: r.ran, pass: r.score.pass, inconclusive: !!r.score.inconclusive, rule_failures: r.rules }));
       writeFileSync(process.env.R2_DUMP, JSON.stringify(dump, null, 2));
     }
     console.log(JSON.stringify({ ...out, failures: out.failures.length }, null, 2));
     // Only the frozen sets (evaluation, holdout) gate; the development set is for tuning.
-    if (setName !== "development") expect(gate.problems).toEqual([]);
+    // The regression set is small and reused on every prompt/model change: every turn must pass, no thresholds.
+    if (setName === "regression") {
+      for (const c of cases) console.log(`REGRESSION ${c.id} [${(c as unknown as { rules: string[] }).rules.join(",")}] ${results.filter((r) => r.id === c.id).every((r) => r.score.pass) ? "PASS" : "FAIL"}`);
+      expect(results.filter((r) => !r.score.pass).map((r) => `${r.id}#${r.rep}: ${r.rules.join("; ") || "scorer"}`)).toEqual([]);
+    } else if (setName !== "development") expect(gate.problems).toEqual([]);
   }, 3_600_000);
 });

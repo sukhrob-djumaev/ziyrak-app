@@ -1,0 +1,14 @@
+{
+  "set": "holdout36",
+  "frozenAt": "2026-11-06",
+  "cases": 45,
+  "sha256": "bcf4afeb1a224f3458cf0fc231df81ffc185802fe9aee03859a46b2868a37eec",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout35 gate (failed-email substitute described as the team being notified)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout35 (consumed 2026-11-06: failed-tool 86.7%, two replies said the team was notified after the email failed)."
+}

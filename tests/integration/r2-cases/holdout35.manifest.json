@@ -1,0 +1,14 @@
+{
+  "set": "holdout35",
+  "frozenAt": "2026-11-05",
+  "cases": 45,
+  "sha256": "ce74f927ee3c1eade069671af518f0f1dc32eb14bf6030ab971974db886e1145",
+  "rules": [
+    "Authored before any scoring run against this set, after the holdout34 gate (emergency number wording, closing offers, silent no_support flag on disclosure refusals)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout34 (consumed 2026-11-05: invalid, no 112 on injuries, 3 silent escalations, closing offer in multi-turn)."
+}

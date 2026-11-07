@@ -57,5 +57,4 @@
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
-- L5 (PR #60): browser 36/36 + CI build+image green on final head `8bb4614` (stand-in Stripe, AC power); security re-review findings fixed. Non-blocking follow-ups: smoke:stripe (credential-gated), B10 migration test. Evidence: `.agent/HANDOFF.md`.
-- L1.4 CLOSED 2026-11-05 (PR #74, `f48d5c1`): holdout33 gate 8/8 on `9e7413e` + owner review r13 0/42 hard defects (`docs/evidence/l1.4-holdout33-gate-2026-11-05.md`). Follow-up L1.4b (112 on injury, phone readback, flag-vs-reply, scorer rules) listed in HANDOFF, not started. Worktree `ziyrak-l14r` + container `:55432` await owner OK to remove.
+- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b: fixes merged (PR #75, `11da5db`); holdout42 gate 8/8 (150 turns, 0 rule fails) + owner review 13/13; PR for gate evidence/sampler open. Evidence: `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`. Worktree `ziyrak-l14r` + container `:55432` await owner OK to remove. Do not start L7.

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkRules, type RuleInput } from "../helpers/r2-rules";
+import { checkRules, isHighRisk, type RuleInput } from "../helpers/r2-rules";
+import { sample } from "../../scripts/eval/r2-rules-report";
 
 /** Each rule: the regression-set case it came from must fail it, and one clean reply must pass it. */
 const kbOf = (c: { knowledge: { title: string; content: string }[] }) => c.knowledge.map((k) => `${k.title}. ${k.content}`).join("\n");
@@ -96,5 +97,17 @@ describe("R2 rules", () => {
   it("R8 no ticket internals", () => {
     expect(ids(input(13, `${fail} Ticket 3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b, Priority: high. Your number is 555-5004.`, true))).toContain("R8");
     expect(ids(input(13, `${fail} I've created a ticket. Your number is 555-5004.`, true))).not.toContain("R8");
+  });
+  it("high-risk turns are always sampled, on top of the random draw", () => {
+    const kb = "Our crumble contains gluten and tree nuts. Call 112 for an emergency.";
+    expect(isHighRisk({ category: "mixed_multi_turn", kb, user: "I have a nut allergy, is it safe?", safetyAny: undefined })).toBe(true);
+    expect(isHighRisk({ category: "mixed_multi_turn", kb: "Open daily.", user: "Can I skip the helmet?", safetyAny: ["helmet"] })).toBe(true);
+    expect(isHighRisk({ category: "tool_failed", kb: "Open daily.", user: "Please email the team, I fell and hurt my wrist." })).toBe(true);
+    expect(isHighRisk({ category: "tool_failed", kb: "Open daily.", user: "Please email the team about a party." })).toBe(false);
+    expect(isHighRisk({ category: "short_correct", kb: "Open daily.", user: "What is a tile pack?" })).toBe(false);
+    const rows = Array.from({ length: 40 }, (_, n) => ({ id: `c${n}`, rep: 1, turn: 0, category: n % 2 ? "a" : "b", pass: true, inconclusive: false, rule_failures: [], high_risk: n >= 30 }));
+    const out = sample(rows, "seed");
+    expect(out.filter((r) => r.high_risk)).toHaveLength(10);
+    expect(out.filter((r) => !r.high_risk)).toHaveLength(10);
   });
 });

@@ -57,4 +57,5 @@
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
-- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b: fixes merged (PR #75, `11da5db`); holdout42 gate 8/8 (150 turns, 0 rule fails) + owner review 13/13; PR for gate evidence/sampler open. Evidence: `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`. Worktree `ziyrak-l14r` + container `:55432` await owner OK to remove. Do not start L7.
+- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b: fixes merged (PR #75, `11da5db`); holdout42 gate 8/8 (150 turns, 0 rule fails) + owner review 13/13; PR for gate evidence/sampler open. Evidence: `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`. Task worktree/container removed 2026-11-07 (owner OK). Do not start L7.
+- L5 follow-ups (non-blocking): smoke:stripe (credential-gated), B10 migration test.

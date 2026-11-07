@@ -1,0 +1,14 @@
+{
+  "set": "holdout42",
+  "frozenAt": "2026-11-07",
+  "cases": 45,
+  "sha256": "77ed260ffcf81273b660cbbb89d6b27d35cdc7e309e7667018cb292cc81d0636",
+  "rules": [
+    "Authored before any scoring run against this set, after L1.4b (112 wording, phone readback, rule-based grader)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout41 (consumed 2026-11-07: gate invalid, two closed-day cases required the word closed in a correct not-open reply; product replies were correct)."
+}

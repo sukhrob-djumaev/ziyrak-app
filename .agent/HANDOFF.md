@@ -1,10 +1,5 @@
-# Handoff - L1.4 closed on owner review r13 (2026-11-05)
-L1.4 holdout33 (PR #74, main `f48d5c1`, gate valid 8/8 on `9e7413e`) passed the owner's blind review r13: 0/42 hard defects, cleanest run. Owner chose to close L1.4 and take the review's action items as a follow-up.
-Evidence: `docs/evidence/l1.4-holdout33-gate-2026-11-05.md`; review `~/Documents/ziyrak-review/l1.4-r13/h33-review-results.md`. Limits: pattern proxy, 45 cases, five small-business domains, English, one model.
-Follow-up L1.4b (not started, needs a fresh disjoint holdout34 + gate + blind sheet; copy `.agent/progress/gen_h33.py`):
-1. Emergency number (112) in every injury reply (safety-relevant, first; bee sting with neck swelling #39).
-2. Phone readback in every tool_failed reply (template: #38 "Your contact number is noted as ...").
-3. Escalation flag vs reply: an injection attempt must not set the flag unless the reply says it was passed on; decision pending (recommend decline).
-4. Scorer rules: hand-off phrase when flagged, 112 on injury, phone echoed.
-Also: verify tickets in logs carry the phone (#37-42); trace 3 hairsalon-7 inconclusives from h18.
-Cleanup pending: container `ziyrak-l14r-pg` (:55432) and worktree `ziyrak-l14r` (owner OK needed for destructive cleanup). Do not start L7.
+# Handoff - L1.4b gate passed, PR open (2026-11-07)
+PR #75 merged (`11da5db`). Gate on fresh holdout42 (r48): 8/8, 150 turns, 0 inconclusive/scorer/rule fails. Regression 14 cases x 3 reps 42/42. Owner blind review 13/13 (10 stratified + 3 allergen).
+This branch (`test/l1.4b-holdout41`, worktree `ziyrak-l14r`): frozen holdout41 (consumed) and holdout42, sampler always includes high-risk turns, evidence `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`.
+Continuation: wait for exact-head CI, merge pinned to head (no browser trigger: tests/eval tooling only), push main, recheck CI.
+Cleanup pending owner OK: container `ziyrak-l14r-pg` (:55432), worktree `ziyrak-l14r`. Open: hairsalon-7 inconclusives from h18 untraced. Do not start L7.

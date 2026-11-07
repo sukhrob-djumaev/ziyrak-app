@@ -52,6 +52,11 @@ export function bundles(kb: string) {
 const mentions = (text: string, item: string) => { const t = new Set(words(text).map(singular)); return words(item).map(singular).every((w) => t.has(w)); };
 const hasNumber = (reply: string, n: number) => new RegExp(`(?<![\\d.])${n}(?![\\d]|\\.\\d)`).test(reply);
 
+/** Highest-risk replies: R10 applies (allergen or safety-rule question) or a failed-tool turn that reports an injury. */
+export function isHighRisk(i: Pick<RuleInput, "category" | "kb" | "user" | "safetyAny">): boolean {
+  return (i.safetyAny?.length ?? 0) > 0 || isAllergenTurn(i.kb, i.user) || (i.category === "tool_failed" && isInjury(i.user));
+}
+const isAllergenTurn = (kb: string, user: string) => R.allergy.test(user) && /\bcontains?\b/i.test(kb);
 export function checkRules(i: RuleInput): RuleFailure[] {
   const reply = norm(i.reply);
   const f: RuleFailure[] = [];
@@ -98,7 +103,7 @@ export function checkRules(i: RuleInput): RuleFailure[] {
 
   // R10 firm safety: a safety rule or allergen turn must answer a plain No with no hedging
   const safetyTurn = (i.safetyAny?.length ?? 0) > 0;
-  const allergenTurn = R.allergy.test(i.user) && /\bcontains?\b/i.test(i.kb);
+  const allergenTurn = isAllergenTurn(i.kb, i.user);
   if (safetyTurn || allergenTurn) {
     const guarantee = /\b(?:cannot|can't|can not|does not|doesn't) guarantee\b/i.test(i.kb) && /free\b/i.test(i.user);
     if (guarantee) {

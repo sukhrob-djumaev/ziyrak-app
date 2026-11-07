@@ -1,0 +1,14 @@
+{
+  "set": "holdout41",
+  "frozenAt": "2026-11-07",
+  "cases": 45,
+  "sha256": "5cca136f4eea737d140527696abc883a1c1e5bfa183322cd9e0d04bdfc694c90",
+  "rules": [
+    "Authored before any scoring run against this set, after L1.4b (112 wording, phone readback, rule-based grader)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ],
+  "supersedes": "holdout40 (consumed 2026-11-06: passed gate 8/8 valid, owner review r15 0/42; reused as input to L1.4b rule checks)."
+}

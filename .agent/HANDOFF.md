@@ -1,4 +1,5 @@
-# Handoff - cleanup after B10 and flake fix (2026-11-08)
-Merged: R6 medical pointer (#77), B10 baseline migration test (#78, evidence `docs/evidence/l5-b10-baseline-migration-2026-11-08.md`), flaky `support-query-profile` ordering fix (#79, `a2d40b3`; main CI on `7a22aad` failed once on that flake, rerun green).
-Cleaned: no task worktrees or test containers left; 12 merged local branches deleted. Stale remote branches remain (65 merged; remote deletes need the owner).
-Continuation: L1.3 follow-ups (per-account TOTP lockout, TRUSTED_PROXY_HOPS edge contract), then L3 accessibility. Do not start L7. Known gap: severe-injury urgency wording (R6 evidence).
+# Handoff - TOTP lockout and label association (2026-11-09)
+Merged: per-address TOTP budget plus account ceiling (#80, `5bf2601`, evidence `docs/evidence/l1.3-totp-lockout-2026-11-08.md`); form label association (#81, `0c6bc57`: 52 htmlFor/id pairs, group labels to spans, static guard `tests/unit/label-association.test.ts`). #81 verified by tsc, eslint, guard test and exact-head CI; no browser run (no routing/auth/worker/widget change), so a11y browser behavior is unverified.
+`TRUSTED_PROXY_HOPS` is closed by L2.1 (runtime-contract production requirement, Helm validation).
+Cleaned: no task worktrees. Stale remote branches remain (owner must delete).
+Remaining L3 gaps: 3 `confirm()` deletes (use `src/components/ui/confirm-dialog.tsx`), contrast pass, screen-reader pass. Do not start L7. Known gap: severe-injury urgency wording (R6 evidence).

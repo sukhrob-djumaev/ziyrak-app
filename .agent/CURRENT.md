@@ -56,5 +56,5 @@
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
-- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b merged (#75, #76); R6 medical pointer branch merging 2026-11-08 with severe-injury urgency wording a KNOWN GAP. Evidence: `docs/evidence/l1.4b-r6-medical-pointer-2026-11-08.md`.
-- L5 follow-ups (non-blocking): smoke:stripe (credential-gated). B10 migration test: see `docs/evidence/l5-b10-baseline-migration-2026-11-08.md`.
+- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b merged (#75, #76); R6 medical pointer merged (#77) 2026-11-08 with severe-injury urgency wording a KNOWN GAP. Evidence: `docs/evidence/l1.4b-r6-medical-pointer-2026-11-08.md`.
+- L5 follow-ups (non-blocking): smoke:stripe (credential-gated). B10 migration test MERGED (#78): see `docs/evidence/l5-b10-baseline-migration-2026-11-08.md`.

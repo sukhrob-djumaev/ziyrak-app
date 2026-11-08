@@ -318,10 +318,10 @@ export default function SLAPage() {
 
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-sla-page-f1" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Name
                 </label>
-                <input
+                <input id="dashboard-sla-page-f1"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -331,10 +331,10 @@ export default function SLAPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-sla-page-f2" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Description
                 </label>
-                <input
+                <input id="dashboard-sla-page-f2"
                   type="text"
                   value={form.description}
                   onChange={(e) =>
@@ -347,10 +347,10 @@ export default function SLAPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-sla-page-f3" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Channel
                   </label>
-                  <select
+                  <select id="dashboard-sla-page-f3"
                     value={form.channel}
                     onChange={(e) =>
                       setForm({ ...form, channel: e.target.value })
@@ -365,10 +365,10 @@ export default function SLAPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-sla-page-f4" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Priority
                   </label>
-                  <select
+                  <select id="dashboard-sla-page-f4"
                     value={form.priority}
                     onChange={(e) =>
                       setForm({ ...form, priority: e.target.value })
@@ -386,10 +386,10 @@ export default function SLAPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-sla-page-f5" className="block text-sm font-medium text-ziyrak-text mb-1">
                     First Response (minutes)
                   </label>
-                  <input
+                  <input id="dashboard-sla-page-f5"
                     type="number"
                     min={1}
                     value={form.firstResponseMins}
@@ -403,10 +403,10 @@ export default function SLAPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-sla-page-f6" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Resolution (minutes)
                   </label>
-                  <input
+                  <input id="dashboard-sla-page-f6"
                     type="number"
                     min={1}
                     value={form.resolutionMins}

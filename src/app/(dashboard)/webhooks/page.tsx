@@ -159,10 +159,10 @@ function WebhookModal({
         <div className="p-6 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-ziyrak-text mb-1">
+            <label htmlFor="dashboard-webhooks-page-f1" className="block text-sm font-medium text-ziyrak-text mb-1">
               Name
             </label>
-            <input
+            <input id="dashboard-webhooks-page-f1"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -173,10 +173,10 @@ function WebhookModal({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-ziyrak-text mb-1">
+            <label htmlFor="dashboard-webhooks-page-f2" className="block text-sm font-medium text-ziyrak-text mb-1">
               Description (optional)
             </label>
-            <input
+            <input id="dashboard-webhooks-page-f2"
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -187,10 +187,10 @@ function WebhookModal({
 
           {/* URL */}
           <div>
-            <label className="block text-sm font-medium text-ziyrak-text mb-1">
+            <label htmlFor="dashboard-webhooks-page-f3" className="block text-sm font-medium text-ziyrak-text mb-1">
               URL
             </label>
-            <input
+            <input id="dashboard-webhooks-page-f3"
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -202,10 +202,10 @@ function WebhookModal({
           {/* Method + Trigger */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ziyrak-text mb-1">
+              <label htmlFor="dashboard-webhooks-page-f4" className="block text-sm font-medium text-ziyrak-text mb-1">
                 Method
               </label>
-              <select
+              <select id="dashboard-webhooks-page-f4"
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-theme"
@@ -218,10 +218,10 @@ function WebhookModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ziyrak-text mb-1">
+              <label htmlFor="dashboard-webhooks-page-f5" className="block text-sm font-medium text-ziyrak-text mb-1">
                 Trigger Event
               </label>
-              <select
+              <select id="dashboard-webhooks-page-f5"
                 value={triggerOn}
                 onChange={(e) => setTriggerOn(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-theme"
@@ -237,9 +237,9 @@ function WebhookModal({
 
           {/* Headers */}
           <div>
-            <label className="block text-sm font-medium text-ziyrak-text mb-2">
+            <span className="block text-sm font-medium text-ziyrak-text mb-2">
               Custom Headers
-            </label>
+            </span>
             <div className="space-y-2">
               {headerPairs.map((pair, i) => (
                 <div key={i} className="flex items-center gap-2">

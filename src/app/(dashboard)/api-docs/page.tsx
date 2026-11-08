@@ -601,10 +601,10 @@ function TryItPanel({ endpoint }: { endpoint: Endpoint }) {
               {allParams.map((p) => (
                 <div key={p.name} className="flex items-start gap-3">
                   <div className="w-40 flex-shrink-0">
-                    <label className="text-sm font-medium text-ziyrak-text">
+                    <span className="text-sm font-medium text-ziyrak-text">
                       {p.name}
                       {p.required && <span className="text-ziyrak-danger ml-0.5">*</span>}
-                    </label>
+                    </span>
                     <p className="text-xs text-ziyrak-text-light">{p.type}</p>
                   </div>
                   <input

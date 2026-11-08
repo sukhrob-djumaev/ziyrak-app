@@ -122,10 +122,10 @@ function DepartmentForm({
         </p>
       )}
       <div>
-        <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+        <label htmlFor="dashboard-team-page-f1" className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Name <span className="text-ziyrak-danger">*</span>
         </label>
-        <input
+        <input id="dashboard-team-page-f1"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -135,10 +135,10 @@ function DepartmentForm({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+        <label htmlFor="dashboard-team-page-f2" className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Description
         </label>
-        <textarea
+        <textarea id="dashboard-team-page-f2"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brief description of this department"
@@ -147,10 +147,10 @@ function DepartmentForm({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+        <label htmlFor="dashboard-team-page-f3" className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Email
         </label>
-        <input
+        <input id="dashboard-team-page-f3"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -228,10 +228,10 @@ function MemberForm({
       )}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+          <label htmlFor="dashboard-team-page-f4" className="block text-sm font-medium text-ziyrak-text mb-1.5">
             Name <span className="text-ziyrak-danger">*</span>
           </label>
-          <input
+          <input id="dashboard-team-page-f4"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -241,10 +241,10 @@ function MemberForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+          <label htmlFor="dashboard-team-page-f5" className="block text-sm font-medium text-ziyrak-text mb-1.5">
             Email <span className="text-ziyrak-danger">*</span>
           </label>
-          <input
+          <input id="dashboard-team-page-f5"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -256,10 +256,10 @@ function MemberForm({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+          <label htmlFor="dashboard-team-page-f6" className="block text-sm font-medium text-ziyrak-text mb-1.5">
             Phone
           </label>
-          <input
+          <input id="dashboard-team-page-f6"
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -268,10 +268,10 @@ function MemberForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+          <label htmlFor="dashboard-team-page-f7" className="block text-sm font-medium text-ziyrak-text mb-1.5">
             Role
           </label>
-          <select
+          <select id="dashboard-team-page-f7"
             value={role}
             onChange={(e) => setRole(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary"
@@ -284,10 +284,10 @@ function MemberForm({
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+        <label htmlFor="dashboard-team-page-f8" className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Department <span className="text-ziyrak-danger">*</span>
         </label>
-        <select
+        <select id="dashboard-team-page-f8"
           value={departmentId}
           onChange={(e) => setDepartmentId(e.target.value)}
           required
@@ -304,10 +304,10 @@ function MemberForm({
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+        <label htmlFor="dashboard-team-page-f9" className="block text-sm font-medium text-ziyrak-text mb-1.5">
           Expertise
         </label>
-        <input
+        <input id="dashboard-team-page-f9"
           type="text"
           value={expertise}
           onChange={(e) => setExpertise(e.target.value)}

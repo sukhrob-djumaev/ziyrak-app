@@ -520,10 +520,10 @@ export default function AutomationPage() {
               {/* Name & Description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+                  <label htmlFor="dashboard-automation-page-f1" className="block text-sm font-medium text-ziyrak-text mb-1.5">
                     Rule Name
                   </label>
-                  <input
+                  <input id="dashboard-automation-page-f1"
                     type="text"
                     value={form.name}
                     onChange={(e) =>
@@ -534,10 +534,10 @@ export default function AutomationPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+                  <label htmlFor="dashboard-automation-page-f2" className="block text-sm font-medium text-ziyrak-text mb-1.5">
                     Priority
                   </label>
-                  <input
+                  <input id="dashboard-automation-page-f2"
                     type="number"
                     value={form.priority}
                     onChange={(e) =>
@@ -553,10 +553,10 @@ export default function AutomationPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+                <label htmlFor="dashboard-automation-page-f3" className="block text-sm font-medium text-ziyrak-text mb-1.5">
                   Description
                 </label>
-                <input
+                <input id="dashboard-automation-page-f3"
                   type="text"
                   value={form.description}
                   onChange={(e) =>
@@ -569,9 +569,9 @@ export default function AutomationPage() {
 
               {/* Type Selector */}
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1.5">
+                <span className="block text-sm font-medium text-ziyrak-text mb-1.5">
                   Rule Type
-                </label>
+                </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {creatableRuleTypes.map((rt) => (
                     <button
@@ -603,9 +603,9 @@ export default function AutomationPage() {
               {/* Conditions */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-ziyrak-text">
+                  <span className="text-sm font-medium text-ziyrak-text">
                     Conditions
-                  </label>
+                  </span>
                   <button
                     onClick={addCondition}
                     className="text-xs text-ziyrak-primary hover:text-ziyrak-primary-dark font-medium transition-colors"
@@ -670,9 +670,9 @@ export default function AutomationPage() {
               {/* Actions */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-ziyrak-text">
+                  <span className="text-sm font-medium text-ziyrak-text">
                     {getActionLabel(form.type)}
-                  </label>
+                  </span>
                   <button
                     onClick={addAction}
                     className="text-xs text-ziyrak-primary hover:text-ziyrak-primary-dark font-medium transition-colors"

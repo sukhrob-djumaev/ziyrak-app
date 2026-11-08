@@ -549,10 +549,10 @@ export default function KnowledgeBasePage() {
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <label htmlFor="dashboard-knowledge-page-f1" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Name
                 </label>
-                <input
+                <input id="dashboard-knowledge-page-f1"
                   type="text"
                   value={categoryForm.name}
                   onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
@@ -562,10 +562,10 @@ export default function KnowledgeBasePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <label htmlFor="dashboard-knowledge-page-f2" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Description
                 </label>
-                <input
+                <input id="dashboard-knowledge-page-f2"
                   type="text"
                   value={categoryForm.description}
                   onChange={(e) =>
@@ -577,9 +577,9 @@ export default function KnowledgeBasePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <span className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Color
-                </label>
+                </span>
                 <div className="flex items-center gap-2 flex-wrap">
                   {colorPresets.map((c) => (
                     <button
@@ -649,10 +649,10 @@ export default function KnowledgeBasePage() {
 
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <label htmlFor="dashboard-knowledge-page-f3" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Title
                 </label>
-                <input
+                <input id="dashboard-knowledge-page-f3"
                   type="text"
                   value={entryForm.title}
                   onChange={(e) => setEntryForm({ ...entryForm, title: e.target.value })}
@@ -662,10 +662,10 @@ export default function KnowledgeBasePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <label htmlFor="dashboard-knowledge-page-f4" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Content
                 </label>
-                <textarea
+                <textarea id="dashboard-knowledge-page-f4"
                   value={entryForm.content}
                   onChange={(e) => setEntryForm({ ...entryForm, content: e.target.value })}
                   placeholder="Write the knowledge content that the AI will use when responding to customers..."
@@ -675,9 +675,9 @@ export default function KnowledgeBasePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                <span className="block text-xs font-medium text-ziyrak-text mb-1.5">
                   Priority
-                </label>
+                </span>
                 <div className="flex items-center gap-2">
                   {PRIORITIES.map((p) => {
                     const Icon = p.icon;

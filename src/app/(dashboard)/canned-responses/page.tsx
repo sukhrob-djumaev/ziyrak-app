@@ -321,10 +321,10 @@ export default function CannedResponsesPage() {
 
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="hboard-canned-responses-page-f1" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Title
                 </label>
-                <input
+                <input id="hboard-canned-responses-page-f1"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -334,10 +334,10 @@ export default function CannedResponsesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="hboard-canned-responses-page-f2" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Content
                 </label>
-                <textarea
+                <textarea id="hboard-canned-responses-page-f2"
                   value={form.content}
                   onChange={(e) =>
                     setForm({ ...form, content: e.target.value })
@@ -350,10 +350,10 @@ export default function CannedResponsesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="hboard-canned-responses-page-f3" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Category
                   </label>
-                  <input
+                  <input id="hboard-canned-responses-page-f3"
                     type="text"
                     value={form.category}
                     onChange={(e) =>
@@ -364,10 +364,10 @@ export default function CannedResponsesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="hboard-canned-responses-page-f4" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Shortcut
                   </label>
-                  <input
+                  <input id="hboard-canned-responses-page-f4"
                     type="text"
                     value={form.shortcut}
                     onChange={(e) =>

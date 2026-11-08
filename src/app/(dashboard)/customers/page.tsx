@@ -700,10 +700,10 @@ export default function CustomersPage() {
                   {editMode ? (
                     <div className="space-y-2">
                       <div>
-                        <label className="text-xs text-ziyrak-text-light font-medium">
+                        <label htmlFor="dashboard-customers-page-f1" className="text-xs text-ziyrak-text-light font-medium">
                           Email
                         </label>
-                        <input
+                        <input id="dashboard-customers-page-f1"
                           type="email"
                           value={editForm.email}
                           onChange={(e) =>
@@ -714,10 +714,10 @@ export default function CustomersPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-ziyrak-text-light font-medium">
+                        <label htmlFor="dashboard-customers-page-f2" className="text-xs text-ziyrak-text-light font-medium">
                           Phone
                         </label>
-                        <input
+                        <input id="dashboard-customers-page-f2"
                           type="tel"
                           value={editForm.phone}
                           onChange={(e) =>
@@ -728,10 +728,10 @@ export default function CustomersPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-ziyrak-text-light font-medium">
+                        <label htmlFor="dashboard-customers-page-f3" className="text-xs text-ziyrak-text-light font-medium">
                           WhatsApp
                         </label>
-                        <input
+                        <input id="dashboard-customers-page-f3"
                           type="tel"
                           value={editForm.whatsapp}
                           onChange={(e) =>
@@ -1012,10 +1012,10 @@ export default function CustomersPage() {
             </div>
             <div className="px-5 py-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-customers-page-f4" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Name *
                 </label>
-                <input
+                <input id="dashboard-customers-page-f4"
                   type="text"
                   value={addForm.name}
                   onChange={(e) =>
@@ -1027,10 +1027,10 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-customers-page-f5" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Email
                 </label>
-                <input
+                <input id="dashboard-customers-page-f5"
                   type="email"
                   value={addForm.email}
                   onChange={(e) =>
@@ -1041,10 +1041,10 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-customers-page-f6" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Phone
                 </label>
-                <input
+                <input id="dashboard-customers-page-f6"
                   type="tel"
                   value={addForm.phone}
                   onChange={(e) =>
@@ -1055,10 +1055,10 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-customers-page-f7" className="block text-sm font-medium text-ziyrak-text mb-1">
                   WhatsApp
                 </label>
-                <input
+                <input id="dashboard-customers-page-f7"
                   type="tel"
                   value={addForm.whatsapp}
                   onChange={(e) =>
@@ -1069,10 +1069,10 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-customers-page-f8" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Tags
                 </label>
-                <input
+                <input id="dashboard-customers-page-f8"
                   type="text"
                   value={addForm.tags}
                   onChange={(e) =>

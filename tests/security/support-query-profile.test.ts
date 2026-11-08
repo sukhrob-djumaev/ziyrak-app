@@ -333,9 +333,18 @@ const messageList = {
 describe("P1 support text-message query profile, real isolated Postgres", () => {
   let text: { id: string }[];
   beforeEach(async () => {
+    // Strictly increasing createdAt so the asc/id ordering never tie-breaks on a random uuid.
+    let tick = Date.parse("2026-01-01T00:00:00Z");
     const add = (conversationId: string, content: string, extra: Record<string, unknown> = {}) =>
       prisma.message.create({
-        data: { businessId: a.businessId, conversationId, role: "customer", content, ...extra },
+        data: {
+          businessId: a.businessId,
+          conversationId,
+          role: "customer",
+          content,
+          createdAt: new Date((tick += 1000)),
+          ...extra,
+        },
       });
     text = [await add(rows[0].id, "visible text one"), await add(rows[0].id, "visible text two")];
     await add(rows[0].id, "private-media", { mediaType: "image", mediaUrl: "https://x.invalid/a" });

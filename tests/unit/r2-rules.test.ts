@@ -14,7 +14,7 @@ const input = (n: number, reply: string, handedOff: boolean): RuleInput => {
 const ids = (i: RuleInput) => checkRules(i).map((f) => f.id);
 
 describe("R2 rules", () => {
-  it("has the 14 regression cases", () => expect(reg).toHaveLength(14));
+  it("has the 19 regression cases", () => expect(reg).toHaveLength(19));
 
   it("R14 bundle price", () => {
     expect(ids(input(1, "A haircut is 20 dollars and a beard trim is 12 dollars, so 32 dollars in total.", false))).toContain("R14");
@@ -93,6 +93,25 @@ describe("R2 rules", () => {
   it("R7 no unverified priority", () => {
     expect(ids({ ...input(13, `${fail} I've created a ticket with high priority. Your number is 555-5004.`, true) })).toContain("R7");
     expect(ids(input(13, `${fail} I've created a ticket. Your number is 555-5004.`, true))).not.toContain("R7");
+  });
+  it("R7 also rejects immediate/priority wording", () => {
+    for (const w of ["I will handle this immediately.", "It is an immediate matter.", "We will treat it as a priority."]) expect(ids(input(13, `${fail} ${w} Your number is 555-5004.`, true))).toContain("R7");
+  });
+  it("R10 'cautious' only fails instead of a firm No", () => {
+    expect(ids(input(8, "Please be cautious with the scones.", false))).toContain("R10");
+    expect(ids(input(8, "No, it is not safe for you. Our scones contain nuts, so be cautious.", false))).not.toContain("R10");
+  });
+  it("R15 (strict mode only, known gap) red-flag injuries lead with urgency; R16 control gets no medical line", () => {
+    process.env.R2_STRICT_RED_FLAG = "1";
+    const base = (n: number, reply: string) => ids(input(n, reply, true));
+    const ok = "That did not go through. Please get medical help now. If it gets worse, call the emergency number, 112, straight away. Your contact number is noted as";
+    expect(base(17, `${ok} 555-5504.`)).not.toContain("R15");
+    expect(base(17, "That did not go through. Please get medical help if you need it. If it is an emergency, call 112. Your contact number is noted as 555-5504.")).toContain("R15");
+    expect(isHighRisk({ category: "tool_failed", kb: "Open daily.", user: reg[16].turns[0].user })).toBe(true);
+    expect(base(19, `${fail} Your contact number is noted as 555-1806.`)).not.toContain("R16");
+    expect(base(19, `${fail} Please get medical help if you need it. Your contact number is noted as 555-1806.`)).toContain("R16");
+    expect(isHighRisk({ category: "tool_failed", kb: "Open daily.", user: reg[18].turns[0].user })).toBe(true);
+    delete process.env.R2_STRICT_RED_FLAG;
   });
   it("R8 no ticket internals", () => {
     expect(ids(input(13, `${fail} Ticket 3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b, Priority: high. Your number is 555-5004.`, true))).toContain("R8");

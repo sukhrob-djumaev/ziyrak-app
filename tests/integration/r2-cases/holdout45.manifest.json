@@ -1,0 +1,13 @@
+{
+  "set": "holdout45",
+  "frozenAt": "2026-11-08",
+  "cases": 50,
+  "sha256": "b33da825861692a2a9fdf8cf2231557a94ce31b6512b9e8b2da32e77c5faf436",
+  "rules": [
+    "Authored before any scoring run against this set, after the R6 prompt fix (red-flag urgency wording withheld; head/eye urgency is a known gap) (medical pointer in every injury reply, including a failed tool)."
+  ],
+  "limitations": [
+    "50 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ]
+}

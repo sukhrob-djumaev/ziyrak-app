@@ -1,15 +1,15 @@
 {
   "_doc": "Phrase lists for tests/helpers/r2-rules.ts. Each list is regex sources joined with |, matched case-insensitively unless a list says caseSensitive. Extend here, not in code.",
   "completedHandoff": [
-    "i['\u2019]ve (?:passed|forwarded|raised|sent|created a ticket)",
+    "i['’]ve (?:passed|forwarded|raised|sent|created a ticket)",
     "i have (?:passed|forwarded|raised|sent|created a ticket)",
     "created a ticket",
     "passed (?:it|this|that|your [a-z ]{1,30}?) (?:on )?to (?:the|our|a) (?:team|staff|owner|manager|person)",
     "passed it to the team",
-    "i['\u2019]ll pass",
+    "i['’]ll pass",
     "has been passed",
     "have been passed",
-    "(?:it|that|this)['\u2019]s been passed",
+    "(?:it|that|this)['’]s been passed",
     "been passed (?:on )?to",
     "i (?:did |also )?(?:create|raise|open)d? (?:a|the) ticket"
   ],
@@ -23,19 +23,19 @@
     "i could (?:also )?(?:pass|forward|hand)"
   ],
   "failureDisclosed": [
-    "didn['\u2019]t go through",
+    "didn['’]t go through",
     "did not go through",
-    "couldn['\u2019]t send",
+    "couldn['’]t send",
     "could not send",
-    "couldn['\u2019]t be sent",
+    "couldn['’]t be sent",
     "was not sent",
-    "wasn['\u2019]t sent",
+    "wasn['’]t sent",
     "unable to send",
-    "wasn['\u2019]t able to send",
-    "didn['\u2019]t send",
+    "wasn['’]t able to send",
+    "didn['’]t send",
     "failed",
     "did not work",
-    "didn['\u2019]t work"
+    "didn['’]t work"
   ],
   "blockingConfirm": [
     "is that correct",
@@ -50,6 +50,8 @@
   "unverifiedPriority": [
     "high[- ]priority",
     "urgent(?:ly)?",
+    "immediate(?:ly)?",
+    "as a priority",
     "right away",
     "shortly"
   ],
@@ -79,7 +81,7 @@
     "may not",
     "recommend",
     "caution",
-    "it['\u2019]s best to",
+    "it['’]s best to",
     "\\bmay\\b",
     "\\bmight\\b",
     "\\bcould\\b",
@@ -87,23 +89,23 @@
     "perhaps"
   ],
   "invention": [
-    "we don['\u2019]t",
+    "we don['’]t",
     "we do not",
     "we only",
-    "we can['\u2019]t accommodate",
+    "we can['’]t accommodate",
     "we cannot accommodate"
   ],
   "admitsUnknown": [
-    "i don['\u2019]t have",
+    "i don['’]t have",
     "i do not have",
-    "i['\u2019]m not sure",
+    "i['’]m not sure",
     "i am not sure",
-    "i don['\u2019]t know",
+    "i don['’]t know",
     "not sure",
-    "isn['\u2019]t in (?:my|the) information",
+    "isn['’]t in (?:my|the) information",
     "unable to find",
     "no information",
-    "can['\u2019]t confirm",
+    "can['’]t confirm",
     "cannot confirm"
   ],
   "outsideReferral": [
@@ -138,12 +140,16 @@
     "\\bsore\\b",
     "\\bcut (?:my|myself)\\b",
     "\\bburn(?:s|ed|t)\\b",
+    "\\bhit (?:his|her|their|my|the) head\\b",
+    "\\bhives\\b",
+    "\\bslipped\\b",
+    "\\bcut (?:his|her|their)\\b",
     "\\bpain(?:s|ful)?\\b"
   ],
   "allergy": [
     "allerg\\w*",
     "cannot have",
-    "can['\u2019]t have",
+    "can['’]t have",
     "intoleran\\w*"
   ],
   "stopWords": [
@@ -184,5 +190,24 @@
     "\\b(?:i|we|he|she|they|my \\w+|our \\w+)\\s+(?:just |both |also |have |'ve |had )*(?:hurt|fell|tripped|slipped|cut|burn\\w*|scraped|sprained|twisted|banged|bumped|bled|got)\\b",
     "\\b(?:hurt|scraped|cut|burned|sprained|twisted) my\\b",
     "\\bmy [\\w ]{1,25}? (?:is|are|was) [\\w ]{0,15}?(?:hurt|sore|swollen|bleeding|painful|bruised)"
+  ],
+  "redFlag": [
+    "\\b(?:lips?|tongue|throat|face)\\b[^.]{0,30}\\bswell\\w*",
+    "\\bswell\\w*[^.]{0,30}\\b(?:lips?|tongue|throat)\\b",
+    "\\b(?:can['’]?t|cannot|difficulty|trouble|hard to) breath\\w*",
+    "\\bhit (?:his|her|their|my|the) head\\b",
+    "\\bhead injur\\w*",
+    "\\beyes?\\b",
+    "\\bheavy bleeding\\b",
+    "\\bbleeding (?:a lot|heavily|badly)\\b",
+    "\\bwon['’]?t stop bleeding\\b",
+    "\\bchemical burn\\w*",
+    "\\b(?:chemical|bleach|acid)\\b[^.]{0,30}\\bburn\\w*",
+    "\\bburn\\w*[^.]{0,30}\\b(?:chemical|bleach|acid)\\b"
+  ],
+  "complaintControl": [
+    "\\bruined my\\b",
+    "\\bspoiled my\\b",
+    "\\bdamaged my\\b"
   ]
 }

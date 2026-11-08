@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // L1.3: platform accounts add a second factor. A challenge or failure issues no session at all.
-    const second = await loginSecondFactor(user, { code: body.mfaCode, recoveryCode: body.recoveryCode });
+    const second = await loginSecondFactor(user, { code: body.mfaCode, recoveryCode: body.recoveryCode }, getClientIp(request));
     if (second === "challenge") {
       return NextResponse.json({ error: "Second factor required", mfaRequired: true }, { status: 401 });
     }

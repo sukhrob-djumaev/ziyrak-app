@@ -1,5 +1,6 @@
 "use client";
 
+import { cloneElement, isValidElement, useId } from "react";
 import { Header } from "@/components/layout/header";
 import { cn } from "@/lib/utils";
 import {
@@ -148,11 +149,12 @@ function FormField({
   description?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-ziyrak-text">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-ziyrak-text">{label}</label>
       {description && <p className="text-xs text-ziyrak-text-light">{description}</p>}
-      {children}
+      {isValidElement<{ id?: string }>(children) ? cloneElement(children, { id: children.props.id ?? id }) : children}
     </div>
   );
 }
@@ -161,18 +163,20 @@ const inputClasses =
   "w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text placeholder:text-ziyrak-text-light/60 focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-colors";
 
 function TextInput({
+  id,
   value,
   onChange,
   placeholder,
   type = "text",
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
 }) {
   return (
-    <input
+    <input id={id}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -183,18 +187,20 @@ function TextInput({
 }
 
 function NumberInput({
+  id,
   value,
   onChange,
   min,
   max,
 }: {
+  id?: string;
   value: number;
   onChange: (v: number) => void;
   min?: number;
   max?: number;
 }) {
   return (
-    <input
+    <input id={id}
       type="number"
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
@@ -206,18 +212,20 @@ function NumberInput({
 }
 
 function TextareaInput({
+  id,
   value,
   onChange,
   placeholder,
   rows = 3,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   rows?: number;
 }) {
   return (
-    <textarea
+    <textarea id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -228,16 +236,18 @@ function TextareaInput({
 }
 
 function SelectInput({
+  id,
   value,
   onChange,
   options,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClasses}>
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputClasses}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
@@ -248,10 +258,12 @@ function SelectInput({
 }
 
 function PasswordInput({
+  id,
   value,
   onChange,
   placeholder,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -260,7 +272,7 @@ function PasswordInput({
 
   return (
     <div className="relative">
-      <input
+      <input id={id}
         type={visible ? "text" : "password"}
         value={value}
         onChange={(e) => onChange(e.target.value)}

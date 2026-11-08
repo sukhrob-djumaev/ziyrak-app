@@ -454,10 +454,10 @@ export default function TicketsPage() {
               {/* Status and Priority Controls */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                  <label htmlFor="dashboard-tickets-page-f1" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                     Status
                   </label>
-                  <select
+                  <select id="dashboard-tickets-page-f1"
                     value={selectedTicket.status}
                     onChange={(e) =>
                       handleUpdateTicket(selectedTicket.id, {
@@ -476,10 +476,10 @@ export default function TicketsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                  <label htmlFor="dashboard-tickets-page-f2" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                     Priority
                   </label>
-                  <select
+                  <select id="dashboard-tickets-page-f2"
                     value={selectedTicket.priority}
                     onChange={(e) =>
                       handleUpdateTicket(selectedTicket.id, {
@@ -501,10 +501,10 @@ export default function TicketsPage() {
 
               {/* Department */}
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                <label htmlFor="dashboard-tickets-page-f3" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                   Department
                 </label>
-                <select
+                <select id="dashboard-tickets-page-f3"
                   value={selectedTicket.departmentId || ""}
                   onChange={(e) =>
                     handleUpdateTicket(selectedTicket.id, {
@@ -524,9 +524,9 @@ export default function TicketsPage() {
 
               {/* Assigned To */}
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                <span className="block text-xs font-medium text-ziyrak-text-light mb-1">
                   Assigned To
-                </label>
+                </span>
                 <div className="flex items-center gap-2 px-3 py-2 border border-ziyrak-border rounded-lg bg-ziyrak-bg">
                   <User className="h-4 w-4 text-ziyrak-text-light" />
                   <span className="text-sm text-ziyrak-text">
@@ -537,9 +537,9 @@ export default function TicketsPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                <span className="block text-xs font-medium text-ziyrak-text-light mb-1">
                   Description
-                </label>
+                </span>
                 <div className="px-3 py-2.5 border border-ziyrak-border rounded-lg bg-ziyrak-bg min-h-[80px]">
                   <p className="text-sm text-ziyrak-text whitespace-pre-wrap">
                     {selectedTicket.description || "No description provided."}
@@ -550,9 +550,9 @@ export default function TicketsPage() {
               {/* Linked Conversation */}
               {selectedTicket.conversation && (
                 <div>
-                  <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                  <span className="block text-xs font-medium text-ziyrak-text-light mb-1">
                     Linked Conversation
-                  </label>
+                  </span>
                   <div className="flex items-center gap-3 px-3 py-2.5 border border-ziyrak-border rounded-lg bg-ziyrak-bg">
                     <MessageSquare className="h-4 w-4 text-ziyrak-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -576,10 +576,10 @@ export default function TicketsPage() {
 
               {/* Resolution */}
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+                <label htmlFor="dashboard-tickets-page-f4" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                   Resolution
                 </label>
-                <textarea
+                <textarea id="dashboard-tickets-page-f4"
                   value={selectedTicket.resolution}
                   onChange={(e) => {
                     setSelectedTicket({
@@ -640,10 +640,10 @@ export default function TicketsPage() {
 
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-tickets-page-f5" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Title
                 </label>
-                <input
+                <input id="dashboard-tickets-page-f5"
                   type="text"
                   value={createForm.title}
                   onChange={(e) =>
@@ -655,10 +655,10 @@ export default function TicketsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                <label htmlFor="dashboard-tickets-page-f6" className="block text-sm font-medium text-ziyrak-text mb-1">
                   Description
                 </label>
-                <textarea
+                <textarea id="dashboard-tickets-page-f6"
                   value={createForm.description}
                   onChange={(e) =>
                     setCreateForm({
@@ -674,10 +674,10 @@ export default function TicketsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-tickets-page-f7" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Priority
                   </label>
-                  <select
+                  <select id="dashboard-tickets-page-f7"
                     value={createForm.priority}
                     onChange={(e) =>
                       setCreateForm({
@@ -697,10 +697,10 @@ export default function TicketsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ziyrak-text mb-1">
+                  <label htmlFor="dashboard-tickets-page-f8" className="block text-sm font-medium text-ziyrak-text mb-1">
                     Department
                   </label>
-                  <select
+                  <select id="dashboard-tickets-page-f8"
                     value={createForm.departmentId}
                     onChange={(e) =>
                       setCreateForm({

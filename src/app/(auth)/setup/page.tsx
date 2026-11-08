@@ -236,9 +236,9 @@ export default function SetupPage() {
                 placeholder="The first message customers see"
               />
               <div>
-                <label className="block text-sm font-medium text-ziyrak-text mb-2">
+                <span className="block text-sm font-medium text-ziyrak-text mb-2">
                   Response Tone
-                </label>
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   {TONE_OPTIONS.map((t) => (
                     <button

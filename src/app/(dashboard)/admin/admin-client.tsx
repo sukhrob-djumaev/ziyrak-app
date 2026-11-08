@@ -903,8 +903,8 @@ export default function AdminClient({
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">Role</label>
-                <select
+                <label htmlFor="dashboard-admin-admin-client-f1" className="block text-xs font-medium text-ziyrak-text mb-1.5">Role</label>
+                <select id="dashboard-admin-admin-client-f1"
                   value={userForm.role}
                   onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary bg-ziyrak-surface text-ziyrak-text"
@@ -974,10 +974,10 @@ export default function AdminClient({
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-medium text-ziyrak-text mb-1.5">
+                    <label htmlFor="dashboard-admin-admin-client-f2" className="block text-xs font-medium text-ziyrak-text mb-1.5">
                       Customer profiles
                     </label>
-                    <select
+                    <select id="dashboard-admin-admin-client-f2"
                       value={accessForm.profile}
                       onChange={(e) =>
                         setAccessForm({
@@ -1090,8 +1090,8 @@ export default function AdminClient({
               )}
 
               <div>
-                <label className="block text-xs font-medium text-ziyrak-text mb-1.5">Key Name</label>
-                <input
+                <label htmlFor="dashboard-admin-admin-client-f3" className="block text-xs font-medium text-ziyrak-text mb-1.5">Key Name</label>
+                <input id="dashboard-admin-admin-client-f3"
                   type="text"
                   value={keyForm.name}
                   onChange={(e) => setKeyForm({ name: e.target.value })}

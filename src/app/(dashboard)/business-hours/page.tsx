@@ -320,10 +320,10 @@ export default function BusinessHoursPage() {
 
           {/* Timezone */}
           <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
-            <label className="block text-sm font-semibold text-ziyrak-text mb-2">
+            <label htmlFor="ashboard-business-hours-page-f1" className="block text-sm font-semibold text-ziyrak-text mb-2">
               Timezone
             </label>
-            <select
+            <select id="ashboard-business-hours-page-f1"
               value={config.timezone}
               onChange={(e) =>
                 setConfig((c) => ({ ...c, timezone: e.target.value }))
@@ -425,7 +425,7 @@ export default function BusinessHoursPage() {
 
           {/* Offline Message */}
           <div className="bg-ziyrak-surface border border-ziyrak-border rounded-xl p-5">
-            <label className="block text-sm font-semibold text-ziyrak-text mb-2">
+            <label htmlFor="business-hours-offline-message" className="block text-sm font-semibold text-ziyrak-text mb-2">
               Offline Message
             </label>
             <p className="text-xs text-ziyrak-text-light mb-3">
@@ -433,6 +433,7 @@ export default function BusinessHoursPage() {
               outside business hours.
             </p>
             <textarea
+              id="business-hours-offline-message"
               value={config.offlineMessage}
               onChange={(e) =>
                 setConfig((c) => ({

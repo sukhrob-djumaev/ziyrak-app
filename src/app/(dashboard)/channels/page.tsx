@@ -18,7 +18,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/components/layout/permissions";
 import { WebChatCard } from "@/components/channels/webchat-card";
@@ -108,14 +108,16 @@ function FieldInput({
   isSecret?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
+  const inputId = useId();
 
   return (
     <div>
-      <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+      <label htmlFor={inputId} className="block text-xs font-medium text-ziyrak-text-light mb-1">
         {label}
       </label>
       <div className="relative">
         <input
+          id={inputId}
           type={isSecret && !visible ? "password" : type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -254,9 +256,9 @@ function WhatsAppCard({
       <div className="p-5 space-y-4">
         {/* Mode selector */}
         <div>
-          <label className="block text-xs font-medium text-ziyrak-text-light mb-2">
+          <span className="block text-xs font-medium text-ziyrak-text-light mb-2">
             Connection Method
-          </label>
+          </span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -716,10 +718,10 @@ function PhoneCard({
               isSecret
             />
             <div>
-              <label className="block text-xs font-medium text-ziyrak-text-light mb-1">
+              <label htmlFor="dashboard-channels-page-f1" className="block text-xs font-medium text-ziyrak-text-light mb-1">
                 Voice
               </label>
-              <select
+              <select id="dashboard-channels-page-f1"
                 value={elevenLabsVoice}
                 onChange={(e) => setElevenLabsVoice(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-ziyrak-border rounded-lg bg-ziyrak-bg text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary/30 focus:border-ziyrak-primary transition-colors"

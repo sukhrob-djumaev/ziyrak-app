@@ -1,5 +1,4 @@
-# Handoff - L1.4b gate passed, PR open (2026-11-07)
-PR #75 merged (`11da5db`). Gate on fresh holdout42 (r48): 8/8, 150 turns, 0 inconclusive/scorer/rule fails. Regression 14 cases x 3 reps 42/42. Owner blind review 13/13 (10 stratified + 3 allergen).
-This branch (`test/l1.4b-holdout41`, worktree `ziyrak-l14r`): frozen holdout41 (consumed) and holdout42, sampler always includes high-risk turns, evidence `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`.
-Continuation: wait for exact-head CI, merge pinned to head (no browser trigger: tests/eval tooling only), push main, recheck CI.
-PR #76 merged (`473da85`, main CI green). Container and worktree removed (owner OK). Open: hairsalon-7 inconclusives from h18 untraced. Do not start L7.
+# Handoff - R6 medical pointer, merging (2026-11-08)
+Branch `fix/r6-medical-pointer` (worktree `ziyrak-r6`): injury prompt wording (medical pointer incl. failed tool), rules R7/R10/R15(advisory)/R16, regression 19 cases, holdout43/44/45 frozen. Evidence `docs/evidence/l1.4b-r6-medical-pointer-2026-11-08.md`.
+Results: h44 gate 8/8 + owner review 0 defects; h45 gate FAILED on severe-injury "immediate attention" wording; owner accepted merge with that as a known gap (server-side red-flag hint or stronger model later).
+Continuation: exact-head CI, merge pinned (no browser trigger), push main, recheck CI; remove container `ziyrak-r6-pg` and worktree. Then L5 B10 migration test, L1.3 follow-ups (TOTP lockout, TRUSTED_PROXY_HOPS), L3 accessibility. Do not start L7.

@@ -1,0 +1,13 @@
+{
+  "set": "holdout44",
+  "frozenAt": "2026-11-07",
+  "cases": 45,
+  "sha256": "cad4cf1555c888af55e010789bcb600f4cfc5877619f745330169e754398fe90",
+  "rules": [
+    "Authored before any scoring run against this set, after the R6 prompt fix (medical pointer in every injury reply, including a failed tool)."
+  ],
+  "limitations": [
+    "45 cases in 5 small-business domains, English only, single provider/model per run: not a general measure of answer quality.",
+    "Pattern/substring checks are a proxy; a human rubric review of a sample is still required (docs/evidence/l1.4)."
+  ]
+}

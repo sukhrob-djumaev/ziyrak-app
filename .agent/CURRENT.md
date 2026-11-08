@@ -44,7 +44,6 @@
 - Meta A visible reply recorded on `905b4ca` (Oct25); B not retested; old waiver is not a pass.
   One historical Gmail message is not production-sender verify/reset/invitation acceptance.
 - New dashboard findings D01–D11 are source-only. Billing is specified, not implemented. L0 ran no app/provider tests.
-
 ## Operational boundaries
 - Main may serve a live worker. Installed Next/eslint-config-next16.4.0 vs lock16.4.3;
   Puppeteer24.43.1 vs lock25.15.0 (Oct25 audit). Do not install/build here.
@@ -57,5 +56,5 @@
 Within selected implementation scope, merge only with exact-head CI green and required combined-build browser green,
 then push main/recheck CI when that standing instruction applies. This preparation performs only local commits; CI green alone never proves browser acceptance.
 Stop for tags/deploys/releases, destructive cleanup, new scope, real credential/mail actions and protected topology.
-- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b: fixes merged (PR #75, `11da5db`); holdout42 gate 8/8 (150 turns, 0 rule fails) + owner review 13/13; PR for gate evidence/sampler open. Evidence: `docs/evidence/l1.4b-holdout42-gate-2026-11-07.md`. Task worktree/container removed 2026-11-07 (owner OK). Do not start L7.
+- L1.4 CLOSED 2026-11-05 (PR #74). L1.4b merged (#75, #76); R6 medical pointer branch merging 2026-11-08 with severe-injury urgency wording a KNOWN GAP. Evidence: `docs/evidence/l1.4b-r6-medical-pointer-2026-11-08.md`.
 - L5 follow-ups (non-blocking): smoke:stripe (credential-gated), B10 migration test.

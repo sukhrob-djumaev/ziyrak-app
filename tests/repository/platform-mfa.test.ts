@@ -140,6 +140,28 @@ describe("second factor verification", () => {
     expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 30_000) })).toBe(false);
   });
 
+  it("one address exhausting its budget does not lock the operator out from another address", async () => {
+    const { u, secret } = await enrolled();
+    for (let i = 0; i < 8; i++) await checkSecondFactor(u.id, { code: "000000" }, "203.0.113.9");
+    expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 30_000) }, "203.0.113.9")).toBe(false);
+    expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 30_000) }, "198.51.100.7")).toBe(true);
+  });
+
+  it("many addresses together still hit the per-account ceiling", async () => {
+    const { u, secret } = await enrolled();
+    for (let i = 0; i < 24; i++) await checkSecondFactor(u.id, { code: "000000" }, `192.0.2.${i}`);
+    expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 30_000) }, "198.51.100.7")).toBe(false);
+  });
+
+  it("a successful login clears both the address and the account budget", async () => {
+    const { u, secret } = await enrolled();
+    for (let i = 0; i < 7; i++) await checkSecondFactor(u.id, { code: "000000" }, "203.0.113.9");
+    expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 30_000) }, "203.0.113.9")).toBe(true);
+    for (let i = 0; i < 7; i++) await checkSecondFactor(u.id, { code: "000000" }, "203.0.113.9");
+    expect(await checkSecondFactor(u.id, { code: "000000" }, "203.0.113.9")).toBe(false);
+    expect(await checkSecondFactor(u.id, { code: codeFor(secret, Date.now() + 60_000) }, "203.0.113.9")).toBe(false);
+  });
+
   it("is false for accounts without a factor or without input", async () => {
     const u = await account();
     expect(await checkSecondFactor(u.id, { code: "123456" })).toBe(false);

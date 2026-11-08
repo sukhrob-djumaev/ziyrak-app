@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { getSecretResolver } from "@/lib/secrets/env-key-resolver";
 import type { EncryptedSecret } from "@/lib/secrets/types";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/observability/logger";
 import { sessionCutoff } from "./auth";
 import { ownerProofValid } from "@/lib/platform/access/owner-proof";
 import { base32Decode, base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from "./totp";
@@ -11,13 +12,16 @@ import { base32Decode, base32Encode, generateTotpSecret, otpauthUri, verifyTotp 
 /**
  * L1.3: second factor (TOTP + single-use recovery codes) for platform accounts.
  * - Secrets exist only as SecretResolver ciphertext; recovery codes only as SHA-256 hashes.
- * - An accepted TOTP step is recorded and cannot be reused (replay), and attempts are rate limited per account.
+ * - An accepted TOTP step is recorded and cannot be reused (replay), and attempts are rate limited per account and address.
  * - `ZIYRAK_PLATFORM_MFA=required` makes platform authority demand a session that passed the second factor;
  *   `optional` (default until the enrollment UI ships) only enforces it for accounts that have enrolled.
  */
 export const MFA_ISSUER = "Ziyrak";
 const RECOVERY_CODE_COUNT = 10;
 const ATTEMPTS = { maxRequests: 8, windowMs: 15 * 60 * 1000 };
+// Login budgets: each client address gets its own 8 tries, so someone who knows the password cannot lock the
+// operator out from their own address; the per-account ceiling still bounds a distributed guesser.
+const LOGIN_ACCOUNT_CEILING = { maxRequests: 24, windowMs: 15 * 60 * 1000 };
 
 export const platformMfaMode = (): "required" | "optional" => (process.env.ZIYRAK_PLATFORM_MFA === "required" ? "required" : "optional");
 
@@ -127,9 +131,34 @@ export async function confirmEnrollment(userId: string, code: string): Promise<{
 
 export type SecondFactorInput = { code?: unknown; recoveryCode?: unknown };
 
+const accountKey = (userId: string) => `mfa-attempt:${userId}`;
+const pairKey = (userId: string, address: string) => `mfa-pair:${userId}:${address}`;
+
+/** Spends one attempt from the caller's address budget and the account ceiling; false when either is exhausted. */
+async function spendLoginAttempt(userId: string, address: string | undefined): Promise<boolean> {
+  if (address) {
+    if (!(await checkRateLimit(pairKey(userId, address), ATTEMPTS)).allowed) {
+      logger.warn("[mfa] second-factor attempts exhausted for one address", { userId, address });
+      return false;
+    }
+    if (!(await checkRateLimit(accountKey(userId), LOGIN_ACCOUNT_CEILING)).allowed) {
+      logger.warn("[mfa] second-factor account ceiling reached; every address is blocked until the window ends", { userId });
+      return false;
+    }
+    return true;
+  }
+  // No address available (internal callers): the strict per-account budget applies.
+  return (await checkRateLimit(accountKey(userId), ATTEMPTS)).allowed;
+}
+
+async function clearLoginBudget(userId: string, address: string | undefined): Promise<void> {
+  await resetRateLimit(accountKey(userId));
+  if (address) await resetRateLimit(pairKey(userId, address));
+}
+
 /** Verifies a TOTP code or a recovery code for an enrolled account. Single use, rate limited, constant failure shape. */
-export async function checkSecondFactor(userId: string, input: SecondFactorInput): Promise<boolean> {
-  if (!(await checkRateLimit(`mfa-attempt:${userId}`, ATTEMPTS)).allowed) return false;
+export async function checkSecondFactor(userId: string, input: SecondFactorInput, address?: string): Promise<boolean> {
+  if (!(await spendLoginAttempt(userId, address))) return false;
   const user = await platformUser(userId);
   if (!user?.mfaEnabledAt || !user.mfaSecretRef) return false;
   if (typeof input.code === "string" && input.code) {
@@ -140,7 +169,7 @@ export async function checkSecondFactor(userId: string, input: SecondFactorInput
       where: { id: userId, OR: [{ mfaLastStep: null }, { mfaLastStep: { lt: verdict.step } }] },
       data: { mfaLastStep: verdict.step },
     });
-    if (advanced.count === 1) await resetRateLimit(`mfa-attempt:${userId}`); // only failures consume the budget
+    if (advanced.count === 1) await clearLoginBudget(userId, address); // only failures consume the budget
     return advanced.count === 1;
   }
   if (typeof input.recoveryCode === "string" && input.recoveryCode) {
@@ -153,7 +182,7 @@ export async function checkSecondFactor(userId: string, input: SecondFactorInput
     });
     if (!match) return false;
     const used = await prisma.mfaRecoveryCode.updateMany({ where: { id: match.id, usedAt: null }, data: { usedAt: new Date() } });
-    if (used.count === 1) await resetRateLimit(`mfa-attempt:${userId}`);
+    if (used.count === 1) await clearLoginBudget(userId, address);
     return used.count === 1;
   }
   return false;
@@ -184,13 +213,14 @@ export type LoginMfaOutcome = "not_required" | "passed" | "challenge" | "invalid
  */
 export async function loginSecondFactor(
   user: { id: string; platformRole: string | null; mfaEnabledAt: Date | null },
-  input: SecondFactorInput
+  input: SecondFactorInput,
+  address?: string
 ): Promise<LoginMfaOutcome> {
   if (!user.platformRole) return "not_required";
   if (user.mfaEnabledAt) {
     const supplied = (typeof input.code === "string" && input.code) || (typeof input.recoveryCode === "string" && input.recoveryCode);
     if (!supplied) return "challenge";
-    return (await checkSecondFactor(user.id, input)) ? "passed" : "invalid";
+    return (await checkSecondFactor(user.id, input, address)) ? "passed" : "invalid";
   }
   return platformMfaMode() === "required" ? "enroll" : "not_required";
 }

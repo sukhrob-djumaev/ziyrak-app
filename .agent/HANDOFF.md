@@ -1,4 +1,4 @@
-# Handoff - B10 migration test (2026-11-08)
-R6 merged (PR #77, `6ebb35f`); local container/worktree/branch cleaned; remote branch `fix/r6-medical-pointer` still exists (delete was denied; owner may run it).
-Branch `test/b10-baseline-migration` (worktree `ziyrak-b10`, container `ziyrak-b10-pg` port 55435): `tests/repository/baseline-migration.test.ts` 4/4, tsc + lint clean. Evidence `docs/evidence/l5-b10-baseline-migration-2026-11-08.md`.
-Continuation: exact-head CI, merge pinned (tests only, no browser), push main, recheck CI, remove container/worktree. Then L1.3 follow-ups (per-account TOTP lockout, TRUSTED_PROXY_HOPS), L3 accessibility. Do not start L7.
+# Handoff - cleanup after B10 and flake fix (2026-11-08)
+Merged: R6 medical pointer (#77), B10 baseline migration test (#78, evidence `docs/evidence/l5-b10-baseline-migration-2026-11-08.md`), flaky `support-query-profile` ordering fix (#79, `a2d40b3`; main CI on `7a22aad` failed once on that flake, rerun green).
+Cleaned: no task worktrees or test containers left; 12 merged local branches deleted. Stale remote branches remain (65 merged; remote deletes need the owner).
+Continuation: L1.3 follow-ups (per-account TOTP lockout, TRUSTED_PROXY_HOPS edge contract), then L3 accessibility. Do not start L7. Known gap: severe-injury urgency wording (R6 evidence).

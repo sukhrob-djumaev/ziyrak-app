@@ -25,6 +25,7 @@ import { useState, useEffect, useCallback } from "react";
 import { submitJson } from "@/lib/http/submit-json";
 import { useReportWrite } from "@/lib/hooks/use-report-write";
 import { LoadFailed } from "@/components/ui/load-failed";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn, formatDate, getStatusColor, getChannelLabel } from "@/lib/utils";
 
 // ---------- Types ----------
@@ -148,6 +149,7 @@ export default function CustomersPage() {
     tags: "",
   });
   const [addLoading, setAddLoading] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Detail tab
   const [detailTab, setDetailTab] = useState<"notes" | "conversations">(
@@ -240,7 +242,6 @@ export default function CustomersPage() {
   };
 
   const handleDeleteCustomer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
     const result = await submitJson(`/api/customers/${id}`, "DELETE");
     if (!reportWrite("Deleting the customer", result)) return;
     if (selectedCustomer?.id === id) setSelectedCustomer(null);
@@ -489,7 +490,7 @@ export default function CustomersPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteCustomer(customer.id);
+                            setDeleteId(customer.id);
                           }}
                           className="p-1.5 text-ziyrak-text-light hover:text-ziyrak-danger hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete customer"
@@ -1106,6 +1107,19 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteId !== null}
+        onCancel={() => setDeleteId(null)}
+        onConfirm={async () => {
+          const id = deleteId;
+          setDeleteId(null);
+          if (id) await handleDeleteCustomer(id);
+        }}
+        destructive
+        title="Delete this customer?"
+        description="This removes the customer from your list. Are you sure?"
+        confirmLabel="Delete"
+      />
     </>
   );
 }

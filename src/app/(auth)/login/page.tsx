@@ -26,10 +26,6 @@ export default function LoginPage() {
           return;
         }
         if (data.authenticated) {
-          if (data.mfaEnrollmentRequired) {
-        router.replace("/platform/mfa");
-        return;
-      }
       router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
           return;
         }
@@ -74,6 +70,10 @@ export default function LoginPage() {
         return;
       }
 
+      if (data.mfaEnrollmentRequired) {
+        router.replace("/platform/mfa");
+        return;
+      }
       router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
     } catch {
       setError("An unexpected error occurred. Please try again.");

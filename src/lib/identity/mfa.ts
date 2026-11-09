@@ -14,7 +14,7 @@ import { base32Decode, base32Encode, generateTotpSecret, otpauthUri, verifyTotp 
  * - Secrets exist only as SecretResolver ciphertext; recovery codes only as SHA-256 hashes.
  * - An accepted TOTP step is recorded and cannot be reused (replay), and attempts are rate limited per account and address.
  * - `ZIYRAK_PLATFORM_MFA=required` makes platform authority demand a session that passed the second factor;
- *   `optional` (default until the enrollment UI ships) only enforces it for accounts that have enrolled.
+ *   `optional` (the default; set `required` in production once operators are enrolled) only enforces it for accounts that have enrolled.
  */
 export const MFA_ISSUER = "Ziyrak";
 const RECOVERY_CODE_COUNT = 10;

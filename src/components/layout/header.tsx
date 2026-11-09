@@ -122,7 +122,7 @@ export function Header({ title, description, actions }: HeaderProps) {
             aria-expanded={userMenuOpen}
             aria-label={me ? `Account menu for ${me.user.name || me.user.username}` : "Account menu"}
             title={me ? `${me.user.name || me.user.username} · ${me.business.name}` : undefined}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-ziyrak-primary text-white text-sm font-medium hover:bg-ziyrak-primary-dark transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-ziyrak-primary-fill text-white text-sm font-medium hover:bg-ziyrak-primary-fill-hover transition-colors"
           >
             {initialOf(me) || <User className="h-4 w-4" />}
           </button>

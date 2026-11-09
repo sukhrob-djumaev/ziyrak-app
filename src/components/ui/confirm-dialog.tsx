@@ -125,8 +125,8 @@ export function ConfirmDialog({
             className={cn(
               "rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-70 flex items-center gap-2",
               destructive
-                ? "bg-ziyrak-danger hover:bg-red-600"
-                : "bg-ziyrak-primary hover:bg-ziyrak-primary-dark"
+                ? "bg-ziyrak-danger-fill hover:bg-red-700"
+                : "bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover"
             )}
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}

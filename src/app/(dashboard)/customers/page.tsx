@@ -328,7 +328,7 @@ export default function CustomersPage() {
         actions={
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
             Add Customer
@@ -556,7 +556,7 @@ export default function CustomersPage() {
                         className={cn(
                           "w-8 h-8 text-sm rounded-lg transition-colors",
                           pageNum === pagination.page
-                            ? "bg-ziyrak-primary text-white"
+                            ? "bg-ziyrak-primary-fill text-white"
                             : "text-ziyrak-text-light hover:bg-ziyrak-primary-50 hover:text-ziyrak-primary"
                         )}
                       >
@@ -630,7 +630,7 @@ export default function CustomersPage() {
                   <>
                     <button
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 text-xs font-medium bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors"
                     >
                       Save
                     </button>
@@ -880,7 +880,7 @@ export default function CustomersPage() {
                           className={cn(
                             "p-2 rounded-lg transition-colors",
                             newNote.trim() && !addingNote
-                              ? "bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark"
+                              ? "bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover"
                               : "bg-ziyrak-border text-ziyrak-text-light cursor-not-allowed"
                           )}
                         >
@@ -1097,7 +1097,7 @@ export default function CustomersPage() {
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                   addForm.name.trim() && !addLoading
-                    ? "bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark"
+                    ? "bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover"
                     : "bg-ziyrak-border text-ziyrak-text-light cursor-not-allowed"
                 )}
               >

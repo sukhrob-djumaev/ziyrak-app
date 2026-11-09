@@ -263,7 +263,7 @@ export default function KnowledgeTestPage() {
                     className={cn(
                       "rounded-xl px-4 py-3 text-sm leading-relaxed",
                       message.role === "user"
-                        ? "bg-ziyrak-primary text-white rounded-br-sm"
+                        ? "bg-ziyrak-primary-fill text-white rounded-br-sm"
                         : "bg-ziyrak-surface border border-ziyrak-border text-ziyrak-text rounded-bl-sm"
                     )}
                   >
@@ -380,7 +380,7 @@ export default function KnowledgeTestPage() {
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send className="h-4 w-4" />
               </button>

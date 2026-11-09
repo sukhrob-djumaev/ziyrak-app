@@ -59,7 +59,7 @@ export function AccountEmailBanner() {
           <input id="accountEmail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3 py-2" />
           <label htmlFor="accountEmailPassword" className="text-xs font-medium">Current password</label>
           <input id="accountEmailPassword" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3 py-2" autoComplete="current-password" />
-          <button id="accountEmailSubmit" type="submit" disabled={busy} className="rounded-lg bg-ziyrak-primary px-3 py-2 font-semibold text-white disabled:opacity-60">
+          <button id="accountEmailSubmit" type="submit" disabled={busy} className="rounded-lg bg-ziyrak-primary-fill px-3 py-2 font-semibold text-white disabled:opacity-60">
             Send confirmation link
           </button>
         </form>

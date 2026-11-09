@@ -128,7 +128,7 @@ export function OnboardingPanel() {
                   type="button"
                   disabled={busy !== null || !view.emailVerified || view.steps[0].status !== "done"}
                   onClick={() => act("test", "/api/onboarding/test-reply", "The assistant answered your test question.")}
-                  className="rounded-lg bg-ziyrak-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                  className="rounded-lg bg-ziyrak-primary-fill px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {busy === "test" ? "Asking..." : step.status === "failed" ? "Try again" : "Run test reply"}
                 </button>
@@ -139,7 +139,7 @@ export function OnboardingPanel() {
                   type="button"
                   disabled={busy !== null || !view.emailVerified || !allDone}
                   onClick={() => act("activate", "/api/onboarding/activate", "Your workspace is active.")}
-                  className="rounded-lg bg-ziyrak-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                  className="rounded-lg bg-ziyrak-primary-fill px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {busy === "activate" ? "Activating..." : "Activate workspace"}
                 </button>

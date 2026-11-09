@@ -142,7 +142,7 @@ export default function CannedResponsesPage() {
         actions={
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
             Add Response
@@ -203,7 +203,7 @@ export default function CannedResponsesPage() {
               {!searchQuery && (
                 <button
                   onClick={openCreateModal}
-                  className="mt-4 flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+                  className="mt-4 flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
                 >
                   <Plus className="h-4 w-4" />
                   Add Response
@@ -395,7 +395,7 @@ export default function CannedResponsesPage() {
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                   form.title.trim() && form.content.trim() && !saving
-                    ? "bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark"
+                    ? "bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover"
                     : "bg-ziyrak-border text-ziyrak-text-light cursor-not-allowed"
                 )}
               >
@@ -434,7 +434,7 @@ export default function CannedResponsesPage() {
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirm)}
-                className="px-4 py-2 text-sm font-medium bg-ziyrak-danger text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium bg-ziyrak-danger-fill text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete
               </button>

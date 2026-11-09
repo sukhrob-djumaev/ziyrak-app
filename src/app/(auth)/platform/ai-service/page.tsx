@@ -57,7 +57,7 @@ function seedBp(p: BillingPolicyView) {
 }
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
-const button = "rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50";
+const button = "rounded bg-ziyrak-primary-fill px-4 py-2 text-white disabled:opacity-50";
 
 export default function AiServicePage() {
   const router = useRouter();

@@ -121,7 +121,7 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
           key={t.id}
           className={cn(
             "flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all animate-in slide-in-from-right",
-            t.type === "success" ? "bg-ziyrak-success text-white" : "bg-ziyrak-danger text-white"
+            t.type === "success" ? "bg-ziyrak-success-fill text-white" : "bg-ziyrak-danger-fill text-white"
           )}
         >
           {t.type === "success" ? (
@@ -337,7 +337,7 @@ function SaveButton({ onClick, saving }: { onClick: () => void; saving: boolean 
           "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors",
           saving
             ? "bg-ziyrak-primary/60 text-white cursor-not-allowed"
-            : "bg-ziyrak-primary hover:bg-ziyrak-primary-dark text-white"
+            : "bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover text-white"
         )}
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

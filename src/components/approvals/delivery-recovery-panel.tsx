@@ -209,7 +209,7 @@ export function DeliveryRecoveryPanel() {
                 reason.trim().length < 5 ||
                 (decision === "resend" && selected.status === "unknown" && !ack)
               }
-              className="px-4 py-2 rounded bg-ziyrak-primary text-white disabled:opacity-50"
+              className="px-4 py-2 rounded bg-ziyrak-primary-fill text-white disabled:opacity-50"
             >
               Save recovery decision
             </button>

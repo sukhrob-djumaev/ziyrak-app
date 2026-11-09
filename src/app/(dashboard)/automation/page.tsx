@@ -287,7 +287,7 @@ export default function AutomationPage() {
         actions={
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
             Add Rule
@@ -305,7 +305,7 @@ export default function AutomationPage() {
               className={cn(
                 "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
                 typeFilter === tab.value
-                  ? "bg-ziyrak-primary text-white"
+                  ? "bg-ziyrak-primary-fill text-white"
                   : "text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50"
               )}
             >
@@ -382,7 +382,7 @@ export default function AutomationPage() {
             </div>
             <button
               onClick={openCreateModal}
-              className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
             >
               <Plus className="h-4 w-4" />
               Create Your First Rule
@@ -472,7 +472,7 @@ export default function AutomationPage() {
                       <div className="flex items-center gap-1.5 ml-auto">
                         <button
                           onClick={() => handleDelete(rule.id)}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-danger rounded-lg hover:bg-red-600 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-danger-fill rounded-lg hover:bg-red-600 transition-colors"
                         >
                           Confirm
                         </button>
@@ -711,7 +711,7 @@ export default function AutomationPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {saving
                   ? "Saving..."

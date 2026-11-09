@@ -145,7 +145,7 @@ function NavPanel({ collapsed, pendingApprovals, onNavigate, footer }: NavPanelP
                       <span
                         data-testid="approvals-badge"
                         className={cn(
-                          "ml-auto rounded-full bg-ziyrak-warning px-1.5 text-[10px] font-semibold leading-4 text-white",
+                          "ml-auto rounded-full bg-ziyrak-warning-fill px-1.5 text-[10px] font-semibold leading-4 text-white",
                           collapsed && "absolute -top-1 -right-1 ml-0"
                         )}
                       >

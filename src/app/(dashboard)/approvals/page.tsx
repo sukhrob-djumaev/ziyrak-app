@@ -153,7 +153,7 @@ export default function ApprovalsPage() {
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 tab === key
-                  ? "bg-ziyrak-primary text-white"
+                  ? "bg-ziyrak-primary-fill text-white"
                   : "bg-ziyrak-surface border border-ziyrak-border text-ziyrak-text-light hover:text-ziyrak-text"
               )}
             >
@@ -245,7 +245,7 @@ export default function ApprovalsPage() {
                         </button>
                         <button
                           onClick={() => setDecision({ action, kind: "approve" })}
-                          className="px-3 py-2 rounded-lg bg-ziyrak-primary text-white text-sm font-medium hover:opacity-90"
+                          className="px-3 py-2 rounded-lg bg-ziyrak-primary-fill text-white text-sm font-medium hover:opacity-90"
                         >
                           Approve
                         </button>

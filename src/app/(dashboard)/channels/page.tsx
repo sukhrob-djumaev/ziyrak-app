@@ -398,7 +398,7 @@ function WhatsAppCard({
               isActive
             )
           }
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 transition-colors"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -584,7 +584,7 @@ function EmailCard({
               isActive
             )
           }
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 transition-colors"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -763,7 +763,7 @@ function PhoneCard({
               isActive
             )
           }
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 transition-colors"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -905,7 +905,7 @@ export default function ChannelsPage() {
             <p className="text-sm text-ziyrak-text-light mt-1">{fetchError}</p>
             <button
               onClick={() => { setLoading(true); fetchChannels(); }}
-              className="mt-3 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary/90 transition-colors"
+              className="mt-3 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary/90 transition-colors"
             >
               Retry
             </button>
@@ -969,8 +969,8 @@ export default function ChannelsPage() {
           className={cn(
             "fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all animate-in slide-in-from-bottom-4 duration-300",
             toast.type === "success"
-              ? "bg-ziyrak-success text-white"
-              : "bg-ziyrak-danger text-white"
+              ? "bg-ziyrak-success-fill text-white"
+              : "bg-ziyrak-danger-fill text-white"
           )}
         >
           {toast.type === "success" ? (

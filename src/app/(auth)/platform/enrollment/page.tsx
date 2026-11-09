@@ -164,7 +164,7 @@ export default function PlatformEnrollmentPage() {
               <button
                 type="submit"
                 disabled={busy || !confirmed || !proof || !reason.trim()}
-                className="rounded bg-ziyrak-primary px-4 py-2 text-white disabled:opacity-50"
+                className="rounded bg-ziyrak-primary-fill px-4 py-2 text-white disabled:opacity-50"
               >
                 {busy
                   ? "Updating…"

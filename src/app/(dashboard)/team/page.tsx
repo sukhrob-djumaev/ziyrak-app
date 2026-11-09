@@ -169,7 +169,7 @@ function DepartmentForm({
         <button
           type="submit"
           disabled={loading || !name.trim()}
-          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {initial ? "Update Department" : "Create Department"}
@@ -326,7 +326,7 @@ function MemberForm({
         <button
           type="submit"
           disabled={loading || !name.trim() || !email.trim() || !departmentId}
-          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {initial ? "Update Member" : "Add Member"}
@@ -374,7 +374,7 @@ function DeleteConfirm({
         <button
           onClick={onConfirm}
           disabled={loading}
-          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-danger hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-danger-fill hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           Delete
@@ -641,7 +641,7 @@ export default function TeamPage() {
                   setMemberModal({ open: true, editing: null });
                 }
               }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
             >
               <Plus className="h-4 w-4" />
               {activeTab === "departments" ? "Add Department" : "Add Member"}
@@ -676,7 +676,7 @@ export default function TeamPage() {
                     onClick={() =>
                       setDeptModal({ open: true, editing: null })
                     }
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     Create Department
@@ -778,7 +778,7 @@ export default function TeamPage() {
                     onClick={() =>
                       setMemberModal({ open: true, editing: null })
                     }
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     Add Member

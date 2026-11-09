@@ -294,7 +294,7 @@ function WebhookModal({
           <button
             onClick={handleSave}
             disabled={saving || !name.trim() || !url.trim()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {isEdit ? "Save Changes" : "Create Webhook"}
@@ -404,7 +404,7 @@ function DeleteConfirm({
             </button>
             <button
               onClick={onConfirm}
-              className="px-4 py-2 bg-ziyrak-danger text-white text-sm font-medium rounded-lg hover:opacity-90 transition-colors"
+              className="px-4 py-2 bg-ziyrak-danger-fill text-white text-sm font-medium rounded-lg hover:opacity-90 transition-colors"
             >
               Delete
             </button>
@@ -494,7 +494,7 @@ export default function WebhooksPage() {
         actions={
           canCreate && <button
             onClick={() => setModalWebhook("new")}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add Webhook
@@ -554,7 +554,7 @@ export default function WebhooksPage() {
               {canCreate ? (
                 <button
                   onClick={() => setModalWebhook("new")}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   Add Your First Webhook

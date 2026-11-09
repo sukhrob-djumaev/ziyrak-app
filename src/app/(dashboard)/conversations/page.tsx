@@ -287,7 +287,7 @@ export default function ConversationsPage() {
                 </p>
                 <button
                   onClick={() => { setLoading(true); fetchConversations(); }}
-                  className="mt-3 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg hover:bg-ziyrak-primary/90 transition-colors"
+                  className="mt-3 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg hover:bg-ziyrak-primary/90 transition-colors"
                 >
                   Retry
                 </button>
@@ -540,7 +540,7 @@ export default function ConversationsPage() {
                           className={cn(
                             "max-w-[75%] rounded-2xl px-4 py-2.5",
                             isAdmin
-                              ? "bg-ziyrak-primary text-white rounded-br-md"
+                              ? "bg-ziyrak-primary-fill text-white rounded-br-md"
                               : "bg-ziyrak-surface border border-ziyrak-border text-ziyrak-text rounded-bl-md"
                           )}
                         >
@@ -610,7 +610,7 @@ export default function ConversationsPage() {
                     className={cn(
                       "p-2.5 rounded-xl transition-colors flex-shrink-0",
                       replyText.trim() && !sending
-                        ? "bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark"
+                        ? "bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover"
                         : "bg-ziyrak-border text-ziyrak-text-light cursor-not-allowed"
                     )}
                   >

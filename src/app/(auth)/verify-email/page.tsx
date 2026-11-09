@@ -30,7 +30,7 @@ function Confirm() {
     <div className="mt-6 space-y-4">
       <p className="text-sm text-ziyrak-text">Confirm that this is your email address to finish setting up your account.</p>
       {state === "failed" && <p role="alert" className="text-sm text-ziyrak-danger">This link is invalid or has expired. Sign in and request a new one.</p>}
-      <button id="confirmEmail" onClick={confirm} disabled={state === "busy" || !token} className="w-full rounded-lg bg-ziyrak-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark disabled:opacity-60">Confirm email address</button>
+      <button id="confirmEmail" onClick={confirm} disabled={state === "busy" || !token} className="w-full rounded-lg bg-ziyrak-primary-fill px-4 py-2.5 text-sm font-semibold text-white hover:bg-ziyrak-primary-fill-hover disabled:opacity-60">Confirm email address</button>
     </div>
   );
 }

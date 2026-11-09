@@ -176,7 +176,7 @@ export function WebChatCard() {
             type="button"
             onClick={handleCreate}
             disabled={busy || loading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
             Create widget
@@ -187,7 +187,7 @@ export function WebChatCard() {
               type="button"
               onClick={handleSaveOrigins}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary rounded-lg disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill rounded-lg disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               Save origins

@@ -281,7 +281,7 @@ export default function KnowledgeBasePage() {
             <h3 className="text-sm font-semibold text-ziyrak-text">Categories</h3>
             <button
               onClick={() => openCategoryModal()}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Add
@@ -404,7 +404,7 @@ export default function KnowledgeBasePage() {
                 </div>
                 <button
                   onClick={() => openEntryModal()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add Entry
@@ -617,7 +617,7 @@ export default function KnowledgeBasePage() {
               <button
                 onClick={saveCategory}
                 disabled={!categoryForm.name.trim() || savingCategory}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingCategory && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingCategory ? "Save Changes" : "Create Category"}
@@ -711,7 +711,7 @@ export default function KnowledgeBasePage() {
               <button
                 onClick={saveEntry}
                 disabled={!entryForm.title.trim() || savingEntry}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingEntry && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingEntry ? "Save Changes" : "Create Entry"}

@@ -81,7 +81,7 @@ export function Pagination({
               className={cn(
                 "flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                 page === currentPage
-                  ? "bg-ziyrak-primary text-white"
+                  ? "bg-ziyrak-primary-fill text-white"
                   : "border border-ziyrak-border bg-ziyrak-surface text-ziyrak-text-light hover:bg-ziyrak-bg hover:text-ziyrak-text"
               )}
             >

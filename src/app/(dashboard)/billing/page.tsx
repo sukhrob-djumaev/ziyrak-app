@@ -133,7 +133,7 @@ function ChangePlan({ status, busy, run, refresh, onError }: { status: Status; b
       {quote && (
         <div className="mt-2" data-testid="upgrade-quote">
           <p>Adds <span className="font-medium">{money(quote.totalMinor, quote.currency)}/{quote.interval}</span>. It starts once the payment is confirmed.</p>
-          <button type="button" disabled={busy} className="mt-1 rounded bg-ziyrak-primary px-3 py-1.5 text-white" data-testid="apply-upgrade"
+          <button type="button" disabled={busy} className="mt-1 rounded bg-ziyrak-primary-fill px-3 py-1.5 text-white" data-testid="apply-upgrade"
             onClick={() => run(async () => { const r = await jsonPost<{ confirmed: boolean }>("/api/billing/change", { lines, quoteHash: quote.quoteHash, quotedAt: quote.quotedAt }); await done(r.confirmed ? "Your add-ons are updated." : "Waiting for the payment to be confirmed."); })}>Confirm and pay</button>
         </div>
       )}
@@ -258,7 +258,7 @@ function Subscription() {
           ) : (
             <div className="mt-3" data-testid="quote">
               <p>Total: <span className="font-medium">{money(quote.totalMinor, quote.currency)}/{quote.interval}</span>. You are sent to our payment partner to pay; nothing is active until the payment is confirmed.</p>
-              <button type="button" disabled={busy} className="mt-2 rounded bg-ziyrak-primary px-3 py-1.5 text-white" data-testid="start-checkout"
+              <button type="button" disabled={busy} className="mt-2 rounded bg-ziyrak-primary-fill px-3 py-1.5 text-white" data-testid="start-checkout"
                 onClick={() => run(async () => { window.location.assign((await post("/api/billing/checkout", { lines, quoteHash: quote.quoteHash, quotedAt: quote.quotedAt })).url); })}>Continue to payment</button>
             </div>
           )}

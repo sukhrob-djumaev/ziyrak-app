@@ -458,7 +458,7 @@ export default function BusinessHoursPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-5 py-2.5 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             >
               {saving ? (
                 "Saving..."

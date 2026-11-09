@@ -637,7 +637,7 @@ function TryItPanel({ endpoint }: { endpoint: Endpoint }) {
           <button
             onClick={handleSend}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-dark transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white text-sm font-medium rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -793,7 +793,7 @@ export default function ApiDocsPage() {
                   className={cn(
                     "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left",
                     isActive
-                      ? "bg-ziyrak-primary text-white"
+                      ? "bg-ziyrak-primary-fill text-white"
                       : "text-ziyrak-text-light hover:bg-ziyrak-surface hover:text-ziyrak-text"
                   )}
                 >

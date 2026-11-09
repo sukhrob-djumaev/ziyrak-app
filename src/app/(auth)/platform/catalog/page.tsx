@@ -22,7 +22,7 @@ type Console = { workspaces: Workspace[]; capabilities: { key: string; label: st
 
 const field = "w-full rounded border border-ziyrak-border bg-ziyrak-bg p-2";
 const cell = "pr-4 py-1 align-top";
-const button = "rounded bg-ziyrak-primary px-3 py-1.5 text-white disabled:opacity-50";
+const button = "rounded bg-ziyrak-primary-fill px-3 py-1.5 text-white disabled:opacity-50";
 const digitsOf = (currency: string | null) => {
   try {
     return currency ? new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2 : 2;

@@ -175,7 +175,7 @@ export default function AnalyticsPage() {
               className={cn(
                 "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
                 period === opt.value
-                  ? "bg-ziyrak-primary text-white"
+                  ? "bg-ziyrak-primary-fill text-white"
                   : "text-ziyrak-text-light hover:text-ziyrak-text"
               )}
             >

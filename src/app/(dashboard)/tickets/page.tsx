@@ -202,7 +202,7 @@ export default function TicketsPage() {
         actions={
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
             New Ticket
@@ -317,7 +317,7 @@ export default function TicketsPage() {
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="mt-4 flex items-center gap-2 px-4 py-2 bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors text-sm font-medium"
+                className="mt-4 flex items-center gap-2 px-4 py-2 bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors text-sm font-medium"
               >
                 <Plus className="h-4 w-4" />
                 Create Ticket
@@ -609,7 +609,7 @@ export default function TicketsPage() {
               </button>
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="px-4 py-2 text-sm font-medium bg-ziyrak-primary text-white rounded-lg hover:bg-ziyrak-primary-dark transition-colors"
+                className="px-4 py-2 text-sm font-medium bg-ziyrak-primary-fill text-white rounded-lg hover:bg-ziyrak-primary-fill-hover transition-colors"
               >
                 Done
               </button>
@@ -734,7 +734,7 @@ export default function TicketsPage() {
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                   createForm.title.trim() && !saving
-                    ? "bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark"
+                    ? "bg-ziyrak-primary-fill text-white hover:bg-ziyrak-primary-fill-hover"
                     : "bg-ziyrak-border text-ziyrak-text-light cursor-not-allowed"
                 )}
               >

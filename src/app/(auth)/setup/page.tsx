@@ -306,7 +306,7 @@ export default function SetupPage() {
             type="button"
             onClick={handleNext}
             disabled={loading}
-            className="rounded-lg bg-ziyrak-primary px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="rounded-lg bg-ziyrak-primary-fill px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-fill-hover focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export default function SetupPage() {
           <button
             type="button"
             onClick={() => router.replace("/login")}
-            className="rounded-lg bg-ziyrak-primary px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-dark focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 transition-colors"
+            className="rounded-lg bg-ziyrak-primary-fill px-5 py-2 text-sm font-semibold text-white hover:bg-ziyrak-primary-fill-hover focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:ring-offset-2 transition-colors"
           >
             Go to sign in
           </button>

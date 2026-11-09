@@ -594,7 +594,7 @@ export default function AdminClient({
               {capabilities.manageUsers && (
                 <button
                   onClick={() => openUserModal()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Invite User
@@ -736,7 +736,7 @@ export default function AdminClient({
               {capabilities.createKeys && (
                 <button
                   onClick={openKeyModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Generate New Key
@@ -1006,7 +1006,7 @@ export default function AdminClient({
               <button
                 onClick={saveUser}
                 disabled={savingUser}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingUser && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingUser ? "Save Changes" : "Send Invitation"}
@@ -1111,7 +1111,7 @@ export default function AdminClient({
               <button
                 onClick={createKey}
                 disabled={savingKey}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {savingKey && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Generate Key
@@ -1162,7 +1162,7 @@ export default function AdminClient({
             <div className="flex items-center justify-end px-5 py-4 border-t border-ziyrak-border">
               <button
                 onClick={() => setNewKeyValue("")}
-                className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary hover:bg-ziyrak-primary-dark rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-ziyrak-primary-fill hover:bg-ziyrak-primary-fill-hover rounded-lg transition-colors"
               >
                 Done
               </button>

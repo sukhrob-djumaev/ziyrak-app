@@ -108,19 +108,13 @@ async function observeStreams(page) {
     );
 
     // Actual token-rotation UI; the open visitor stream retains the old token.
-    owner.once("dialog", (dialog) => {
-      if (
-        dialog.type() === "confirm" &&
-        dialog.message().startsWith("Rotating the token immediately stops every site")
-      )
-        return dialog.accept();
-      return dialog.dismiss();
-    });
+    await L.clickFirst(owner, "button", "Rotate token");
+    await owner.waitForSelector("[role=alertdialog]");
     const [rotated] = await Promise.all([
       owner.waitForResponse(
         (r) => r.request().method() === "POST" && r.url().includes("/rotate-token")
       ),
-      L.clickFirst(owner, "button", "Rotate token"),
+      L.clickFirst(owner, "button", "Yes, rotate"),
     ]);
     out.rotationStatus = rotated.status();
     L.assert(out.rotationStatus === 200, "Token rotation succeeded through the actual UI");

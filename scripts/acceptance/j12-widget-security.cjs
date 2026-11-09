@@ -41,9 +41,11 @@ const get = async (path, headers = {}) => { const r = await fetch(L.BASE + path,
   const msgs = L.sql(`select count(*) from "Message" where content in ('injected via B widget','security probe') and "conversationId"='${aConv}';`);
   out.injectedIntoAConversation = msgs;
   // ---- token rotation through the real dashboard UI ----
-  const ob = await L.launch(creds.A.profile); const op = await ob.newPage(); await op.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.6.21" }); op.on("dialog", (d) => d.accept());
+  const ob = await L.launch(creds.A.profile); const op = await ob.newPage(); await op.setExtraHTTPHeaders({ "X-Forwarded-For": "10.0.6.21" }); let nativeDialogs = 0; op.on("dialog", (d) => { nativeDialogs++; d.accept(); });
   await op.goto(L.BASE + "/channels", { waitUntil: "networkidle0" });
-  await L.clickFirst(op, "button", "Rotate token"); await L.sleep(2000);
+  await L.clickFirst(op, "button", "Rotate token"); await op.waitForSelector("[role=alertdialog]");
+  await L.clickFirst(op, "button", "Yes, rotate"); await L.sleep(2000);
+  L.assert(nativeDialogs === 0, "token rotation uses the in-page confirm dialog, not a native one");
   const snip = await op.$eval("pre", (e) => e.innerText); fs.writeFileSync(L.SP + "/snippet-A-rotated.html", snip);
   const newTok = snip.match(/data-token="([^"]+)"/)[1];
   await L.shot(op, "j12-A-rotated");

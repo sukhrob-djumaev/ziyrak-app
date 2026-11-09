@@ -16,9 +16,9 @@
   --ziyrak-sidebar: #1E293B;
   --ziyrak-sidebar-hover: #334155;
   --ziyrak-sidebar-active: #4A7C9B;
-  --ziyrak-success: #22C55E;
-  --ziyrak-warning: #F59E0B;
-  --ziyrak-danger: #EF4444;
+  --ziyrak-success: #15803D;
+  --ziyrak-warning: #B45309;
+  --ziyrak-danger: #DC2626;
 }
 
 .dark {
@@ -37,6 +37,9 @@
   --ziyrak-sidebar: #0F172A;
   --ziyrak-sidebar-hover: #1E293B;
   --ziyrak-sidebar-active: #4A7C9B;
+  --ziyrak-success: #22C55E;
+  --ziyrak-warning: #F59E0B;
+  --ziyrak-danger: #EF4444;
 }
 
 @theme inline {

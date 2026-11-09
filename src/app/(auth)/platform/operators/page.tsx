@@ -53,6 +53,9 @@ export default function OperatorsPage() {
   const [expires, setExpires] = useState("");
   const [assignmentReason, setAssignmentReason] = useState("");
   const [revokeReason, setRevokeReason] = useState("");
+  const [mfaTarget, setMfaTarget] = useState("");
+  const [mfaReason, setMfaReason] = useState("");
+  const [setupCode, setSetupCode] = useState("");
   async function load() {
     const response = await fetch("/api/platform/operators", { cache: "no-store" });
     if (response.status === 401) {
@@ -122,6 +125,28 @@ export default function OperatorsPage() {
       return false;
     } finally {
       setPassword("");
+      setBusy(false);
+    }
+  }
+  async function issueSetupCode() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setSetupCode("");
+    try {
+      const response = await fetch("/api/platform/operators", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "issue-mfa-setup", targetUserId: mfaTarget, reason: mfaReason }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message || "The setup code could not be issued");
+      setSetupCode(String(body.result.setupCode));
+      setMfaReason("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The setup code could not be issued");
+    } finally {
       setBusy(false);
     }
   }
@@ -471,6 +496,42 @@ export default function OperatorsPage() {
               Create assignment
             </button>
           </form>
+          <div className="mt-8 space-y-3">
+            <h2 className="text-xl font-semibold">Second factor setup code</h2>
+            <p>
+              An operator needs a one-time setup code from a different super admin to enrol an
+              authenticator app at Platform &gt; Two-step sign-in. The code is shown once and expires in 24 hours.
+            </p>
+            <label className="block" htmlFor="mfaTarget">
+              Operator
+            </label>
+            <select id="mfaTarget" className={field} value={mfaTarget} onChange={(e) => setMfaTarget(e.target.value)}>
+              <option value="">Select operator</option>
+              {data.operators.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.username}
+                </option>
+              ))}
+            </select>
+            <label className="block" htmlFor="mfaReason">
+              Reason
+            </label>
+            <input id="mfaReason" className={field} value={mfaReason} onChange={(e) => setMfaReason(e.target.value)} />
+            <button
+              id="issueMfaSetup"
+              type="button"
+              className={button}
+              disabled={busy || !mfaTarget || mfaReason.trim().length < 8}
+              onClick={issueSetupCode}
+            >
+              Issue setup code
+            </button>
+            {setupCode && (
+              <p role="status">
+                Setup code (shown once): <code id="mfaSetupCode">{setupCode}</code>
+              </p>
+            )}
+          </div>
           <div className="mt-8 space-y-4">
             <h2 className="text-xl font-semibold">Assignments and operator removal</h2>
             <p>

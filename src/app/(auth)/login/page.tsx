@@ -11,6 +11,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [secondFactor, setSecondFactor] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -23,7 +26,11 @@ export default function LoginPage() {
           return;
         }
         if (data.authenticated) {
-          router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
+          if (data.mfaEnrollmentRequired) {
+        router.replace("/platform/mfa");
+        return;
+      }
+      router.replace(data.workspaceSelectionRequired ? "/workspaces" : "/");
           return;
         }
       } catch {
@@ -43,12 +50,25 @@ export default function LoginPage() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", username, password }),
+        body: JSON.stringify({
+          action: "login",
+          username,
+          password,
+          ...(secondFactor && mfaCode.trim()
+            ? useRecovery
+              ? { recoveryCode: mfaCode.trim() }
+              : { mfaCode: mfaCode.trim() }
+            : {}),
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.mfaRequired) {
+          setSecondFactor(true);
+          setMfaCode("");
+        }
         setError(data.error || "Login failed. Please try again.");
         setLoading(false);
         return;
@@ -109,6 +129,36 @@ export default function LoginPage() {
             placeholder="Enter your password"
           />
         </div>
+
+        {secondFactor && (
+          <div>
+            <label htmlFor="mfaCode" className="block text-sm font-medium text-ziyrak-text mb-1.5">
+              {useRecovery ? "Recovery code" : "Authenticator code"}
+            </label>
+            <input
+              id="mfaCode"
+              type="text"
+              inputMode={useRecovery ? "text" : "numeric"}
+              autoComplete="one-time-code"
+              required
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              className="w-full rounded-lg border border-ziyrak-border bg-ziyrak-bg px-3.5 py-2.5 text-sm text-ziyrak-text focus:outline-none focus:ring-2 focus:ring-ziyrak-primary focus:border-transparent transition-shadow"
+              placeholder={useRecovery ? "XXXX-XXXX-XXXX-XXXX" : "6-digit code"}
+            />
+            <button
+              id="toggleRecovery"
+              type="button"
+              onClick={() => {
+                setUseRecovery(!useRecovery);
+                setMfaCode("");
+              }}
+              className="mt-1.5 text-xs font-medium text-ziyrak-primary hover:underline"
+            >
+              {useRecovery ? "Use authenticator code" : "Use a recovery code"}
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-ziyrak-danger">

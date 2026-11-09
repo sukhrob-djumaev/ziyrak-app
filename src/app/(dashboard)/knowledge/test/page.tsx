@@ -379,6 +379,7 @@ export default function KnowledgeTestPage() {
               />
               <button
                 onClick={handleSend}
+                aria-label="Send"
                 disabled={!input.trim() || loading}
                 className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-ziyrak-primary text-white hover:bg-ziyrak-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

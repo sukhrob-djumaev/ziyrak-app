@@ -143,13 +143,14 @@ function WebhookModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="dlg-webhooks-1" className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ziyrak-border">
-          <h3 className="text-lg font-semibold text-ziyrak-text">
+          <h3 id="dlg-webhooks-1" className="text-lg font-semibold text-ziyrak-text">
             {isEdit ? "Edit Webhook" : "Add Webhook"}
           </h3>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 text-ziyrak-text-light hover:text-ziyrak-text transition-colors"
           >
             <X className="h-5 w-5" />
@@ -313,11 +314,12 @@ function TestResultPanel({ result, onClose }: { result: TestResult; onClose: () 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-md mx-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="dlg-webhooks-2" className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ziyrak-border">
-          <h3 className="text-lg font-semibold text-ziyrak-text">Test Result</h3>
+          <h3 id="dlg-webhooks-2" className="text-lg font-semibold text-ziyrak-text">Test Result</h3>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 text-ziyrak-text-light hover:text-ziyrak-text transition-colors"
           >
             <X className="h-5 w-5" />
@@ -384,13 +386,13 @@ function DeleteConfirm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-sm mx-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="dlg-webhooks-3" className="relative bg-ziyrak-surface border border-ziyrak-border rounded-xl shadow-xl w-full max-w-sm mx-4">
         <div className="p-6 space-y-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
               <AlertCircle className="h-5 w-5 text-ziyrak-danger" />
             </div>
-            <h3 className="text-lg font-semibold text-ziyrak-text">Delete Webhook</h3>
+            <h3 id="dlg-webhooks-3" className="text-lg font-semibold text-ziyrak-text">Delete Webhook</h3>
           </div>
           <p className="text-sm text-ziyrak-text-light">
             Are you sure you want to delete <span className="font-medium text-ziyrak-text">{webhookName}</span>? This action cannot be undone.

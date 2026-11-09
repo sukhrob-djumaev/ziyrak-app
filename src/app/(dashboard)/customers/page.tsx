@@ -589,6 +589,7 @@ export default function CustomersPage() {
             <div className="px-4 py-3 border-b border-ziyrak-border flex items-center gap-3">
               <button
                 onClick={handleCloseDetail}
+                aria-label="Back to customers"
                 className="lg:hidden p-1.5 hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
               >
                 <ChevronLeft className="h-5 w-5 text-ziyrak-text" />
@@ -681,6 +682,7 @@ export default function CustomersPage() {
                     </button>
                     <button
                       onClick={handleCloseDetail}
+                      aria-label="Close details"
                       className="hidden lg:block p-1.5 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
                     >
                       <X className="h-4 w-4" />
@@ -876,6 +878,7 @@ export default function CustomersPage() {
                         />
                         <button
                           onClick={handleAddNote}
+                          aria-label="Add note"
                           disabled={!newNote.trim() || addingNote}
                           className={cn(
                             "p-2 rounded-lg transition-colors",
@@ -999,9 +1002,9 @@ export default function CustomersPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowAddModal(false)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4 animate-scale-in">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-customers-1" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4 animate-scale-in">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="text-lg font-semibold text-ziyrak-text">
+              <h3 id="dlg-customers-1" className="text-lg font-semibold text-ziyrak-text">
                 Add Customer
               </h3>
               <button

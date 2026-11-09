@@ -72,11 +72,12 @@ function Modal({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg mx-4 bg-ziyrak-surface rounded-xl border border-ziyrak-border shadow-xl">
+      <div role="dialog" aria-modal="true" aria-labelledby="dlg-team-1" className="relative w-full max-w-lg mx-4 bg-ziyrak-surface rounded-xl border border-ziyrak-border shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ziyrak-border">
-          <h3 className="text-lg font-semibold text-ziyrak-text">{title}</h3>
+          <h3 id="dlg-team-1" className="text-lg font-semibold text-ziyrak-text">{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-primary-50 rounded-lg transition-colors"
           >
             <X className="h-5 w-5" />

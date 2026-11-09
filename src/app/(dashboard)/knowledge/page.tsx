@@ -534,9 +534,9 @@ export default function KnowledgeBasePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowCategoryModal(false)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-knowledge-1" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text">
+              <h3 id="dlg-knowledge-1" className="font-semibold text-ziyrak-text">
                 {editingCategory ? "Edit Category" : "New Category"}
               </h3>
               <button
@@ -634,9 +634,9 @@ export default function KnowledgeBasePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowEntryModal(false)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-lg mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-knowledge-2" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-lg mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text">
+              <h3 id="dlg-knowledge-2" className="font-semibold text-ziyrak-text">
                 {editingEntry ? "Edit Entry" : "New Entry"}
               </h3>
               <button
@@ -728,13 +728,13 @@ export default function KnowledgeBasePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setDeleteTarget(null)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-knowledge-3" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-ziyrak-text">
+                <h3 id="dlg-knowledge-3" className="font-semibold text-ziyrak-text">
                   Delete {deleteTarget.type === "category" ? "Category" : "Entry"}
                 </h3>
               </div>

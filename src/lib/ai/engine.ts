@@ -31,6 +31,7 @@ export { createNewConversation } from "@/lib/conversations/conversation-service"
 import type { AIMessage } from "./providers/types";
 import type { KnowledgeItem } from "@/lib/knowledge/types";
 import { logger } from "@/lib/observability/logger";
+import { redFlagReminder } from "./red-flag";
 
 interface ConversationProfile {
   businessName: string;
@@ -232,6 +233,8 @@ export async function chat(
   }
 
   messages.push({ role: "user", content: userMessage });
+  const redFlag = redFlagReminder(userMessage);
+  if (redFlag) messages.push({ role: "system", content: redFlag });
 
   // Call AI
   const { text: rawResponse, hasToolCalls, handoff, toolOutcomes } = await callAI(ctx, aiConfig, messages, conversationId);
@@ -416,6 +419,9 @@ async function callAI(
 
     const reminder = failureReminder(toolOutcomes.filter((o) => !o.success && o.status !== "pending_approval").map((o) => o.name ?? "an action"));
     if (reminder) messages.push({ role: "system", content: reminder });
+    const lastCustomer = [...messages].reverse().find((m) => m.role === "user");
+    const redFlag = lastCustomer ? redFlagReminder(String(lastCustomer.content)) : null;
+    if (redFlag) messages.push({ role: "system", content: redFlag });
 
     // Continue the conversation with tool results
     return callAI(ctx, config, messages, conversationId, depth + 1, true, toolOutcomes);

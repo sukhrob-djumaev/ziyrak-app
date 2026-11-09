@@ -3,3 +3,4 @@ Merged: per-address TOTP budget plus account ceiling (#80, `5bf2601`, evidence `
 `TRUSTED_PROXY_HOPS` is closed by L2.1 (runtime-contract production requirement, Helm validation).
 Cleaned: no task worktrees. Stale remote branches remain (owner must delete).
 Customer-delete confirm() replaced by ConfirmDialog (#82). Remaining L3 gaps: webchat rotate-token native confirm (`webchat-card.tsx`; j12 accepts the dialog, so change it together with j12 and a browser rerun), contrast pass, screen-reader pass. Do not start L7. Known gap: severe-injury urgency wording (R6 evidence).
+Owner decisions 2026-11-09: remote merged branches deleted by owner; rotate-token native confirm stays until post-launch; platform MFA stays `optional` until before real operator accounts (needs enrolment UI + journey, then `ZIYRAK_PLATFORM_MFA=required`); the "Company and Money Plan" doc stays untracked.

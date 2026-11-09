@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Globe, Loader2, Copy, RefreshCw, Save, CheckCircle } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /**
  * PLAN.md §20.4/§46.7 — the minimal dashboard UI for a business to create
@@ -31,6 +32,7 @@ export function WebChatCard() {
   const [originsText, setOriginsText] = useState("");
   const [issued, setIssued] = useState<IssuedSnippet | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmRotate, setConfirmRotate] = useState(false);
 
   const connection = connections[0] ?? null;
 
@@ -102,7 +104,7 @@ export function WebChatCard() {
 
   async function handleRotate() {
     if (!connection) return;
-    if (!window.confirm("Rotating the token immediately stops every site using the old embed snippet. Continue?")) return;
+    setConfirmRotate(false);
     const rotated = await submit(`/api/channels/webchat-connections/${connection.connectionId}/rotate-token`, "POST");
     if (rotated) setIssued({ connectionId: String(rotated.connectionId), embedSnippet: String(rotated.embedSnippet) });
   }
@@ -194,7 +196,7 @@ export function WebChatCard() {
             </button>
             <button
               type="button"
-              onClick={handleRotate}
+              onClick={() => setConfirmRotate(true)}
               disabled={busy}
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-ziyrak-text border border-ziyrak-border rounded-lg disabled:opacity-50"
             >
@@ -204,6 +206,15 @@ export function WebChatCard() {
           </>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmRotate}
+        onConfirm={handleRotate}
+        onCancel={() => setConfirmRotate(false)}
+        title="Rotate the token?"
+        description="Rotating the token immediately stops every site using the old embed snippet."
+        confirmLabel="Yes, rotate"
+        destructive
+      />
     </div>
   );
 }

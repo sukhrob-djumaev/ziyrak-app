@@ -304,9 +304,9 @@ export default function CannedResponsesPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => setShowModal(false)}
           />
-          <div className="relative w-full max-w-md mx-4 bg-ziyrak-surface rounded-xl shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-canned-responses-1" className="relative w-full max-w-md mx-4 bg-ziyrak-surface rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text text-lg">
+              <h3 id="dlg-canned-responses-1" className="font-semibold text-ziyrak-text text-lg">
                 {editingResponse
                   ? "Edit Canned Response"
                   : "Create Canned Response"}
@@ -417,8 +417,8 @@ export default function CannedResponsesPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => setDeleteConfirm(null)}
           />
-          <div className="relative w-full max-w-sm mx-4 bg-ziyrak-surface rounded-xl shadow-xl p-5">
-            <h3 className="font-semibold text-ziyrak-text text-lg mb-2">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-canned-responses-2" className="relative w-full max-w-sm mx-4 bg-ziyrak-surface rounded-xl shadow-xl p-5">
+            <h3 id="dlg-canned-responses-2" className="font-semibold text-ziyrak-text text-lg mb-2">
               Delete Canned Response
             </h3>
             <p className="text-sm text-ziyrak-text-light mb-4">

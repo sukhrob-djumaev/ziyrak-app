@@ -606,6 +606,7 @@ export default function ConversationsPage() {
                   </div>
                   <button
                     onClick={handleSendReply}
+                    aria-label="Send reply"
                     disabled={!replyText.trim() || sending}
                     className={cn(
                       "p-2.5 rounded-xl transition-colors flex-shrink-0",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,9 @@ export function Modal({
   className,
 }: ModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogFocus(open, panelRef);
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +64,12 @@ export function Modal({
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Dialog"}
+        tabIndex={-1}
         className={cn(
           "w-full rounded-xl bg-ziyrak-surface border border-ziyrak-border shadow-xl animate-scale-in",
           sizeStyles[size],
@@ -68,9 +78,10 @@ export function Modal({
       >
         {title && (
           <div className="flex items-center justify-between border-b border-ziyrak-border px-6 py-4">
-            <h2 className="text-base font-semibold text-ziyrak-text">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold text-ziyrak-text">{title}</h2>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="rounded p-1 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-bg transition-colors"
             >
               <X className="h-4 w-4" />
@@ -82,6 +93,7 @@ export function Modal({
           {!title && (
             <button
               onClick={onClose}
+              aria-label="Close"
               className="absolute top-4 right-4 rounded p-1 text-ziyrak-text-light hover:text-ziyrak-text hover:bg-ziyrak-bg transition-colors"
             >
               <X className="h-4 w-4" />

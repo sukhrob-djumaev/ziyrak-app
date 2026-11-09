@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { AlertTriangle, Info, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,9 @@ export function ConfirmDialog({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogFocus(open, panelRef);
 
   useEffect(() => {
     if (open) {
@@ -81,6 +85,11 @@ export function ConfirmDialog({
       )}
     >
       <div
+        ref={panelRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
           "w-full max-w-md rounded-xl bg-ziyrak-surface border border-ziyrak-border shadow-xl p-6 transition-all duration-200",
           visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
@@ -98,7 +107,7 @@ export function ConfirmDialog({
             {icon || <DefaultIcon className="h-5 w-5" />}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-ziyrak-text">{title}</h3>
+            <h3 id={titleId} className="text-base font-semibold text-ziyrak-text">{title}</h3>
             {description && (
               <p className="mt-1 text-sm text-ziyrak-text-light">{description}</p>
             )}
@@ -106,6 +115,7 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={loading}
+            aria-label="Close"
             className="shrink-0 rounded p-1 text-ziyrak-text-light hover:text-ziyrak-text transition-colors disabled:opacity-50"
           >
             <X className="h-4 w-4" />

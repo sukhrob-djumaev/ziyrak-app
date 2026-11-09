@@ -112,6 +112,7 @@ function ToastItem({
         </div>
         <button
           onClick={handleDismiss}
+          aria-label="Dismiss"
           className="shrink-0 rounded p-0.5 opacity-60 hover:opacity-100 transition-opacity"
         >
           <X className="h-4 w-4" />

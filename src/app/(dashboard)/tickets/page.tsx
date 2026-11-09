@@ -426,10 +426,10 @@ export default function TicketsPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => setSelectedTicket(null)}
           />
-          <div className="relative w-full max-w-lg bg-ziyrak-surface shadow-xl flex flex-col animate-in slide-in-from-right">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-tickets-1" className="relative w-full max-w-lg bg-ziyrak-surface shadow-xl flex flex-col animate-in slide-in-from-right">
             {/* Detail Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text text-lg">
+              <h3 id="dlg-tickets-1" className="font-semibold text-ziyrak-text text-lg">
                 Ticket Details
               </h3>
               <button
@@ -625,9 +625,9 @@ export default function TicketsPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => setShowCreateModal(false)}
           />
-          <div className="relative w-full max-w-md mx-4 bg-ziyrak-surface rounded-xl shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-tickets-2" className="relative w-full max-w-md mx-4 bg-ziyrak-surface rounded-xl shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text text-lg">
+              <h3 id="dlg-tickets-2" className="font-semibold text-ziyrak-text text-lg">
                 Create New Ticket
               </h3>
               <button

@@ -863,9 +863,9 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowUserModal(false)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-admin-client-1" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text">
+              <h3 id="dlg-admin-client-1" className="font-semibold text-ziyrak-text">
                 {editingUser ? "Edit User" : "Invite User"}
               </h3>
               <button
@@ -1023,13 +1023,13 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setDeleteUserTarget(null)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-admin-client-2" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-ziyrak-text">Delete User</h3>
+                <h3 id="dlg-admin-client-2" className="font-semibold text-ziyrak-text">Delete User</h3>
               </div>
               <p className="text-sm text-ziyrak-text-light">
                 Are you sure you want to delete{" "}
@@ -1070,9 +1070,9 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowKeyModal(false)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-admin-client-3" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
-              <h3 className="font-semibold text-ziyrak-text">Generate New API Key</h3>
+              <h3 id="dlg-admin-client-3" className="font-semibold text-ziyrak-text">Generate New API Key</h3>
               <button
                 onClick={() => setShowKeyModal(false)}
                 className="p-1 text-ziyrak-text-light hover:text-ziyrak-text rounded transition-colors"
@@ -1125,13 +1125,13 @@ export default function AdminClient({
       {newKeyValue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-lg mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-admin-client-4" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-lg mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ziyrak-border">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-full bg-green-50">
                   <Check className="h-4 w-4 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-ziyrak-text">API Key Generated</h3>
+                <h3 id="dlg-admin-client-4" className="font-semibold text-ziyrak-text">API Key Generated</h3>
               </div>
             </div>
 
@@ -1178,13 +1178,13 @@ export default function AdminClient({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setDeleteKeyTarget(null)}
           />
-          <div className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="dlg-admin-client-5" className="relative bg-ziyrak-surface rounded-xl shadow-xl border border-ziyrak-border w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-ziyrak-text">Delete API Key</h3>
+                <h3 id="dlg-admin-client-5" className="font-semibold text-ziyrak-text">Delete API Key</h3>
               </div>
               <p className="text-sm text-ziyrak-text-light">
                 Are you sure you want to delete the key{" "}

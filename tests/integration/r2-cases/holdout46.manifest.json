@@ -1,0 +1,13 @@
+{
+  "set": "holdout46",
+  "frozenAt": "2026-11-09",
+  "cases": 36,
+  "sha256": "a6713883a33220db2a09f651c32f6b3247c8a485b7f98708c09b51a9d954262c",
+  "rules": [
+    "Authored before any scoring run, after the red-flag hint (docs/evidence/l1.4b-r6-medical-pointer-2026-11-08.md known gap): 30 red-flag injury reports on the tool-failed path, plus 6 no-injury complaint controls (R16)."
+  ],
+  "limitations": [
+    "One category (tool_failed), 12 small-business domains, English only, gpt-4o-mini: measures the red-flag gap only, not general answer quality.",
+    "Pattern/substring checks are a proxy; a human review of a sample is still required."
+  ]
+}

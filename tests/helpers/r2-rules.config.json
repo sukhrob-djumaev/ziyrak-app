@@ -144,7 +144,9 @@
     "\\bhives\\b",
     "\\bslipped\\b",
     "\\bcut (?:his|her|their)\\b",
-    "\\bpain(?:s|ful)?\\b"
+    "\\bpain(?:s|ful)?\\b",
+    "\\bburning\\b",
+    "\\b(?:can['’]?t|cannot|difficulty|trouble|hard to) breath\\w*"
   ],
   "allergy": [
     "allerg\\w*",

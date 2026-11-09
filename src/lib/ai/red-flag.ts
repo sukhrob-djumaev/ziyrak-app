@@ -27,6 +27,8 @@ export const INJURY_PATTERNS: readonly string[] = [
   "\\bslipped\\b",
   "\\bcut (?:his|her|their)\\b",
   "\\bpain(?:s|ful)?\\b",
+  "\\bburning\\b",
+  "\\b(?:can['\u2019]?t|cannot|difficulty|trouble|hard to) breath\\w*",
 ];
 
 export const INJURY_REPORT_PATTERNS: readonly string[] = [
